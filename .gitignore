@@ -1,0 +1,30 @@
+# Django
+db.sqlite3
+*.pyc
+*.pyo
+__pycache__/
+*.log
+
+# Virtuelle Umgebung
+venv/
+.venv/
+ENV/
+
+# Media & Static (generiert)
+media/
+staticfiles/
+
+# Entwicklung
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Umgebungsdateien
+.env
+.env.local
+
+# Migrations (werden neu generiert)
+apps/*/migrations/
+!apps/*/migrations/__init__.py

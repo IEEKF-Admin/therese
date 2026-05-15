@@ -1,0 +1,63 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+"""
+therese/templates/tasks/choose_task_type.html
+
+Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
+Features / Requirements:
+- Task type selection page for creating new tasks (Purchase Order, Personnel Reallocation, etc.)
+- Role-based visibility of task types via context variables (can_create_purchase, can_create_personnel)
+- All links use the correct 'tasks' namespace for URL reversing
+- All user-facing text in English
+- Consistent with base.html and sidebar navigation
+
+Do not remove any existing requirements from this header without explicit instruction.
+"""
+{% endcomment %}
+
+{% block title %}New Task - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create New Task</h1>
+</div>
+
+<div class="card">
+    <p style="font-size: 1.1rem; margin-bottom: 2rem;">
+        Please choose the type of task you want to create:
+    </p>
+
+    <div class="task-type-grid">
+        {% if can_create_purchase %}
+        <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="task-type-card">
+            <i class="fas fa-shopping-cart fa-3x"></i>
+            <h3>Purchase Order</h3>
+            <p>Request new equipment, materials or services</p>
+        </a>
+        {% endif %}
+
+        {% if can_create_personnel %}
+        <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation" class="task-type-card">
+            <i class="fas fa-exchange-alt fa-3x"></i>
+            <h3>Personnel Reallocation</h3>
+            <p>Move staff to another WBS element</p>
+        </a>
+
+        <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension" class="task-type-card">
+            <i class="fas fa-file-contract fa-3x"></i>
+            <h3>Contract Extension</h3>
+            <p>Extend or modify employment contracts</p>
+        </a>
+        {% endif %}
+
+        <a href="{% url 'tasks:task_create' %}?type=generic_text" class="task-type-card">
+            <i class="fas fa-comment-dots fa-3x"></i>
+            <h3>General Request</h3>
+            <p>Any other matter or free text request</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

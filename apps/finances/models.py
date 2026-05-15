@@ -1,0 +1,104 @@
+"""
+apps/finances/models.py
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
+"""
+
+from django.db import models
+from apps.core.models import BaseModel
+
+
+class PayScale(BaseModel):
+    """TV-L Pay Scale groups and experience levels"""
+    pay_scale_group = models.CharField(
+        max_length=50, 
+        verbose_name="Pay Scale Group"
+    )
+    experience_level = models.PositiveSmallIntegerField(
+        verbose_name="Experience Level"
+    )
+    monthly_salary = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Monthly Salary"
+    )
+    effective_as_of = models.DateField(verbose_name="Effective As Of")
+
+    class Meta:
+        verbose_name = "Pay Scale"
+        verbose_name_plural = "Pay Scales"
+        unique_together = ('pay_scale_group', 'experience_level', 'effective_as_of')
+        ordering = ['pay_scale_group', 'experience_level']
+
+    def __str__(self):
+        return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
+
+
+class CostCenter(BaseModel):
+    cost_center = models.CharField(max_length=50, unique=True, verbose_name="Cost Center")
+    comments = models.TextField(blank=True, verbose_name="Comments")
+
+    class Meta:
+        verbose_name = "Cost Center"
+        verbose_name_plural = "Cost Centers"
+        ordering = ['cost_center']
+
+    def __str__(self):
+        return self.cost_center
+
+
+class CostCenterInitialBalance(BaseModel):
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.CASCADE,
+        related_name='initial_balances',
+        verbose_name="Cost Center"
+    )
+    year = models.PositiveIntegerField(verbose_name="Year")
+    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Initial Balance")
+
+    class Meta:
+        verbose_name = "Cost Center Initial Balance"
+        verbose_name_plural = "Cost Center Initial Balances"
+        unique_together = ('cost_center', 'year')
+        ordering = ['cost_center', '-year']
+
+
+class WBSElement(BaseModel):
+    """WBS Element"""
+    wbs_code = models.CharField(max_length=50, unique=True, verbose_name="WBS Element")
+    title = models.CharField(max_length=255, verbose_name="Title")
+    responsible_person = models.ForeignKey(
+        'hr.Employee',                    # String Reference (wichtig!)
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_wbs_elements',
+        verbose_name="Responsible Person"
+    )
+    comment = models.TextField(blank=True, verbose_name="Comment")
+
+    class Meta:
+        verbose_name = "WBS Element"
+        verbose_name_plural = "WBS Elements"
+        ordering = ['wbs_code']
+
+    def __str__(self):
+        short_title = (self.title[:80] + '...') if len(self.title) > 80 else self.title
+        return f"{self.wbs_code} - {short_title}"
+
+
+class WBSElementInitialBalance(BaseModel):
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.CASCADE,
+        related_name='initial_balances',
+        verbose_name="WBS Element"
+    )
+    year = models.PositiveIntegerField(verbose_name="Year")
+    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Initial Balance")
+
+    class Meta:
+        verbose_name = "WBS Element Initial Balance"
+        verbose_name_plural = "WBS Element Initial Balances"
+        unique_together = ('wbs_element', 'year')
+        ordering = ['wbs_element', '-year']

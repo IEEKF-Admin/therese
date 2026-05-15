@@ -1,0 +1,30 @@
+﻿{% if tasks %}
+<table class="detail-table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Priority</th>
+            {% if show_assignee %}<th>Assigned to</th>{% endif %}
+            <th>Created</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in tasks %}
+        <tr>
+            <td><a href="{% url 'tasks:task_detail' task.pk %}">{{ task.title|default:task.get_task_type_display }}</a></td>
+            <td>{{ task.status }}</td>
+            <td>{{ task.priority|title }}</td>
+            {% if show_assignee %}
+            <td>{{ task.assignee|default:"â€”" }}</td>
+            {% endif %}
+            <td>{{ task.created_at|date:"d.m.Y" }}</td>
+            <td><a href="{% url 'tasks:task_detail' task.pk %}" class="btn-small">Details</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No tasks found.</p>
+{% endif %}

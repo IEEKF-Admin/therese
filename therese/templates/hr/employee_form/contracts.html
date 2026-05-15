@@ -1,0 +1,23 @@
+﻿{% load widget_tweaks %}
+<div class="form-section full-width">
+    <h3>Contracts</h3>
+    {{ contract_formset.management_form }}
+    <div id="contract-container">
+        {% for form in contract_formset %}
+        <div class="inline-form-row contract-row">
+            {{ form.id }}           <!-- WICHTIG: Hidden ID -->
+            {{ form.DELETE }}
+            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
+            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-delete">
+                <button type="button" class="btn-danger remove-row">Remove</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <button type="button" onclick="addInlineRow('contract-container', 'contract-row')" class="btn-secondary">+ Add another Contract</button>
+</div>

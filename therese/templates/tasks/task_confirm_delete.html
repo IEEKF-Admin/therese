@@ -1,0 +1,14 @@
+﻿{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="module">
+    <h1>Bestellung lÃ¶schen?</h1>
+    <p>Bist du sicher, dass du die Bestellung <strong>{{ task.supplier }}</strong> lÃ¶schen mÃ¶chtest?</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="button" style="background:#ef4444; color:white;">Ja, lÃ¶schen</button>
+        <a href="{% url 'tasks:task_detail' task.pk %}" class="button">Abbrechen</a>
+    </form>
+</div>
+{% endblock %}

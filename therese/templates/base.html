@@ -1,0 +1,52 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">                    <!-- WICHTIG -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}THERESE{% endblock %}</title>
+    
+    <link rel="stylesheet" href="{% static 'css/therese.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    {% block extrastyle %}{% endblock %}
+</head>
+<body>
+    <header class="top-header">
+        <div class="header-container">
+            <div class="logo">
+                <h1>THERESE</h1>
+                <span class="subtitle">HR & Resource Management</span>
+            </div>
+            <div class="header-right">
+                <span class="welcome">
+                    Hallo, <strong>{{ user.get_full_name|default:user.username }}</strong>
+                </span>
+                {% if user.is_staff %}
+                    <a href="{% url 'admin:index' %}" class="header-btn">Admin</a>
+                {% endif %}
+                <a href="{% url 'accounts:force_password_change' %}" class="header-btn">Passwort ändern</a>
+                <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="header-btn logout-btn">Abmelden</button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            {% include "sidebar.html" %}
+        </aside>
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

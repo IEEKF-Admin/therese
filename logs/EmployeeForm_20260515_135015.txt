@@ -1,0 +1,60 @@
+THERESE - EmployeeForm DEBUG LOG
+Date: 2026-05-15 13:50:15
+================================================================================
+
+INSTANCE: Dr. Therese Alcih (123456788) (PK: 12)
+ Building: A01 - Verwaltung / Vorstand / Ärztliche Direktion
+ Room: Office (1.02)
+ Phone: 0228-287-1044
+
+BOUND DATA (excerpt):
+ csrfmiddlewaretoken: 8VStMJwpT2RwX5zyQCMKYnZtnEhnaczIUvPJW0BXJHzmPUQKSVMj8CwTrrzLBqJh
+ employee_number: 123456788
+ prefix: Dr.
+ first_name: Therese
+ last_name: Alcih
+ gender: F
+ date_of_birth: 2026-05-15
+ country_of_origin: Germany
+ place_of_birth: Bonn
+ email_professional: Reichelt.Kristian@googlemail.com
+ email_private: Reichelt.Kristian@googlemail.com
+ google_account: 
+ private_phone_number: 015785923642
+ website: 
+ building: 2
+ room: 5
+ phone_number: 0228-287-1044
+ street: Kristian
+ house_number: Reichelt
+ postal_code: 53757
+ city: Sankt Augustin
+ country: Germany
+ scan_of_contract: 
+ profile_picture: 
+ monthly_salary: 
+ cost_center: 
+ contracts-TOTAL_FORMS: 2
+ contracts-INITIAL_FORMS: 1
+ contracts-MIN_NUM_FORMS: 1
+ contracts-MAX_NUM_FORMS: 1000
+ contracts-0-pay_scale_group: E 1
+ contracts-0-experience_level: 1
+ contracts-0-weekly_hours: 38.50
+ contracts-0-valid_from: 1966-06-06
+ contracts-0-valid_until: 1976-06-06
+ contracts-0-comments: 
+ contracts-1-pay_scale_group: 
+ contracts-1-experience_level: 
+ contracts-1-weekly_hours: 
+ contracts-1-valid_from: 
+ contracts-1-valid_until: 
+ contracts-1-comments: 
+ contracts-1-DELETE: on
+ allocations-TOTAL_FORMS: 2
+ allocations-INITIAL_FORMS: 1
+ allocations-MIN_NUM_FORMS: 1
+ allocations-MAX_NUM_FORMS: 1000
+ allocations-0-wbs_element: 2
+ allocations-0-weekly_hours_allocated: 38.50
+ allocations-0-start_date: 

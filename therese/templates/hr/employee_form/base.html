@@ -1,0 +1,32 @@
+﻿{% load widget_tweaks %}
+{% load static widget_tweaks %}   <!-- WICHTIG: Hier laden! -->
+
+<!-- SEHR SICHTBARE FEHLER -->
+{% if messages %}
+<div class="alert alert-danger">
+    <strong>Fehler beim Speichern:</strong>
+    <ul>
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="form-grid">
+
+    {% include "hr/employee_form/personal.html" %}
+    {% include "hr/employee_form/contact_location.html" %}
+    {% include "hr/employee_form/address.html" %}
+    {% include "hr/employee_form/documents_finance.html" %}
+    {% include "hr/employee_form/contracts.html" %}
+    {% include "hr/employee_form/funding.html" %}
+    {% include "hr/employee_form/salary.html" %}
+    {% include "hr/employee_form/workgroups.html" %}
+
+</div>
+
+<div class="form-actions">
+    <button type="submit" class="btn-primary">ðŸ’¾ Save Employee</button>
+    <a href="{% url 'hr:employee_list' %}" class="btn-secondary">Cancel</a>
+</div>

@@ -1,0 +1,9 @@
+﻿{% load widget_tweaks %}
+<div class="form-section">
+    <h3>Address</h3>
+    <div class="aligned-field"><label>{{ form.street.label }}</label>{{ form.street|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.house_number.label }}</label>{{ form.house_number|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.postal_code.label }}</label>{{ form.postal_code|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.city.label }}</label>{{ form.city|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.country.label }}</label>{{ form.country|add_class:"form-control" }}</div>
+</div>

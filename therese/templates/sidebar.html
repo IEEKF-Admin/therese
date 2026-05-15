@@ -1,0 +1,36 @@
+﻿{% load static %}
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>THERESE</h2>
+        <p>HR & Resource Management</p>
+    </div>
+
+    <div class="sidebar-nav">
+        <!-- My Tasks -->
+        <a href="{% url 'tasks:my_tasks' %}" 
+           class="{% if '/tasks/' in request.path and not '/tasks/create' in request.path %}active{% endif %}">
+            <i class="fas fa-tasks"></i> My Tasks
+        </a>
+
+        <!-- New Task -->
+        <a href="{% url 'tasks:choose_task_type' %}">
+            <i class="fas fa-plus-circle"></i> New Task
+        </a>
+
+        <!-- Employees -->
+        {% if 'PI' in user_groups or 'Personnel Approver' in user_groups or 'Personnel Fulfiller' in user_groups or 'Personnel Coordinator' in user_groups %}
+        <a href="{% url 'hr:employee_list' %}" 
+           class="{% if '/hr/' in request.path %}active{% endif %}">
+            <i class="fas fa-users"></i> Employees
+        </a>
+        {% endif %}
+
+        <!-- Admin -->
+        {% if user.is_staff %}
+        <a href="{% url 'admin:index' %}">
+            <i class="fas fa-cog"></i> Admin
+        </a>
+        {% endif %}
+    </div>
+</div>

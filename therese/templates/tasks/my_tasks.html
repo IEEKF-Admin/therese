@@ -1,0 +1,148 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+"""
+therese/templates/tasks/my_tasks.html
+
+Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
+Features / Requirements:
+- Main dashboard showing assigned tasks, created tasks and purchase orders
+- Role-based display of purchase orders (own + visible others)
+- Archive view for completed orders with back-button
+- Interactive purchase order table (search + sortable columns)
+- All URL reverses must use the 'tasks' namespace
+- All user-facing text in English
+- Consistent styling with base.html
+
+Do not remove any existing requirements from this header without explicit instruction.
+"""
+{% endcomment %}
+
+{% block title %}My Tasks - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Tasks</h1>
+    <p>Welcome back, {{ request.user.get_full_name|default:request.user.username }} 👋</p>
+</div>
+
+<div class="tasks-dashboard">
+
+    <!-- Normale Tasks -->
+    <div class="task-grid">
+        <div class="task-card">
+            <h3>📌 Assigned to Me ({{ assigned_to_me|length }})</h3>
+            {% if assigned_to_me %}
+                {% include "tasks/partials/task_table.html" with tasks=assigned_to_me show_assignee=True %}
+            {% else %}
+                <p class="empty-state">No tasks assigned to you.</p>
+            {% endif %}
+        </div>
+
+        <div class="task-card">
+            <h3>✍️ Created by Me ({{ my_created|length }})</h3>
+            {% if my_created %}
+                {% include "tasks/partials/task_table.html" with tasks=my_created show_assignee=True %}
+            {% else %}
+                <p class="empty-state">You haven't created any tasks yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Purchase Orders -->
+    <div class="task-card full-width">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3>🛒 Purchase Orders</h3>
+            
+            {% if request.GET.archive %}
+                <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">
+                    ← Back to Active Orders
+                </a>
+            {% else %}
+                <a href="{% url 'tasks:my_tasks' %}?archive=1" class="btn-secondary">
+                    📦 View Completed Orders (Archive)
+                </a>
+            {% endif %}
+        </div>
+
+        <!-- Search -->
+        <div class="search-box">
+            <input type="text" id="po-search" placeholder="Search supplier, product, status..." 
+                   onkeyup="filterPurchaseOrders()">
+        </div>
+
+        <table class="purchase-table" id="purchase-table">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)">Supplier</th>
+                    <th onclick="sortTable(1)">Order #</th>
+                    <th onclick="sortTable(2)">Status</th>
+                    <th onclick="sortTable(3)">Priority</th>
+                    <th onclick="sortTable(4)">Assigned to</th>
+                    <th onclick="sortTable(5)">WBS Element</th>
+                    <th onclick="sortTable(6)">Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in my_purchase_orders %}
+                <tr>
+                    <td><strong>{{ task.supplier }}</strong></td>
+                    <td><small>Order #{{ task.pk }}</small></td>
+                    <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
+                    <td>{{ task.get_priority_display|default:"—" }}</td>
+                    <td>{{ task.assignee.get_full_name|default:"—" }}</td>
+                    <td>{{ task.wbs_element|default:"— No WBS yet" }}</td>
+                    <td>{{ task.created_at|date:"d.m.Y" }}</td>
+                    <td><a href="{% url 'tasks:task_detail' task.pk %}" class="btn-small">View</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<a href="{% url 'tasks:choose_task_type' %}" class="fab-button">
+    <span>+</span> New Task
+</a>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterPurchaseOrders() {
+    const input = document.getElementById('po-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#purchase-table tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+    });
+}
+
+function sortTable(n) {
+    const table = document.getElementById("purchase-table");
+    let rows = Array.from(table.rows).slice(1);
+    const isAsc = table.rows[0].cells[n].getAttribute('data-dir') !== 'asc';
+    
+    rows.sort((a, b) => {
+        let x = a.cells[n].textContent.trim();
+        let y = b.cells[n].textContent.trim();
+        if (n === 1 || n === 6) { // numeric / date
+            x = parseFloat(x.replace(/\D/g,'')) || 0;
+            y = parseFloat(y.replace(/\D/g,'')) || 0;
+        }
+        return (x < y ? -1 : (x > y ? 1 : 0)) * (isAsc ? 1 : -1);
+    });
+    
+    rows.forEach(row => table.tBodies[0].appendChild(row));
+    
+    // Toggle direction
+    Array.from(table.rows[0].cells).forEach((cell, i) => {
+        cell.setAttribute('data-dir', i === n && isAsc ? 'asc' : 'desc');
+    });
+}
+</script>
+{% endblock %}

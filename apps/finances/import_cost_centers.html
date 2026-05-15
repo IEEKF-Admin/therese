@@ -1,0 +1,19 @@
+﻿{% extends "admin/base.html" %}
+{% block title %}Import Cost Centers - THERESE{% endblock %}
+
+{% block content %}
+<h2>Import Cost Centers from Excel</h2>
+<p>Paste the entire table from Excel (including header) into the field below:</p>
+
+<form method="post">
+    {% csrf_token %}
+    <textarea name="pasted_data" rows="15" cols="120" style="width:100%; font-family:monospace; font-size:14px;" placeholder="Projekt	Kostenstelle	Erstes Buchungsdatum	Letztes Buchungsdatum
+Projekt A	12345/ABC	01.01.2026	31.12.2026
+..."></textarea>
+    <br><br>
+    <input type="submit" value="Import Cost Centers" class="btn btn-primary">
+    <a href="{% url 'admin:finances_costcenter_changelist' %}" class="btn btn-secondary">Back to Cost Centers</a>
+</form>
+
+<p><strong>Hinweis:</strong> Nur Zeilen mit Kostenstellen im Format <code>*/ *</code> (z. B. 4711/2026 oder PSP-123/ABC) werden verarbeitet.</p>
+{% endblock %}

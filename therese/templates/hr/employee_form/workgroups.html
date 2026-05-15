@@ -1,0 +1,24 @@
+﻿{% load widget_tweaks %}
+<div class="form-section">
+    <h3>Workgroup Memberships</h3>
+    {{ workgroup_formset.management_form }}
+    <table class="inline-table" id="workgroup-table">
+        <thead>
+            <tr>
+                <th>Workgroup</th>
+                <th style="width: 80px;">Delete</th>
+            </tr>
+        </thead>
+        <tbody id="workgroup-tbody">
+            {% for form in workgroup_formset %}
+            <tr class="workgroup-row">
+                {{ form.id }}
+                {{ form.DELETE }}
+                <td>{{ form.workgroup|add_class:"form-control" }}</td>
+                <td style="text-align:center;">{{ form.DELETE }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="button" onclick="addInlineRow('workgroup-tbody', 'workgroup-row')" class="btn-secondary">+ Add another Workgroup</button>
+</div>

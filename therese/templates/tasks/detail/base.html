@@ -1,0 +1,64 @@
+﻿{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Purchase Order: {{ task.supplier }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Purchase Order: {{ task.supplier }}</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        {% block order_info %}{% endblock %}
+        
+        {% block status_section %}{% endblock %}
+
+        <!-- Order Items -->
+        <div class="form-section">
+            <h3>Order Items</h3>
+            <table class="purchase-items-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Description</th>
+                        <th>Link</th>
+                        <th>Unit Price</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in task.items.all %}
+                    <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td>{{ item.product_description|default:"—" }}</td>
+                        <td>{% if item.link_to_product %}<a href="{{ item.link_to_product }}" target="_blank">Link</a>{% else %}—{% endif %}</td>
+                        <td>{{ item.unit_price }} €</td>
+                        <td>{{ item.quantity }}</td>
+                        <td><strong>{{ item.total_price }} €</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No items added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Comment -->
+        <div class="form-section">
+            <h3>Comment / Notes</h3>
+            {% block comment_field %}{% endblock %}
+        </div>
+
+        <!-- Buttons -->
+        <div class="form-actions">
+            {% block action_buttons %}{% endblock %}
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+﻿{% extends "base.html" %}
+{% load static widget_tweaks %}   <!-- WICHTIG: Hier laden -->
+
+{% block title %}{% if object %}Edit{% else %}New{% endif %} Employee - THERESE{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+// Global Add Row Funktion
+window.addInlineRow = function(containerId, rowClass) {
+    console.log(`➕ addInlineRow called for ${containerId}`);
+    const container = document.getElementById(containerId);
+    if (!container) return console.error(`Container not found: ${containerId}`);
+    
+    const template = container.querySelector('.' + rowClass) || container.querySelector('tr');
+    if (template) {
+        const clone = template.cloneNode(true);
+        clone.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.type !== 'hidden') el.value = '';
+        });
+        container.appendChild(clone);
+        console.log("✅ Row added");
+    }
+};
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if object %}Edit{% else %}Create{% endif %} Employee</h1>
+    <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to List</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="employee-form">
+    {% csrf_token %}
+
+    {% include "hr/employee_form/base.html" %}
+</form>
+{% endblock %}

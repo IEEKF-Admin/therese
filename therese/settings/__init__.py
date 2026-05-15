@@ -1,7 +1,9 @@
-from split_settings.tools import include, optional
+"""
+therese/settings/__init__.py
 
-include(
-    'base.py',
-    optional('dev.py'),
-    optional('prod.py'),
-)
+Temporarily simplified settings to avoid split_settings import error.
+We will switch back to split_settings later if needed.
+"""
+
+from .base import *
+from .dev import *

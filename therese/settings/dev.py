@@ -1,8 +1,11 @@
+"""
+therese/settings/dev.py
+"""
+
 from .base import *
 
 DEBUG = True
 
-# === Für die Entwicklung: SQLite statt PostgreSQL ===
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -10,7 +13,11 @@ DATABASES = {
     }
 }
 
-# Schnellere Password-Hasher in der Entwicklung
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
+
+# ====================== AUTH REDIRECTS ======================
+LOGIN_REDIRECT_URL = '/tasks/'           # ← nach Login immer zum Dashboard
+LOGOUT_REDIRECT_URL = '/tasks/'          # ← nach Logout ebenfalls zum Dashboard
+LOGIN_URL = '/accounts/login/'           # ← korrekter Login-Pfad

@@ -1,0 +1,100 @@
+﻿{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}New Purchase Order - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>New Purchase Order</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+</div>
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.status }}
+
+        <!-- Supplier -->
+        <div class="form-section">
+            <h3>Order Information</h3>
+            <div class="aligned-field">
+                <label>Supplier <span style="color:#ef4444;">*</span></label>
+                {{ form.supplier|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Priority</label>
+                {{ form.priority|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Assignee</label>
+                {{ form.assignee|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <!-- WBS Element -->
+        <div class="form-section">
+            <h3>WBS Element</h3>
+            <div class="aligned-field">
+                <label>WBS Element <span style="color:#ef4444;">*</span></label>
+                {{ form.wbs_element|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <!-- Purchase Items -->
+        <div class="form-section">
+            <h3>Purchase Items</h3>
+            <table class="item-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Description</th>
+                        <th>Link</th>
+                        <th>Unit Price (€)</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ item_formset.management_form }}
+                    {% for item_form in item_formset %}
+                    <tr>
+                        <td>{{ item_form.product_name|add_class:"form-control" }}</td>
+                        <td>{{ item_form.product_description|add_class:"form-control" }}</td>
+                        <td>{{ item_form.link_to_product|add_class:"form-control" }}</td>
+                        <td>{{ item_form.unit_price|add_class:"form-control" }} €</td>
+                        <td>{{ item_form.quantity|add_class:"form-control" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="button" id="add-item" class="btn-secondary">+ Add another item</button>
+        </div>
+
+        <!-- Comment -->
+        <div class="form-section">
+            <h3>Comment / Notes</h3>
+            {{ form.comment|add_class:"form-control" }}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">✅ Create Purchase Order</button>
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('add-item').addEventListener('click', function() {
+    const tbody = document.querySelector('#items-table tbody');
+    const lastRow = tbody.lastElementChild;
+    if (lastRow) {
+        const newRow = lastRow.cloneNode(true);
+        newRow.querySelectorAll('input, textarea').forEach(el => {
+            if (el.type !== 'hidden') el.value = '';
+        });
+        tbody.appendChild(newRow);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">← Back to List</a>
+</div>
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-section">
+            <div class="aligned-field">
+                <label>Supplier <span style="color:#ef4444;">*</span></label>
+                {{ form.supplier }}
+            </div>
+            <div class="aligned-field">
+                <label>Product Name <span style="color:#ef4444;">*</span></label>
+                {{ form.product_name }}
+            </div>
+            <div class="aligned-field">
+                <label>Description</label>
+                {{ form.product_description }}
+            </div>
+            <div class="aligned-field">
+                <label>Link to Product</label>
+                {{ form.link_to_product }}
+            </div>
+            <div class="aligned-field">
+                <label>Order Number</label>
+                {{ form.order_number }}
+            </div>
+            <div class="aligned-field">
+                <label>Unit Price (€) <span style="color:#ef4444;">*</span></label>
+                {{ form.unit_price }}
+            </div>
+
+            <div class="aligned-field">
+                <label>{{ form.image.label }}</label>
+                {{ form.image }}
+                {% if is_edit and item.thumbnail %}
+                    <div style="margin-top: 8px;">
+                        <small>Current image:</small><br>
+                        <img src="{% url 'tasks:standard_item_thumbnail' item.pk %}" style="max-height:80px; border:1px solid #ddd; border-radius:4px;">
+                    </div>
+                {% endif %}
+                <small class="help-text">{{ form.image.help_text }}</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">{% if is_edit %}Save Changes{% else %}Create Standard Item{% endif %}</button>
+            <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

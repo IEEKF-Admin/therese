@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Shares - {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Manage Shares</h1>
+    <div>
+        <a href="{% url 'documents:document_detail' document.pk %}" class="btn-secondary">
+            ← Back to Document
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <!-- Current Shares -->
+    <h3>Current Shares</h3>
+
+    {% if current_shares %}
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>Shared With</th>
+                    <th>Permission</th>
+                    <th>Signature Requirement</th>
+                    <th>Shared By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for share in current_shares %}
+                <tr>
+                    <td>
+                        {% if share.share_type == 'user' and share.shared_with_user %}
+                            👤 {{ share.shared_with_user.get_full_name|default:share.shared_with_user }}
+                        {% elif share.share_type == 'group' and share.shared_with_group %}
+                            👥 {{ share.shared_with_group.name }}
+                        {% elif share.share_type == 'everyone' %}
+                            🌍 <strong>Everyone</strong>
+                        {% elif share.share_type == 'administration' %}
+                            🏛️ <strong>Administration</strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" style="display: flex; align-items: center; gap: 6px;">
+                            {% csrf_token %}
+                            <input type="hidden" name="update_permission" value="1">
+                            <input type="hidden" name="share_id" value="{{ share.id }}">
+                            <select name="permission" class="form-control" style="width: auto; padding: 2px 6px;">
+                                <option value="viewer" {% if share.permission == 'viewer' %}selected{% endif %}>Viewer</option>
+                                <option value="editor" {% if share.permission == 'editor' %}selected{% endif %}>Editor</option>
+                                <option value="manager" {% if share.permission == 'manager' %}selected{% endif %}>Manager</option>
+                            </select>
+                            <button type="submit" class="btn-small">Update</button>
+                        </form>
+                    </td>
+                    <td>
+                        <span class="sig-badge {% if share.signature_requirement %}sig-{{ share.signature_requirement }}{% else %}sig-none{% endif %}">
+                            {{ share.get_signature_requirement_display|default:"No signature required" }}
+                        </span>
+                    </td>
+                    <td>{{ share.shared_by.get_full_name|default:share.shared_by }}</td>
+                    <td>
+                        <form method="post" style="display:inline;"
+                              onsubmit="return confirm('Remove this share?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_share" value="{{ share.id }}">
+                            <button type="submit" class="btn-danger btn-small">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="empty-state">This document is not shared with anyone yet.</p>
+    {% endif %}
+
+    <hr style="margin: 2rem 0;">
+
+    <!-- Add Shares with Users -->
+    <h3>Share with Users</h3>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="add_user_shares" value="1">
+
+        <div class="form-section">
+            {{ user_share_form.users.label_tag }}
+            {{ user_share_form.users }}
+
+            <div style="margin-top: 1rem;">
+                {{ user_share_form.permission.label_tag }}
+                {{ user_share_form.permission }}
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <label><strong>Signature Requirement</strong></label>
+                {{ user_share_form.signature_requirement }}
+                <small style="display:block; color:#64748b; margin-top:4px;">Applies to the users selected above. "Signature" prompts on document open; "Ask for signature" shows in login popup.</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Share with Selected Users</button>
+        </div>
+    </form>
+
+    <hr style="margin: 2rem 0;">
+
+    <!-- Add Shares with Groups -->
+    <h3>Share with Groups</h3>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="add_group_shares" value="1">
+
+        <div class="form-section">
+            {{ group_share_form.groups.label_tag }}
+            {{ group_share_form.groups }}
+
+            <div style="margin-top: 1rem;">
+                {{ group_share_form.permission.label_tag }}
+                {{ group_share_form.permission }}
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <label><strong>Signature Requirement</strong></label>
+                {{ group_share_form.signature_requirement }}
+                <small style="display:block; color:#64748b; margin-top:4px;">Applies to all members of the selected groups. "Signature" prompts on document open; "Ask for signature" shows in login popup.</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Share with Selected Groups</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .permission-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .permission-badge.viewer { background: #e0f2fe; color: #0369a1; }
+    .permission-badge.editor { background: #fef3c7; color: #92400e; }
+    .permission-badge.manager { background: #dcfce7; color: #166534; }
+
+    .sig-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .sig-badge.sig-none { background: #f1f5f9; color: #64748b; }
+    .sig-badge.sig-signature { background: #dbeafe; color: #1e40af; }
+    .sig-badge.sig-ask_for_signature { background: #fef3c7; color: #92400e; }
+</style>
+{% endblock %}

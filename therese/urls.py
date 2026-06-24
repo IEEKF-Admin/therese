@@ -16,5 +16,6 @@ urlpatterns = [
 
     # HR + Finances
     path('hr/', include('apps.hr.urls')),
+    path('documents/', include('apps.documents.urls', namespace='documents')),
     path('finances/', include('apps.finances.urls')),
 ]

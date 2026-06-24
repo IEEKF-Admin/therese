@@ -33,6 +33,15 @@
         <div class="form-control-static">{{ task.wbs_element|default:"—" }}</div>
         {{ form.wbs_element.as_hidden }}
     </div>
+
+    {% if form.at_beleg_nummer.field.widget.input_type != 'hidden' %}
+    <div class="aligned-field">
+        <label>AT - Beleg Nummer</label>
+        {{ form.at_beleg_nummer|add_class:"form-control" }}
+    </div>
+    {% else %}
+    {{ form.at_beleg_nummer.as_hidden }}
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -41,12 +50,12 @@
     <h3>Current Status</h3>
     <div class="status-radios">
         {% for value, label in form.status.field.choices %}
-            <label class="radio-label">
+            <label class="status-radio">
                 <input type="radio" 
                        name="status" 
                        value="{{ value }}" 
                        {% if value == task.status %}checked{% endif %}>
-                {{ label }}
+                <span>{{ label }}</span>
             </label>
         {% endfor %}
     </div>

@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'apps.hr',
     'apps.finances',
     'apps.tasks',
+    'apps.documents',
     'widget_tweaks',
 ]
 

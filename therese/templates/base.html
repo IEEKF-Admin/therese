@@ -1,17 +1,17 @@
 ﻿{% load static %}
 <!DOCTYPE html>
-<html lang="de">
-{% load static %}
-<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">                    <!-- WICHTIG -->
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}THERESE{% endblock %}</title>
     
     <link rel="stylesheet" href="{% static 'css/therese.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Flatpickr Date Picker (European format DD.MM.YYYY) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     {% block extrastyle %}{% endblock %}
 </head>
@@ -24,15 +24,15 @@
             </div>
             <div class="header-right">
                 <span class="welcome">
-                    Hallo, <strong>{{ user.get_full_name|default:user.username }}</strong>
+                    Welcome, <strong>{{ user.get_full_name|default:user.username }}</strong>
                 </span>
                 {% if user.is_staff %}
                     <a href="{% url 'admin:index' %}" class="header-btn">Admin</a>
                 {% endif %}
-                <a href="{% url 'accounts:force_password_change' %}" class="header-btn">Passwort ändern</a>
+                <a href="{% url 'accounts:force_password_change' %}" class="header-btn">Change Password</a>
                 <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="header-btn logout-btn">Abmelden</button>
+                    <button type="submit" class="header-btn logout-btn">Logout</button>
                 </form>
             </div>
         </div>
@@ -48,5 +48,38 @@
     </div>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Flatpickr (European date format DD.MM.YYYY) -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
+    <script>
+        function initFlatpickrDatePickers() {
+            if (typeof flatpickr === 'undefined') {
+                console.warn('[THERESE] Flatpickr library not loaded');
+                return;
+            }
+
+            try {
+                // Clean up any previous instances
+                document.querySelectorAll('.date-picker').forEach(function(el) {
+                    if (el._flatpickr) el._flatpickr.destroy();
+                });
+
+                flatpickr(".date-picker", {
+                    dateFormat: "d.m.Y",
+                    allowInput: true,
+                    locale: "de",
+                    disableMobile: true
+                });
+
+                console.log('%c[THERESE] Date pickers initialized (European format DD.MM.YYYY)', 'color:#16a34a');
+            } catch (e) {
+                console.error('[THERESE] Flatpickr initialization failed:', e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initFlatpickrDatePickers);
+        window.addEventListener('load', initFlatpickrDatePickers);
+    </script>
 </body>
 </html>

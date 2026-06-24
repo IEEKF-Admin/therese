@@ -53,11 +53,13 @@ Do not remove any existing requirements from this header without explicit instru
         </a>
         {% endif %}
 
+        {% if can_create_generic %}
         <a href="{% url 'tasks:task_create' %}?type=generic_text" class="task-type-card">
             <i class="fas fa-comment-dots fa-3x"></i>
             <h3>General Request</h3>
             <p>Any other matter or free text request</p>
         </a>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

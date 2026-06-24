@@ -13,6 +13,7 @@ Do not remove any existing requirements from this header without explicit instru
 """
 
 from django.http import JsonResponse
+from apps.accounts.permissions import GroupNames
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 
@@ -24,7 +25,7 @@ from ..models import Room, PhoneNumber
 def ajax_rooms_by_building(request):
     """Return all rooms for a given building"""
     user_groups = list(request.user.groups.values_list('name', flat=True))
-    allowed_groups = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
+    allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
     
     if not allowed_groups.intersection(user_groups):
         return JsonResponse([], safe=False)
@@ -43,7 +44,7 @@ def ajax_rooms_by_building(request):
 def ajax_phonenumbers_by_room(request):
     """Return all phone numbers for a given room"""
     user_groups = list(request.user.groups.values_list('name', flat=True))
-    allowed_groups = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
+    allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
     
     if not allowed_groups.intersection(user_groups):
         return JsonResponse([], safe=False)

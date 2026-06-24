@@ -26,6 +26,27 @@
         </a>
         {% endif %}
 
+        <!-- Documents -->
+        <a href="{% url 'documents:document_list' %}" 
+           class="{% if '/documents/' in request.path %}active{% endif %}">
+            <i class="fas fa-folder-open"></i> Documents
+        </a>
+
+        <!-- Standard Orders / Catalog -->
+        {% if 'Procurement Coordinator' in user_groups or 'Procurement Approver' in user_groups %}
+            {# Full management for procurement roles #}
+            <a href="{% url 'tasks:standard_orders_list' %}" 
+               class="{% if '/tasks/standard-orders' in request.path and '/select' not in request.path %}active{% endif %}">
+                <i class="fas fa-book"></i> Standard Orders
+            </a>
+        {% elif 'PI' in user_groups or 'Procurement Requester' in user_groups %}
+            {# Requesters and PI can browse the catalog when creating orders #}
+            <a href="{% url 'tasks:standard_order_select' %}" 
+               class="{% if 'standard_order_select' in request.path %}active{% endif %}">
+                <i class="fas fa-book"></i> Standard Orders
+            </a>
+        {% endif %}
+
         <!-- Admin -->
         {% if user.is_staff %}
         <a href="{% url 'admin:index' %}">

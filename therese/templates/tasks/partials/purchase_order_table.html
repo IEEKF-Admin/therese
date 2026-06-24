@@ -19,7 +19,12 @@
             </td>
             <td><strong>{{ task.status|title }}</strong></td>
             <td>{{ task.priority|title }}</td>
-            <td>{{ task.assignee|default:"â€”" }}</td>
+            <td>
+                {{ task.assignee|default:"â€”" }}
+                {% if task.assignee and user.employee and task.assignee != user.employee %}
+                    <span style="font-size: 0.75em; color: #6b7280; margin-left: 4px;">(anderen zugewiesen)</span>
+                {% endif %}
+            </td>
             <td>{{ task.wbs_element|default:"â€”" }}</td>
             <td>{{ task.created_at|date:"d.m.Y" }}</td>
             <td><a href="{% url 'tasks:task_detail' task.pk %}" class="btn-small">View</a></td>

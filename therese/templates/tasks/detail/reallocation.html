@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}Personnel Reallocation: {{ task.title|truncatechars:50 }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Personnel Reallocation</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back</a>
+</div>
+
+<div class="card">
+    {% if not can_edit %}
+    <div class="alert alert-info">Read-only view</div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-section">
+            <h3>Reallocation Information</h3>
+
+            <div class="aligned-field">
+                <label>Task Number</label>
+                <strong>{{ task.task_number|default:task.title }}</strong>
+            </div>
+
+            <div class="aligned-field">
+                <label>Employee</label>
+                <strong>{{ task.employee.get_full_name|default:task.employee }}</strong>
+            </div>
+
+            <div class="aligned-field">
+                <label>Target WBS</label>
+                <strong>{{ task.target_wbs }}</strong>
+            </div>
+
+            <div class="aligned-field">
+                <label>Plan Position Number</label>
+                {% if can_edit %}{{ form.plan_position_number|add_class:"form-control" }}{% else %}<strong>{{ task.plan_position_number }}</strong>{% endif %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Validity</h3>
+            <div class="aligned-field">
+                <label>Valid From</label>
+                {% if can_edit %}{{ form.valid_from|add_class:"form-control" }}{% else %}<strong>{{ task.valid_from }}</strong>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>Valid Until</label>
+                {% if can_edit %}{{ form.valid_until|add_class:"form-control" }}{% else %}<strong>{{ task.valid_until|default:"—" }}</strong>{% endif %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Status</h3>
+            {% if can_edit %}
+                <div class="status-radios">
+                    {% for value, label in form.status.field.choices %}
+                        <label><input type="radio" name="status" value="{{ value }}" {% if value == task.status %}checked{% endif %}> {{ label }}</label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <strong>{{ task.get_status_display }}</strong>
+            {% endif %}
+        </div>
+
+        <div class="form-section">
+            <h3>Comment</h3>
+            {% if can_edit %}
+                {{ form.comment|add_class:"form-control" }}
+            {% else %}
+                <div class="readonly-comment">{{ task.comment|linebreaks|default:"—" }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            {% if can_edit %}
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
+            {% endif %}
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

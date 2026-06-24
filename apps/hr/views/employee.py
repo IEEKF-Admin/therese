@@ -12,6 +12,9 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView, UpdateView
 from django.db import models
+from apps.accounts.permissions import GroupNames
+
+import json
 
 from ..models import Employee
 from ..forms import EmployeeForm
@@ -19,6 +22,7 @@ from .employee_form_helpers import (
     ContractFormSet, FundingFormSet, 
     SalaryFormSet, WorkgroupFormSet
 )
+from apps.finances.models import PayScale
 
 
 # ====================== LIST VIEW ======================
@@ -30,7 +34,7 @@ def employee_list(request):
     user_groups = list(request.user.groups.values_list('name', flat=True))
     print(f"🔍 User groups: {user_groups}")
 
-    allowed_groups = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
+    allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
     
     if not allowed_groups.intersection(user_groups):
         messages.error(request, "You don't have permission to view employees.")
@@ -111,6 +115,19 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context['funding_formset'] = FundingFormSet()
         context['salary_formset'] = SalaryFormSet()
         context['workgroup_formset'] = WorkgroupFormSet()
+
+        # Current PayScales for JS cascading in Contracts inline
+        current = PayScale.get_current()
+        payscale_data = {}
+        for ps in current:
+            g = ps.pay_scale_group
+            if g not in payscale_data:
+                payscale_data[g] = []
+            payscale_data[g].append({
+                'experience_level': ps.experience_level,
+                'monthly_salary': str(ps.monthly_salary),
+            })
+        context['current_payscales_json'] = json.dumps(payscale_data)
         return context
 
     def form_valid(self, form):
@@ -147,6 +164,19 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             context['funding_formset'] = FundingFormSet(instance=self.object)
             context['salary_formset'] = SalaryFormSet(instance=self.object)
             context['workgroup_formset'] = WorkgroupFormSet(instance=self.object)
+
+        # Current PayScales for JS cascading in Contracts inline
+        current = PayScale.get_current()
+        payscale_data = {}
+        for ps in current:
+            g = ps.pay_scale_group
+            if g not in payscale_data:
+                payscale_data[g] = []
+            payscale_data[g].append({
+                'experience_level': ps.experience_level,
+                'monthly_salary': str(ps.monthly_salary),
+            })
+        context['current_payscales_json'] = json.dumps(payscale_data)
         return context
 
     def form_valid(self, form):

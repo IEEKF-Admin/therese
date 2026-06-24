@@ -188,6 +188,7 @@ class Contract(BaseModel):
 
     pay_scale_group = models.CharField(max_length=50, verbose_name="Pay Scale Group")
     experience_level = models.PositiveSmallIntegerField(verbose_name="Experience Level")
+    job_number = models.CharField(max_length=50, blank=True, verbose_name="Job Number")
 
     weekly_hours = models.DecimalField(
         max_digits=5,

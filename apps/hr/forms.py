@@ -72,7 +72,11 @@ class EmployeeForm(forms.ModelForm):
         model = Employee
         fields = '__all__'
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'date_of_birth': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ'
+            }),
             'room': forms.Select(attrs={'class': 'room-select form-control'}),
         }
 
@@ -166,18 +170,52 @@ class EmployeeForm(forms.ModelForm):
 class ContractForm(forms.ModelForm):
     class Meta:
         model = Contract
-        fields = ['pay_scale_group', 'experience_level', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
+        fields = ['pay_scale_group', 'experience_level', 'job_number', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
         widgets = {
-            'valid_from': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'valid_until': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'valid_from': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ'
+            }),
+            'valid_until': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ'
+            }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         print("ContractForm __init__ called for inline")
-        self.fields['pay_scale_group'].queryset = PayScale.objects.values_list('pay_scale_group', flat=True).distinct().order_by('pay_scale_group')
-        self.fields['experience_level'].choices = [(i, str(i)) for i in range(1, 7)]
+
+        # Only current (latest effective_as_of) PayScales
+        current = PayScale.get_current()
+
+        # Distinct groups from current payscales
+        groups = (
+            current.values_list('pay_scale_group', flat=True)
+            .distinct()
+            .order_by('pay_scale_group')
+        )
+        pay_scale_choices = [('', '— Select Pay Scale Group —')] + [(g, g) for g in groups]
+
+        # Experience levels (will be filtered by JS, but we provide a base set)
+        level_choices = [('', '— Select Group first —')] + [(str(i), str(i)) for i in range(1, 7)]
+
+        # Force proper dropdown widgets (ChoiceField + Select) so they always render as <select>
+        self.fields['pay_scale_group'] = forms.ChoiceField(
+            choices=pay_scale_choices,
+            required=False,
+            widget=forms.Select(attrs={'class': 'form-control'})
+        )
+        self.fields['experience_level'] = forms.ChoiceField(
+            choices=level_choices,
+            required=False,
+            widget=forms.Select(attrs={'class': 'form-control'})
+        )
+
+        # Re-apply form-control to any remaining fields
         for field in self.fields.values():
             if 'form-control' not in field.widget.attrs.get('class', ''):
                 field.widget.attrs['class'] = 'form-control'
@@ -188,8 +226,16 @@ class FundingAllocationForm(forms.ModelForm):
         model = FundingAllocation
         fields = ['wbs_element', 'weekly_hours_allocated', 'start_date', 'end_date', 'comments']
         widgets = {
-            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_date': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ'
+            }),
+            'end_date': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ'
+            }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 

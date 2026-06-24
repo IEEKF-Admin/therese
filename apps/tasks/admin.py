@@ -20,7 +20,7 @@ class PurchaseItemInline(admin.TabularInline):
     model = PurchaseItem
     extra = 1
     verbose_name_plural = "Bestellpositionen"
-    fields = ['product_name', 'product_description', 'link_to_product', 'unit_price', 'quantity']
+    fields = ['product_name', 'product_description', 'link_to_product', 'order_number', 'unit_price', 'quantity']
 
 
 class TaskCommentInline(admin.TabularInline):
@@ -49,7 +49,7 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         # WBS Element nur für Order Manager sichtbar
-        if not request.user.groups.filter(name='Order manager').exists():
+        if not request.user.groups.filter(name=GroupNames.ORDER_MANAGER).exists():
             form.base_fields['wbs_element'].widget = forms.HiddenInput()
             form.base_fields['wbs_element'].required = False
         return form

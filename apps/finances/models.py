@@ -32,6 +32,32 @@ class PayScale(BaseModel):
     def __str__(self):
         return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
 
+    @classmethod
+    def get_current(cls):
+        """
+        Return only the most recent PayScale entry per (pay_scale_group, experience_level)
+        based on the latest effective_as_of.
+        """
+        from django.db.models import Max, Q
+
+        latest_dates = list(
+            cls.objects
+            .values('pay_scale_group', 'experience_level')
+            .annotate(latest_date=Max('effective_as_of'))
+        )
+
+        if not latest_dates:
+            return cls.objects.none()
+
+        q = Q()
+        for item in latest_dates:
+            q |= Q(
+                pay_scale_group=item['pay_scale_group'],
+                experience_level=item['experience_level'],
+                effective_as_of=item['latest_date']
+            )
+        return cls.objects.filter(q).order_by('pay_scale_group', 'experience_level')
+
 
 class CostCenter(BaseModel):
     cost_center = models.CharField(max_length=50, unique=True, verbose_name="Cost Center")

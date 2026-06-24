@@ -1,7 +1,6 @@
 """
 therese/context_processors.py
 """
-
 def user_groups(request):
     """Stellt die Gruppen des aktuellen Users als Liste bereit"""
     if request.user.is_authenticated:

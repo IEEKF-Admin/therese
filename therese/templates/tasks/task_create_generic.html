@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}New General Request - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>New General Request</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+</div>
+
+<style>
+  /* Force vertical layout (English label above field, German below) like in Purchase Order */
+  .aligned-field {
+    display: block !important;
+    margin-bottom: 1rem;
+  }
+
+  .aligned-field label {
+    display: block !important;
+    width: auto !important;
+    text-align: left !important;
+    padding-right: 0 !important;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+</style>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.status }}
+
+        <div class="form-section">
+            <h3>Request Details</h3>
+            
+            <div class="aligned-field">
+                <label>Title <span style="color:#ef4444;">*</span></label>
+                {{ form.title|add_class:"form-control" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Titel</small>
+            </div>
+
+            <div class="aligned-field">
+                <label>Recipient <span style="color:#ef4444;">*</span></label>
+                {{ form.recipient|add_class:"form-control" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Empfänger</small>
+            </div>
+
+            <div class="aligned-field">
+                <label>Priority</label>
+                {{ form.priority|add_class:"form-control" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Priorität</small>
+            </div>
+
+            <div class="aligned-field">
+                <label>Due Date</label>
+                {{ form.due_date|add_class:"date-picker" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Fälligkeitsdatum</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Description / Notes</h3>
+            {{ form.comment|add_class:"form-control full-width-textarea" }}
+            <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Beschreibung / Notizen</small>
+        </div>
+
+        <div class="form-actions">
+            <div style="margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                    <input type="checkbox" id="confirm_info" name="confirm_info" required style="width: 18px; height: 18px; accent-color: #2563eb;">
+                    All provided information is correct
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create General Request</button>
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Confirmation checkbox logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkbox = document.getElementById('confirm_info');
+        const submitBtn = document.getElementById('submit-btn');
+
+        if (checkbox && submitBtn) {
+            checkbox.addEventListener('change', function() {
+                submitBtn.disabled = !checkbox.checked;
+            });
+
+            submitBtn.disabled = !checkbox.checked;
+        }
+    });
+</script>
+{% endblock %}

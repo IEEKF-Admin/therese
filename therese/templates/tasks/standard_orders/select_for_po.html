@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Select from Standard Orders - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Select Items from Standard Orders</h1>
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="btn-secondary">← Back to Purchase Order Form</a>
+</div>
+
+<div class="card">
+    <p style="margin-bottom: 1rem; color: #475569;">
+        Select one or more items. After choosing the first item, only products from the same supplier will remain selectable.
+    </p>
+
+    <!-- Search -->
+    <form method="get" style="margin-bottom: 1.25rem; display: flex; gap: 8px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search by supplier or product..." class="form-control" style="max-width: 340px;">
+        <button type="submit" class="btn-secondary">Search</button>
+        {% if search_query %}
+            <a href="{% url 'tasks:standard_order_select' %}" class="btn-secondary">Clear</a>
+        {% endif %}
+    </form>
+
+    <form id="standard-select-form" onsubmit="submitSelection(event)">
+        {% csrf_token %}
+
+        {% if items %}
+        <table class="detail-table" id="standard-items-table">
+            <thead>
+                <tr>
+                    <th style="width: 28px;"></th>
+                    <th>Supplier</th>
+                    <th>Product</th>
+                    <th>Description</th>
+                    <th style="text-align: right;">Unit Price</th>
+                    <th style="width: 60px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="standard-item-row"
+                    data-supplier="{{ item.supplier|escape }}"
+                    data-id="{{ item.pk }}">
+                    <td>
+                        <input type="checkbox"
+                               name="standard_items"
+                               value="{{ item.pk }}"
+                               class="standard-checkbox">
+                    </td>
+                    <td>
+                        <strong>{{ item.supplier }}</strong>
+                    </td>
+                    <td>
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.thumbnail %}
+                            <img src="{% url 'tasks:standard_item_thumbnail' item.pk %}"
+                                 style="max-height: 36px; max-width: 48px; vertical-align: middle; margin-left: 8px; border-radius: 3px;">
+                        {% endif %}
+                    </td>
+                    <td style="color:#64748b; font-size: 0.9rem;">
+                        {{ item.product_description|truncatechars:80|default:"—" }}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        {{ item.unit_price|floatformat:2 }} €
+                    </td>
+                    <td>
+                        {% if item.link_to_product %}
+                            <a href="{{ item.link_to_product }}" target="_blank" style="font-size: 0.85rem;">Link</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top: 1.5rem; display: flex; gap: 12px; align-items: center;">
+            <button type="submit" class="btn-primary" id="order-button" disabled>
+                Order
+            </button>
+            <span id="selection-hint" style="color:#64748b; font-size: 0.9rem;">
+                Select at least one item to continue.
+            </span>
+        </div>
+
+        {% else %}
+            <p class="empty-state">No standard items found.</p>
+        {% endif %}
+    </form>
+</div>
+
+<style>
+    .standard-item-row.disabled {
+        opacity: 0.45;
+        pointer-events: none;
+    }
+    .standard-item-row.disabled input[type="checkbox"] {
+        cursor: not-allowed;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.standard-checkbox');
+    const rows = document.querySelectorAll('.standard-item-row');
+    const orderButton = document.getElementById('order-button');
+    const hint = document.getElementById('selection-hint');
+
+    let lockedSupplier = null;
+
+    function updateUI() {
+        const checked = document.querySelectorAll('.standard-checkbox:checked');
+        const hasSelection = checked.length > 0;
+
+        orderButton.disabled = !hasSelection;
+
+        if (hasSelection) {
+            hint.textContent = checked.length + ' item(s) selected.';
+            hint.style.color = '#166534';
+        } else {
+            hint.textContent = 'Select at least one item to continue.';
+            hint.style.color = '#64748b';
+        }
+
+        // Lock supplier after first selection
+        if (hasSelection && !lockedSupplier) {
+            const firstChecked = checked[0];
+            const row = firstChecked.closest('.standard-item-row');
+            lockedSupplier = row.dataset.supplier;
+        }
+
+        // Enable/disable rows based on locked supplier
+        rows.forEach(row => {
+            const checkbox = row.querySelector('.standard-checkbox');
+            if (!checkbox) return;
+
+            if (lockedSupplier) {
+                if (row.dataset.supplier === lockedSupplier) {
+                    row.classList.remove('disabled');
+                    checkbox.disabled = false;
+                } else {
+                    row.classList.add('disabled');
+                    checkbox.disabled = true;
+                    checkbox.checked = false; // uncheck if it was somehow checked
+                }
+            } else {
+                row.classList.remove('disabled');
+                checkbox.disabled = false;
+            }
+        });
+    }
+
+    // Attach listeners
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            updateUI();
+        });
+    });
+
+    // Initial state
+    updateUI();
+});
+
+// Build URL with selected standard items and redirect to PO create form
+function submitSelection(event) {
+    event.preventDefault();
+
+    const checked = document.querySelectorAll('.standard-checkbox:checked');
+    if (checked.length === 0) return;
+
+    const ids = Array.from(checked).map(cb => cb.value).join(',');
+
+    // Get supplier from first selected item (they are all the same at this point)
+    const firstRow = checked[0].closest('.standard-item-row');
+    const supplier = encodeURIComponent(firstRow.dataset.supplier);
+
+    const url = "{% url 'tasks:task_create' %}?type=purchase_order&standard_items=" + ids + "&supplier=" + supplier;
+    window.location.href = url;
+}
+</script>
+{% endblock %}

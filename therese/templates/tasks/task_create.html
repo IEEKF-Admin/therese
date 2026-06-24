@@ -1,82 +1,264 @@
 ﻿{% extends "base.html" %}
 {% load static widget_tweaks %}
 
-{% block title %}New Purchase Order - THERESE{% endblock %}
+{% block title %}
+{% if task_type == 'personnel_reallocation' %}New Personnel Reallocation - THERESE
+{% elif task_type == 'personnel_contract_extension' %}New Personnel Contract Extension - THERESE
+{% else %}New Purchase Order - THERESE{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>New Purchase Order</h1>
+    {% if task_type == 'personnel_reallocation' %}
+        <h1>New Personnel Reallocation</h1>
+    {% elif task_type == 'personnel_contract_extension' %}
+        <h1>New Personnel Contract Extension</h1>
+    {% else %}
+        <h1>New Purchase Order</h1>
+    {% endif %}
     <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
 </div>
 
 <div class="card">
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" {% if task_type == 'purchase_order' %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         {{ form.status }}
 
-        <!-- Supplier -->
-        <div class="form-section">
-            <h3>Order Information</h3>
-            <div class="aligned-field">
-                <label>Supplier <span style="color:#ef4444;">*</span></label>
-                {{ form.supplier|add_class:"form-control" }}
+        {% if task_type == 'purchase_order' %}
+            <!-- ========== PURCHASE ORDER (existing advanced structure kept) ========== -->
+            <!-- Supplier -->
+            <div class="form-section">
+                <h3>Order Information</h3>
+                <div class="aligned-field">
+                    <label>Supplier <span style="color:#ef4444;">*</span></label>
+                    {{ form.supplier|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Lieferant</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Priority</label>
+                    {{ form.priority|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Priorität</small>
+                </div>
+                {% if form.assignee.field.widget.input_type != 'hidden' %}
+                <div class="aligned-field">
+                    <label>Assignee</label>
+                    {{ form.assignee|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Zuständiger</small>
+                </div>
+                {% endif %}
+                {{ form.at_beleg_nummer.as_hidden }}
             </div>
-            <div class="aligned-field">
-                <label>Priority</label>
-                {{ form.priority|add_class:"form-control" }}
-            </div>
-            <div class="aligned-field">
-                <label>Assignee</label>
-                {{ form.assignee|add_class:"form-control" }}
-            </div>
-        </div>
 
-        <!-- WBS Element -->
-        <div class="form-section">
-            <h3>WBS Element</h3>
-            <div class="aligned-field">
-                <label>WBS Element <span style="color:#ef4444;">*</span></label>
-                {{ form.wbs_element|add_class:"form-control" }}
-            </div>
-        </div>
+            <!-- Purchase Items -->
+            <div class="form-section">
+                <h3>Purchase Items</h3>
 
-        <!-- Purchase Items -->
-        <div class="form-section">
-            <h3>Purchase Items</h3>
-            <table class="item-table" id="items-table">
-                <thead>
-                    <tr>
-                        <th>Product Name</th>
-                        <th>Description</th>
-                        <th>Link</th>
-                        <th>Unit Price (€)</th>
-                        <th>Quantity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ item_formset.management_form }}
+                {% if task_type == 'purchase_order' %}
+                <div style="margin-bottom: 1rem;">
+                    <a href="{% url 'tasks:standard_order_select' %}" class="btn-secondary">
+                        📋 Browse Standard Orders Catalog
+                    </a>
+                    <small style="margin-left: 10px; color:#64748b;">
+                        Quickly add items from the catalog (same supplier will be enforced after first selection)
+                    </small>
+                </div>
+                {% endif %}
+
+                {{ item_formset.management_form }}
+
+                <div id="items-container">
                     {% for item_form in item_formset %}
-                    <tr>
-                        <td>{{ item_form.product_name|add_class:"form-control" }}</td>
-                        <td>{{ item_form.product_description|add_class:"form-control" }}</td>
-                        <td>{{ item_form.link_to_product|add_class:"form-control" }}</td>
-                        <td>{{ item_form.unit_price|add_class:"form-control" }} €</td>
-                        <td>{{ item_form.quantity|add_class:"form-control" }}</td>
-                    </tr>
+                    <div class="purchase-item">
+                        <div class="item-grid">
+                            <div class="item-field">
+                                <label>Product Name</label>
+                                {{ item_form.product_name|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Description / CAS - Number</label>
+                                {{ item_form.product_description|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Link</label>
+                                {{ item_form.link_to_product|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Link zum Produkt</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Order #</label>
+                                {{ item_form.order_number|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Bestellnummer</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Unit Price (€)</label>
+                                {{ item_form.unit_price|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Einzelpreis (€)</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Quantity</label>
+                                {{ item_form.quantity|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-            <button type="button" id="add-item" class="btn-secondary">+ Add another item</button>
-        </div>
+                </div>
 
-        <!-- Comment -->
-        <div class="form-section">
-            <h3>Comment / Notes</h3>
-            {{ form.comment|add_class:"form-control" }}
-        </div>
+                <!-- Proper empty form template for Django formset (hidden) -->
+                <div id="item-empty-template" style="display: none;">
+                    <div class="purchase-item">
+                        <div class="item-grid">
+                            <div class="item-field">
+                                <label>Product Name</label>
+                                {{ item_formset.empty_form.product_name|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Description / CAS - Number</label>
+                                {{ item_formset.empty_form.product_description|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Link</label>
+                                {{ item_formset.empty_form.link_to_product|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Link zum Produkt</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Order #</label>
+                                {{ item_formset.empty_form.order_number|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Bestellnummer</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Unit Price (€)</label>
+                                {{ item_formset.empty_form.unit_price|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Einzelpreis (€)</small>
+                            </div>
+                            <div class="item-field">
+                                <label>Quantity</label>
+                                {{ item_formset.empty_form.quantity|add_class:"form-control" }}
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
+                    </div>
+                </div>
+
+                <button type="button" id="add-item" class="btn-secondary" style="margin-top: 1rem;">+ Add another item</button>
+            </div>
+
+            <!-- Comment / Notes -->
+            <div class="form-section">
+                <h3>Comment / Notes</h3>
+                {{ form.comment|add_class:"form-control" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+            </div>
+
+        {% elif task_type == 'personnel_reallocation' %}
+            <!-- ========== PERSONNEL REALLOCATION (no Assignment & Priority card at all) ========== -->
+            <div class="form-section compact">
+                <h3>Reallocation Details</h3>
+
+                <div class="aligned-field">
+                    <label>Employee<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.employee|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Mitarbeiter</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Target WBS Element<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.target_wbs|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">PSP - Element</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid From<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.valid_from|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig ab</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid Until</label>
+                    {{ form.valid_until|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Plan Position Number<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.plan_position_number|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Planstellen-Nummer</small>
+                </div>
+            </div>
+
+            <!-- Comment / Notes - full width -->
+            <div class="form-section comment-full">
+                <h3>Comment / Notes</h3>
+                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+            </div>
+
+        {% elif task_type == 'personnel_contract_extension' %}
+            <!-- ========== PERSONNEL CONTRACT EXTENSION (no Assignment & Priority card at all) ========== -->
+            <div class="form-section compact">
+                <h3>Contract Extension Details</h3>
+
+                <div class="aligned-field">
+                    <label>Employee<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.employee|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Mitarbeiter</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Plan Position Number<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.plan_position_number|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Planstellen-Nummer</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid From<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.valid_from|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig ab</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid Until</label>
+                    {{ form.valid_until|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
+                </div>
+
+                <div class="aligned-field">
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                        {{ form.is_limited }} Limited contract extension
+                    </label>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Befristete Vertragsverlängerung</small>
+                </div>
+
+                <div class="aligned-field">
+                    <label>Limitation Reason</label>
+                    {{ form.limitation_reason|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Begründung der Befristung</small>
+                    <small class="help-text" style="color:#64748b;">Only required if the extension is limited in duration.</small>
+                </div>
+            </div>
+
+            <!-- Comment / Notes - full width -->
+            <div class="form-section comment-full">
+                <h3>Comment / Notes</h3>
+                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+            </div>
+
+        {% endif %}
 
         <div class="form-actions">
-            <button type="submit" class="btn-primary">✅ Create Purchase Order</button>
+            <div style="margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                    <input type="checkbox" id="confirm_info" name="confirm_info" required style="width: 18px; height: 18px; accent-color: #2563eb;">
+                    All provided information is correct
+                </label>
+            </div>
+
+            {% if task_type == 'personnel_reallocation' %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Personnel Reallocation</button>
+            {% elif task_type == 'personnel_contract_extension' %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Contract Extension</button>
+            {% else %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Purchase Order</button>
+            {% endif %}
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
         </div>
     </form>
@@ -84,16 +266,128 @@
 {% endblock %}
 
 {% block extra_js %}
+<style>
+  /* Force vertical layout for fields in task creation (English label above, German below) */
+  .form-section .aligned-field {
+    display: block !important;
+    margin-bottom: 1rem;
+  }
+
+  .form-section .aligned-field label {
+    display: block !important;
+    width: auto !important;
+    text-align: left !important;
+    padding-right: 0 !important;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  /* Force Comment / Notes to be truly full width */
+  .form-section.comment-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .form-section.comment-full .full-width-textarea {
+    width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box;
+  }
+</style>
+
+<!-- Hidden empty form template (Django provides correct __prefix__) -->
+<div id="item-empty-template" style="display: none;">
+    <div class="purchase-item">
+        <div class="item-grid">
+            <div class="item-field">
+                <label>Product Name</label>
+                {{ item_formset.empty_form.product_name|add_class:"form-control" }}
+            </div>
+            <div class="item-field">
+                <label>Description / CAS - Number</label>
+                {{ item_formset.empty_form.product_description|add_class:"form-control" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
+            </div>
+            <div class="item-field">
+                <label>Link</label>
+                {{ item_formset.empty_form.link_to_product|add_class:"form-control" }}
+            </div>
+            <div class="item-field">
+                <label>Order #</label>
+                {{ item_formset.empty_form.order_number|add_class:"form-control" }}
+            </div>
+            <div class="item-field">
+                <label>Unit Price (€)</label>
+                {{ item_formset.empty_form.unit_price|add_class:"form-control" }}
+            </div>
+            <div class="item-field">
+                <label>Quantity</label>
+                {{ item_formset.empty_form.quantity|add_class:"form-control" }}
+            </div>
+        </div>
+        <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
+    </div>
+</div>
+
 <script>
-document.getElementById('add-item').addEventListener('click', function() {
-    const tbody = document.querySelector('#items-table tbody');
-    const lastRow = tbody.lastElementChild;
-    if (lastRow) {
-        const newRow = lastRow.cloneNode(true);
-        newRow.querySelectorAll('input, textarea').forEach(el => {
-            if (el.type !== 'hidden') el.value = '';
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('items-container');
+    const addBtn = document.getElementById('add-item');
+    const emptyTemplate = document.getElementById('item-empty-template').firstElementChild;
+    const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+
+    function updateFormIndices() {
+        const items = container.querySelectorAll('.purchase-item');
+        totalForms.value = items.length;
+
+        items.forEach((item, index) => {
+            item.querySelectorAll('input, textarea, select').forEach(el => {
+                if (el.name) {
+                    el.name = el.name.replace(/-\d+-/, `-${index}-`);
+                    if (el.id) el.id = el.id.replace(/-\d+-/, `-${index}-`);
+                }
+            });
         });
-        tbody.appendChild(newRow);
+    }
+
+    function attachRemoveHandlers() {
+        container.querySelectorAll('.remove-item').forEach(btn => {
+            btn.onclick = function() {
+                if (container.querySelectorAll('.purchase-item').length > 1) {
+                    btn.closest('.purchase-item').remove();
+                    updateFormIndices();
+                } else {
+                    alert("At least one item is required.");
+                }
+            };
+        });
+    }
+
+    // Initial setup
+    attachRemoveHandlers();
+
+    addBtn.addEventListener('click', function() {
+        const newItem = emptyTemplate.cloneNode(true);
+        container.appendChild(newItem);
+        updateFormIndices();
+        attachRemoveHandlers();
+    });
+
+    // Initial index update in case of pre-filled items
+    updateFormIndices();
+});
+
+// Confirmation checkbox logic for all task types
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('confirm_info');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (checkbox && submitBtn) {
+        checkbox.addEventListener('change', function() {
+            submitBtn.disabled = !checkbox.checked;
+        });
+
+        // Ensure button starts disabled
+        submitBtn.disabled = !checkbox.checked;
     }
 });
 </script>

@@ -22,10 +22,10 @@ from apps.tasks.models import PurchaseOrderTask, PurchaseItem
 def create_test_data():
     print("🚀 Erstelle umfangreiche Testdaten für THERESE...\n")
 
-    # Groups
-    group_names = ['Procurement Requester', 'Procurement Coordinator', 'Procurement Approver',
-                   'PI', 'Personnel Approver', 'Order Manager']
-    groups = {name: Group.objects.get_or_create(name=name)[0] for name in group_names}
+    from apps.accounts.permissions import GroupNames, ALL_GROUPS
+
+    # Groups - now using centralized definitions
+    groups = {name: Group.objects.get_or_create(name=name)[0] for name in ALL_GROUPS}
 
     # Basic structures
     building, _ = Building.objects.get_or_create(number="A1", defaults={'name': 'Main Building'})

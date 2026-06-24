@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}General Request: {{ task.title|truncatechars:50 }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📝 General Request</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
+</div>
+
+<div class="card">
+    {% if not can_edit %}
+    <div class="alert alert-info">
+        <strong>📖 Read-Only Mode</strong><br>
+        You can view this request. Only the recipient can update the status.
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-section">
+            <h3>Request Information</h3>
+
+            <div class="aligned-field">
+                <label>Title</label>
+                <strong>{{ task.title }}</strong>
+                {{ form.title.as_hidden }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Created by</label>
+                <strong>{{ task.creator.get_full_name|default:task.creator }}</strong>
+            </div>
+
+            <div class="aligned-field">
+                <label>Recipient</label>
+                <div class="form-control-static">
+                    {{ task.recipient.get_full_name|default:"— Not specified" }}
+                </div>
+                {% if can_edit %}{{ form.recipient.as_hidden }}{% endif %}
+            </div>
+
+            <div class="aligned-field">
+                <label>Priority</label>
+                <strong>{{ task.get_priority_display|default:"Medium" }}</strong>
+                {{ form.priority.as_hidden }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Due Date</label>
+                <strong>{{ task.due_date|date:"d.m.Y"|default:"—" }}</strong>
+                {{ form.due_date.as_hidden }}
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="form-section">
+            <h3>Status</h3>
+            {% if can_edit %}
+            <div class="status-radios">
+                {% for value, label in form.status.field.choices %}
+                    <label class="radio-label">
+                        <input type="radio" 
+                               name="status" 
+                               value="{{ value }}" 
+                               {% if value == task.status %}checked{% endif %}>
+                        {{ label }}
+                    </label>
+                {% endfor %}
+            </div>
+            {% else %}
+                <div class="status-badge {{ task.status }}">
+                    {{ task.get_status_display|default:task.status }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="form-section">
+            <h3>Description / Notes</h3>
+            {% if can_edit %}
+                {{ form.comment|add_class:"form-control" }}
+            {% else %}
+                <div class="readonly-comment" style="min-height: 160px; white-space: pre-wrap;">{{ task.comment|linebreaks|default:"— No description provided" }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Meta info -->
+        <div class="form-section" style="font-size: 0.9rem; color: #666;">
+            <p>Created: {{ task.created_at|date:"d.m.Y H:i" }}</p>
+            {% if task.last_changed_by %}
+                <p>Last changed by: {{ task.last_changed_by.get_full_name|default:task.last_changed_by }}</p>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            {% if can_edit %}
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
+                <a href="{% url 'tasks:task_delete' task.pk %}" 
+                   class="btn-danger"
+                   onclick="return confirm('Really delete this general request?')">
+                    🗑 Delete Request
+                </a>
+            {% endif %}
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

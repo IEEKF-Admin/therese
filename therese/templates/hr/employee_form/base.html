@@ -1,6 +1,47 @@
 ﻿{% load widget_tweaks %}
 {% load static widget_tweaks %}   <!-- WICHTIG: Hier laden! -->
 
+<style>
+/* Main two-column layout for the Employee form */
+.employee-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+    .employee-two-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.left-col,
+.right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;   /* vertical space between cards inside the column */
+}
+
+/* Full-width blocks below the two-column area (inlines etc.) */
+.full-block {
+    margin-bottom: 2rem;
+}
+
+/* Make the inline cards (Contracts, Funding) look consistent with the normal cards */
+.full-block .form-section {
+    padding: 1.25rem 1.4rem;
+}
+
+.full-block .form-section h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 0.5rem;
+}
+</style>
+
 <!-- SEHR SICHTBARE FEHLER -->
 {% if messages %}
 <div class="alert alert-danger">
@@ -13,20 +54,38 @@
 </div>
 {% endif %}
 
-<div class="form-grid">
+<!-- Two-column layout -->
+<div class="employee-two-col">
 
-    {% include "hr/employee_form/personal.html" %}
-    {% include "hr/employee_form/contact_location.html" %}
-    {% include "hr/employee_form/address.html" %}
-    {% include "hr/employee_form/documents_finance.html" %}
-    {% include "hr/employee_form/contracts.html" %}
-    {% include "hr/employee_form/funding.html" %}
-    {% include "hr/employee_form/salary.html" %}
-    {% include "hr/employee_form/workgroups.html" %}
+    <!-- Left column -->
+    <div class="left-col">
+        {% include "hr/employee_form/personal.html" %}
+        {% include "hr/employee_form/address.html" %}
+        {% include "hr/employee_form/workgroups.html" %}
+    </div>
+
+    <!-- Right column -->
+    <div class="right-col">
+        {% include "hr/employee_form/contact_location.html" %}
+        {% include "hr/employee_form/documents_finance.html" %}
+    </div>
 
 </div>
 
+<!-- Full-width sections below (Contracts, Funding, Salary) -->
+<div class="full-block">
+    {% include "hr/employee_form/contracts.html" %}
+</div>
+
+<div class="full-block">
+    {% include "hr/employee_form/funding.html" %}
+</div>
+
+<div class="full-block">
+    {% include "hr/employee_form/salary.html" %}
+</div>
+
 <div class="form-actions">
-    <button type="submit" class="btn-primary">ðŸ’¾ Save Employee</button>
+    <button type="submit" class="btn-primary">💾 Save Employee</button>
     <a href="{% url 'hr:employee_list' %}" class="btn-secondary">Cancel</a>
 </div>

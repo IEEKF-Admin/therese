@@ -5,23 +5,130 @@
 
 {% block extra_js %}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- Cascading dropdowns: Building → Room → Office Phone -->
+<script src="{% static 'js/employee_cascading.js' %}"></script>
+
 <script>
-// Global Add Row Funktion
-window.addInlineRow = function(containerId, rowClass) {
-    console.log(`➕ addInlineRow called for ${containerId}`);
-    const container = document.getElementById(containerId);
-    if (!container) return console.error(`Container not found: ${containerId}`);
-    
-    const template = container.querySelector('.' + rowClass) || container.querySelector('tr');
-    if (template) {
-        const clone = template.cloneNode(true);
-        clone.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type !== 'hidden') el.value = '';
-        });
-        container.appendChild(clone);
-        console.log("✅ Row added");
+// =====================================================
+// Robust "Add another" for inline formsets
+// Works for both extra=0 and extra=1 cases
+// =====================================================
+(function() {
+    function replacePrefix(str, newIndex) {
+        return str.replace(/__prefix__/g, newIndex);
     }
-};
+
+    function getTotalFormsInput(container) {
+        // 1. Direct descendant or inside the container
+        let input = container.querySelector('input[name$="-TOTAL_FORMS"]');
+        if (input) return input;
+
+        // 2. Look in the previous sibling(s) — management_form is usually rendered right before the rows
+        let sibling = container.previousElementSibling;
+        while (sibling) {
+            input = sibling.querySelector && sibling.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (input) return input;
+            sibling = sibling.previousElementSibling;
+        }
+
+        // 3. Look upwards in parent (for the div-container cases)
+        let parent = container.parentElement;
+        if (parent) {
+            input = parent.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (input) return input;
+        }
+
+        // 4. Last resort: any TOTAL_FORMS on the page (better than nothing)
+        const all = document.querySelectorAll('input[name$="-TOTAL_FORMS"]');
+        return all.length ? all[0] : null;
+    }
+
+    window.addInlineRow = function(containerId, templateSelector, formsetPrefix) {
+        console.log(`➕ addInlineRow: ${containerId}`);
+        const container = document.getElementById(containerId);
+        if (!container) {
+            console.error('Container not found:', containerId);
+            return;
+        }
+
+        // 1. Try to find a proper hidden empty template first
+        let template = container.querySelector('.empty-form-template');
+        
+        // 2. Fallback to old behavior (first existing row) for backward compatibility
+        if (!template) {
+            template = container.querySelector(templateSelector) || container.querySelector('tr');
+        }
+        if (!template) {
+            console.error('No template row found in', containerId);
+            return;
+        }
+
+        const totalInput = getTotalFormsInput(container);
+        let newIndex = 0;
+        if (totalInput) {
+            newIndex = parseInt(totalInput.value, 10) || 0;
+        }
+
+        // Clone the template
+        let clone = template.cloneNode(true);
+        clone.classList.remove('empty-form-template', 'd-none');
+        clone.style.display = '';   // make sure it's visible
+
+        // Replace Django formset prefix placeholders
+        clone.querySelectorAll('[name],[id],[for]').forEach(el => {
+            ['name', 'id', 'for'].forEach(attr => {
+                if (el.hasAttribute(attr)) {
+                    const val = el.getAttribute(attr).replace(/__prefix__/g, newIndex);
+                    el.setAttribute(attr, val);
+                }
+            });
+        });
+
+        // Clear visible field values in the new row
+        clone.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.type === 'hidden') return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+        });
+
+        // Append to the right parent (tbody or div)
+        if (container.tagName === 'TBODY') {
+            container.appendChild(clone);
+        } else {
+            container.appendChild(clone);
+        }
+
+        // Increment TOTAL_FORMS so Django accepts the new row
+        if (totalInput) {
+            totalInput.value = newIndex + 1;
+        }
+
+        console.log('✅ New row added with index', newIndex);
+    };
+
+    // Delegated handler for all "Remove" buttons (works for existing + new rows)
+    document.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-row');
+        if (!removeBtn) return;
+
+        const row = removeBtn.closest('.inline-form-row, tr.salary-row, tr.workgroup-row');
+        if (!row) return;
+
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            // Existing row → mark for deletion (Django formset style)
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+        } else {
+            // Newly added row (no server ID yet) → just remove from DOM
+            row.remove();
+        }
+    });
+})();
 </script>
 {% endblock %}
 

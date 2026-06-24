@@ -55,5 +55,11 @@
 {% endblock %}
 
 {% block action_buttons %}
+    {# Reorder button - creates a new PO with the same items #}
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;copy_from={{ task.pk }}"
+       class="btn-secondary">
+        🔁 Gleiche Bestellung erneut aufgeben
+    </a>
+
     <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
 {% endblock %}

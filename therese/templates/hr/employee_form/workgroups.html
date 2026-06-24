@@ -13,12 +13,26 @@
             {% for form in workgroup_formset %}
             <tr class="workgroup-row">
                 {{ form.id }}
-                {{ form.DELETE }}
+                {{ form.DELETE.as_hidden }}
                 <td>{{ form.workgroup|add_class:"form-control" }}</td>
-                <td style="text-align:center;">{{ form.DELETE }}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-danger remove-row">🗑️</button>
+                </td>
             </tr>
             {% endfor %}
+
+            <!-- Hidden empty template row (for "Add another") -->
+            <tr class="workgroup-row empty-form-template" style="display:none;">
+                {% with form=workgroup_formset.empty_form %}
+                {{ form.id }}
+                {{ form.DELETE.as_hidden }}
+                <td>{{ form.workgroup|add_class:"form-control" }}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-danger remove-row">🗑️</button>
+                </td>
+                {% endwith %}
+            </tr>
         </tbody>
     </table>
-    <button type="button" onclick="addInlineRow('workgroup-tbody', 'workgroup-row')" class="btn-secondary">+ Add another Workgroup</button>
+    <button type="button" onclick="addInlineRow('workgroup-tbody', '.workgroup-row', 'workgroup_set')" class="btn-secondary">+ Add another Workgroup</button>
 </div>

@@ -62,6 +62,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'therese.context_processors.user_groups',
+                'therese.context_processors.pending_signatures',
             ],
         },
     },
@@ -108,8 +109,15 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-
+USE_L10N = True
 USE_TZ = True
+
+# European date formats (DD.MM.YYYY) for flatpickr
+DATE_INPUT_FORMATS = [
+    '%d.%m.%Y',      # 25.05.2026
+    '%Y-%m-%d',      # 2026-05-25 (fallback)
+    '%m/%d/%Y',      # fallback for old data
+]
 
 
 # Static files (CSS, JavaScript, Images)

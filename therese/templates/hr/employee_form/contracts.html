@@ -6,18 +6,132 @@
         {% for form in contract_formset %}
         <div class="inline-form-row contract-row">
             {{ form.id }}           <!-- WICHTIG: Hidden ID -->
-            {{ form.DELETE }}
+            {{ form.DELETE.as_hidden }}   <!-- Hidden for JS remove handler; no visible checkbox -->
             <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
             <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
             <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
             <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
             <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
             <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
             <div class="inline-delete">
-                <button type="button" class="btn-danger remove-row">Remove</button>
+                <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>
         </div>
         {% endfor %}
     </div>
-    <button type="button" onclick="addInlineRow('contract-container', 'contract-row')" class="btn-secondary">+ Add another Contract</button>
+
+    <!-- Hidden empty template for "Add another" (required for extra=0 cases and correct form submission) -->
+    <div id="contract-empty-template" class="empty-form-template" style="display:none;">
+        {% with form=contract_formset.empty_form %}
+        <div class="inline-form-row contract-row">
+            {{ form.id }}
+            {{ form.DELETE.as_hidden }}
+            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
+            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-delete">
+                <button type="button" class="btn-danger remove-row">🗑️</button>
+            </div>
+        </div>
+        {% endwith %}
+    </div>
+
+    <button type="button" onclick="addInlineRow('contract-container', '.contract-row', 'contract_set')" class="btn-secondary">+ Add another Contract</button>
 </div>
+
+{# Current PayScale data for cascading + salary auto-fill (only latest effective_as_of) #}
+<script>
+(function() {
+    const PAYSCALE_DATA = {{ current_payscales_json|default:'{}'|safe }};
+
+    const container = document.getElementById('contract-container');
+    if (!container || !PAYSCALE_DATA) return;
+
+    function attachPayscaleListeners(row) {
+        const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
+        const levelSelect = row.querySelector('select[name$="experience_level"]');
+
+        if (!groupSelect || !levelSelect) return;
+
+        // PayScale Group → filter Experience Levels (only current)
+        groupSelect.addEventListener('change', function() {
+            const group = this.value;
+            levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
+
+            if (group && PAYSCALE_DATA[group]) {
+                PAYSCALE_DATA[group].forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.experience_level;
+                    opt.textContent = item.experience_level;
+                    levelSelect.appendChild(opt);
+                });
+            }
+        });
+
+        // Experience Level → auto-fill Employee's Monthly Salary
+        levelSelect.addEventListener('change', function() {
+            const group = groupSelect.value;
+            const level = parseInt(this.value, 10);
+            if (!group || !level || !PAYSCALE_DATA[group]) return;
+
+            const match = PAYSCALE_DATA[group].find(i => i.experience_level === level);
+            if (match) {
+                const salaryField = document.getElementById('id_monthly_salary');
+                if (salaryField) {
+                    salaryField.value = match.monthly_salary;
+                }
+            }
+        });
+    }
+
+    // Attach to all existing contract rows
+    container.querySelectorAll('.contract-row').forEach(attachPayscaleListeners);
+
+    // Initialize pre-filled values (important for edit mode)
+    container.querySelectorAll('.contract-row').forEach(row => {
+        const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
+        const levelSelect = row.querySelector('select[name$="experience_level"]');
+
+        if (groupSelect && groupSelect.value) {
+            const group = groupSelect.value;
+            const originalLevel = levelSelect.value;   // capture before we overwrite options
+
+            if (PAYSCALE_DATA[group]) {
+                levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
+                PAYSCALE_DATA[group].forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.experience_level;
+                    opt.textContent = item.experience_level;
+                    levelSelect.appendChild(opt);
+                });
+
+                // Restore previously selected level (important for edit mode)
+                if (originalLevel) {
+                    levelSelect.value = originalLevel;
+                    // Trigger salary autofill
+                    levelSelect.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+    });
+
+    // Watch for new rows added dynamically by addInlineRow
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1 &&
+                    node.classList &&
+                    (node.classList.contains('contract-row') || node.classList.contains('inline-form-row'))) {
+                    attachPayscaleListeners(node);
+                }
+            });
+        });
+    });
+    observer.observe(container, { childList: true, subtree: true });
+})();
+</script>

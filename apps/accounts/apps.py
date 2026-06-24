@@ -18,3 +18,14 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         import apps.accounts.signals   # Register signals
+
+        # Automatische Erstellung der Custom Groups nach jeder Migration
+        from django.db.models.signals import post_migrate
+        from apps.accounts.permissions import get_or_create_default_groups
+
+        def create_groups_after_migrate(sender, **kwargs):
+            # Nur ausführen, wenn die Accounts-App migriert wurde
+            if sender.name == 'apps.accounts':
+                get_or_create_default_groups()
+
+        post_migrate.connect(create_groups_after_migrate, sender=self)

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Standard Orders - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Standard Orders</h1>
+    <div>
+        <a href="{% url 'tasks:standard_order_create' %}" class="btn-primary">+ Add New Standard Item</a>
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="get" style="margin-bottom: 1rem; display: flex; gap: 8px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search by supplier, product or order #" class="form-control" style="max-width: 320px;">
+        <button type="submit" class="btn-secondary">Search</button>
+        {% if search_query %}
+            <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">Clear</a>
+        {% endif %}
+    </form>
+
+    {% if items %}
+    <table class="detail-table">
+        <thead>
+            <tr>
+                <th>Supplier</th>
+                <th>Product Name</th>
+                <th>Order #</th>
+                <th>Unit Price</th>
+                <th>Image</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.supplier }}</td>
+                <td>
+                    <strong>{{ item.product_name }}</strong><br>
+                    <small style="color:#64748b;">{{ item.product_description|truncatechars:60 }}</small>
+                </td>
+                <td>{{ item.order_number|default:"—" }}</td>
+                <td>{{ item.unit_price|floatformat:2 }} €</td>
+                <td>
+                    {% if item.thumbnail or item.image %}
+                        <img src="{% url 'tasks:standard_item_thumbnail' item.pk %}" 
+                             style="max-height: 48px; max-width: 64px; border: 1px solid #e2e8f0; border-radius: 4px;" alt="Thumbnail">
+                    {% else %}
+                        <span style="color:#94a3b8;">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'tasks:standard_order_edit' item.pk %}" class="btn-small">Edit</a>
+                    <a href="{% url 'tasks:standard_order_delete' item.pk %}" class="btn-danger btn-small"
+                       onclick="return confirm('Delete this standard item?');">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="empty-state">No standard items found.</p>
+    {% endif %}
+</div>
+{% endblock %}

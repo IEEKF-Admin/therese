@@ -1,0 +1,817 @@
+/* ====================== EINHEITLICHES FARBSCHEMA ====================== */
+:root {
+    --primary: #005a9e;           /* dein Original-Blau */
+    --primary-light: #00a3cc;
+    --primary-dark: #004a80;
+    --accent: #10b981;            /* Success/Status */
+    --text: #1e2937;
+    --text-light: #475569;
+    --background: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    --hover: #f1f5f9;
+}
+
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--background);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+/* ====================== ADMIN & GLOBALE ANPASSUNGEN ====================== */
+
+.header, .top-header {
+    background: var(--card) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.sidebar {
+    background: var(--card) !important;
+    border-right: 1px solid var(--border) !important;
+}
+
+.card, .login-module, .module, .form-section {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+/* Sidebar Hover & Active */
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
+    background: var(--hover) !important;
+    color: var(--primary) !important;
+}
+
+/* Buttons */
+.btn-primary, .button, input[type="submit"] {
+    background: var(--primary) !important;
+    color: white !important;
+}
+
+.btn-primary:hover, .button:hover {
+    background: var(--primary-dark) !important;
+}
+
+/* Status Badges */
+.status-badge.coordination_completed { background: #dcfce7; color: #166534; }
+.status-badge.not_yet_processed { background: #fef3c7; color: #92400e; }
+
+/* Top Header */
+.top-header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo h1 {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.subtitle { font-size: 0.95rem; color: #64748b; }
+
+/* Sidebar - schlanker */
+.sidebar {
+    width: 240px;
+    background: white;
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+    min-height: calc(100vh - 73px);
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text-light);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: all 0.2s;
+}
+
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
+    background: #f1f5f9;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+/* Main Content */
+.main-container {
+    display: flex;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.content {
+    flex: 1;
+    padding: 2.5rem 3rem;
+    max-width: 1200px;
+}
+
+/* Cards & Dashboard */
+.card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+/* Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 2rem;
+}
+
+.full-width { grid-column: 1 / -1; }
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Floating Button */
+.floating-action-btn {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    background: var(--primary);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 50px;
+    box-shadow: 0 8px 25px rgba(0, 90, 158, 0.3);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    z-index: 200;
+}
+
+.floating-action-btn:hover {
+    background: #004a80;
+    transform: translateY(-3px);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 2rem;
+}
+
+.form-section {
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-section h3 {
+    margin-bottom: 1rem;
+    color: var(--primary);
+    font-size: 1.1rem;
+}
+
+.form-actions {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.inline-form {
+    background: #f8fafc;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-section {
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-section h3 {
+    margin-bottom: 1rem;
+    color: var(--primary);
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 1.8rem;
+    margin-bottom: 2rem;
+}
+
+.form-section {
+    background: #f8fafc;
+    padding: 1.8rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-section h3 {
+    margin-bottom: 1.2rem;
+    color: var(--primary);
+    font-size: 1.15rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.6rem;
+}
+
+.inline-form {
+    background: #f8fafc;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-actions {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.aligned-field {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.aligned-field label {
+    width: 180px;           /* gleiche Breite für alle Labels */
+    text-align: right;
+    padding-right: 15px;
+    flex-shrink: 0;
+}
+
+.form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ====================== STATUS RADIO BUTTONS ====================== */
+.status-section {
+    margin: 25px 0;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.status-radio-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.status-radio-container label {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    background: white;
+    min-width: 220px;
+}
+
+.status-radio-container input[type="radio"] {
+    margin-right: 10px;
+    accent-color: #22c55e;
+}
+
+.status-radio-container label:hover {
+    border-color: #22c55e;
+    background: #f0fdf4;
+}
+
+.status-radio-container input[type="radio"]:checked + span {
+    color: #166534;
+    font-weight: 600;
+}
+
+.status-radio-container input[type="radio"]:checked + label {
+    border-color: #22c55e;
+    background: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+/* Aktueller Status hervorheben */
+.current-status {
+    background: #ecfdf5 !important;
+    border-color: #10b981 !important;
+    font-weight: 600;
+}
+
+.purchase-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+.purchase-table th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 12px 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.purchase-table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+.purchase-table tr:hover {
+    background: #f8fafc;
+}
+
+/* ====================== Order Items Table (in PO Detail) ====================== */
+.purchase-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.purchase-items-table th,
+.purchase-items-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+
+.purchase-items-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* Alignment */
+.purchase-items-table th.text-left,
+.purchase-items-table td.text-left {
+    text-align: left;
+}
+
+.purchase-items-table th.text-right,
+.purchase-items-table td.text-right {
+    text-align: right;
+}
+
+/* Column widths - Order Number per item, Product & Description wide, Link narrow,
+   Unit Price and Total wide enough for "99.999,00 €" */
+.purchase-items-table .col-order {
+    width: 10%;
+}
+
+.purchase-items-table .col-product {
+    width: 23%;
+}
+
+.purchase-items-table .col-description {
+    width: 28%;
+}
+
+.purchase-items-table .col-link {
+    width: 6%;   /* Only as wide as needed for "Link" */
+}
+
+.purchase-items-table .col-price {
+    width: 12%;  /* Wide enough for 99.999,00 € */
+    white-space: nowrap;
+}
+
+.purchase-items-table .col-qty {
+    width: 9%;
+    white-space: nowrap;
+}
+
+.purchase-items-table .col-total {
+    width: 12%;  /* Wide enough for 99.999,00 € */
+    white-space: nowrap;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* ====================== Status Radio Buttons (PO Detail) ====================== */
+.status-radios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.status-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 0.9rem;
+}
+
+.status-radio:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.status-radio input[type="radio"] {
+    margin: 0;
+    accent-color: #1e40af;
+}
+
+.status-radio input[type="radio"]:checked + span {
+    font-weight: 600;
+    color: #1e40af;
+}
+
+.status-radio:has(input[type="radio"]:checked) {
+    border-color: #1e40af;
+    background-color: #eff6ff;
+}
+.status-badge.coordination_completed { background: #dcfce7; color: #166534; }
+.status-badge.not_yet_processed { background: #fef3c7; color: #92400e; }
+
+/* ====================== Modern Task Table (for Assigned/Created by Me) ====================== */
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-top: 0.5rem;
+}
+
+.task-table th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.task-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.task-table tr:last-child td {
+    border-bottom: none;
+}
+
+.task-table tr:hover {
+    background: #f8fafc;
+}
+
+.task-table .task-title-link {
+    font-weight: 500;
+    color: #1e40af;
+    text-decoration: none;
+}
+
+.task-table .task-title-link:hover {
+    text-decoration: underline;
+}
+
+.task-table .text-muted {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.task-table .text-right {
+    text-align: right;
+}
+
+/* ====================== New Task Row Layout (Title on its own line) ====================== */
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.task-row {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: box-shadow 0.1s ease, border-color 0.1s ease;
+}
+
+.task-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.task-row-main {
+    margin-bottom: 0.35rem;
+}
+
+.task-row .task-title {
+    font-weight: 600;
+    color: #1e40af;
+    text-decoration: none;
+    font-size: 0.95rem;
+    line-height: 1.3;
+    display: block;
+}
+
+.task-row .task-title:hover {
+    text-decoration: underline;
+}
+
+.task-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+}
+
+.task-row-meta .meta-item {
+    color: #475569;
+    white-space: nowrap;
+}
+
+.task-row-meta .meta-item strong {
+    font-weight: 500;
+    color: #334155;
+}
+
+.task-row-meta .status-badge,
+.task-row-meta .priority-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+}
+
+.task-row .task-action {
+    margin-left: auto;
+    font-size: 0.82rem;
+    padding: 3px 10px;
+}
+
+/* Status Badges - comprehensive set */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Purchase Order statuses */
+.status-badge.not_yet_processed { background: #fef3c7; color: #92400e; }
+.status-badge.in_coordination { background: #dbeafe; color: #1e40af; }
+.status-badge.coordination_completed { background: #dcfce7; color: #166534; }
+.status-badge.sent_to_administration { background: #e0e7ff; color: #3730a3; }
+.status-badge.ordered_from_supplier { background: #fce7f3; color: #9d174d; }
+.status-badge.received_in_warehouse { background: #fef3c7; color: #92400e; }
+.status-badge.delivered { background: #d1fae5; color: #065f46; }
+.status-badge.completed { background: #dcfce7; color: #166534; }
+
+/* Generic / Personnel statuses */
+.status-badge.seen { background: #e0f2fe; color: #0369a1; }
+.status-badge.in_progress { background: #dbeafe; color: #1e40af; }
+.status-badge.done { background: #dcfce7; color: #166534; }
+
+.status-badge.not_yet_processed,
+.status-badge.sent_to_hr { background: #fef3c7; color: #92400e; }
+.status-badge.hr_processing { background: #dbeafe; color: #1e40af; }
+.status-badge.works_council { background: #fce7f3; color: #9d174d; }
+
+/* Priority Badges */
+.priority-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.priority-badge.priority-high { background: #fee2e2; color: #991b1b; }
+.priority-badge.priority-medium { background: #fef3c7; color: #92400e; }
+.priority-badge.priority-low { background: #dcfce7; color: #166534; }
+
+/* ====================== Tasks Dashboard Cards ====================== */
+.task-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.task-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.task-card h3 {
+    font-size: 1rem;
+    margin: 0 0 0.75rem 0;
+    color: #1e2937;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.task-card .empty-state {
+    color: #64748b;
+    font-size: 0.9rem;
+    padding: 0.5rem 0;
+}
+
+/* ====================== Purchase Order Create - Items ====================== */
+.purchase-item {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+}
+
+.item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.item-field label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.item-field input,
+.item-field textarea {
+    width: 100%;
+}
+
+/* ====================== Employee Form Styling ====================== */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* ====================== General Task Create Form ====================== */
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-row .aligned-field.compact {
+    flex: 1;
+    min-width: 180px;   /* prevents fields from becoming too tiny */
+}
+
+.form-row .aligned-field.compact label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+/* Force Description/Notes textarea to full width of the card */
+.full-width-textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block;
+}
+
+.form-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.full-width { 
+    grid-column: 1 / -1; 
+}
+
+.inline-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.item-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 1rem 0;
+}
+
+.item-table th, .item-table td {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+    text-align: left;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+.item-table th {
+    background: #e9ecef;
+    font-weight: 600;
+}
+
+.aligned-field {
+    margin-bottom: 1rem;
+}
+
+.aligned-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
+    text-align: right;
+}
+
+@media (max-width: 992px) {
+    .form-grid, .inline-grid { 
+        grid-template-columns: 1fr; 
+    }
+}

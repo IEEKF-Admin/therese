@@ -1,0 +1,9 @@
+﻿{% extends "base.html" %}
+{% block title %}Abgemeldet{% endblock %}
+
+{% block content %}
+<div style="text-align:center; margin-top: 100px;">
+    <h2>Du wurdest abgemeldet.</h2>
+    <p><a href="{% url 'login' %}" class="btn-primary">Erneut anmelden</a></p>
+</div>
+{% endblock %}

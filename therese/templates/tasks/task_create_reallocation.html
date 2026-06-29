@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}New Personnel Reallocation - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>New Personnel Reallocation</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.status }}
+
+        <div class="form-section">
+            <h3>Reallocation Details</h3>
+
+            <div class="aligned-field">
+                <label>Employee <span style="color:#ef4444;">*</span></label>
+                {{ form.employee|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Target WBS Element <span style="color:#ef4444;">*</span></label>
+                {{ form.target_wbs|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Plan Position Number <span style="color:#ef4444;">*</span></label>
+                {{ form.plan_position_number|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Validity Period</h3>
+
+            <div class="aligned-field">
+                <label>Valid From <span style="color:#ef4444;">*</span></label>
+                {{ form.valid_from|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Valid Until</label>
+                {{ form.valid_until|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Assignment &amp; Priority</h3>
+
+            <div class="aligned-field">
+                <label>Priority</label>
+                {{ form.priority|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Due Date</label>
+                {{ form.due_date|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Assign to</label>
+                {{ form.assignee|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Comment / Notes</h3>
+            {{ form.comment|add_class:"form-control" }}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">✅ Create Reallocation Task</button>
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

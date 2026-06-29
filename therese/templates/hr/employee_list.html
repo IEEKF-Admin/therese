@@ -1,0 +1,102 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Employees - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Employees</h1>
+    <a href="{% url 'hr:employee_list' %}" class="btn-secondary">All Employees</a>
+    {% if archive_mode %}
+        <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to Active Employees</a>
+    {% else %}
+        <a href="{% url 'hr:employee_list' %}?archive=1" class="btn-secondary">📦 View Archive (No valid contract)</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <!-- Search -->
+    <div class="search-box mb-4">
+        <input type="text" id="employee-search" placeholder="Search by name or employee number..." 
+               value="{{ search_query }}" onkeyup="filterEmployees()">
+    </div>
+
+    <table class="employee-table" id="employee-table">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Name</th>
+                <th onclick="sortTable(1)">Employee No.</th>
+                <th>Office Phone</th>
+                <th style="width: 120px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td><strong>{{ employee.get_full_name }}</strong></td>
+                <td>{{ employee.employee_number }}</td>
+                <td>{{ employee.phone_number|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'hr:employee_update' employee.pk %}" class="btn-small">Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align:center; padding:30px;">
+                    {% if archive_mode %}
+                        No employees in archive.
+                    {% else %}
+                        No active employees found.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="{% url 'hr:employee_create' %}" class="fab-button">
+    <span>+</span> New Employee
+</a>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterEmployees() {
+    const input = document.getElementById('employee-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#employee-table tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+    });
+}
+
+function sortTable(n) {
+    const table = document.getElementById("employee-table");
+    let rows = Array.from(table.rows).slice(1);
+    const isAsc = table.rows[0].cells[n].getAttribute('data-dir') !== 'asc';
+    
+    rows.sort((a, b) => {
+        let x = a.cells[n].textContent.trim();
+        let y = b.cells[n].textContent.trim();
+        
+        if (n === 1) { // Employee No. als Zahl sortieren
+            x = parseInt(x) || 0;
+            y = parseInt(y) || 0;
+        }
+        
+        return (x < y ? -1 : (x > y ? 1 : 0)) * (isAsc ? 1 : -1);
+    });
+    
+    rows.forEach(row => table.tBodies[0].appendChild(row));
+    
+    // Direction toggle
+    Array.from(table.rows[0].cells).forEach((cell, i) => {
+        if (i === n) {
+            cell.setAttribute('data-dir', isAsc ? 'asc' : 'desc');
+        }
+    });
+}
+</script>
+{% endblock %}

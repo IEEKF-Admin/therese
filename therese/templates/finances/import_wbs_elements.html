@@ -1,0 +1,29 @@
+﻿{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Import WBS Elements{% endblock %}
+
+{% block extrastyle %}
+<style>
+    textarea { width: 100%; height: 400px; font-family: monospace; }
+    .help { color: #666; margin: 10px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Import WBS Elements + Initial Balances</h1>
+
+<p class="help">
+    Paste one or more tables from Excel here.<br>
+    Columns expected: Projekt | PSP Bezeichnung | Freigegebenes Budget<br>
+    The budget will be saved as Initial Balance for the <strong>current year</strong> ({{ current_year }}).
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <textarea name="pasted_data" placeholder="Paste your Excel table(s) here..."></textarea>
+    <br><br>
+    <input type="submit" value="Import WBS Elements" class="default">
+    <a href="{% url 'admin:finances_wbselement_changelist' %}" class="button">Back to WBS Elements</a>
+</form>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Standard Item - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Delete Standard Item</h1>
+</div>
+
+<div class="card">
+    <p>Are you sure you want to delete the following standard item?</p>
+    <p><strong>{{ item.supplier }} — {{ item.product_name }}</strong> (Order # {{ item.order_number|default:"—" }})</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-actions">
+            <button type="submit" class="btn-danger">Yes, Delete</button>
+            <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

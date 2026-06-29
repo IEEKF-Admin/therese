@@ -1,0 +1,143 @@
+﻿{% extends "base.html" %}
+{% load widget_tweaks task_extras %}
+
+{% block title %}Purchase Order: {{ task.supplier }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Purchase Order: {{ task.supplier }}</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        {% block order_info %}{% endblock %}
+        
+        {% block status_section %}{% endblock %}
+
+        <!-- Order Items -->
+        <div class="form-section">
+            <h3>Order Items</h3>
+            <table class="purchase-items-table" style="width: 100%; min-width: 900px;">
+                <thead>
+                    <tr>
+                        {% if show_standard_checkboxes %}
+                        <th style="width: 90px; text-align: center;">Make Standard?</th>
+                        {% endif %}
+                        <th class="text-left col-order">Order #</th>
+                        <th class="text-left col-product">Product</th>
+                        <th class="text-left col-description">Description</th>
+                        <th class="text-left col-link">Link</th>
+                        <th class="text-right col-price">Unit Price</th>
+                        <th class="text-right col-qty">Qty</th>
+                        <th class="text-right col-total">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in task.items.all %}
+                    <tr>
+                        {% if show_standard_checkboxes %}
+                        <td style="text-align: center;">
+                            {% if not item|standard_item_exists:task.supplier %}
+                            <input type="checkbox" 
+                                   name="standardize_item_{{ item.pk }}" 
+                                   value="1"
+                                   id="std_{{ item.pk }}">
+                            <label for="std_{{ item.pk }}" style="font-size: 0.75rem; margin-left: 4px; cursor: pointer;">
+                                Make Standard
+                            </label>
+                            {% else %}
+                            <span title="Already in Standard Orders" style="color:#16a34a; font-size: 1.1rem;">✓</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td class="text-left col-order">{{ item.order_number|default:"—" }}</td>
+                        <td class="text-left col-product">{{ item.product_name }}</td>
+                        <td class="text-left col-description">{{ item.product_description|default:"—" }}</td>
+                        <td class="text-left col-link">{% if item.link_to_product %}<a href="{{ item.link_to_product }}" target="_blank">Link</a>{% else %}—{% endif %}</td>
+                        <td class="text-right col-price">{{ item.unit_price|floatformat:2 }} €</td>
+                        <td class="text-right col-qty">{{ item.quantity|floatformat:0 }}</td>
+                        <td class="text-right col-total"><strong>{{ item.total_price|floatformat:2 }} €</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="{% if show_standard_checkboxes %}8{% else %}7{% endif %}">No items added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" class="text-right" style="font-weight: 600;">Total</td>
+                        <td class="text-right"><strong>{{ task.total_price|floatformat:2 }} €</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Comment -->
+        <div class="form-section comment-section">
+            <h3>Comment / Notes</h3>
+            {% block comment_field %}{% endblock %}
+        </div>
+
+        <!-- Activity Log / Verlauf -->
+        <div class="form-section">
+            <h3>Activity Log (Verlauf)</h3>
+            <ul style="list-style: none; padding: 0; font-size: 0.9rem;">
+                <!-- Creation entry -->
+                <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
+                    <strong>{{ task.creator.get_full_name|default:task.creator }}</strong> on {{ task.created_at|date:"d.m.Y H:i" }}:
+                    {{ task.get_task_type_display }} created.
+                </li>
+                {% for comment in task.comments.all|slice:":5" %}
+                <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
+                    <strong>{{ comment.author.get_full_name|default:comment.author }}</strong> on {{ comment.created_at|date:"d.m.Y H:i" }}:
+                    {{ comment.text|truncatechars:100 }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <style>
+            /* Make Comment/Notes field exactly as wide as the Order Items table above */
+            .comment-section textarea,
+            .comment-section .readonly-comment {
+                width: 100% !important;
+                min-width: 900px !important;
+                box-sizing: border-box;
+                display: block;
+            }
+        </style>
+
+        <!-- Buttons -->
+        <div class="form-actions">
+            {% block action_buttons %}{% endblock %}
+
+            {% if show_standard_checkboxes %}
+            <button type="submit" 
+                    formaction="{% url 'tasks:save_standard_checkboxes' task.pk %}"
+                    class="btn-primary" 
+                    style="margin-left: 8px;">
+                💾 Save Selected as Standard Orders
+            </button>
+            {% endif %}
+
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+
+            {% if employee %}
+            <form method="post" style="margin-top: 0.75rem; display: inline-block;"
+                  onsubmit="return confirm('{% if is_archived_by_user %}Remove from your archive?{% else %}Move this task to your archive?{% endif %}');">
+                {% csrf_token %}
+                <input type="hidden" name="archive_task" value="{{ task.pk }}">
+                {% if is_archived_by_user %}
+                    <input type="hidden" name="action" value="unarchive">
+                    <button type="submit" class="btn-secondary btn-small">📤 Remove from my archive</button>
+                {% else %}
+                    <button type="submit" class="btn-secondary btn-small">📦 Move to my archive</button>
+                {% endif %}
+            </form>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

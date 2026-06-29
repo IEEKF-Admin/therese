@@ -1,0 +1,46 @@
+﻿{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block sidebar %}
+<div id="content-main">
+    {{ block.super }}
+
+    <!-- Custom Navigation -->
+    <div class="module">
+        <table>
+            <caption>
+                <span>Quick Access</span>
+            </caption>
+            <tr>
+                <th scope="row"><a href="{% url 'tasks:my_tasks' %}">My Tasks Dashboard</a></th>
+                <td>Main entry point for all users</td>
+            </tr>
+            <tr>
+                <th scope="row"><a href="{% url 'tasks:choose_task_type' %}">Create New Task</a></th>
+                <td>Purchase orders, personnel measures, etc.</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Data Import Tools -->
+    <div class="module">
+        <table>
+            <caption>
+                <span>Data Import Tools</span>
+            </caption>         
+            <tr>
+                <th scope="row">
+                 <a href="{% url 'finances:import_cost_centers' %}">Import Cost Centers</a>
+            </th>
+                <td>Paste Excel table</td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <a href="{% url 'hr:import_wbs_elements' %}">Import WBS Elements + Budgets</a>
+                </th>
+                <td>Paste Excel table with budgets</td>
+            </tr>         
+        </table>
+    </div>
+</div>
+{% endblock %}

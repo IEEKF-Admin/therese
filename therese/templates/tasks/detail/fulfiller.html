@@ -1,0 +1,71 @@
+﻿{% extends "tasks/detail/base.html" %}
+{% load widget_tweaks %}
+
+{% block order_info %}
+<div class="form-section">
+    <h3>Order Information</h3>
+    
+    <div class="aligned-field">
+        <label>Supplier</label>
+        <div class="form-control-static">{{ task.supplier }}</div>
+        {{ form.supplier.as_hidden }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>Created by</label>
+        <strong>{{ task.creator.get_full_name|default:"— Unknown" }}</strong>
+    </div>
+    
+    <div class="aligned-field">
+        <label>Assigned to</label>
+        <div class="form-control-static">{{ task.assignee.get_full_name|default:task.assignee }}</div>
+        {{ form.assignee.as_hidden }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>Priority</label>
+        <div class="form-control-static">{{ task.get_priority_display|default:"—" }}</div>
+        {{ form.priority.as_hidden }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>WBS Element</label>
+        <div class="form-control-static">{{ task.wbs_element|default:"—" }}</div>
+        {{ form.wbs_element.as_hidden }}
+    </div>
+
+    {% if form.at_beleg_nummer.field.widget.input_type != 'hidden' %}
+    <div class="aligned-field">
+        <label>AT - Beleg Nummer</label>
+        {{ form.at_beleg_nummer|add_class:"form-control" }}
+    </div>
+    {% else %}
+    {{ form.at_beleg_nummer.as_hidden }}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block status_section %}
+<div class="form-section">
+    <h3>Current Status</h3>
+    <div class="status-radios">
+        {% for value, label in form.status.field.choices %}
+            <label class="status-radio">
+                <input type="radio" 
+                       name="status" 
+                       value="{{ value }}" 
+                       {% if value == task.status %}checked{% endif %}>
+                <span>{{ label }}</span>
+            </label>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block comment_field %}
+    {{ form.comment|add_class:"form-control" }}
+{% endblock %}
+
+{% block action_buttons %}
+    <button type="submit" class="btn-primary">💾 Save Changes</button>
+{% endblock %}

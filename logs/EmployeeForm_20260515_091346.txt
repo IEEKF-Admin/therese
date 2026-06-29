@@ -1,0 +1,38 @@
+THERESE - EmployeeForm Debug Log
+Date: 2026-05-15 09:13:46
+
+Instance: Dr. Julian Roth (EMP79887) (PK: 6)
+POST/GET Data:
+  csrfmiddlewaretoken: mW0UtzeEugW349Tuykt1QqEY7YTTATdbHYZQjvQelbYtZOwljBnxhYJgRIniXG8h
+  employee_number: EMP79887
+  prefix: 
+  first_name: Dr. Julian
+  last_name: Roth
+  gender: X
+  date_of_birth: 
+  country_of_origin: 
+  place_of_birth: 
+  email_professional: julianrot@example.com
+  email_private: 
+  google_account: 
+  private_phone_number: 
+  website: 
+  building: 2
+  room: 5
+  phone_number: 0228-287-1044
+  workgroup-TOTAL_FORMS: 0
+  workgroup-INITIAL_FORMS: 0
+  workgroup-MIN_NUM_FORMS: 0
+  workgroup-MAX_NUM_FORMS: 1000
+  contracts-TOTAL_FORMS: 2
+  contracts-INITIAL_FORMS: 2
+  contracts-MIN_NUM_FORMS: 1
+  contracts-MAX_NUM_FORMS: 1000
+  funding-TOTAL_FORMS: 5
+  funding-INITIAL_FORMS: 5
+  funding-MIN_NUM_FORMS: 1
+  funding-MAX_NUM_FORMS: 1000
+  salary-TOTAL_FORMS: 0
+
+FORM ERRORS:
+  country: ﻿﻿<ul class="errorlist" id="id_country_error"><li>Dieses Feld ist zwingend erforderlich.</li></ul>

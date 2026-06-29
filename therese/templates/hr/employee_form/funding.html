@@ -1,0 +1,41 @@
+﻿{% load widget_tweaks %}
+<div class="form-section full-width">
+    <h3>Funding Allocations</h3>
+    {{ funding_formset.management_form }}
+    <div id="funding-container">
+        {% for form in funding_formset %}
+        <div class="inline-form-row funding-row">
+            {{ form.id }}           <!-- WICHTIG: Hidden ID -->
+            {{ form.DELETE.as_hidden }}
+            <div class="inline-field"><label>WBS Element</label>{{ form.wbs_element|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Weekly Hours Allocated</label>{{ form.weekly_hours_allocated|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Start Date</label>{{ form.start_date }}</div>
+            <div class="inline-field"><label>End Date</label>{{ form.end_date }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-delete">
+                <button type="button" class="btn-danger remove-row">🗑️</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Hidden empty template for "Add another" -->
+    <div id="funding-empty-template" class="empty-form-template" style="display:none;">
+        {% with form=funding_formset.empty_form %}
+        <div class="inline-form-row funding-row">
+            {{ form.id }}
+            {{ form.DELETE.as_hidden }}
+            <div class="inline-field"><label>WBS Element</label>{{ form.wbs_element|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Weekly Hours Allocated</label>{{ form.weekly_hours_allocated|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Start Date</label>{{ form.start_date }}</div>
+            <div class="inline-field"><label>End Date</label>{{ form.end_date }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-delete">
+                <button type="button" class="btn-danger remove-row">🗑️</button>
+            </div>
+        </div>
+        {% endwith %}
+    </div>
+
+    <button type="button" onclick="addInlineRow('funding-container', '.funding-row', 'fundingallocation_set')" class="btn-secondary">+ Add another Funding Allocation</button>
+</div>

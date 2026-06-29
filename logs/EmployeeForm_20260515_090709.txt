@@ -1,0 +1,35 @@
+THERESE - EmployeeForm Debug Log
+Date: 2026-05-15 09:07:09
+
+Instance: Prof. Heinz Beck (123456789) (PK: 11)
+POST/GET Data:
+  csrfmiddlewaretoken: 60B29ZXIbGYi5IBJyp9PZoVoeEPduXvvr2AYZVzi2B0I0neAjG3lqW0GYojCRKqB
+  employee_number: 123456789
+  prefix: Prof.
+  first_name: Heinz
+  last_name: Beck
+  gender: M
+  date_of_birth: 
+  country_of_origin: Germany
+  place_of_birth: Köln
+  email_professional: Reichelt.Kristian@googlemail.com
+  email_private: Reichelt.Kristian@googlemail.com
+  google_account: 
+  private_phone_number: 022828762273
+  website: 
+  building: 2
+  room: 5
+  phone_number: 9
+  street: Kristian
+  house_number: Reichelt
+  postal_code: 53757
+  city: Sankt Augustin
+  country: Germany
+  scan_of_contract: 
+  profile_picture: 
+  monthly_salary: 
+  cost_center: 
+  Workgroup_members-TOTAL_FORMS: 0
+  Workgroup_members-INITIAL_FORMS: 0
+  Workgroup_members-MIN_NUM_FORMS: 0
+  Workgroup_members-MAX_NUM_FORMS: 1000

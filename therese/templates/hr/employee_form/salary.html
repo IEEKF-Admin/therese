@@ -1,0 +1,41 @@
+﻿{% load widget_tweaks %}
+<div class="form-section full-width">
+    <h3>Salary Supplements</h3>
+    {{ salary_formset.management_form }}
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th>Percentage (%)</th>
+                <th>Comment</th>
+                <th style="width:90px; text-align:center;">Delete</th>
+            </tr>
+        </thead>
+        <tbody id="salary-tbody">
+            {% for form in salary_formset %}
+            <tr class="salary-row">
+                {{ form.id }}
+                {{ form.DELETE.as_hidden }}
+                <td>{{ form.percentage|add_class:"form-control" }}</td>
+                <td>{{ form.comment|add_class:"form-control" }}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-danger remove-row">🗑️</button>
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Hidden empty template row (for "Add another") -->
+            <tr class="salary-row empty-form-template" style="display:none;">
+                {% with form=salary_formset.empty_form %}
+                {{ form.id }}
+                {{ form.DELETE.as_hidden }}
+                <td>{{ form.percentage|add_class:"form-control" }}</td>
+                <td>{{ form.comment|add_class:"form-control" }}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-danger remove-row">🗑️</button>
+                </td>
+                {% endwith %}
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" onclick="addInlineRow('salary-tbody', '.salary-row', 'salarysupplement_set')" class="btn-secondary">+ Add another Salary Supplement</button>
+</div>

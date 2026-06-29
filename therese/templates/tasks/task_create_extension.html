@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}New Contract Extension - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>New Contract Extension</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.status }}
+
+        <div class="form-section">
+            <h3>Contract Extension Details</h3>
+
+            <div class="aligned-field">
+                <label>Employee <span style="color:#ef4444;">*</span></label>
+                {{ form.employee|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Plan Position Number <span style="color:#ef4444;">*</span></label>
+                {{ form.plan_position_number|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Valid From <span style="color:#ef4444;">*</span></label>
+                {{ form.valid_from|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Limitation</h3>
+
+            <div class="aligned-field">
+                <label>Is Limited Contract?</label>
+                {{ form.is_limited }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Limitation Reason</label>
+                {{ form.limitation_reason|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Assignment &amp; Priority</h3>
+
+            <div class="aligned-field">
+                <label>Priority</label>
+                {{ form.priority|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Due Date</label>
+                {{ form.due_date|add_class:"form-control" }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Assign to</label>
+                {{ form.assignee|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Comment / Notes</h3>
+            {{ form.comment|add_class:"form-control" }}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">✅ Create Contract Extension</button>
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+﻿{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Purchase Order: {{ task.supplier }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Purchase Order: {{ task.supplier }}</h1>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        {% if not can_edit %}
+        <div class="alert alert-info">
+            <strong>📖 Read-Only Mode</strong><br>
+            You created this order. Other users (Coordinator / Fulfiller) can edit it.
+        </div>
+        {% endif %}
+
+        <!-- Order Information -->
+        <div class="form-section">
+            <h3>Order Information</h3>
+            
+            <div class="aligned-field">
+                <label>Supplier</label>
+                {% if can_edit %}{{ form.supplier|add_class:"form-control" }}
+                {% else %}<strong>{{ task.supplier }}</strong>{{ form.supplier.as_hidden }}{% endif %}
+            </div>
+
+            <div class="aligned-field">
+                <label>Created by</label>
+                <strong>{{ task.creator }}</strong>
+            </div>
+
+            <div class="aligned-field">
+                <label>Assigned to</label>
+                <strong>{{ task.assignee|default:"— Not assigned yet" }}</strong>
+                {{ form.assignee.as_hidden }}
+            </div>
+
+            <div class="aligned-field">
+                <label>Priority</label>
+                {% if can_edit %}{{ form.priority|add_class:"form-control" }}
+                {% else %}<strong>{{ task.get_priority_display }}</strong>{{ form.priority.as_hidden }}{% endif %}
+            </div>
+
+            <div class="aligned-field">
+                <label>WBS Element <span style="color:#ef4444;">*</span></label>
+                {% if can_edit %}{{ form.wbs_element|add_class:"form-control" }}
+                {% else %}<strong>{{ task.wbs_element|default:"— Not set" }}</strong>{{ form.wbs_element.as_hidden }}{% endif %}
+            </div>
+        </div>
+
+        <!-- Current Status -->
+        <div class="form-section">
+            <h3>Current Status</h3>
+            {% if can_edit %}
+                <div class="status-radios">
+                    {{ form.status }}
+                </div>
+            {% else %}
+                <p><strong class="status-badge {{ task.status }}">{{ task.get_status_display }}</strong></p>
+                {{ form.status.as_hidden }}
+            {% endif %}
+        </div>
+
+        <!-- Order Items -->
+        <div class="form-section">
+            <h3>Order Items</h3>
+            <table class="purchase-items-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Description</th>
+                        <th>Link</th>
+                        <th>Unit Price</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in task.items.all %}
+                    <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td>{{ item.product_description|default:"—" }}</td>
+                        <td>{% if item.link_to_product %}<a href="{{ item.link_to_product }}" target="_blank">Link</a>{% else %}—{% endif %}</td>
+                        <td>{{ item.unit_price }} €</td>
+                        <td>{{ item.quantity }}</td>
+                        <td><strong>{{ item.total_price }} €</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No items added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Comment -->
+        <div class="form-section">
+            <h3>Comment / Notes</h3>
+            {% if can_edit %}
+                {{ form.comment|add_class:"form-control" }}
+            {% else %}
+                <div class="readonly-comment">{{ task.comment|linebreaks|default:"— No comment" }}</div>
+                {{ form.comment.as_hidden }}
+            {% endif %}
+        </div>
+
+        <!-- Buttons -->
+        <div class="form-actions">
+            {% if can_edit %}
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
+                {% if is_coordinator %}
+                    <a href="{% url 'tasks:task_delete' task.pk %}" class="btn-danger" onclick="return confirm('Really delete this order?')">🗑 Delete</a>
+                {% endif %}
+            {% endif %}
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .readonly-comment {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 5px solid #6c757d;
+        white-space: pre-wrap;
+    }
+    .alert-info { margin-bottom: 25px; }
+</style>
+{% endblock %}

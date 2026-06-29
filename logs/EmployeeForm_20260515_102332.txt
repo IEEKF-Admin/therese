@@ -1,0 +1,60 @@
+THERESE - EmployeeForm DEBUG LOG
+Date: 2026-05-15 10:23:32
+================================================================================
+
+INSTANCE: Prof. Heinz Beck (123456789) (PK: 11)
+  Building: A02 - Verwaltung / Personalabteilung
+  Room: Examination Room (1.09)
+  Phone: 0228-287-2859
+
+BOUND DATA (excerpt):
+  csrfmiddlewaretoken: OH4Waf69jpYOYzF0q2wR27jWD2fZYfpi9J3S0bIJak0eTeiRbjqntFoenMJol2ko
+  employee_number: 123456789
+  prefix: Prof.
+  first_name: Heinz
+  last_name: Beck
+  gender: M
+  date_of_birth: 
+  country_of_origin: Germany
+  place_of_birth: Köln
+  email_professional: Reichelt.Kristian@googlemail.com
+  email_private: Reichelt.Kristian@googlemail.com
+  google_account: 
+  private_phone_number: 022828762273
+  website: 
+  building: 3
+  room: 16
+  phone_number: 0228-287-2859
+  street: Kristian
+  house_number: Reichelt
+  postal_code: 53757
+  city: Sankt Augustin
+  country: Germany
+  scan_of_contract: 
+  profile_picture: 
+  monthly_salary: 
+  cost_center: 
+  workgroup-TOTAL_FORMS: 0
+  workgroup-INITIAL_FORMS: 0
+  workgroup-MIN_NUM_FORMS: 0
+  workgroup-MAX_NUM_FORMS: 1000
+  contracts-TOTAL_FORMS: 1
+  contracts-INITIAL_FORMS: 1
+  contracts-MIN_NUM_FORMS: 1
+  contracts-MAX_NUM_FORMS: 1000
+  contracts-0-id: 33
+  contracts-0-pay_scale_group: E 1
+  contracts-0-experience_level: 4
+  contracts-0-weekly_hours: 38.50
+  contracts-0-valid_from: 13.05.2026
+  contracts-0-valid_until: 13.05.2028
+  contracts-0-comments: 
+  funding-TOTAL_FORMS: 1
+  funding-INITIAL_FORMS: 1
+  funding-MIN_NUM_FORMS: 1
+  funding-MAX_NUM_FORMS: 1000
+  funding-0-id: 30
+  funding-0-wbs_element: 2
+  funding-0-weekly_hours_allocated: 38.50
+  funding-0-start_date: 13.05.2026
+  funding-0-end_date: 13.05.2028

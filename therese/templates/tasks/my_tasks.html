@@ -1,0 +1,248 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+"""
+therese/templates/tasks/my_tasks.html
+
+Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
+Features / Requirements:
+- Main dashboard showing assigned tasks, created tasks and purchase orders
+- Role-based display of purchase orders (own + visible others)
+- Full archive functionality for all tasks and purchase orders (personal per-user archive)
+- Toggle between My Tasks and My Archive with ?archive=1
+- Archive/unarchive buttons in lists and detail views
+- All URL reverses must use the 'tasks' namespace
+- All user-facing text in English
+- Consistent styling with base.html
+
+Do not remove any existing requirements from this header without explicit instruction.
+"""
+{% endcomment %}
+
+{% block title %}My Tasks - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if is_archive_view %}My Archive{% else %}My Tasks{% endif %}</h1>
+    <p>Welcome back, {{ request.user.get_full_name|default:request.user.username }} 👋</p>
+    {% if is_archive_view %}
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary" style="margin-left: auto;">← Back to My Tasks</a>
+    {% else %}
+        <a href="{% url 'tasks:my_tasks' %}?archive=1" class="btn-secondary" style="margin-left: auto;">📦 View My Archive</a>
+    {% endif %}
+</div>
+
+<div class="tasks-dashboard">
+
+    <!-- Normale Tasks -->
+    <div class="task-grid">
+        <div class="task-card">
+            <h3>📌 {% if is_archive_view %}Archived {% endif %}Assigned to Me ({{ assigned_to_me|length }})</h3>
+            {% if assigned_to_me %}
+                {% include "tasks/partials/task_table.html" with tasks=assigned_to_me show_archive_action=True is_archive_view=is_archive_view %}
+            {% else %}
+                <p class="empty-state">No tasks assigned to you.</p>
+            {% endif %}
+        </div>
+
+        <div class="task-card">
+            <h3>✍️ {% if is_archive_view %}Archived {% endif %}Created by Me ({{ my_created|length }})</h3>
+            {% if my_created %}
+                {% include "tasks/partials/task_table.html" with tasks=my_created show_archive_action=True is_archive_view=is_archive_view %}
+            {% else %}
+                <p class="empty-state">You haven't created any tasks yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Purchase Orders - now with same split as other tasks -->
+    <div class="task-grid">
+        <!-- Assigned to Me -->
+        <div class="task-card">
+            <h3>🛒 {% if is_archive_view %}Archived {% endif %}Purchase Orders Assigned to Me ({{ po_assigned_to_me|length }})</h3>
+            {% if po_assigned_to_me %}
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Order #</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in po_assigned_to_me %}
+                        <tr>
+                            <td><strong>{{ task.supplier }}</strong></td>
+                            <td>
+                                <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
+                                    Order #{{ task.pk }}
+                                </a>
+                            </td>
+                            <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
+                            <td>{{ task.created_at|date:"d.m.Y" }}</td>
+                            <td>
+                                <form method="post" style="display:inline;" 
+                                      onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this order to your archive?{% endif %}');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="archive_po" value="{{ task.pk }}">
+                                    {% if is_archive_view %}
+                                        <input type="hidden" name="action" value="unarchive">
+                                        <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
+                                    {% else %}
+                                        <button type="submit" class="btn-icon" title="Archive for me">📦</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-state">No purchase orders assigned to you.</p>
+            {% endif %}
+        </div>
+
+        <!-- Created by Me -->
+        <div class="task-card">
+            <h3>✍️ {% if is_archive_view %}Archived {% endif %}Purchase Orders Created by Me ({{ po_created_by_me|length }})</h3>
+            {% if po_created_by_me %}
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Order #</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in po_created_by_me %}
+                        <tr>
+                            <td><strong>{{ task.supplier }}</strong></td>
+                            <td>
+                                <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
+                                    Order #{{ task.pk }}
+                                </a>
+                            </td>
+                            <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
+                            <td>{{ task.created_at|date:"d.m.Y" }}</td>
+                            <td>
+                                <form method="post" style="display:inline;" 
+                                      onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this order to your archive?{% endif %}');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="archive_po" value="{{ task.pk }}">
+                                    {% if is_archive_view %}
+                                        <input type="hidden" name="action" value="unarchive">
+                                        <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
+                                    {% else %}
+                                        <button type="submit" class="btn-icon" title="Archive for me">📦</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-state">You haven't created any purchase orders yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_coordinator or is_approver %}
+    <!-- Additional visible POs for coordinators/approvers -->
+    <div class="task-card full-width">
+        <h3>👀 {% if is_archive_view %}Archived {% endif %}All Visible Purchase Orders</h3>
+        {% if po_all_visible %}
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Order #</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in po_all_visible %}
+                    <tr>
+                        <td><strong>{{ task.supplier }}</strong></td>
+                        <td>
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
+                                Order #{{ task.pk }}
+                            </a>
+                        </td>
+                        <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
+                        <td>{{ task.created_at|date:"d.m.Y" }}</td>
+                        <td>
+                            <form method="post" style="display:inline;" 
+                                  onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this order to your archive?{% endif %}');">
+                                {% csrf_token %}
+                                <input type="hidden" name="archive_po" value="{{ task.pk }}">
+                                {% if is_archive_view %}
+                                    <input type="hidden" name="action" value="unarchive">
+                                    <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
+                                {% else %}
+                                    <button type="submit" class="btn-icon" title="Archive for me">📦</button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="empty-state">No additional visible orders.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<a href="{% url 'tasks:choose_task_type' %}" class="fab-button">
+    <span>+</span> New Task
+</a>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterPurchaseOrders() {
+    const input = document.getElementById('po-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#purchase-table tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+    });
+}
+
+function sortTable(n) {
+    const table = document.getElementById("purchase-table");
+    let rows = Array.from(table.rows).slice(1);
+    const isAsc = table.rows[0].cells[n].getAttribute('data-dir') !== 'asc';
+    
+    rows.sort((a, b) => {
+        let x = a.cells[n].textContent.trim();
+        let y = b.cells[n].textContent.trim();
+        if (n === 1 || n === 6) { // numeric / date
+            x = parseFloat(x.replace(/\D/g,'')) || 0;
+            y = parseFloat(y.replace(/\D/g,'')) || 0;
+        }
+        return (x < y ? -1 : (x > y ? 1 : 0)) * (isAsc ? 1 : -1);
+    });
+    
+    rows.forEach(row => table.tBodies[0].appendChild(row));
+    
+    // Toggle direction
+    Array.from(table.rows[0].cells).forEach((cell, i) => {
+        cell.setAttribute('data-dir', i === n && isAsc ? 'asc' : 'desc');
+    });
+}
+</script>
+{% endblock %}

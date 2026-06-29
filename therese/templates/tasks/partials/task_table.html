@@ -1,0 +1,53 @@
+﻿{% if tasks %}
+<div class="task-list">
+    {% for task in tasks %}
+    <div class="task-row">
+        <div class="task-row-main">
+            <a href="{% url 'tasks:task_detail' task.pk %}" class="task-title">
+                {{ task.task_number|default:task.title|default:task.get_task_type_display }}
+            </a>
+        </div>
+
+        <div class="task-row-meta">
+            <span class="status-badge {{ task.status|slugify }}">
+                {{ task.get_status_display|default:task.status }}
+            </span>
+
+            <span class="priority-badge priority-{{ task.priority|default:'medium' }}">
+                {{ task.get_priority_display|default:task.priority|title }}
+            </span>
+
+            <span class="meta-item">
+                <strong>Created by:</strong> {{ task.creator.get_full_name|default:task.creator }}
+            </span>
+
+            <span class="meta-item text-muted">
+                {{ task.created_at|date:"d.m.Y" }}
+            </span>
+
+            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn-small task-action">
+                Details →
+            </a>
+
+            {% if show_archive_action %}
+            <form method="post" style="display:inline;" 
+                  onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this task to your archive?{% endif %}');">
+                {% csrf_token %}
+                <input type="hidden" name="archive_task" value="{{ task.pk }}">
+                {% if is_archive_view %}
+                    <input type="hidden" name="action" value="unarchive">
+                    <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
+                {% else %}
+                    <button type="submit" class="btn-icon" title="Archive for me">📦</button>
+                {% endif %}
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No tasks found.</p>
+</div>
+{% endif %}

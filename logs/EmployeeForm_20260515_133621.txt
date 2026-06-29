@@ -1,0 +1,9 @@
+THERESE - EmployeeForm DEBUG LOG
+Date: 2026-05-15 13:36:21
+================================================================================
+
+INSTANCE: Prof. Heinz Beck (123456789) (PK: 11)
+ Building: A02 - Verwaltung / Personalabteilung
+ Room: Examination Room (1.09)
+ Phone: 0228-287-2859
+

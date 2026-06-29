@@ -1,0 +1,13 @@
+﻿{% load widget_tweaks %}
+<div class="form-section">
+    <h3>Contact & Location</h3>
+    <div class="aligned-field"><label>{{ form.email_professional.label }}</label>{{ form.email_professional|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.email_private.label }}</label>{{ form.email_private|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.google_account.label }}</label>{{ form.google_account|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.private_phone_number.label }}</label>{{ form.private_phone_number|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.website.label }}</label>{{ form.website|add_class:"form-control" }}</div>
+
+    <div class="aligned-field"><label>Building</label>{{ form.building|add_class:"building-select form-control" }}</div>
+    <div class="aligned-field"><label>Room</label>{{ form.room|add_class:"room-select form-control" }}</div>
+    <div class="aligned-field"><label>Office Phone</label>{{ form.phone_number|add_class:"phone-select form-control" }}</div>
+</div>

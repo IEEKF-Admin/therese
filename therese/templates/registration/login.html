@@ -1,0 +1,141 @@
+﻿{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Login - THERESE{% endblock %}
+
+{% block extrastyle %}
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .login-module {
+        max-width: 420px;
+        margin: 80px auto;
+        padding: 50px 40px;
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+        text-align: center;
+    }
+    
+    .login-logo {
+        max-height: 160px;
+        width: auto;
+        margin-bottom: 24px;
+        filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+    }
+    
+    .login-module h1 {
+        color: #1e40af;
+        font-size: 2.6rem;
+        margin: 0 0 8px 0;
+        font-weight: 700;
+    }
+    
+    .subtitle {
+        color: #334155;
+        font-size: 1.1rem;
+        margin-bottom: 32px;
+    }
+
+    .form-group {
+        margin-bottom: 22px;
+        text-align: left;
+        max-width: 340px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .form-group label {
+        display: block !important;
+        margin-bottom: 8px !important;
+        font-weight: 700 !important;
+        color: #1e2937 !important;
+        font-size: 1rem !important;
+    }
+
+    /* Eingabefelder */
+    input[type="text"], input[type="password"] {
+        width: 100% !important;
+        padding: 14px 16px !important;
+        border: 1.5px solid #cbd5e1 !important;
+        border-radius: 10px !important;
+        font-size: 1.05rem;
+        background: #f1f5f9;
+        color: #1e2937;
+        box-sizing: border-box !important;
+    }
+
+    /* Button — exakt gleiche Breite und Optik */
+    .button, button[type="submit"] {
+        width: 100% !important;
+        max-width: 340px !important;
+        padding: 14px 16px !important;        /* gleiches Padding wie Felder */
+        font-size: 1.15rem;
+        font-weight: 600;
+        background: #2563eb;
+        color: white;
+        border: none !important;
+        border-radius: 10px !important;
+        cursor: pointer;
+        margin: 10px auto 0 !important;
+        display: block !important;
+        box-sizing: border-box !important;
+        height: auto !important;
+    }
+
+    .button:hover {
+        background: #1d4ed8;
+    }
+
+    .errorlist {
+        color: #ef4444;
+        background: #fee2e2;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-module">
+    <img src="{% static 'images/logo_no_background.webp' %}" 
+         alt="THERESE Logo" 
+         class="login-logo">
+
+    <h1>T.H.E.R.E.S.E.</h1>
+    <p class="subtitle">Task Hub for Efficient Resource Expenditure & Staff Evaluation</p>
+
+    <form method="post" action="{% url 'admin:login' %}">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="errorlist">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="{{ form.username.id_for_label }}">Username:</label>
+            {{ form.username }}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.password.id_for_label }}">Password:</label>
+            {{ form.password }}
+        </div>
+
+        <input type="hidden" name="next" value="{{ next|default:'/tasks/' }}">
+
+        <button type="submit" class="button">Login</button>
+    </form>
+
+    <p style="margin-top: 28px; color: #64748b; font-size: 0.97rem;">
+        No access yet? Please contact IT support.
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,110 @@
+﻿{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Task Details - THERESE{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Task Details</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <table class="table">
+            <tr><th>Typ</th><td>{{ task.get_task_type_display }}</td></tr>
+            <tr><th>Erstellt von</th><td>{{ task.creator }}</td></tr>
+            <tr><th>Zugewiesen an</th><td>{{ task.assignee|default:"â€”" }}</td></tr>
+            
+            <!-- Status Buttons - Verbessert fÃ¼r Order Fulfillment + Order Manager -->
+            <tr>
+                <th>Aktueller Status</th>
+                <td>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                        {% for status_choice in form.status.field.choices %}
+                            {% if status_choice.0 == task.status %}
+                                <!-- Aktueller Status (hervorgehoben) -->
+                                <span class="button" style="background:#22c55e; color:white; font-weight:bold; padding:8px 12px;">
+                                    {{ status_choice.1 }} âœ“
+                                </span>
+                            {% else %}
+                                <!-- Andere Status-Buttons -->
+                                <button type="submit" 
+                                        name="new_status" 
+                                        value="{{ status_choice.0 }}"
+                                        class="button"
+                                        {% if not can_change_status %}
+                                            disabled style="opacity:0.6; cursor:not-allowed;"
+                                        {% endif %}>
+                                    {{ status_choice.1 }}
+                                </button>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+
+            <tr>
+                <th>WBS Element</th>
+                <td>{{ form.wbs_element }}</td>
+            </tr>
+            
+            <tr><th>PrioritÃ¤t</th><td>{{ task.priority }}</td></tr>
+            <tr><th>Erstellt am</th><td>{{ task.created_at|date:"d.m.Y H:i" }}</td></tr>
+        </table>
+
+        {% if task.task_type == 'purchase_order' %}
+        <h2>Bestellung: {{ task.supplier }}</h2>
+
+        <h3>Bestellpositionen</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Description</th>
+                    <th>Link</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in task.items.all %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.product_description|default:"â€”" }}</td>
+                    <td>
+                        {% if item.link_to_product %}
+                            <a href="{{ item.link_to_product }}" target="_blank">Link Ã¶ffnen</a>
+                        {% else %}â€”{% endif %}
+                    </td>
+                    <td>{{ item.unit_price }} â‚¬</td>
+                    <td>{{ item.quantity }}</td>
+                    <td><strong>{{ item.total_price }} â‚¬</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">Keine Positionen vorhanden.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p><strong>Gesamtpreis: <span style="color:#4ade80; font-size:1.3em;">{{ task.total_price }} â‚¬</span></strong></p>
+        {% endif %}
+
+        <br>
+        <button type="submit" name="save" class="button">Ã„nderungen speichern</button>
+    </form>
+
+    <!-- LÃ¶sch-Button -->
+    {% if task.task_type == 'purchase_order' %}
+        {% if task.status == 'noch nicht bearbeitet' or is_order_manager %}
+        <form method="post" action="{% url 'tasks:task_delete' task.pk %}" style="display:inline;" onsubmit="return confirm('Bestellung wirklich lÃ¶schen?');">
+            {% csrf_token %}
+            <button type="submit" class="button" style="background:#ef4444; color:white;">Bestellung lÃ¶schen</button>
+        </form>
+        {% endif %}
+    {% endif %}
+
+    <br><br>
+    <a href="{% url 'tasks:my_tasks' %}" class="button">â† ZurÃ¼ck zur Ãœbersicht</a>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+﻿{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Import Cost Centers - THERESE{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .import-form {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    textarea {
+        width: 100%;
+        height: 380px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+    }
+    .btn {
+        padding: 10px 20px;
+        margin-right: 10px;
+        font-size: 16px;
+    }
+    .help-text {
+        color: #666;
+        font-size: 14px;
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-form">
+    <h1>Import Cost Centers from Excel</h1>
+    <p>Copy the table from Excel (including the header row) and paste it into the field below.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <textarea name="pasted_data" placeholder="Projekt	Kostenstelle	Erstes Buchungsdatum	Letztes Buchungsdatum
+Example Project	4711/2026	01.01.2026	31.12.2026
+Another Project	12345/ABC	15.03.2026	"></textarea>
+        
+        <br><br>
+        <input type="submit" value="Import Cost Centers" class="btn btn-primary">
+        <a href="{% url 'admin:finances_costcenter_changelist' %}" class="btn btn-secondary">â† Back to Cost Centers</a>
+    </form>
+
+    <div class="help-text">
+        <strong>Important:</strong><br>
+        â€¢ Only cost centers containing a slash (<code>/</code>) will be imported (e.g. <code>4711/2026</code>, <code>PSP-123/ABC</code>).<br>
+        â€¢ Existing cost centers will be skipped.<br>
+        â€¢ The first row (header) will be ignored.
+    </div>
+</div>
+{% endblock %}

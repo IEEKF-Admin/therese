@@ -1,0 +1,76 @@
+﻿{% extends "tasks/detail/base.html" %}
+{% load widget_tweaks %}
+
+{% block order_info %}
+<div class="form-section">
+    <h3>Order Information</h3>
+    
+    <div class="aligned-field">
+        <label>Supplier <span style="color:#ef4444;">*</span></label>
+        <div class="form-control-static">{{ task.supplier }}</div>
+        {{ form.supplier.as_hidden }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>Created by</label>
+        <strong>{{ task.creator.get_full_name|default:"— Unknown" }}</strong>
+    </div>
+    
+    <div class="aligned-field">
+        <label>Assigned to</label>
+        {{ form.assignee|add_class:"form-control" }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>Priority</label>
+        {{ form.priority|add_class:"form-control" }}
+    </div>
+    
+    <div class="aligned-field">
+        <label>WBS Element <span style="color:#ef4444;">*</span></label>
+        {{ form.wbs_element|add_class:"form-control" }}
+    </div>
+
+    <div class="aligned-field">
+        <label>AT - Beleg Nummer</label>
+        {{ form.at_beleg_nummer|add_class:"form-control" }}
+    </div>
+</div>
+{% endblock %}
+
+{% block status_section %}
+<div class="form-section">
+    <h3>Current Status</h3>
+    <div class="status-radios">
+        {% for choice in form.status.field.choices %}
+            <label class="status-radio">
+                <input type="radio" 
+                       name="status" 
+                       value="{{ choice.0 }}" 
+                       {% if choice.0 == task.status %}checked{% endif %}>
+                <span>{{ choice.1 }}</span>
+            </label>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block comment_field %}
+    {{ form.comment|add_class:"form-control" }}
+{% endblock %}
+
+{% block action_buttons %}
+    <button type="submit" class="btn-primary">💾 Save Changes</button>
+
+    {# Reorder button - creates a new PO with the same items #}
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;copy_from={{ task.pk }}"
+       class="btn-secondary">
+        🔁 Gleiche Bestellung erneut aufgeben
+    </a>
+
+    <a href="{% url 'tasks:task_delete' task.pk %}" 
+       class="btn-danger" 
+       onclick="return confirm('Really delete this order?')">
+        🗑 Delete Order
+    </a>
+{% endblock %}

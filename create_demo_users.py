@@ -56,6 +56,7 @@ DEMO_USERS = [
         "last_name": "Demo",
         "email": "admin.demo@example.com",
         "is_staff": True,
+        "is_superuser": True,
     },
 ]
 
@@ -74,6 +75,7 @@ def create_demo_users():
                 "email": data["email"],
                 "password_changed": True,   # ← WICHTIG: Kein Passwort-Änderungs-Zwang
                 "is_staff": data.get("is_staff", False),
+                "is_superuser": data.get("is_superuser", False),
             }
         )
 
@@ -90,6 +92,8 @@ def create_demo_users():
             user.email = data["email"]
             if data.get("is_staff"):
                 user.is_staff = True
+            if data.get("is_superuser"):
+                user.is_superuser = True
             user.set_password(data["password"])
             user.save()
             existing += 1

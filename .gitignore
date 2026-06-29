@@ -28,3 +28,16 @@ staticfiles/
 # Migrations (werden neu generiert)
 apps/*/migrations/
 !apps/*/migrations/__init__.py
+
+# ============================================================
+# Logo / Asset files - MUST be versioned (not ignored)
+# ============================================================
+# These are source assets used in the application UI.
+# Even if broader image or static rules are added later, protect the logos.
+!logo*.webp
+!logo*.pdn
+!logo*.png
+!logo*.jpg
+!static/images/logo*.webp
+!static/images/logo*.png
+!static/images/logo*.jpg

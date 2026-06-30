@@ -106,10 +106,22 @@ if errorlevel 1 (
 
 echo.
 echo === 3. Git Tag erstellen ===
+git tag -l %NEW_VERSION% >nul 2>&1
+if not errorlevel 1 (
+    echo Tag %NEW_VERSION% existiert bereits lokal.
+    set /p "DELETE_TAG=Alten Tag lokal löschen und neu anlegen? (j/n): "
+    if /i "%DELETE_TAG%"=="j" (
+        git tag -d %NEW_VERSION%
+    ) else (
+        echo Tag wird nicht neu erstellt. Gehe zum Push über...
+        goto :skip_tag
+    )
+)
 git tag -a %NEW_VERSION% -m "Version %NEW_VERSION%"
 if errorlevel 1 (
     echo Tag existiert vielleicht bereits oder Fehler beim Taggen.
 )
+:skip_tag
 
 echo.
 echo === 4. Push zu Git (Branch + Tags) ===
@@ -118,14 +130,29 @@ echo Aktueller Git-Remote:
 git remote -v
 echo.
 
-echo Teste GitHub-Authentifizierung (kann einen Login-Prompt ausloesen)...
-git ls-remote --heads origin >nul 2>&1
-if errorlevel 1 (
-    echo [Hinweis] Authentifizierungstest schlug fehl oder keine Berechtigung.
-    echo Der Push wird es erneut versuchen und ggf. nach Anmeldedaten fragen.
+echo.
+set /p "FORCE_LOGIN=GitHub-Credentials zurücksetzen, um dich neu anzumelden (empfohlen bei 403-Fehler)? (j/n): "
+if /i "%FORCE_LOGIN%"=="j" (
+    echo.
+    echo Lösche gespeicherte GitHub-Credentials...
+    git credential-manager erase 2>nul || echo (Credential Manager nicht gefunden oder nichts zu löschen)
+    echo.
+    echo Credentials zurückgesetzt.
+    echo Beim nächsten Push wirst du nach Username und Personal Access Token (PAT) gefragt.
+    echo.
+    echo WICHTIG: Verwende einen PAT mit 'repo'-Scope, nicht dein normales Passwort!
+    echo Erzeuge einen unter: https://github.com/settings/tokens
 )
 
 echo.
+echo Teste GitHub-Authentifizierung (kann einen Login-Prompt ausloesen)...
+git ls-remote --heads origin
+if errorlevel 1 (
+    echo [Hinweis] Authentifizierungstest schlug fehl oder keine Berechtigung.
+)
+
+echo.
+echo Starte Push (falls noch nicht authentifiziert, jetzt Prompt)...
 git push origin HEAD --tags
 if errorlevel 1 (
     echo.

@@ -104,8 +104,10 @@ git show-ref --verify --quiet "refs/tags/v%NEW_VERSION%" >nul 2>&1
 if not errorlevel 1 (
     echo Tag v%NEW_VERSION% existiert bereits lokal.
     set /p "DELETE_TAG=Alten Tag lokal löschen und neu anlegen? (j/n): "
-    if /i "!DELETE_TAG!"=="j" (
+    set "DELETE_TAG=!DELETE_TAG: =!"
+    if /i "!DELETE_TAG:~0,1!"=="j" (
         git tag -d v%NEW_VERSION%
+        echo Tag gelöscht.
     ) else (
         echo Tag wird nicht neu erstellt.
         goto :skip_tag

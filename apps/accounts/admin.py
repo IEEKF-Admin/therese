@@ -11,12 +11,12 @@ Features / Requirements:
 Do not remove any existing requirements from this header without explicit instruction.
 """
 
-from django.contrib import admin
+from therese.admin import therese_admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
 
 
-@admin.register(CustomUser)
+@therese_admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     pass
 

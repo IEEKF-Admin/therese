@@ -11,12 +11,12 @@ Features / Requirements:
 Do not remove any existing requirements from this header without explicit instruction.
 """
 
-from django.contrib import admin
+from therese.admin import therese_admin
 from .models import GlobalSetting
 
 
-@admin.register(GlobalSetting)
-class GlobalSettingAdmin(admin.ModelAdmin):
+@therese_admin.register(GlobalSetting)
+class GlobalSettingAdmin(therese_admin.ModelAdmin):
     list_display = ['default_weekly_hours', 'updated_at']
     readonly_fields = ['updated_at']
 

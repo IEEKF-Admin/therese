@@ -1,31 +1,31 @@
-﻿from django.contrib import admin
+﻿from therese.admin import therese_admin
 from .models import Document, DocumentVersion, DocumentTag, DocumentShare, UserDocumentArchive
 
 
-@admin.register(Document)
-class DocumentAdmin(admin.ModelAdmin):
+@therese_admin.register(Document)
+class DocumentAdmin(therese_admin.ModelAdmin):
     list_display = ('title', 'created_by', 'created_at')
     search_fields = ('title', 'description')
     filter_horizontal = ('tags',)
 
 
-@admin.register(DocumentVersion)
-class DocumentVersionAdmin(admin.ModelAdmin):
+@therese_admin.register(DocumentVersion)
+class DocumentVersionAdmin(therese_admin.ModelAdmin):
     list_display = ('document', 'version_number', 'uploaded_by', 'uploaded_at')
     list_filter = ('uploaded_at',)
 
 
-@admin.register(DocumentTag)
-class DocumentTagAdmin(admin.ModelAdmin):
+@therese_admin.register(DocumentTag)
+class DocumentTagAdmin(therese_admin.ModelAdmin):
     list_display = ('name', 'created_by')
 
 
-@admin.register(DocumentShare)
-class DocumentShareAdmin(admin.ModelAdmin):
+@therese_admin.register(DocumentShare)
+class DocumentShareAdmin(therese_admin.ModelAdmin):
     list_display = ('document', 'share_type', 'permission', 'shared_at')
 
 
-@admin.register(UserDocumentArchive)
-class UserDocumentArchiveAdmin(admin.ModelAdmin):
+@therese_admin.register(UserDocumentArchive)
+class UserDocumentArchiveAdmin(therese_admin.ModelAdmin):
     list_display = ('user', 'document', 'archived_at')
 

@@ -4,7 +4,7 @@ apps/hr/admin.py
 Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
 """
 
-from django.contrib import admin
+from therese.admin import therese_admin
 from django import forms
 from .models import (
     Employee, Building, Room, PhoneNumber, Contract, 
@@ -15,29 +15,29 @@ from apps.finances.models import PayScale, WBSElement
 
 # = Inlines =
 
-class PhoneNumberInline(admin.TabularInline):
+class PhoneNumberInline(therese_admin.TabularInline):
     model = PhoneNumber
     extra = 1
 
 
-class ContractInline(admin.TabularInline):
+class ContractInline(therese_admin.TabularInline):
     model = Contract
     extra = 1
     fields = ['job_number', 'pay_scale_group', 'experience_level', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
     readonly_fields = []
 
 
-class FundingAllocationInline(admin.TabularInline):
+class FundingAllocationInline(therese_admin.TabularInline):
     model = FundingAllocation
     extra = 1
 
 
-class SalarySupplementInline(admin.TabularInline):
+class SalarySupplementInline(therese_admin.TabularInline):
     model = SalarySupplement
     extra = 1
 
 
-class WorkgroupMembershipInline(admin.TabularInline):
+class WorkgroupMembershipInline(therese_admin.TabularInline):
     model = Workgroup.members.through
     extra = 1
     verbose_name = "Workgroup Membership"
@@ -47,8 +47,8 @@ class WorkgroupMembershipInline(admin.TabularInline):
 
 # = Employee Admin =
 
-@admin.register(Employee)
-class EmployeeAdmin(admin.ModelAdmin):
+@therese_admin.register(Employee)
+class EmployeeAdmin(therese_admin.ModelAdmin):
     list_display = ('employee_number', 'get_full_name', 'gender', 'email_professional', 
                    'room', 'cost_center')
     list_filter = ('gender', 'room__building', 'cost_center')
@@ -62,8 +62,8 @@ class EmployeeAdmin(admin.ModelAdmin):
     ]
 
 
-@admin.register(Workgroup)
-class WorkgroupAdmin(admin.ModelAdmin):
+@therese_admin.register(Workgroup)
+class WorkgroupAdmin(therese_admin.ModelAdmin):
     list_display = ['short_name', 'long_name', 'pi', 'member_count']
     list_filter = ['pi']
     search_fields = ['short_name', 'long_name']
@@ -75,10 +75,10 @@ class WorkgroupAdmin(admin.ModelAdmin):
 
 
 # Weitere Register
-admin.site.register(Building)
-admin.site.register(Room)
-admin.site.register(PhoneNumber)
-admin.site.register(Contract)
-admin.site.register(FundingAllocation)
-admin.site.register(SalarySupplement)
+therese_admin.register(Building)
+therese_admin.register(Room)
+therese_admin.register(PhoneNumber)
+therese_admin.register(Contract)
+therese_admin.register(FundingAllocation)
+therese_admin.register(SalarySupplement)
 

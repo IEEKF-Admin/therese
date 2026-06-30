@@ -16,7 +16,7 @@ from therese.admin import therese_admin
 from .models import GlobalSetting
 
 
-@therese_admin.register(GlobalSetting)
+@admin.register(GlobalSetting, site=therese_admin)
 class GlobalSettingAdmin(admin.ModelAdmin):
     list_display = ['default_weekly_hours', 'updated_at']
     readonly_fields = ['updated_at']

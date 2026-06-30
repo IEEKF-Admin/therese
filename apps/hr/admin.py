@@ -48,7 +48,7 @@ class WorkgroupMembershipInline(admin.TabularInline):
 
 # = Employee Admin =
 
-@therese_admin.register(Employee)
+@admin.register(Employee, site=therese_admin)
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('employee_number', 'get_full_name', 'gender', 'email_professional', 
                    'room', 'cost_center')
@@ -63,7 +63,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     ]
 
 
-@therese_admin.register(Workgroup)
+@admin.register(Workgroup, site=therese_admin)
 class WorkgroupAdmin(admin.ModelAdmin):
     list_display = ['short_name', 'long_name', 'pi', 'member_count']
     list_filter = ['pi']

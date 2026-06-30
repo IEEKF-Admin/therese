@@ -11,7 +11,7 @@ load_dotenv()
 
 # === BASE_DIR - zeigt auf den Ordner mit manage.py ===
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-print(f"DEBUG: BASE_DIR = {BASE_DIR}")
+# print(f"DEBUG: BASE_DIR = {BASE_DIR}")  # Nur für Debugging aktivieren
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 
@@ -116,12 +116,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise configuration (recommended for Gunicorn deploys)
 # Use compressed + hashed filenames for better caching
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Optional: add to requirements: whitenoise
-# On production server: pip install whitenoise
-# Then after every code deploy: python manage.py collectstatic --noinput
-# Restart gunicorn after collectstatic.
-
 
 # = MEDIA FILES =
 MEDIA_URL = '/media/'

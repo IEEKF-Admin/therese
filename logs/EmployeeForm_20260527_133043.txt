@@ -1,0 +1,55 @@
+THERESE - EmployeeForm DEBUG LOG
+Date: 2026-05-27 13:30:43
+================================================================================
+
+BOUND DATA (excerpt):
+ csrfmiddlewaretoken: E820A56HMKPqhYMeIM7VvDJ4hXK73YdzpWIdlJfT5ouNgWyuflXAzCPV8xGDubwJ
+ employee_number: 12345678910
+ prefix: 
+ first_name: Yuliia
+ last_name: Schylischinska
+ gender: F
+ date_of_birth: 2002-07-25
+ country_of_origin: Ukraine
+ place_of_birth: Kiev
+ street: Holzlarer Straße
+ house_number: 5
+ postal_code: 53229
+ city: Bonn
+ country: Germany
+ Workgroup_members-TOTAL_FORMS: 2
+ Workgroup_members-INITIAL_FORMS: 0
+ Workgroup_members-MIN_NUM_FORMS: 0
+ Workgroup_members-MAX_NUM_FORMS: 1000
+ Workgroup_members-__prefix__-id: 
+ Workgroup_members-__prefix__-DELETE: 
+ Workgroup_members-__prefix__-workgroup: 
+ Workgroup_members-1-id: 
+ Workgroup_members-1-DELETE: 
+ Workgroup_members-1-workgroup: 2
+ email_professional: yuliia.schylischiinska@uni-bonn.de
+ email_private: yuli.s@home.de
+ google_account: 
+ private_phone_number: 
+ website: 
+ building: 2
+ room: 11
+ phone_number: 0228-287-7549
+ scan_of_contract: 
+ profile_picture: 
+ monthly_salary: 3818.66
+ cost_center: 
+ contracts-TOTAL_FORMS: 2
+ contracts-INITIAL_FORMS: 0
+ contracts-MIN_NUM_FORMS: 1
+ contracts-MAX_NUM_FORMS: 1000
+ contracts-0-id: 
+ contracts-0-DELETE: 
+ contracts-0-pay_scale_group: E 9a
+ contracts-0-experience_level: 3
+ contracts-0-weekly_hours: 38.5
+ contracts-0-valid_from: 2026-05-27
+ contracts-0-valid_until: 2028-05-27
+ contracts-0-comments: 
+ contracts-1-id: 
+ contracts-1-DELETE: 

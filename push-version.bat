@@ -113,11 +113,48 @@ if errorlevel 1 (
 
 echo.
 echo === 4. Push zu Git (Branch + Tags) ===
+echo.
+echo Aktueller Git-Remote:
+git remote -v
+echo.
+
+echo Teste GitHub-Authentifizierung (kann einen Login-Prompt ausloesen)...
+git ls-remote --heads origin >nul 2>&1
+if errorlevel 1 (
+    echo [Hinweis] Authentifizierungstest schlug fehl oder keine Berechtigung.
+    echo Der Push wird es erneut versuchen und ggf. nach Anmeldedaten fragen.
+)
+
+echo.
 git push origin HEAD --tags
 if errorlevel 1 (
     echo.
     echo FEHLER beim Push!
-    echo Bitte manuell pruefen: git push origin HEAD --tags
+    echo.
+    echo Moegliche Ursachen:
+    echo - Angemeldeter Benutzer (KistianR) hat keine Push-Rechte auf IEEKF-Admin/therese
+    echo - Gespeicherte Credentials sind veraltet oder falsch (HTTPS + falscher Token)
+    echo - Repository ist privat und der Token hat nicht den Scope 'repo'
+    echo.
+    echo Empfohlene Schritte zur Fehlerbehebung:
+    echo 1. Credentials zuruecksetzen (zwingt zur Neuanmeldung):
+    echo    git credential-manager erase
+    echo    (Oder in neueren Git-Versionen: git credential-manager-core erase)
+    echo    Danach beim naechsten Push nach Username + Personal Access Token (PAT) gefragt.
+    echo.
+    echo 2. Personal Access Token (PAT) erzeugen:
+    echo    - Gehe zu https://github.com/settings/tokens
+    echo    - 'Generate new token' (classic)
+    echo    - Scope 'repo' aktivieren
+    echo    - Token kopieren und beim Prompt als Passwort verwenden (nicht dein GitHub-Passwort!)
+    echo.
+    echo 3. Remote auf SSH umstellen (empfohlen fuer haeufige Nutzung):
+    echo    git remote set-url origin git@github.com:IEEKF-Admin/therese.git
+    echo    (Voraussetzung: SSH-Key auf GitHub hinterlegt)
+    echo.
+    echo 4. Manuell testen:
+    echo    git push origin HEAD --tags
+    echo.
     pause
     exit /b 1
 )

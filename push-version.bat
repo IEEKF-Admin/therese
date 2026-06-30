@@ -20,47 +20,32 @@ echo.
 
 :: === Requirements.txt Handling ===
 echo.
-echo DEBUG: Entering venv detection
 echo Pruefe auf virtuelle Umgebung fuer requirements.txt...
 set "VENV_PYTHON="
 
 for %%d in (venv .venv env) do (
-    echo DEBUG: Checking for %%d\Scripts\python.exe
     if exist "%%d\Scripts\python.exe" (
-        echo DEBUG: Found venv in %%d
         set "VENV_PYTHON=%%d\Scripts\python.exe"
         goto :venv_found
     )
 )
 
 :venv_found
-echo DEBUG: After loop, VENV_PYTHON=%VENV_PYTHON%
-echo DEBUG: About to evaluate if defined VENV_PYTHON
-
-if defined VENV_PYTHON goto :has_venv
-goto :no_venv
-
-:has_venv
-echo DEBUG: ENTERED the if-defined block
-echo Virtuelle Umgebung gefunden: %VENV_PYTHON%
-set /p "UPDATE_REQ=requirements.txt mit aktuellen Libraries aktualisieren? Tippe j oder n: "
-if /i "%UPDATE_REQ%"=="j" (
-    echo.
-    echo Aktualisiere requirements.txt ...
-    "%VENV_PYTHON%" -m pip freeze > requirements.txt
-    echo requirements.txt wurde aktualisiert.
+if defined VENV_PYTHON (
+    echo Virtuelle Umgebung gefunden: %VENV_PYTHON%
+    set /p "UPDATE_REQ=requirements.txt mit aktuellen Libraries aktualisieren? (j/n): "
+    if /i "%UPDATE_REQ%"=="j" (
+        echo.
+        echo Aktualisiere requirements.txt ...
+        "%VENV_PYTHON%" -m pip freeze > requirements.txt
+        echo requirements.txt wurde aktualisiert.
+        echo.
+    )
+) else (
+    echo Keine virtuelle Umgebung gefunden.
+    echo Bitte manuell sicherstellen, dass requirements.txt aktuell ist.
     echo.
 )
-goto :after_venv_check
-
-:no_venv
-echo DEBUG: ENTERED the else block
-echo Keine virtuelle Umgebung gefunden.
-echo Bitte manuell sicherstellen, dass requirements.txt aktuell ist (pip freeze ^> requirements.txt).
-echo.
-
-:after_venv_check
-echo DEBUG: Finished venv check block
 
 set /p "NEW_VERSION=Neue Versionsnummer: "
 
@@ -76,7 +61,7 @@ echo Aktueller Status:
 git status --short
 echo.
 
-set /p "CONFIRM=Durchfuehren? Tippe j oder n: "
+set /p "CONFIRM=Durchfuehren? (j/n): "
 if /i not "%CONFIRM%"=="j" (
     echo.
     echo Abgebrochen.
@@ -85,7 +70,7 @@ if /i not "%CONFIRM%"=="j" (
 )
 
 echo.
-echo === 1. Alle Aenderungen stagen ===
+echo === 1. Alle Änderungen stagen ===
 git add .
 if errorlevel 1 (
     echo Fehler beim git add.
@@ -94,10 +79,18 @@ if errorlevel 1 (
 )
 
 echo.
+set /p "COMMIT_MSG=Commit-Beschreibung (kurze, klare Beschreibung): "
+if "%COMMIT_MSG%"=="" (
+    set "COMMIT_MSG=Release %NEW_VERSION%"
+) else (
+    set "COMMIT_MSG=v%NEW_VERSION%: %COMMIT_MSG%"
+)
+
+echo.
 echo === 2. Commit erstellen ===
-git commit -m "Release %NEW_VERSION%"
+git commit -m "%COMMIT_MSG%"
 if errorlevel 1 (
-    echo Keine Aenderungen zum Committen oder Fehler.
+    echo Keine Änderungen zum Committen oder Fehler.
     echo.
     echo Setze Tag trotzdem fort...
 ) else (
@@ -106,90 +99,40 @@ if errorlevel 1 (
 
 echo.
 echo === 3. Git Tag erstellen ===
-git tag -l %NEW_VERSION% >nul 2>&1
+git tag -l v%NEW_VERSION% >nul 2>&1
 if not errorlevel 1 (
-    echo Tag %NEW_VERSION% existiert bereits lokal.
+    echo Tag v%NEW_VERSION% existiert bereits lokal.
     set /p "DELETE_TAG=Alten Tag lokal löschen und neu anlegen? (j/n): "
     if /i "%DELETE_TAG%"=="j" (
-        git tag -d %NEW_VERSION%
+        git tag -d v%NEW_VERSION%
     ) else (
-        echo Tag wird nicht neu erstellt. Gehe zum Push über...
+        echo Tag wird nicht neu erstellt.
         goto :skip_tag
     )
 )
-git tag -a %NEW_VERSION% -m "Version %NEW_VERSION%"
+git tag -a v%NEW_VERSION% -m "Release %NEW_VERSION%"
 if errorlevel 1 (
     echo Tag existiert vielleicht bereits oder Fehler beim Taggen.
 )
 :skip_tag
 
 echo.
-echo === 4. Push zu Git (Branch + Tags) ===
-echo.
-echo Aktueller Git-Remote:
-git remote -v
-echo.
-
-echo.
-set /p "FORCE_LOGIN=GitHub-Credentials zurücksetzen, um dich neu anzumelden (empfohlen bei 403-Fehler)? (j/n): "
-if /i "%FORCE_LOGIN%"=="j" (
-    echo.
-    echo Lösche gespeicherte GitHub-Credentials...
-    (
-      echo protocol=https
-      echo host=github.com
-    ) | git credential-manager erase >nul 2>&1 || (
-      (
-        echo protocol=https
-        echo host=github.com
-      ) | git credential-manager-core erase >nul 2>&1 || echo (Kein Credential Manager gefunden oder nichts zu löschen)
-    )
-    echo Credentials für github.com zurückgesetzt.
-    echo Beim nächsten 'git ls-remote' oder Push wirst du nach Username + Personal Access Token (PAT) gefragt.
-    echo.
-    echo WICHTIG: 
-    echo - Username: dein GitHub-Benutzername (z.B. KistianR)
-    echo - Password: ein Personal Access Token mit Scope 'repo' (nicht dein normales Passwort!)
-    echo   Erzeugen: https://github.com/settings/tokens
-)
-
-echo.
-echo Teste GitHub-Authentifizierung (kann einen Login-Prompt ausloesen)...
-git ls-remote --heads origin
-if errorlevel 1 (
-    echo [Hinweis] Authentifizierungstest schlug fehl oder keine Berechtigung.
-)
-
-echo.
-echo Starte Push (falls noch nicht authentifiziert, jetzt Prompt)...
-git push origin HEAD --tags
+echo === 4. Push zu Git ===
+git push origin main --tags
 if errorlevel 1 (
     echo.
     echo FEHLER beim Push!
     echo.
-    echo Moegliche Ursachen:
-    echo - Angemeldeter Benutzer (KistianR) hat keine Push-Rechte auf IEEKF-Admin/therese
-    echo - Gespeicherte Credentials sind veraltet oder falsch (HTTPS + falscher Token)
-    echo - Repository ist privat und der Token hat nicht den Scope 'repo'
+    echo Mögliche Ursachen und Lösungen:
+    echo - Falsche oder veraltete Credentials für das Repo.
+    echo   Manuell: git credential-manager erase
+    echo   Dann erneut pushen (wird nach Token fragen).
     echo.
-    echo Empfohlene Schritte zur Fehlerbehebung:
-    echo 1. Credentials zuruecksetzen (zwingt zur Neuanmeldung):
-    echo    git credential-manager erase
-    echo    (Oder in neueren Git-Versionen: git credential-manager-core erase)
-    echo    Danach beim naechsten Push nach Username + Personal Access Token (PAT) gefragt.
+    echo - Keine Rechte auf das Repository (aktuell als KistianR auf IEEKF-Admin/therese).
+    echo   Stelle sicher, dass du Push-Rechte hast oder verwende den richtigen Account/PAT.
     echo.
-    echo 2. Personal Access Token (PAT) erzeugen:
-    echo    - Gehe zu https://github.com/settings/tokens
-    echo    - 'Generate new token' (classic)
-    echo    - Scope 'repo' aktivieren
-    echo    - Token kopieren und beim Prompt als Passwort verwenden (nicht dein GitHub-Passwort!)
-    echo.
-    echo 3. Remote auf SSH umstellen (empfohlen fuer haeufige Nutzung):
-    echo    git remote set-url origin git@github.com:IEEKF-Admin/therese.git
-    echo    (Voraussetzung: SSH-Key auf GitHub hinterlegt)
-    echo.
-    echo 4. Manuell testen:
-    echo    git push origin HEAD --tags
+    echo - Branch heißt nicht "main" oder Remote ist nicht korrekt.
+    echo   Manuell: git push origin main
     echo.
     pause
     exit /b 1
@@ -197,7 +140,7 @@ if errorlevel 1 (
 
 echo.
 echo ==========================================
-echo   ERFOLG! Version %NEW_VERSION% wurde gepusht.
+echo   ERFOLG! Version v%NEW_VERSION% wurde gepusht.
 echo ==========================================
 echo.
 pause

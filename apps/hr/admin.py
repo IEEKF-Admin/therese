@@ -4,8 +4,9 @@ apps/hr/admin.py
 Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
 """
 
-from therese.admin import therese_admin
+from django.contrib import admin
 from django import forms
+from therese.admin import therese_admin
 from .models import (
     Employee, Building, Room, PhoneNumber, Contract, 
     FundingAllocation, SalarySupplement, Workgroup
@@ -15,29 +16,29 @@ from apps.finances.models import PayScale, WBSElement
 
 # = Inlines =
 
-class PhoneNumberInline(therese_admin.TabularInline):
+class PhoneNumberInline(admin.TabularInline):
     model = PhoneNumber
     extra = 1
 
 
-class ContractInline(therese_admin.TabularInline):
+class ContractInline(admin.TabularInline):
     model = Contract
     extra = 1
     fields = ['job_number', 'pay_scale_group', 'experience_level', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
     readonly_fields = []
 
 
-class FundingAllocationInline(therese_admin.TabularInline):
+class FundingAllocationInline(admin.TabularInline):
     model = FundingAllocation
     extra = 1
 
 
-class SalarySupplementInline(therese_admin.TabularInline):
+class SalarySupplementInline(admin.TabularInline):
     model = SalarySupplement
     extra = 1
 
 
-class WorkgroupMembershipInline(therese_admin.TabularInline):
+class WorkgroupMembershipInline(admin.TabularInline):
     model = Workgroup.members.through
     extra = 1
     verbose_name = "Workgroup Membership"
@@ -48,7 +49,7 @@ class WorkgroupMembershipInline(therese_admin.TabularInline):
 # = Employee Admin =
 
 @therese_admin.register(Employee)
-class EmployeeAdmin(therese_admin.ModelAdmin):
+class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('employee_number', 'get_full_name', 'gender', 'email_professional', 
                    'room', 'cost_center')
     list_filter = ('gender', 'room__building', 'cost_center')
@@ -63,7 +64,7 @@ class EmployeeAdmin(therese_admin.ModelAdmin):
 
 
 @therese_admin.register(Workgroup)
-class WorkgroupAdmin(therese_admin.ModelAdmin):
+class WorkgroupAdmin(admin.ModelAdmin):
     list_display = ['short_name', 'long_name', 'pi', 'member_count']
     list_filter = ['pi']
     search_fields = ['short_name', 'long_name']

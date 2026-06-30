@@ -38,7 +38,7 @@ class TaskAttachmentInline(admin.TabularInline):
 
 
 # = Admin Classes =
-@therese_admin.register(PurchaseOrderTask)
+@admin.register(PurchaseOrderTask, site=therese_admin)
 class PurchaseOrderTaskAdmin(admin.ModelAdmin):
     form = PurchaseOrderTaskForm
     inlines = [PurchaseItemInline, TaskCommentInline, TaskAttachmentInline]
@@ -57,21 +57,21 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
         return form
 
 
-@therese_admin.register(PersonnelReallocationTask)
+@admin.register(PersonnelReallocationTask, site=therese_admin)
 class PersonnelReallocationTaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'employee', 'target_wbs', 'status', 'valid_from', 'assignee']
     list_filter = ['status', 'valid_from']
 
 
-@therese_admin.register(PersonnelContractExtensionTask)
+@admin.register(PersonnelContractExtensionTask, site=therese_admin)
 class PersonnelContractExtensionTaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'employee', 'valid_from', 'is_limited', 'status', 'assignee']
     list_filter = ['status', 'is_limited']
 
 
-@therese_admin.register(GenericTextTask)
+@admin.register(GenericTextTask, site=therese_admin)
 class GenericTextTaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'recipient', 'status', 'assignee']
@@ -79,7 +79,7 @@ class GenericTextTaskAdmin(admin.ModelAdmin):
 
 
 # Base Task (read-only overview)
-@therese_admin.register(Task)
+@admin.register(Task, site=therese_admin)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ['task_type', 'title', 'creator', 'assignee', 'status', 'priority', 'created_at']
     list_filter = ['task_type', 'status', 'priority']

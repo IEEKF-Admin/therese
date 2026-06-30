@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',  # WhiteNoise for static files (dev + prod)
     'django.contrib.staticfiles',
 
     # Custom apps
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serves static files in production (after Security, before others)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -95,9 +97,19 @@ STATIC_URL = '/static/'
 # WICHTIG: Damit Django die Datei static/admin/js/contract_payscale.js findet
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
+    BASE_DIR / 'therese' / 'static',  # custom admin CSS/JS (admin_custom.css etc.)
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise configuration (recommended for Gunicorn deploys)
+# Use compressed + hashed filenames for better caching
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Optional: add to requirements: whitenoise
+# On production server: pip install whitenoise
+# Then after every code deploy: python manage.py collectstatic --noinput
+# Restart gunicorn after collectstatic.
 
 # ====================== MEDIA FILES ======================
 MEDIA_URL = '/media/'

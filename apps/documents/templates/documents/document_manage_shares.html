@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Manage Shares - {{ document.title }}{% endblock %}
 
@@ -7,7 +7,7 @@
     <h1>Manage Shares</h1>
     <div>
         <a href="{% url 'documents:document_detail' document.pk %}" class="btn-secondary">
-            ← Back to Document
+            â† Back to Document
         </a>
     </div>
 </div>
@@ -32,13 +32,13 @@
                 <tr>
                     <td>
                         {% if share.share_type == 'user' and share.shared_with_user %}
-                            👤 {{ share.shared_with_user.get_full_name|default:share.shared_with_user }}
+                            ðŸ‘¤ {{ share.shared_with_user.get_full_name|default:share.shared_with_user }}
                         {% elif share.share_type == 'group' and share.shared_with_group %}
-                            👥 {{ share.shared_with_group.name }}
+                            ðŸ‘¥ {{ share.shared_with_group.name }}
                         {% elif share.share_type == 'everyone' %}
-                            🌍 <strong>Everyone</strong>
+                            ðŸŒ <strong>Everyone</strong>
                         {% elif share.share_type == 'administration' %}
-                            🏛️ <strong>Administration</strong>
+                            ðŸ›ï¸ <strong>Administration</strong>
                         {% endif %}
                     </td>
                     <td>
@@ -159,3 +159,4 @@
     .sig-badge.sig-ask_for_signature { background: #fef3c7; color: #92400e; }
 </style>
 {% endblock %}
+

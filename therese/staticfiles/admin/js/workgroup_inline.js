@@ -1,4 +1,4 @@
-// therese/static/admin/js/workgroup_inline.js
+﻿// therese/static/admin/js/workgroup_inline.js
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[DEBUG] workgroup_inline.js loaded');
@@ -38,3 +38,4 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listen for changes
     workgroupSelect.addEventListener('change', toggleInline);
 });
+

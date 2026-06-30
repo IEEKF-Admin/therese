@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/detail/personnel.py
 Detail views for Personnel Reallocation and Contract Extension tasks.
 Only accessible to PI users and involved employees.
@@ -80,3 +80,5 @@ def personnel_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, template, context)
+
+

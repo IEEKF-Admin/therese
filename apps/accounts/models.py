@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/models.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -34,3 +34,5 @@ class CustomUser(AbstractUser):
 # Prevent reverse accessor clashes
 CustomUser.groups.field.remote_field.related_name = 'customuser_groups'
 CustomUser.user_permissions.field.remote_field.related_name = 'customuser_user_permissions'
+
+

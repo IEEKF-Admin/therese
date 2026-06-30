@@ -1,4 +1,4 @@
-// therese/static/admin/js/building_room_phone.js
+﻿// therese/static/admin/js/building_room_phone.js
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== Building-Room-Phone JS geladen ===');
 
@@ -20,13 +20,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Building Change
     buildingField.addEventListener('change', function() {
         const buildingId = this.value;
-        console.log('Building geändert → ID:', buildingId);
+        console.log('Building geÃ¤ndert â†’ ID:', buildingId);
 
         roomField.innerHTML = '<option value="">---------</option>';
         phoneField.innerHTML = '<option value="">---------</option>';
 
         if (!buildingId) {
-            console.log('Keine Building-ID → Abbruch');
+            console.log('Keine Building-ID â†’ Abbruch');
             return;
         }
 
@@ -52,12 +52,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Room Change
     roomField.addEventListener('change', function() {
         const roomId = this.value;
-        console.log('Room geändert → ID:', roomId);
+        console.log('Room geÃ¤ndert â†’ ID:', roomId);
 
         phoneField.innerHTML = '<option value="">---------</option>';
 
         if (!roomId) {
-            console.log('Keine Room-ID → Abbruch');
+            console.log('Keine Room-ID â†’ Abbruch');
             return;
         }
 
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 if (data.length > 0) {
                     phoneField.value = data[0].phone_number;
-                    console.log('Erste Telefonnummer automatisch ausgewählt');
+                    console.log('Erste Telefonnummer automatisch ausgewÃ¤hlt');
                 }
             })
             .catch(err => console.error('Fetch Phones Error:', err));
@@ -86,3 +86,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('Event Listener erfolgreich registriert');
 });
+

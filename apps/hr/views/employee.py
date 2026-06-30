@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/views/employee.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -25,20 +25,20 @@ from .employee_form_helpers import (
 from apps.finances.models import PayScale
 
 
-# ====================== LIST VIEW ======================
+# = LIST VIEW =
 @login_required
 def employee_list(request):
     """Liste aller Mitarbeiter"""
-    print("🔍 [DEBUG] employee_list view called")
+    print("ðŸ” [DEBUG] employee_list view called")
     
     user_groups = list(request.user.groups.values_list('name', flat=True))
-    print(f"🔍 User groups: {user_groups}")
+    print(f"ðŸ” User groups: {user_groups}")
 
     allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
     
     if not allowed_groups.intersection(user_groups):
         messages.error(request, "You don't have permission to view employees.")
-        print("❌ Permission denied for employee list")
+        print("âŒ Permission denied for employee list")
         return redirect('tasks:my_tasks')
 
     archive_mode = request.GET.get('archive') == '1'
@@ -46,7 +46,7 @@ def employee_list(request):
     sort_field = request.GET.get('sort', 'last_name')
     sort_dir = request.GET.get('dir', 'asc')
 
-    print(f"🔍 Archive mode: {archive_mode} | Search: '{search_query}'")
+    print(f"ðŸ” Archive mode: {archive_mode} | Search: '{search_query}'")
 
     employees = Employee.objects.select_related(
         'room__building', 'cost_center', 'user'
@@ -89,11 +89,11 @@ def employee_list(request):
         'current_dir': sort_dir,
     }
 
-    print(f"🔍 Returning {employees.count()} employees to template")
+    print(f"ðŸ” Returning {employees.count()} employees to template")
     return render(request, 'hr/employee_list.html', context)
 
 
-# ====================== CREATE VIEW ======================
+# = CREATE VIEW =
 class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Employee
     form_class = EmployeeForm
@@ -101,15 +101,15 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = '/hr/employees/'
 
     def test_func(self):
-        print("🔍 [DEBUG] EmployeeCreateView.test_func called")
+        print("ðŸ” [DEBUG] EmployeeCreateView.test_func called")
         user_groups = list(self.request.user.groups.values_list('name', flat=True))
         allowed = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
         result = bool(allowed.intersection(user_groups))
-        print(f"🔍 Permission check result: {result}")
+        print(f"ðŸ” Permission check result: {result}")
         return result
 
     def get_context_data(self, **kwargs):
-        print("🔍 [DEBUG] EmployeeCreateView.get_context_data called")
+        print("ðŸ” [DEBUG] EmployeeCreateView.get_context_data called")
         context = super().get_context_data(**kwargs)
         context['contract_formset'] = ContractFormSet()
         context['funding_formset'] = FundingFormSet()
@@ -131,12 +131,12 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        print("🔍 [DEBUG] EmployeeCreateView.form_valid called")
+        print("ðŸ” [DEBUG] EmployeeCreateView.form_valid called")
         # ... (die gleiche form_valid Logik wie vorher)
-        return super().form_valid(form)   # Platzhalter – bei Bedarf erweitern
+        return super().form_valid(form)   # Platzhalter â€“ bei Bedarf erweitern
 
 
-# ====================== UPDATE VIEW ======================
+# = UPDATE VIEW =
 class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Employee
     form_class = EmployeeForm
@@ -144,15 +144,15 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = '/hr/employees/'
 
     def test_func(self):
-        print("🔍 [DEBUG] EmployeeUpdateView.test_func called")
+        print("ðŸ” [DEBUG] EmployeeUpdateView.test_func called")
         user_groups = list(self.request.user.groups.values_list('name', flat=True))
         allowed = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
         result = bool(allowed.intersection(user_groups))
-        print(f"🔍 Permission check result: {result}")
+        print(f"ðŸ” Permission check result: {result}")
         return result
 
     def get_context_data(self, **kwargs):
-        print("🔍 [DEBUG] EmployeeUpdateView.get_context_data called - PK:", self.object.pk if self.object else None)
+        print("ðŸ” [DEBUG] EmployeeUpdateView.get_context_data called - PK:", self.object.pk if self.object else None)
         context = super().get_context_data(**kwargs)
         if self.request.POST:
             context['contract_formset'] = ContractFormSet(self.request.POST, instance=self.object)
@@ -180,7 +180,7 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return context
 
     def form_valid(self, form):
-        print("🔍 [DEBUG] EmployeeUpdateView.form_valid called - checking all inlines...")
+        print("ðŸ” [DEBUG] EmployeeUpdateView.form_valid called - checking all inlines...")
         context = self.get_context_data()
         
         contract_valid = context['contract_formset'].is_valid()
@@ -195,9 +195,9 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
         if not all([contract_valid, funding_valid, salary_valid, workgroup_valid]):
             if not contract_valid:
-                messages.error(self.request, "❌ Fehler in den Verträgen (Contracts). Bitte prüfen Sie Pflichtfelder.")
+                messages.error(self.request, "âŒ Fehler in den VertrÃ¤gen (Contracts). Bitte prÃ¼fen Sie Pflichtfelder.")
             if not funding_valid:
-                messages.error(self.request, "❌ Fehler in den Funding Allocations.")
+                messages.error(self.request, "âŒ Fehler in den Funding Allocations.")
             return self.form_invalid(form)
 
         self.object = form.save(commit=False)
@@ -213,10 +213,11 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             fs.instance = self.object
             fs.save()
 
-        messages.success(self.request, "✅ Employee successfully saved!")
+        messages.success(self.request, "âœ… Employee successfully saved!")
         return redirect(self.success_url)
 
     def form_invalid(self, form):
-        print("❌ form_invalid called in UpdateView")
+        print("âŒ form_invalid called in UpdateView")
         messages.error(self.request, "Please correct the errors below.")
         return self.render_to_response(self.get_context_data(form=form))
+

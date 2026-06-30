@@ -1,6 +1,6 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-15 13:38:11
-================================================================================
+===
 
 INSTANCE: Prof. Heinz Beck (123456789) (PK: 11)
  Building: A02 - Verwaltung / Personalabteilung
@@ -16,7 +16,7 @@ BOUND DATA (excerpt):
  gender: M
  date_of_birth: 
  country_of_origin: Germany
- place_of_birth: Köln
+ place_of_birth: KÃ¶ln
  email_professional: Reichelt.Kristian@googlemail.com
  email_private: Reichelt.Kristian@googlemail.com
  google_account: 
@@ -58,3 +58,5 @@ BOUND DATA (excerpt):
  allocations-0-weekly_hours_allocated: 38.50
  allocations-0-start_date: 2026-05-15
  allocations-0-end_date: 2028-05-15
+
+

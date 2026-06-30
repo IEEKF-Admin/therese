@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static widget_tweaks %}
 
 {% block title %}New Contract Extension - THERESE{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
     <h1>New Contract Extension</h1>
-    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">â† Cancel</a>
 </div>
 
 <div class="card">
@@ -72,9 +72,10 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn-primary">✅ Create Contract Extension</button>
+            <button type="submit" class="btn-primary">âœ… Create Contract Extension</button>
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
 {% endblock %}
+

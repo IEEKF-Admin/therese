@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/admin.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -19,3 +19,5 @@ from .models import CustomUser
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     pass
+
+

@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 from . import views
 
 app_name = 'documents'
@@ -13,3 +13,4 @@ urlpatterns = [
     path('download/<int:version_pk>/', views.document_download, name='document_download'),
     path('preview/<int:version_pk>/', views.document_preview, name='document_preview'),
 ]
+

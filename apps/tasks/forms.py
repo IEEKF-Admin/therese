@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/tasks/forms.py
-Project: THERESE – Transparent HR Resource System Enhanced
+Project: THERESE â€“ Transparent HR Resource System Enhanced
 """
 from django import forms
 from .models import (
@@ -21,7 +21,7 @@ from apps.accounts.permissions import GroupNames
 
 class PurchaseOrderTaskForm(forms.ModelForm):
     """
-    Formular für Purchase Orders mit Radio-Buttons für Status.
+    Formular fÃ¼r Purchase Orders mit Radio-Buttons fÃ¼r Status.
     """
     class Meta:
         model = PurchaseOrderTask
@@ -36,7 +36,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         self.is_creation = kwargs.pop('is_creation', False)
         super().__init__(*args, **kwargs)
 
-        # ==================== Supplier ====================
+        # ====== Supplier ======
         if 'supplier' in self.fields:
             if not self.is_creation and self.user and self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists():
                 self.fields['supplier'].widget = forms.HiddenInput()
@@ -46,7 +46,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             else:
                 self.fields['supplier'].widget.attrs.update({'class': 'form-control'})
 
-        # ==================== Assignee ====================
+        # ====== Assignee ======
         if 'assignee' in self.fields:
             # Purchase Requesters und PIs sollen das Assignee-Dropdown niemals sehen
             if self.user and (
@@ -59,13 +59,13 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                     self.fields['assignee'].initial = None  # bleibt unassigned, bis Coordinator/Approver es setzt
 
             else:
-                # Coordinator und andere (z.B. Approver) können Assignee aus Approvers wählen
+                # Coordinator und andere (z.B. Approver) kÃ¶nnen Assignee aus Approvers wÃ¤hlen
                 approvers = Employee.objects.filter(user__groups__name=GroupNames.PROCUREMENT_APPROVER)
                 self.fields['assignee'].queryset = approvers.order_by('last_name', 'first_name')
                 self.fields['assignee'].widget.attrs.update({'class': 'form-control'})
-                self.fields['assignee'].empty_label = "— Unassigned —"
+                self.fields['assignee'].empty_label = "â€” Unassigned â€”"
 
-        # ==================== AT - Beleg Nummer ====================
+        # ====== AT - Beleg Nummer ======
         if 'at_beleg_nummer' in self.fields:
             if self.is_creation:
                 self.fields['at_beleg_nummer'].widget = forms.HiddenInput()
@@ -79,7 +79,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             else:
                 self.fields['at_beleg_nummer'].widget.attrs.update({'class': 'form-control'})
 
-        # ==================== Status ====================
+        # ====== Status ======
         if 'status' in self.fields:
             self.fields['status'].choices = PURCHASE_STATUSES
 
@@ -92,7 +92,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                     self.data['status'] = 'not_yet_processed'
             # else: Radio Buttons bleiben (wird im Template manuell gerendert)
 
-        # ==================== WBS Element ====================
+        # ====== WBS Element ======
         if 'wbs_element' in self.fields:
             self.fields['wbs_element'].queryset = WBSElement.objects.filter(
                 wbs_code__regex=r'.*-\d+\.\d+\.1$'
@@ -100,7 +100,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             self.fields['wbs_element'].empty_label = "---------"
 
             if not self.is_creation and self.user and self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists():
-                # Coordinator darf WBS ändern (bleibt Select)
+                # Coordinator darf WBS Ã¤ndern (bleibt Select)
                 pass
             elif self.is_creation:
                 self.fields['wbs_element'].widget = forms.HiddenInput()
@@ -117,7 +117,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         return cleaned_data
 
 
-# ====================== Weitere Formulare ======================
+# = Weitere Formulare =
 class PurchaseItemForm(forms.ModelForm):
     class Meta:
         model = PurchaseItem
@@ -196,12 +196,12 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
         # Employee dropdown (all employees)
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['employee'].empty_label = "— Select employee —"
+            self.fields['employee'].empty_label = "â€” Select employee â€”"
 
         # Target WBS (reasonable WBS elements)
         if 'target_wbs' in self.fields:
             self.fields['target_wbs'].queryset = WBSElement.objects.all().order_by('wbs_code')
-            self.fields['target_wbs'].empty_label = "— Select target WBS —"
+            self.fields['target_wbs'].empty_label = "â€” Select target WBS â€”"
 
 
 class PersonnelContractExtensionTaskForm(forms.ModelForm):
@@ -264,7 +264,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         # Employee dropdown (all employees)
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['employee'].empty_label = "— Select employee —"
+            self.fields['employee'].empty_label = "â€” Select employee â€”"
 
         # is_limited default True for new limited contracts
         if 'is_limited' in self.fields and self.is_creation:
@@ -289,10 +289,10 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
         if 'assignee' in self.fields:
-            # Nur Mitglieder der Gruppe "Personnel Fulfiller" dürfen zugewiesen werden
+            # Nur Mitglieder der Gruppe "Personnel Fulfiller" dÃ¼rfen zugewiesen werden
             fulfullers = Employee.objects.filter(user__groups__name=GroupNames.PERSONNEL_FULFILLER)
             self.fields['assignee'].queryset = fulfullers.order_by('last_name', 'first_name')
-            self.fields['assignee'].empty_label = "— Unassigned —"
+            self.fields['assignee'].empty_label = "â€” Unassigned â€”"
 
 
 class GenericTextTaskForm(forms.ModelForm):
@@ -347,7 +347,7 @@ class GenericTextTaskForm(forms.ModelForm):
 
         if 'recipient' in self.fields:
             self.fields['recipient'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['recipient'].empty_label = "— Please select a recipient —"
+            self.fields['recipient'].empty_label = "â€” Please select a recipient â€”"
             self.fields['recipient'].required = True
 
             # Custom label without employee number (Personnelnummer)
@@ -358,9 +358,9 @@ class GenericTextTaskForm(forms.ModelForm):
             self.fields['recipient'].label_from_instance = recipient_label_from_instance
 
 
-# =============================================================================
+# 
 # Standard Purchase Items (Catalog)
-# =============================================================================
+# 
 
 from django.core.exceptions import ValidationError
 from PIL import Image as PILImage
@@ -453,3 +453,4 @@ class StandardPurchaseItemForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+

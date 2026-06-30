@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/create.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -216,16 +216,16 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 instance = form.save()
                 formset.instance = instance
                 formset.save()
-                messages.success(self.request, "✅ Purchase Order created successfully.")
+                messages.success(self.request, "âœ… Purchase Order created successfully.")
                 return redirect('tasks:my_tasks')
             else:
                 messages.error(self.request, "Please correct the errors in the items.")
                 return self.render_to_response(self.get_context_data(form=form))
 
-        # Andere Task-Typen (später)
+        # Andere Task-Typen (spÃ¤ter)
         instance = form.save()
 
-        # Automatische Task-Nummer für Personnel Reallocation und Contract Extension
+        # Automatische Task-Nummer fÃ¼r Personnel Reallocation und Contract Extension
         if instance.task_type in ['personnel_reallocation', 'personnel_contract_extension'] and not instance.task_number:
             from django.utils import timezone
             year = timezone.now().year
@@ -235,7 +235,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             else:
                 prefix = "CE"
 
-            # Nächste laufende Nummer ermitteln
+            # NÃ¤chste laufende Nummer ermitteln
             existing_numbers = Task.objects.filter(
                 task_number__startswith=f"{prefix}-{year}-"
             ).values_list('task_number', flat=True)
@@ -251,7 +251,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
             new_task_number = f"{prefix}-{year}-{max_num + 1:04d}"
             instance.task_number = new_task_number
-            instance.title = new_task_number  # Für Kompatibilität mit bestehender Anzeige
+            instance.title = new_task_number  # FÃ¼r KompatibilitÃ¤t mit bestehender Anzeige
             instance.save(update_fields=['task_number', 'title'])
 
         messages.success(self.request, f"{instance.get_task_type_display()} created successfully.")
@@ -274,3 +274,4 @@ def choose_task_type(request):
         'can_create_generic': has_employee,
     }
     return render(request, 'tasks/choose_task_type.html', context)
+

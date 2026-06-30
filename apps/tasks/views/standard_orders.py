@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/standard_orders.py
 
 Standard Purchase Items (Catalog) management and selection flow.
@@ -221,3 +221,4 @@ def save_standard_checkboxes(request, pk):
         messages.info(request, "No new standard items were added (duplicates or none selected).")
 
     return redirect('tasks:task_detail', pk=pk)
+

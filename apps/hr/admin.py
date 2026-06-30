@@ -1,7 +1,7 @@
-"""
+﻿"""
 apps/hr/admin.py
 
-Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.contrib import admin
@@ -13,7 +13,7 @@ from .models import (
 from apps.finances.models import PayScale, WBSElement
 
 
-# ====================== Inlines ======================
+# = Inlines =
 
 class PhoneNumberInline(admin.TabularInline):
     model = PhoneNumber
@@ -45,7 +45,7 @@ class WorkgroupMembershipInline(admin.TabularInline):
     autocomplete_fields = ['workgroup']
 
 
-# ====================== Employee Admin ======================
+# = Employee Admin =
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
@@ -58,7 +58,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ContractInline,
         FundingAllocationInline,
         SalarySupplementInline,
-        WorkgroupMembershipInline,      # ← Jetzt funktioniert es
+        WorkgroupMembershipInline,      # â† Jetzt funktioniert es
     ]
 
 
@@ -81,3 +81,4 @@ admin.site.register(PhoneNumber)
 admin.site.register(Contract)
 admin.site.register(FundingAllocation)
 admin.site.register(SalarySupplement)
+

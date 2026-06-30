@@ -1,9 +1,11 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-15 10:16:01
-================================================================================
+===
 
 INSTANCE: Prof. Heinz Beck (123456789) (PK: 11)
-  Building: A01 - Verwaltung / Vorstand / Ärztliche Direktion
+  Building: A01 - Verwaltung / Vorstand / Ã„rztliche Direktion
   Room: Office (1.02)
   Phone: 0228-287-7387
+
+
 

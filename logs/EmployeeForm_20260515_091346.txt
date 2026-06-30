@@ -1,4 +1,4 @@
-THERESE - EmployeeForm Debug Log
+﻿THERESE - EmployeeForm Debug Log
 Date: 2026-05-15 09:13:46
 
 Instance: Dr. Julian Roth (EMP79887) (PK: 6)
@@ -35,4 +35,6 @@ POST/GET Data:
   salary-TOTAL_FORMS: 0
 
 FORM ERRORS:
-  country: ﻿﻿<ul class="errorlist" id="id_country_error"><li>Dieses Feld ist zwingend erforderlich.</li></ul>
+  country: ï»¿ï»¿<ul class="errorlist" id="id_country_error"><li>Dieses Feld ist zwingend erforderlich.</li></ul>
+
+

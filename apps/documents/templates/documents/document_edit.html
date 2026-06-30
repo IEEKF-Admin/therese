@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Dokument bearbeiten - {{ document.title }}{% endblock %}
 
@@ -7,7 +7,7 @@
     <h1>Dokument bearbeiten</h1>
     <div>
         <a href="{% url 'documents:document_detail' document.pk %}" class="btn-secondary">
-            ← Zurück zum Dokument
+            â† ZurÃ¼ck zum Dokument
         </a>
     </div>
 </div>
@@ -36,9 +36,10 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn-primary">💾 Änderungen speichern</button>
+            <button type="submit" class="btn-primary">ðŸ’¾ Ã„nderungen speichern</button>
             <a href="{% url 'documents:document_detail' document.pk %}" class="btn-secondary">Abbrechen</a>
         </div>
     </form>
 </div>
 {% endblock %}
+

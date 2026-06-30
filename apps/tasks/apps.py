@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/apps.py
 """
 from django.apps import AppConfig
@@ -10,5 +10,6 @@ class TasksConfig(AppConfig):
     verbose_name = "Tasks"
     
     def ready(self):
-        # Hier können später Signals registriert werden
+        # Hier kÃ¶nnen spÃ¤ter Signals registriert werden
         pass
+

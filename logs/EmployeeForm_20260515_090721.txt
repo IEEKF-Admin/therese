@@ -1,4 +1,4 @@
-THERESE - EmployeeForm Debug Log
+﻿THERESE - EmployeeForm Debug Log
 Date: 2026-05-15 09:07:21
 
 Instance: Prof. Heinz Beck (123456789) (PK: 11)
@@ -11,7 +11,7 @@ POST/GET Data:
   gender: M
   date_of_birth: 
   country_of_origin: Germany
-  place_of_birth: Köln
+  place_of_birth: KÃ¶ln
   email_professional: Reichelt.Kristian@googlemail.com
   email_private: Reichelt.Kristian@googlemail.com
   google_account: 
@@ -33,3 +33,5 @@ POST/GET Data:
   Workgroup_members-INITIAL_FORMS: 0
   Workgroup_members-MIN_NUM_FORMS: 0
   Workgroup_members-MAX_NUM_FORMS: 1000
+
+

@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/views/employee_form_helpers.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -37,3 +37,4 @@ WorkgroupFormSet = inlineformset_factory(
     fields=('workgroup',), 
     extra=0, can_delete=True
 )
+

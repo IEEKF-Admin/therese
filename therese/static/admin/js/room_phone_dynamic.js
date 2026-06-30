@@ -1,4 +1,4 @@
-// therese/static/admin/js/room_phone_dynamic.js
+﻿// therese/static/admin/js/room_phone_dynamic.js
 django.jQuery(function($) {
     $('#id_room').on('change', function() {
         var selectedText = $(this).find('option:selected').text();
@@ -14,8 +14,9 @@ django.jQuery(function($) {
         }
     });
 
-    // Initial ausführen, falls bereits ein Room ausgewählt ist
+    // Initial ausfÃ¼hren, falls bereits ein Room ausgewÃ¤hlt ist
     if ($('#id_room').val()) {
         $('#id_room').trigger('change');
     }
 });
+

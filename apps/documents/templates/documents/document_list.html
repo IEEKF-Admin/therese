@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Documents - THERESE{% endblock %}
 
@@ -46,7 +46,7 @@
                         {% for tag in doc.tags.all %}
                             <span class="tag-badge">{{ tag.name }}</span>
                         {% empty %}
-                            <span style="color:#94a3b8;">—</span>
+                            <span style="color:#94a3b8;">â€”</span>
                         {% endfor %}
                     </td>
                     <td>{{ doc.created_by.get_full_name|default:doc.created_by }}</td>
@@ -61,7 +61,7 @@
     {% else %}
         <div class="empty-state">
             {% if search_query %}
-                No documents found for “{{ search_query }}”.
+                No documents found for â€œ{{ search_query }}â€.
             {% else %}
                 You do not have access to any documents yet.
             {% endif %}
@@ -89,3 +89,4 @@
     }
 </style>
 {% endblock %}
+

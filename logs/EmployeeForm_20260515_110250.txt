@@ -1,6 +1,6 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-15 11:02:50
-================================================================================
+===
 
 INSTANCE: Dr. Clara Becker (EMP80649) (PK: 9)
   Building: A19 - Parkplatz Nord
@@ -58,3 +58,5 @@ BOUND DATA (excerpt):
   contracts-1-comments: 
   contracts-2-id: 28
   contracts-2-pay_scale_group: E 14
+
+

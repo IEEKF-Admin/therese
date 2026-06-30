@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/tasks/views/detail.py
-Zentraler Einstiegspunkt für alle Task-Detailansichten
+Zentraler Einstiegspunkt fÃ¼r alle Task-Detailansichten
 """
 
 from django.shortcuts import redirect
@@ -10,7 +10,7 @@ from .detail.base import get_task_or_404
 
 
 def task_detail(request, pk):
-    """Router – leitet je nach Rolle zur passenden Detail-View weiter"""
+    """Router â€“ leitet je nach Rolle zur passenden Detail-View weiter"""
     task = get_task_or_404(pk, request.user)
 
     # Special handling for General Requests
@@ -28,7 +28,7 @@ def task_detail(request, pk):
         from .detail.coordinator import coordinator_task_detail
         return coordinator_task_detail(request, task)
 
-    # Creator (Requester) → Read-Only
+    # Creator (Requester) â†’ Read-Only
     if hasattr(task, 'creator') and task.creator == request.user.employee:
         from .detail.requester import requester_task_detail
         return requester_task_detail(request, task)
@@ -41,3 +41,4 @@ def task_detail(request, pk):
     # Fallback
     messages.error(request, "You don't have permission to view this task.")
     return redirect('tasks:my_tasks')
+

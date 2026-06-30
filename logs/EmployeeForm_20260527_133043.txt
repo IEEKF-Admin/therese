@@ -1,6 +1,6 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-27 13:30:43
-================================================================================
+===
 
 BOUND DATA (excerpt):
  csrfmiddlewaretoken: E820A56HMKPqhYMeIM7VvDJ4hXK73YdzpWIdlJfT5ouNgWyuflXAzCPV8xGDubwJ
@@ -12,7 +12,7 @@ BOUND DATA (excerpt):
  date_of_birth: 2002-07-25
  country_of_origin: Ukraine
  place_of_birth: Kiev
- street: Holzlarer Straße
+ street: Holzlarer StraÃŸe
  house_number: 5
  postal_code: 53229
  city: Bonn
@@ -53,3 +53,5 @@ BOUND DATA (excerpt):
  contracts-0-comments: 
  contracts-1-id: 
  contracts-1-DELETE: 
+
+

@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/detail/coordinator.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -18,7 +18,7 @@ from ...forms import PurchaseOrderTaskForm
 
 
 def coordinator_task_detail(request, task):
-    """Voll editierbare Ansicht für Coordinator"""
+    """Voll editierbare Ansicht fÃ¼r Coordinator"""
     if request.method == 'POST':
         form = PurchaseOrderTaskForm(
             request.POST, 
@@ -55,7 +55,7 @@ def coordinator_task_detail(request, task):
                     text=f"Assignee changed to {new_assignee}"
                 )
             messages.success(request, "Changes have been saved successfully.")
-            return redirect('tasks:my_tasks')          # ← Namespace korrigiert
+            return redirect('tasks:my_tasks')          # â† Namespace korrigiert
         else:
             messages.error(request, "Please correct the errors below.")
     else:
@@ -77,3 +77,4 @@ def coordinator_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, 'tasks/detail/coordinator.html', context)
+

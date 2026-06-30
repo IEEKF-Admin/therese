@@ -1,4 +1,4 @@
-THERESE Import Log - Wbs Elements
+﻿THERESE Import Log - Wbs Elements
 Date: 2026-04-28 12:56:50
 Lines processed: 187
 Created WBS Elements: 113
@@ -122,3 +122,5 @@ Row    WBS Code        Raw Budget         Cleaned         Saved Value     Status
 181    O-254.0159.2    23.791,28          23791.28        23791.28        Saved
 182    O-254.0159.5    0,00                               0.00            Saved as 0.00
 186    S-081.0012      14.500,00          14500.00        14500.00        Saved
+
+

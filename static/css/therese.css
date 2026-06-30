@@ -1,4 +1,4 @@
-/* ====================== EINHEITLICHES FARBSCHEMA ====================== */
+﻿/* = EINHEITLICHES FARBSCHEMA = */
 :root {
     --primary: #005a9e;           /* dein Original-Blau */
     --primary-light: #00a3cc;
@@ -26,7 +26,7 @@ body {
     line-height: 1.6;
 }
 
-/* ====================== ADMIN & GLOBALE ANPASSUNGEN ====================== */
+/* = ADMIN & GLOBALE ANPASSUNGEN = */
 
 .header, .top-header {
     background: var(--card) !important;
@@ -296,7 +296,7 @@ body {
 }
 
 .aligned-field label {
-    width: 180px;           /* gleiche Breite für alle Labels */
+    width: 180px;           /* gleiche Breite fÃ¼r alle Labels */
     text-align: right;
     padding-right: 15px;
     flex-shrink: 0;
@@ -307,7 +307,7 @@ body {
     min-width: 0;
 }
 
-/* ====================== STATUS RADIO BUTTONS ====================== */
+/* = STATUS RADIO BUTTONS = */
 .status-section {
     margin: 25px 0;
     padding: 15px;
@@ -385,7 +385,7 @@ body {
     background: #f8fafc;
 }
 
-/* ====================== Order Items Table (in PO Detail) ====================== */
+/* = Order Items Table (in PO Detail) = */
 .purchase-items-table {
     width: 100%;
     border-collapse: collapse;
@@ -417,7 +417,7 @@ body {
 }
 
 /* Column widths - Order Number per item, Product & Description wide, Link narrow,
-   Unit Price and Total wide enough for "99.999,00 €" */
+   Unit Price and Total wide enough for "99.999,00 â‚¬" */
 .purchase-items-table .col-order {
     width: 10%;
 }
@@ -435,7 +435,7 @@ body {
 }
 
 .purchase-items-table .col-price {
-    width: 12%;  /* Wide enough for 99.999,00 € */
+    width: 12%;  /* Wide enough for 99.999,00 â‚¬ */
     white-space: nowrap;
 }
 
@@ -445,7 +445,7 @@ body {
 }
 
 .purchase-items-table .col-total {
-    width: 12%;  /* Wide enough for 99.999,00 € */
+    width: 12%;  /* Wide enough for 99.999,00 â‚¬ */
     white-space: nowrap;
 }
 
@@ -456,7 +456,7 @@ body {
     font-weight: 500;
 }
 
-/* ====================== Status Radio Buttons (PO Detail) ====================== */
+/* = Status Radio Buttons (PO Detail) = */
 .status-radios {
     display: flex;
     flex-direction: column;
@@ -497,7 +497,7 @@ body {
 .status-badge.coordination_completed { background: #dcfce7; color: #166534; }
 .status-badge.not_yet_processed { background: #fef3c7; color: #92400e; }
 
-/* ====================== Modern Task Table (for Assigned/Created by Me) ====================== */
+/* = Modern Task Table (for Assigned/Created by Me) = */
 .task-table {
     width: 100%;
     border-collapse: collapse;
@@ -553,7 +553,7 @@ body {
     text-align: right;
 }
 
-/* ====================== New Task Row Layout (Title on its own line) ====================== */
+/* = New Task Row Layout (Title on its own line) = */
 .task-list {
     display: flex;
     flex-direction: column;
@@ -664,7 +664,7 @@ body {
 .priority-badge.priority-medium { background: #fef3c7; color: #92400e; }
 .priority-badge.priority-low { background: #dcfce7; color: #166534; }
 
-/* ====================== Tasks Dashboard Cards ====================== */
+/* = Tasks Dashboard Cards = */
 .task-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -695,7 +695,7 @@ body {
     padding: 0.5rem 0;
 }
 
-/* ====================== Purchase Order Create - Items ====================== */
+/* = Purchase Order Create - Items = */
 .purchase-item {
     border: 1px solid #dee2e6;
     border-radius: 6px;
@@ -722,7 +722,7 @@ body {
     width: 100%;
 }
 
-/* ====================== Employee Form Styling ====================== */
+/* = Employee Form Styling = */
 
 .form-grid {
     display: grid;
@@ -731,7 +731,7 @@ body {
     margin-bottom: 2rem;
 }
 
-/* ====================== General Task Create Form ====================== */
+/* = General Task Create Form = */
 .form-row {
     display: flex;
     gap: 1rem;
@@ -815,3 +815,4 @@ body {
         grid-template-columns: 1fr; 
     }
 }
+

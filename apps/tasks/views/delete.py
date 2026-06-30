@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/delete.py
 """
 from django.shortcuts import render, redirect, get_object_or_404
@@ -29,3 +29,4 @@ def task_delete(request, pk):
         return redirect('my_tasks')
 
     return render(request, 'tasks/task_confirm_delete.html', {'task': task})
+

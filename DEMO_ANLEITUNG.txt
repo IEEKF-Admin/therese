@@ -1,8 +1,8 @@
-================================================================================
+﻿===
                         THERESE - DEMO ZUGRIFF
-================================================================================
+===
 
-WICHTIG: Immer HTTP verwenden – NICHT HTTPS!
+WICHTIG: Immer HTTP verwenden â€“ NICHT HTTPS!
 
 Zugriffsadresse (wird beim Starten des Servers angezeigt):
 
@@ -11,44 +11,45 @@ Zugriffsadresse (wird beim Starten des Servers angezeigt):
 Beispiel:
     http://172.26.65.1:8000
 
-================================================================================
+===
                               DEMO-LOGINS
-================================================================================
+===
 
   Benutzername     Passwort      Vollname
   ----------------------------------------------------
-  demo1            demo123       Anna Müller
+  demo1            demo123       Anna MÃ¼ller
   demo2            demo123       Thomas Weber
   demo3            demo123       Lisa Schmidt
   demo4            demo123       Michael Klein
   admin_demo       admin123      Admin Demo (mit Admin-Rechten)
 
-================================================================================
-                           HÄUFIGE PROBLEME
-================================================================================
+===
+                           HÃ„UFIGE PROBLEME
+===
 
 1. "You're accessing the development server over HTTPS..."
-   → Die Person hat https:// statt http:// eingegeben.
-   → Lösung: Im Browser "http://" statt "https://" verwenden.
+   â†’ Die Person hat https:// statt http:// eingegeben.
+   â†’ LÃ¶sung: Im Browser "http://" statt "https://" verwenden.
 
-2. Seite lädt nicht / Verbindung verweigert
-   → Windows Firewall blockiert Port 8000.
-   → Oder falsche IP-Adresse.
+2. Seite lÃ¤dt nicht / Verbindung verweigert
+   â†’ Windows Firewall blockiert Port 8000.
+   â†’ Oder falsche IP-Adresse.
 
 3. "Bad Request" oder seltsame Fehler
-   → Fast immer HTTPS statt HTTP.
+   â†’ Fast immer HTTPS statt HTTP.
 
-================================================================================
-                              TIPPS FÜR DIE PRÄSENTATION
-================================================================================
+===
+                              TIPPS FÃœR DIE PRÃ„SENTATION
+===
 
-- Schreibe die URL groß an die Tafel / Präsentation:
+- Schreibe die URL groÃŸ an die Tafel / PrÃ¤sentation:
   http://172.26.65.1:8000
 
 - Betone mehrmals: "http, nicht https!"
 
-- Die Demo-Accounts müssen beim ersten Login NICHT das Passwort ändern.
+- Die Demo-Accounts mÃ¼ssen beim ersten Login NICHT das Passwort Ã¤ndern.
 
-- Nach dem Login kommt man direkt auf die Aufgaben-Übersicht.
+- Nach dem Login kommt man direkt auf die Aufgaben-Ãœbersicht.
 
-================================================================================
+===
+

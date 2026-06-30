@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 {
     function setTheme(mode) {
         if (mode !== "light" && mode !== "dark" && mode !== "auto") {
@@ -49,3 +49,5 @@
 
     initTheme();
 }
+
+

@@ -25,7 +25,7 @@
         {{ form.status }}
 
         {% if task_type == 'purchase_order' %}
-            <!-- ========== PURCHASE ORDER (existing advanced structure kept) ========== -->
+            <!-- === PURCHASE ORDER (existing advanced structure kept) === -->
             <!-- Supplier -->
             <div class="form-section">
                 <h3>Order Information</h3>
@@ -156,7 +156,7 @@
             </div>
 
         {% elif task_type == 'personnel_reallocation' %}
-            <!-- ========== PERSONNEL REALLOCATION (no Assignment & Priority card at all) ========== -->
+            <!-- === PERSONNEL REALLOCATION (no Assignment & Priority card at all) === -->
             <div class="form-section compact">
                 <h3>Reallocation Details</h3>
 
@@ -195,7 +195,7 @@
             </div>
 
         {% elif task_type == 'personnel_contract_extension' %}
-            <!-- ========== PERSONNEL CONTRACT EXTENSION (no Assignment & Priority card at all) ========== -->
+            <!-- === PERSONNEL CONTRACT EXTENSION (no Assignment & Priority card at all) === -->
             <div class="form-section compact">
                 <h3>Contract Extension Details</h3>
 
@@ -392,3 +392,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+

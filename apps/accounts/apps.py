@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/apps.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -24,8 +24,10 @@ class AccountsConfig(AppConfig):
         from apps.accounts.permissions import get_or_create_default_groups
 
         def create_groups_after_migrate(sender, **kwargs):
-            # Nur ausführen, wenn die Accounts-App migriert wurde
+            # Nur ausfÃ¼hren, wenn die Accounts-App migriert wurde
             if sender.name == 'apps.accounts':
                 get_or_create_default_groups()
 
         post_migrate.connect(create_groups_after_migrate, sender=self)
+
+

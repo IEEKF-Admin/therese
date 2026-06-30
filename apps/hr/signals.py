@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/signals.py
 
 Robust automatic creation of CustomUser for new Employees.
@@ -52,7 +52,8 @@ def create_user_for_employee(sender, instance, created, **kwargs):
             instance.save(update_fields=['user'])
 
             logger.info(f"Staff user created: {username} for {instance}")
-            print(f"✅ Staff user created: {username} (Password: Welcome) for {instance}")
+            print(f"âœ… Staff user created: {username} (Password: Welcome) for {instance}")
 
     except Exception as e:
         logger.error(f"Error creating user for {instance}: {e}", exc_info=True)
+

@@ -1,4 +1,4 @@
-from django.contrib import admin
+﻿from django.contrib import admin
 from .models import Document, DocumentVersion, DocumentTag, DocumentShare, UserDocumentArchive
 
 
@@ -28,3 +28,4 @@ class DocumentShareAdmin(admin.ModelAdmin):
 @admin.register(UserDocumentArchive)
 class UserDocumentArchiveAdmin(admin.ModelAdmin):
     list_display = ('user', 'document', 'archived_at')
+

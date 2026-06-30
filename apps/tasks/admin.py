@@ -1,7 +1,7 @@
-"""
+﻿"""
 apps/tasks/admin.py
-Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
-Admin configuration for Tasks (angepasst an Bestellung-Wünsche)
+Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Admin configuration for Tasks (angepasst an Bestellung-WÃ¼nsche)
 """
 
 from django.contrib import admin
@@ -11,11 +11,11 @@ from .models import (
     PurchaseOrderTask, PurchaseItem,
     PersonnelReallocationTask, PersonnelContractExtensionTask, GenericTextTask
 )
-from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
+from .forms import PurchaseOrderTaskForm   # â† Diese Zeile hinzufÃ¼gen!
 from apps.hr.models import Employee
 
 
-# ====================== Inlines ======================
+# = Inlines =
 class PurchaseItemInline(admin.TabularInline):
     model = PurchaseItem
     extra = 1
@@ -35,7 +35,7 @@ class TaskAttachmentInline(admin.TabularInline):
     readonly_fields = ['uploaded_by', 'created_at']
 
 
-# ====================== Admin Classes ======================
+# = Admin Classes =
 @admin.register(PurchaseOrderTask)
 class PurchaseOrderTaskAdmin(admin.ModelAdmin):
     form = PurchaseOrderTaskForm
@@ -48,7 +48,7 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        # WBS Element nur für Order Manager sichtbar
+        # WBS Element nur fÃ¼r Order Manager sichtbar
         if not request.user.groups.filter(name=GroupNames.ORDER_MANAGER).exists():
             form.base_fields['wbs_element'].widget = forms.HiddenInput()
             form.base_fields['wbs_element'].required = False
@@ -83,3 +83,4 @@ class TaskAdmin(admin.ModelAdmin):
     list_filter = ['task_type', 'status', 'priority']
     search_fields = ['title']
     readonly_fields = ['task_type', 'creator', 'last_status_change', 'last_changed_by']
+

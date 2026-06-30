@@ -1,4 +1,4 @@
-from django import template
+﻿from django import template
 
 register = template.Library()
 
@@ -34,3 +34,5 @@ def standard_item_exists(item, supplier):
         return False
     order_number = getattr(item, 'order_number', '') or ''
     return StandardPurchaseItem.already_exists(supplier, order_number)
+
+

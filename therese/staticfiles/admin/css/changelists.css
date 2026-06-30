@@ -1,4 +1,4 @@
-/* CHANGELISTS */
+﻿/* CHANGELISTS */
 
 #changelist .changelist-form-container {
     display: flex;
@@ -202,13 +202,13 @@
 }
 
 #changelist-filter details > summary::before {
-    content: '→';
+    content: 'â†’';
     font-weight: bold;
     color: var(--link-hover-color);
 }
 
 #changelist-filter details[open] > summary::before {
-    content: '↓';
+    content: 'â†“';
 }
 
 #changelist-filter ul {
@@ -369,3 +369,5 @@
 #changelist .actions .button:focus, #changelist .actions .button:hover {
     border-color: var(--body-quiet-color);
 }
+
+

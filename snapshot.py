@@ -1,4 +1,4 @@
-"""
+﻿"""
 snapshot.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -110,7 +110,7 @@ def create_project_snapshot():
             f.write(content)
             f.write("\n\n")
 
-    print(f"\n✅ Snapshot successfully created!")
+    print(f"\nâœ… Snapshot successfully created!")
     print(f"   File      : {output_file}")
     print(f"   Files     : {file_count}")
     print(f"   Size      : {os.path.getsize(output_file) / 1024:.1f} KB")
@@ -118,3 +118,4 @@ def create_project_snapshot():
 
 if __name__ == "__main__":
     create_project_snapshot()
+

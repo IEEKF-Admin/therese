@@ -1,7 +1,7 @@
-"""
+﻿"""
 create_demo_users.py
-Erstellt Demo-Benutzer für THERESE-Präsentationen.
-Diese Benutzer müssen beim Login NICHT ihr Passwort ändern.
+Erstellt Demo-Benutzer fÃ¼r THERESE-PrÃ¤sentationen.
+Diese Benutzer mÃ¼ssen beim Login NICHT ihr Passwort Ã¤ndern.
 
 Verwendung:
     cd C:\Django\Therese
@@ -19,13 +19,13 @@ from apps.hr.models import Employee
 
 User = get_user_model()
 
-# ====================== DEMO ACCOUNTS ======================
+# = DEMO ACCOUNTS =
 DEMO_USERS = [
     {
         "username": "demo1",
         "password": "demo123",
         "first_name": "Anna",
-        "last_name": "Müller",
+        "last_name": "MÃ¼ller",
         "email": "anna.mueller@example.com",
     },
     {
@@ -56,9 +56,9 @@ DEMO_USERS = [
         "last_name": "Demo",
         "email": "admin.demo@example.com",
         "is_staff": True,
-<<<<<<< HEAD
+
         "is_superuser": True,
-=======
+
 >>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
     },
 ]
@@ -76,11 +76,11 @@ def create_demo_users():
                 "first_name": data["first_name"],
                 "last_name": data["last_name"],
                 "email": data["email"],
-                "password_changed": True,   # ← WICHTIG: Kein Passwort-Änderungs-Zwang
+                "password_changed": True,   # â† WICHTIG: Kein Passwort-Ã„nderungs-Zwang
                 "is_staff": data.get("is_staff", False),
-<<<<<<< HEAD
+
                 "is_superuser": data.get("is_superuser", False),
-=======
+
 >>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
             }
         )
@@ -98,10 +98,10 @@ def create_demo_users():
             user.email = data["email"]
             if data.get("is_staff"):
                 user.is_staff = True
-<<<<<<< HEAD
+
             if data.get("is_superuser"):
                 user.is_superuser = True
-=======
+
 >>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
             user.set_password(data["password"])
             user.save()
@@ -112,9 +112,11 @@ def create_demo_users():
     print(f"Neu erstellt:   {created}")
     print(f"Aktualisiert:   {existing}")
     print(f"Gesamt Demo-Accounts: {len(DEMO_USERS)}")
-    print("\nAlle Benutzer können sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
-    print("ohne dass sie beim ersten Login ihr Passwort ändern müssen.\n")
+    print("\nAlle Benutzer kÃ¶nnen sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
+    print("ohne dass sie beim ersten Login ihr Passwort Ã¤ndern mÃ¼ssen.\n")
 
 
 if __name__ == "__main__":
     create_demo_users()
+
+

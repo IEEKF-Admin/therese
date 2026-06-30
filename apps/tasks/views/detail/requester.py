@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/tasks/views/detail/requester.py
-Für den Ersteller (Procurement Requester) – Read-Only
+FÃ¼r den Ersteller (Procurement Requester) â€“ Read-Only
 """
 
 from django.shortcuts import render
@@ -10,7 +10,7 @@ from ...utils import is_procurement_approver
 
 
 def requester_task_detail(request, task):
-    """Read-Only Ansicht für den Ersteller"""
+    """Read-Only Ansicht fÃ¼r den Ersteller"""
     form = PurchaseOrderTaskForm(
         instance=task, user=request.user, is_creation=False
     )
@@ -30,3 +30,4 @@ def requester_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, 'tasks/detail/requester.html', context)
+

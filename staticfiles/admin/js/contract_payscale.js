@@ -1,8 +1,8 @@
-// static/admin/js/contract_payscale.js
+﻿// static/admin/js/contract_payscale.js
 console.log("=== contract_payscale.js LOADED (with salary auto-fill) ===");
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("✅ DOM loaded - PayScale + Salary auto-fill active");
+    console.log("âœ… DOM loaded - PayScale + Salary auto-fill active");
 
     function loadExperienceLevels(payScaleSelect) {
         const group = payScaleSelect.value;
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.level;
-                    opt.textContent = `Level ${item.level} — ${item.salary} €`;
+                    opt.textContent = `Level ${item.level} â€” ${item.salary} â‚¬`;
                     levelSelect.appendChild(opt);
                 });
             });
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const salaryInput = document.querySelector('input[name="monthly_salary"]');
                     if (salaryInput) {
                         salaryInput.value = match.salary;
-                        console.log(`[SALARY] ✅ Filled Monthly Salary with ${match.salary} €`);
+                        console.log(`[SALARY] âœ… Filled Monthly Salary with ${match.salary} â‚¬`);
                     } else {
                         console.warn("[SALARY] Could not find monthly_salary input");
                     }
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Experience Level → Salary
+        // Experience Level â†’ Salary
         document.querySelectorAll('.experience-level').forEach(select => {
             if (!select.dataset.salaryListener) {
                 select.addEventListener('change', () => updateEmployeeSalary(select));
@@ -78,3 +78,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(attachListeners, 300);
     });
 });
+

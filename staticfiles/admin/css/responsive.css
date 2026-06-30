@@ -1,4 +1,4 @@
-/* Tablets */
+﻿/* Tablets */
 
 input[type="submit"], button {
     -webkit-appearance: none;
@@ -883,3 +883,5 @@ input[type="submit"], button {
         word-break: break-word;
     }
 }
+
+

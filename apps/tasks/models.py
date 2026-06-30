@@ -1,7 +1,7 @@
-"""
+﻿"""
 apps/tasks/models.py
 
-Project: THERESE – Transparent HR Resource System Enhanced
+Project: THERESE â€“ Transparent HR Resource System Enhanced
 Robust polymorphic Task System
 """
 
@@ -11,7 +11,7 @@ from apps.hr.models import Employee
 from apps.finances.models import WBSElement
 
 
-# ====================== STATUS DEFINITIONS ======================
+# = STATUS DEFINITIONS =
 PURCHASE_STATUSES = [
     ('not_yet_processed', 'Not yet processed'),
     ('in_coordination', 'In coordination'),
@@ -52,7 +52,7 @@ class Task(BaseModel):
         max_length=20, 
         unique=True, 
         blank=True, 
-        null=True,           # Wichtig für bestehende Datensätze bei der Migration
+        null=True,           # Wichtig fÃ¼r bestehende DatensÃ¤tze bei der Migration
         editable=False, 
         verbose_name="Task Number"
     )
@@ -116,7 +116,7 @@ class Task(BaseModel):
         return self.status
 
 
-# ====================== Kommentare & Anhänge ======================
+# = Kommentare & AnhÃ¤nge =
 class TaskComment(BaseModel):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -133,7 +133,7 @@ class TaskAttachment(BaseModel):
     description = models.CharField(max_length=255, blank=True)
 
 
-# ====================== Concrete Tasks ======================
+# = Concrete Tasks =
 class PurchaseOrderTask(Task):
     """Bestellung"""
     supplier = models.CharField(max_length=200, verbose_name="Supplier")
@@ -182,7 +182,7 @@ class PurchaseItem(BaseModel):
         return self.unit_price * self.quantity
 
     def __str__(self):
-        return f"{self.product_name} × {self.quantity}"
+        return f"{self.product_name} Ã— {self.quantity}"
 
 
 class PersonnelReallocationTask(Task):
@@ -260,3 +260,4 @@ class StandardPurchaseItem(BaseModel):
             supplier__iexact=supplier.strip(),
             order_number__iexact=order_number.strip()
         ).exists()
+

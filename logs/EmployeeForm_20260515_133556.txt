@@ -1,9 +1,9 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-15 13:35:56
-================================================================================
+===
 
 INSTANCE: Dr. Therese Alcih (123456788) (PK: 12)
- Building: A01 - Verwaltung / Vorstand / Ärztliche Direktion
+ Building: A01 - Verwaltung / Vorstand / Ã„rztliche Direktion
  Room: Office 2 (EG.07)
  Phone: 0228-287-2650
 
@@ -58,3 +58,5 @@ BOUND DATA (excerpt):
  allocations-0-weekly_hours_allocated: 38.50
  allocations-0-start_date: 
  allocations-0-end_date: 
+
+

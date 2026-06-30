@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/detail/fulfiller.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -19,7 +19,7 @@ from ...utils import is_procurement_approver
 
 
 def fulfiller_task_detail(request, task):
-    """Ansicht für Fulfiller (z. B. Wareneingang)"""
+    """Ansicht fÃ¼r Fulfiller (z. B. Wareneingang)"""
     if request.method == 'POST':
         form = PurchaseOrderTaskForm(
             request.POST, 
@@ -42,7 +42,7 @@ def fulfiller_task_detail(request, task):
                     text=f"Status changed from '{old_status}' to '{saved_task.status}'"
                 )
             messages.success(request, "Status successfully updated.")
-            return redirect('tasks:my_tasks')          # ← Namespace korrigiert
+            return redirect('tasks:my_tasks')          # â† Namespace korrigiert
         else:
             messages.error(request, "Please correct the errors below.")
     else:
@@ -68,3 +68,4 @@ def fulfiller_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, 'tasks/detail/fulfiller.html', context)
+

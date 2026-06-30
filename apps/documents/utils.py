@@ -1,21 +1,21 @@
-from django.db.models import Q
+﻿from django.db.models import Q
 from apps.hr.models import Employee
 from .models import Document, DocumentShare
 
 
 def get_visible_documents_for_user(employee: Employee, include_archived: bool = False):
     """
-    Gibt alle Dokumente zurück, die der User sehen darf.
+    Gibt alle Dokumente zurÃ¼ck, die der User sehen darf.
     - Immer: Dokumente, die der User selbst erstellt hat
     - Plus: Dokumente, die explizit mit ihm / seinen Gruppen / "Jeden" / "Administration" geteilt wurden
-    - Archivierte Dokumente (persönlich) werden standardmäßig ausgeblendet
+    - Archivierte Dokumente (persÃ¶nlich) werden standardmÃ¤ÃŸig ausgeblendet
     """
     if not employee:
         return Document.objects.none()
 
     user = employee.user
 
-    # 1. Immer alle selbst erstellten Dokumente (höchste Priorität)
+    # 1. Immer alle selbst erstellten Dokumente (hÃ¶chste PrioritÃ¤t)
     created_qs = Document.objects.filter(created_by=employee)
 
     # 2. Dokumente, die explizit geteilt wurden
@@ -53,7 +53,7 @@ def get_visible_documents_for_user(employee: Employee, include_archived: bool = 
 
     qs = Document.objects.filter(id__in=visible_ids)
 
-    # Persönliches Archiv ausblenden (außer gewünscht)
+    # PersÃ¶nliches Archiv ausblenden (auÃŸer gewÃ¼nscht)
     if not include_archived:
         archived_ids = employee.archived_documents.values_list('document_id', flat=True)
         qs = qs.exclude(id__in=archived_ids)
@@ -63,8 +63,8 @@ def get_visible_documents_for_user(employee: Employee, include_archived: bool = 
 
 def get_user_permission_for_document(employee, document):
     """
-    Gibt die höchste Berechtigung zurück, die ein User für ein Dokument hat.
-    Mögliche Rückgabewerte: None, 'viewer', 'editor', 'manager'
+    Gibt die hÃ¶chste Berechtigung zurÃ¼ck, die ein User fÃ¼r ein Dokument hat.
+    MÃ¶gliche RÃ¼ckgabewerte: None, 'viewer', 'editor', 'manager'
     """
     if not employee or not document:
         return None
@@ -101,4 +101,6 @@ def get_user_permission_for_document(employee, document):
                 highest_permission = perm
 
     return highest_permission
+
+
 

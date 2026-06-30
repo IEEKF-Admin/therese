@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/urls.py
 """
 from django.urls import path
@@ -21,3 +21,4 @@ urlpatterns = [
     # Import (aus Finances)
     path('import-wbs-elements/', finance_views.import_wbs_elements, name='import_wbs_elements'),
 ]
+

@@ -1,4 +1,4 @@
-THERESE - EmployeeForm Debug Log
+﻿THERESE - EmployeeForm Debug Log
 Date: 2026-05-15 09:10:34
 
 Instance: Dr. Clara Becker (EMP80649) (PK: 9)
@@ -33,3 +33,5 @@ POST/GET Data:
   workgroup-INITIAL_FORMS: 0
   workgroup-MIN_NUM_FORMS: 0
   workgroup-MAX_NUM_FORMS: 1000
+
+

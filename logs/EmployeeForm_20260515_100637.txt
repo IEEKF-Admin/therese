@@ -1,9 +1,9 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-15 10:06:37
-================================================================================
+===
 
 INSTANCE: Prof. Heinz Beck (123456789) (PK: 11)
-  Building: A01 - Verwaltung / Vorstand / Ärztliche Direktion
+  Building: A01 - Verwaltung / Vorstand / Ã„rztliche Direktion
   Room: Office (1.02)
   Phone: 0228-287-7387
 
@@ -16,7 +16,7 @@ BOUND DATA (excerpt):
   gender: M
   date_of_birth: 
   country_of_origin: Germany
-  place_of_birth: Köln
+  place_of_birth: KÃ¶ln
   email_professional: Reichelt.Kristian@googlemail.com
   email_private: Reichelt.Kristian@googlemail.com
   google_account: 
@@ -58,3 +58,5 @@ BOUND DATA (excerpt):
   funding-0-wbs_element: 2
   funding-0-weekly_hours_allocated: 38.50
   funding-0-start_date: 13.05.2026
+
+

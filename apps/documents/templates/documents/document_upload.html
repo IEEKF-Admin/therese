@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Upload Document - THERESE{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Upload New Document</h1>
-    <a href="{% url 'documents:document_list' %}" class="btn-secondary">← Back to Documents</a>
+    <a href="{% url 'documents:document_list' %}" class="btn-secondary">â† Back to Documents</a>
 </div>
 
 <div class="card">
@@ -30,7 +30,7 @@
 
                 {% if form.is_bound and request.FILES.file %}
                     <div style="margin-bottom: 6px; padding: 6px 10px; background: #f1f5f9; border-radius: 4px; font-size: 0.9rem;">
-                        Ausgewählte Datei: <strong>{{ request.FILES.file.name }}</strong>
+                        AusgewÃ¤hlte Datei: <strong>{{ request.FILES.file.name }}</strong>
                     </div>
                 {% endif %}
 
@@ -49,9 +49,10 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn-primary">📤 Dokument hochladen</button>
+            <button type="submit" class="btn-primary">ðŸ“¤ Dokument hochladen</button>
             <a href="{% url 'documents:document_list' %}" class="btn-secondary">Abbrechen</a>
         </div>
     </form>
 </div>
 {% endblock %}
+

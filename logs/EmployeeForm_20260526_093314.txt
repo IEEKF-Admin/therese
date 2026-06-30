@@ -1,6 +1,6 @@
-THERESE - EmployeeForm DEBUG LOG
+﻿THERESE - EmployeeForm DEBUG LOG
 Date: 2026-05-26 09:33:14
-================================================================================
+===
 
 INSTANCE: Lena Fischer (EMP17249) (PK: 5)
  Building: A02 - Verwaltung / Personalabteilung
@@ -58,3 +58,5 @@ BOUND DATA (excerpt):
  contracts-2-weekly_hours: 30.00
  contracts-2-valid_from: 
  contracts-2-valid_until: 
+
+

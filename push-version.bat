@@ -47,7 +47,8 @@ if defined VENV_PYTHON (
     echo.
 )
 
-set /p "NEW_VERSION=Neue Versionsnummer: "
+set /p "NEW_VERSION=Neue Versionsnummer (z.B. 0.2.5): "
+if "%NEW_VERSION:~0,1%"=="v" set "NEW_VERSION=%NEW_VERSION:~1%"
 
 if "%NEW_VERSION%"=="" (
     echo.
@@ -79,9 +80,9 @@ if errorlevel 1 (
 )
 
 echo.
-set /p "COMMIT_MSG=Commit-Beschreibung (kurze, klare Beschreibung): "
+set /p "COMMIT_MSG=Kurze, klare Beschreibung der Änderung: "
 if "%COMMIT_MSG%"=="" (
-    set "COMMIT_MSG=Release %NEW_VERSION%"
+    set "COMMIT_MSG=Release v%NEW_VERSION%"
 ) else (
     set "COMMIT_MSG=v%NEW_VERSION%: %COMMIT_MSG%"
 )
@@ -99,18 +100,18 @@ if errorlevel 1 (
 
 echo.
 echo === 3. Git Tag erstellen ===
-git tag -l v%NEW_VERSION% >nul 2>&1
+git show-ref --verify --quiet "refs/tags/v%NEW_VERSION%" >nul 2>&1
 if not errorlevel 1 (
     echo Tag v%NEW_VERSION% existiert bereits lokal.
     set /p "DELETE_TAG=Alten Tag lokal löschen und neu anlegen? (j/n): "
-    if /i "%DELETE_TAG%"=="j" (
+    if /i "!DELETE_TAG!"=="j" (
         git tag -d v%NEW_VERSION%
     ) else (
         echo Tag wird nicht neu erstellt.
         goto :skip_tag
     )
 )
-git tag -a v%NEW_VERSION% -m "Release %NEW_VERSION%"
+git tag -a v%NEW_VERSION% -m "Release v%NEW_VERSION%"
 if errorlevel 1 (
     echo Tag existiert vielleicht bereits oder Fehler beim Taggen.
 )

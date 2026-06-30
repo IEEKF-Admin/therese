@@ -135,13 +135,22 @@ set /p "FORCE_LOGIN=GitHub-Credentials zurücksetzen, um dich neu anzumelden (em
 if /i "%FORCE_LOGIN%"=="j" (
     echo.
     echo Lösche gespeicherte GitHub-Credentials...
-    git credential-manager erase 2>nul || echo (Credential Manager nicht gefunden oder nichts zu löschen)
+    (
+      echo protocol=https
+      echo host=github.com
+    ) | git credential-manager erase >nul 2>&1 || (
+      (
+        echo protocol=https
+        echo host=github.com
+      ) | git credential-manager-core erase >nul 2>&1 || echo (Kein Credential Manager gefunden oder nichts zu löschen)
+    )
+    echo Credentials für github.com zurückgesetzt.
+    echo Beim nächsten 'git ls-remote' oder Push wirst du nach Username + Personal Access Token (PAT) gefragt.
     echo.
-    echo Credentials zurückgesetzt.
-    echo Beim nächsten Push wirst du nach Username und Personal Access Token (PAT) gefragt.
-    echo.
-    echo WICHTIG: Verwende einen PAT mit 'repo'-Scope, nicht dein normales Passwort!
-    echo Erzeuge einen unter: https://github.com/settings/tokens
+    echo WICHTIG: 
+    echo - Username: dein GitHub-Benutzername (z.B. KistianR)
+    echo - Password: ein Personal Access Token mit Scope 'repo' (nicht dein normales Passwort!)
+    echo   Erzeugen: https://github.com/settings/tokens
 )
 
 echo.

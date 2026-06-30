@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/__init__.py
 Saubere Exports
 """
@@ -14,3 +14,4 @@ __all__ = [
     'choose_task_type',
     'task_delete',
 ]
+

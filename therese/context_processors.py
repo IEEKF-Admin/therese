@@ -1,4 +1,4 @@
-"""
+﻿"""
 therese/context_processors.py
 """
 def user_groups(request):
@@ -8,3 +8,5 @@ def user_groups(request):
             'user_groups': list(request.user.groups.values_list('name', flat=True))
         }
     return {'user_groups': []}
+
+

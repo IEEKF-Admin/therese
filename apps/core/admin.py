@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/core/admin.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -19,3 +19,5 @@ from .models import GlobalSetting
 class GlobalSettingAdmin(admin.ModelAdmin):
     list_display = ['default_weekly_hours', 'updated_at']
     readonly_fields = ['updated_at']
+
+

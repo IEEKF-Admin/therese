@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/dashboard.py
 """
 from django.shortcuts import render, redirect
@@ -14,14 +14,14 @@ from ..utils import get_purchase_orders_queryset, is_procurement_coordinator, is
 def my_tasks(request):
     """Dashboard mit allen Tasks und Purchase Orders"""
     
-    # ==================== EMPLOYEE PROFILE AUFLÖSEN ====================
+    # ====== EMPLOYEE PROFILE AUFLÃ–SEN ======
     try:
         employee = request.user.employee  # OneToOne Relation
     except (AttributeError, Employee.DoesNotExist):
         employee = None
 
     if not employee:
-        # Fallback: Versuche Employee über andere Wege zu finden (z.B. bei alten Testdaten)
+        # Fallback: Versuche Employee Ã¼ber andere Wege zu finden (z.B. bei alten Testdaten)
         employee = Employee.objects.filter(user=request.user).first()
 
     if not employee:
@@ -111,3 +111,4 @@ def my_tasks(request):
         'page_title': page_title,
     }
     return render(request, 'tasks/my_tasks.html', context)
+

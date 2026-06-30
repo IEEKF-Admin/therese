@@ -1,4 +1,4 @@
-/* ====================== EINHEITLICHES FARBSCHEMA ====================== */
+﻿/* = EINHEITLICHES FARBSCHEMA = */
 :root {
     --primary: #005a9e;           /* dein Original-Blau */
     --primary-light: #00a3cc;
@@ -26,7 +26,7 @@ body {
     line-height: 1.6;
 }
 
-/* ====================== ADMIN & GLOBALE ANPASSUNGEN ====================== */
+/* = ADMIN & GLOBALE ANPASSUNGEN = */
 
 .header, .top-header {
     background: var(--card) !important;
@@ -296,7 +296,7 @@ body {
 }
 
 .aligned-field label {
-    width: 180px;           /* gleiche Breite für alle Labels */
+    width: 180px;           /* gleiche Breite fÃ¼r alle Labels */
     text-align: right;
     padding-right: 15px;
     flex-shrink: 0;
@@ -307,7 +307,7 @@ body {
     min-width: 0;
 }
 
-/* ====================== STATUS RADIO BUTTONS ====================== */
+/* = STATUS RADIO BUTTONS = */
 .status-section {
     margin: 25px 0;
     padding: 15px;
@@ -392,4 +392,5 @@ body {
 }
 .status-badge.coordination_completed { background: #dcfce7; color: #166534; }
 .status-badge.not_yet_processed { background: #fef3c7; color: #92400e; }
-/* Weitere Stati bei Bedarf ergänzen */
+/* Weitere Stati bei Bedarf ergÃ¤nzen */
+

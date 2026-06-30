@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/tasks/views/detail/base.py
-Gemeinsame Hilfsfunktionen für alle Detail-Views
+Gemeinsame Hilfsfunktionen fÃ¼r alle Detail-Views
 """
 
 from django.shortcuts import get_object_or_404
@@ -12,7 +12,7 @@ from ...utils import can_view_purchase_order
 
 
 def get_task_or_404(pk, user):
-    """Lädt die Aufgabe und prüft grundlegende Sichtbarkeit"""
+    """LÃ¤dt die Aufgabe und prÃ¼ft grundlegende Sichtbarkeit"""
     base_task = get_object_or_404(Task, pk=pk)
 
     if base_task.task_type == 'purchase_order':
@@ -49,3 +49,4 @@ def get_task_or_404(pk, user):
         return task
 
     return base_task
+

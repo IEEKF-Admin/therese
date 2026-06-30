@@ -1,4 +1,4 @@
-"""
+﻿"""
 ASGI config for therese project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
@@ -14,3 +14,5 @@ from django.core.asgi import get_asgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings')
 
 application = get_asgi_application()
+
+

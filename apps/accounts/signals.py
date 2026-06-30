@@ -1,23 +1,23 @@
-# apps/accounts/signals.py
+﻿# apps/accounts/signals.py
 """
 Signals for accounts app.
 Do not remove any existing requirements.
 """
 
 from django.dispatch import receiver
-<<<<<<< HEAD
-=======
+
+
 from django.db.models.signals import post_save
 
->>>>>>> new-main
-# from django.contrib.auth.signals import user_logged_in   # ← auskommentiert / entfernt
+
+# from django.contrib.auth.signals import user_logged_in   # â† auskommentiert / entfernt
 
 
-# === WICHTIG: Dieses Signal wurde entfernt, weil es das Flag zu früh gesetzt hat ===
-<<<<<<< HEAD
-# Wir setzen password_changed jetzt NUR in der ForcePasswordChangeView (nach erfolgreichem Ändern)
-=======
-# Wir setzen password_changed jetzt NUR in der ForcePasswordChangeView (nach erfolgreichem Ändern)
+# === WICHTIG: Dieses Signal wurde entfernt, weil es das Flag zu frÃ¼h gesetzt hat ===
+
+# Wir setzen password_changed jetzt NUR in der ForcePasswordChangeView (nach erfolgreichem Ã„ndern)
+
+# Wir setzen password_changed jetzt NUR in der ForcePasswordChangeView (nach erfolgreichem Ã„ndern)
 
 
 @receiver(post_save, sender="accounts.CustomUser")
@@ -32,4 +32,6 @@ def ensure_superuser_is_staff(sender, instance, created, **kwargs):
         instance.is_staff = True
         # Use update_fields to avoid infinite recursion / unnecessary full save
         instance.save(update_fields=["is_staff"])
->>>>>>> new-main
+
+
+

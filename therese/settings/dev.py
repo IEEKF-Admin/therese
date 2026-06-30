@@ -1,4 +1,4 @@
-"""
+﻿"""
 therese/settings/dev.py
 """
 
@@ -17,7 +17,8 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
 
-# ====================== AUTH REDIRECTS ======================
-LOGIN_REDIRECT_URL = '/tasks/'           # ← nach Login immer zum Dashboard
-LOGOUT_REDIRECT_URL = '/tasks/'          # ← nach Logout ebenfalls zum Dashboard
-LOGIN_URL = '/accounts/login/'           # ← korrekter Login-Pfad
+# = AUTH REDIRECTS =
+LOGIN_REDIRECT_URL = '/tasks/'           # â† nach Login immer zum Dashboard
+LOGOUT_REDIRECT_URL = '/tasks/'          # â† nach Logout ebenfalls zum Dashboard
+LOGIN_URL = '/accounts/login/'           # â† korrekter Login-Pfad
+

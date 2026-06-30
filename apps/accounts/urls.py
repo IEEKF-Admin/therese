@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
 
@@ -11,7 +11,7 @@ urlpatterns = [
     # Logout
     path('logout/', auth_views.LogoutView.as_view(
         template_name='registration/logged_out.html',
-        next_page='tasks:my_tasks',          # ← Hier korrigiert (mit Namespace)
+        next_page='tasks:my_tasks',          # â† Hier korrigiert (mit Namespace)
     ), name='logout'),
 
     # Force Password Change
@@ -19,3 +19,4 @@ urlpatterns = [
      views.ForcePasswordChangeView.as_view(), 
      name='force_password_change'),
 ]
+

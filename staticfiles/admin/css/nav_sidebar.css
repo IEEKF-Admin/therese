@@ -1,4 +1,4 @@
-.sticky {
+﻿.sticky {
     position: sticky;
     top: 0;
     max-height: 100vh;
@@ -148,3 +148,5 @@
 #nav-sidebar table {
     width: 100%;
 }
+
+

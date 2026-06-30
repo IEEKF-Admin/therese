@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}{{ document.title }} - THERESE{% endblock %}
 
@@ -6,7 +6,7 @@
 <div class="page-header">
     <h1>{{ document.title }}</h1>
     <div>
-        <a href="{% url 'documents:document_list' %}" class="btn-secondary">← Back to Documents</a>
+        <a href="{% url 'documents:document_list' %}" class="btn-secondary">â† Back to Documents</a>
     </div>
 </div>
 
@@ -26,7 +26,7 @@
                         {% for tag in document.tags.all %}
                             <span class="tag-badge">{{ tag.name }}</span>
                         {% empty %}
-                            —
+                            â€”
                         {% endfor %}
                     </td>
                 </tr>
@@ -53,12 +53,12 @@
 
             <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
                 <a href="{% url 'documents:document_download' current_version.pk %}" class="btn-primary">
-                    ⬇️ Download (v{{ current_version.version_number }})
+                    â¬‡ï¸ Download (v{{ current_version.version_number }})
                 </a>
 
                 <a href="{% url 'documents:document_preview' current_version.pk %}" 
                    class="btn-secondary" target="_blank">
-                    👁️ View in Browser
+                    ðŸ‘ï¸ View in Browser
                 </a>
             </div>
 
@@ -75,24 +75,24 @@
             <div style="margin-top: 2rem;">
                 <h4>Versionshistorie</h4>
                 <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #64748b;">
-                    Hier siehst du alle Versionen. Die aktuelle Version ist markiert. Nur Editor/Manager können neue Versionen hochladen.
+                    Hier siehst du alle Versionen. Die aktuelle Version ist markiert. Nur Editor/Manager kÃ¶nnen neue Versionen hochladen.
                 </p>
                 {% if not can_edit and permission %}
                     <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #b45309; background: #fef3c7; padding: 4px 8px; border-radius: 4px;">
                         Du hast aktuell <strong>{{ permission }}</strong>-Rechte. 
-                        Um neue Versionen hochladen zu können, benötigst du <strong>Editor</strong>- oder <strong>Manager</strong>-Rechte. 
-                        Bitte den Besitzer ({{ document.created_by.get_full_name|default:document.created_by }}), dir die Rechte über "Manage Shares" zu geben.
+                        Um neue Versionen hochladen zu kÃ¶nnen, benÃ¶tigst du <strong>Editor</strong>- oder <strong>Manager</strong>-Rechte. 
+                        Bitte den Besitzer ({{ document.created_by.get_full_name|default:document.created_by }}), dir die Rechte Ã¼ber "Manage Shares" zu geben.
                     </p>
                 {% endif %}
                 {% if can_edit %}
                     <a href="{% url 'documents:document_upload_version' document.pk %}" class="btn-primary" style="font-size:0.85rem; padding:4px 10px; margin-bottom:0.5rem; display:inline-block;">
-                        📤 Neue Version hochladen
+                        ðŸ“¤ Neue Version hochladen
                     </a>
                 {% endif %}
                 <ul style="list-style: none; padding: 0; font-size: 0.9rem;">
                     {% for v in document.versions.all %}
                         <li style="margin-bottom: 8px; {% if v.version_number == current_version.version_number %}background:#e0f2fe; padding:4px 8px; border-radius:4px;{% endif %}">
-                            <strong>v{{ v.version_number }}</strong> — 
+                            <strong>v{{ v.version_number }}</strong> â€” 
                             <a href="{% url 'documents:document_download' v.pk %}">{{ v.original_filename }}</a>
                             {% if v.version_number == current_version.version_number %}
                                 <span style="color:#0369a1; font-size:0.8rem;">(current)</span>
@@ -100,7 +100,7 @@
                             <br>
                             <small style="color:#64748b;">
                                 {{ v.uploaded_by.get_full_name|default:v.uploaded_by }} on {{ v.uploaded_at|date:"Y-m-d H:i" }}
-                                {% if v.comment %} — {{ v.comment|truncatechars:60 }}{% endif %}
+                                {% if v.comment %} â€” {{ v.comment|truncatechars:60 }}{% endif %}
                             </small>
                             {% if v.version_number != current_version.version_number %}
                                 | <a href="{% url 'documents:document_preview' v.pk %}" target="_blank" style="font-size:0.85rem;">Preview</a>
@@ -119,16 +119,16 @@
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 {% if can_edit %}
                     <a href="{% url 'documents:document_upload_version' document.pk %}" class="btn-primary">
-                        📤 Neue Version hochladen
+                        ðŸ“¤ Neue Version hochladen
                     </a>
                     <a href="{% url 'documents:document_edit' document.pk %}" class="btn-secondary">
-                        ✏️ Edit Metadata
+                        âœï¸ Edit Metadata
                     </a>
                 {% endif %}
 
                 {% if can_manage %}
                     <a href="{% url 'documents:document_manage_shares' document.pk %}" class="btn-secondary">
-                        🔗 Manage Shares
+                        ðŸ”— Manage Shares
                     </a>
                 {% endif %}
 
@@ -149,3 +149,4 @@
     }
 </style>
 {% endblock %}
+

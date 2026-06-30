@@ -1,10 +1,10 @@
-"""
+﻿"""
 apps/hr/views/ajax.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
 
 Features / Requirements:
-- AJAX endpoints for cascading dropdowns (Building → Room → Phone)
+- AJAX endpoints for cascading dropdowns (Building â†’ Room â†’ Phone)
 - Accessible to all authorized HR roles (PI, Personnel Approver, etc.)
 - No dependency on non-existent utils
 - Comprehensive English logging
@@ -56,3 +56,4 @@ def ajax_phonenumbers_by_room(request):
     phones = PhoneNumber.objects.filter(room_id=room_id).order_by('phone_number')
     data = [{'id': phone.id, 'phone_number': phone.phone_number} for phone in phones]
     return JsonResponse(data, safe=False)
+

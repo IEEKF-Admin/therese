@@ -1,14 +1,14 @@
-from django.contrib import admin
+﻿from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # Root → Tasks Dashboard
+    # Root â†’ Tasks Dashboard
     path('', RedirectView.as_view(url='/tasks/', permanent=False), name='home'),
 
-    # Tasks mit Namespace (wichtig für Logout + Reverse)
+    # Tasks mit Namespace (wichtig fÃ¼r Logout + Reverse)
     path('tasks/', include('apps.tasks.urls', namespace='tasks')),
 
     # Accounts (Login, Logout, etc.)
@@ -18,15 +18,15 @@ urlpatterns = [
     path('hr/', include('apps.hr.urls')),
     path('documents/', include('apps.documents.urls', namespace='documents')),
     path('finances/', include('apps.finances.urls')),
-<<<<<<< HEAD
+
 ]
-=======
+
 ]
 
 
-# ============================================================
+# ====
 # CUSTOM ADMIN PERMISSION CHECK
-# ============================================================
+# ====
 # By default Django admin requires is_staff=True.
 # For fresh installations it is useful if a pure superuser
 # (created via createsuperuser) can also access /admin/ .
@@ -41,4 +41,6 @@ def _has_permission(self, request):
     )
 
 _admin.site.has_permission = _has_permission.__get__(_admin.site, _admin.AdminSite)
->>>>>>> new-main
+
+
+

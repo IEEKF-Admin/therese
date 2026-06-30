@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/urls.py
 """
 from django.urls import path
@@ -8,7 +8,7 @@ from .views.dashboard import my_tasks
 from .views.create import TaskCreateView, choose_task_type
 from .views.delete import task_delete
 
-# Router importieren (jetzt über die neue Datei)
+# Router importieren (jetzt Ã¼ber die neue Datei)
 from .views.router import task_detail
 
 # Standard Orders views (from the dedicated submodule)
@@ -40,3 +40,4 @@ urlpatterns = [
 ]
 
 app_name = 'tasks'
+

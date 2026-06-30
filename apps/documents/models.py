@@ -1,4 +1,4 @@
-from django.db import models
+﻿from django.db import models
 from apps.hr.models import Employee
 from django.contrib.auth.models import Group
 
@@ -75,7 +75,7 @@ class DocumentShare(models.Model):
 
     PERMISSION_CHOICES = [
         ('viewer', 'Nur ansehen & herunterladen'),
-        ('editor', 'Darf neue Versionen hochladen + Metadaten ändern'),
+        ('editor', 'Darf neue Versionen hochladen + Metadaten Ã¤ndern'),
         ('manager', 'Darf auch Freigaben verwalten'),
     ]
 
@@ -118,10 +118,10 @@ class DocumentShare(models.Model):
 
     def __str__(self):
         if self.share_type == 'user' and self.shared_with_user:
-            return f"{self.document} → User: {self.shared_with_user}"
+            return f"{self.document} â†’ User: {self.shared_with_user}"
         elif self.share_type == 'group' and self.shared_with_group:
-            return f"{self.document} → Gruppe: {self.shared_with_group}"
-        return f"{self.document} → {self.get_share_type_display()}"
+            return f"{self.document} â†’ Gruppe: {self.shared_with_group}"
+        return f"{self.document} â†’ {self.get_share_type_display()}"
 
 
 class UserDocumentArchive(models.Model):
@@ -135,3 +135,5 @@ class UserDocumentArchive(models.Model):
 
     def __str__(self):
         return f"{self.user} archived {self.document}"
+
+

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 {
     const toggleNavSidebar = document.getElementById('toggle-nav-sidebar');
     if (toggleNavSidebar !== null) {
@@ -77,3 +77,5 @@
     window.initSidebarQuickFilter = initSidebarQuickFilter;
     initSidebarQuickFilter();
 }
+
+

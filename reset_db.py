@@ -1,4 +1,4 @@
-"""
+﻿"""
 reset_db.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -21,9 +21,9 @@ def reset_database():
     db_path = base_dir / "db.sqlite3"
     if db_path.exists():
         db_path.unlink()
-        print("   → db.sqlite3 deleted")
+        print("   â†’ db.sqlite3 deleted")
     else:
-        print("   → db.sqlite3 did not exist")
+        print("   â†’ db.sqlite3 did not exist")
 
     # 2. Delete old migrations
     print("2. Deleting old migrations...")
@@ -33,11 +33,11 @@ def reset_database():
         migrations_dir = base_dir / "apps" / app / "migrations"
         if migrations_dir.exists():
             shutil.rmtree(migrations_dir)
-            print(f"   → {app}/migrations deleted")
+            print(f"   â†’ {app}/migrations deleted")
             
             migrations_dir.mkdir(parents=True, exist_ok=True)
             (migrations_dir / "__init__.py").touch()
-            print(f"   → {app}/migrations recreated")
+            print(f"   â†’ {app}/migrations recreated")
 
     # 3. Create new migrations
     print("3. Creating new migrations...")
@@ -47,14 +47,14 @@ def reset_database():
     print("4. Applying migrations...")
     subprocess.run([str(venv_python), "manage.py", "migrate"], check=True, cwd=base_dir)
 
-<<<<<<< HEAD
+
     # 5. Create superuser
     print("5. Creating superuser...")
     try:
         subprocess.run([str(venv_python), "manage.py", "createsuperuser"], check=True, cwd=base_dir)
     except subprocess.CalledProcessError:
-        print("   → Superuser creation skipped or already exists")
-=======
+        print("   â†’ Superuser creation skipped or already exists")
+
     # 5. Create superuser non-interactively (reliable for fresh installs)
     print("5. Creating superuser (admin / admin123)...")
     env = os.environ.copy()
@@ -68,10 +68,10 @@ def reset_database():
         cwd=base_dir,
     )
     if result.returncode == 0:
-        print("   → Superuser 'admin' / 'admin123' created (is_staff + is_superuser)")
+        print("   â†’ Superuser 'admin' / 'admin123' created (is_staff + is_superuser)")
     else:
-        print("   → Superuser creation skipped (may already exist)")
->>>>>>> new-main
+        print("   â†’ Superuser creation skipped (may already exist)")
+
 
     # 6. Load TV-L data
     print("6. Loading TV-L salary data...")
@@ -83,3 +83,4 @@ def reset_database():
 
 if __name__ == "__main__":
     reset_database()
+

@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/finances/models.py
-Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.db import models
@@ -30,7 +30,7 @@ class PayScale(BaseModel):
         ordering = ['pay_scale_group', 'experience_level']
 
     def __str__(self):
-        return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
+        return f"{self.pay_scale_group} Level {self.experience_level} â€” {self.monthly_salary} â‚¬"
 
     @classmethod
     def get_current(cls):
@@ -128,3 +128,4 @@ class WBSElementInitialBalance(BaseModel):
         verbose_name_plural = "WBS Element Initial Balances"
         unique_together = ('wbs_element', 'year')
         ordering = ['wbs_element', '-year']
+

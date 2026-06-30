@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/utils.py
 Helper functions for task permissions, visibility and status logic.
 """
@@ -50,7 +50,7 @@ def can_view_purchase_order(user, task):
 
 
 def get_purchase_orders_queryset(user):
-    """Zentrale Query für alle Purchase Orders"""
+    """Zentrale Query fÃ¼r alle Purchase Orders"""
     if not user or not user.is_authenticated:
         return PurchaseOrderTask.objects.none()
 
@@ -69,7 +69,7 @@ def get_purchase_orders_queryset(user):
     visible = Q(creator=employee)
 
     if is_procurement_approver(user):
-        # Approver sehen zusätzlich alle Bestellungen, sobald WBS gesetzt ist
+        # Approver sehen zusÃ¤tzlich alle Bestellungen, sobald WBS gesetzt ist
         # (auch wenn sie jemand anderem assigned sind)
         approver_visible = Q(wbs_element__isnull=False)
         visible |= approver_visible
@@ -112,3 +112,4 @@ def can_create_purchase_order(user):
         GroupNames.PROCUREMENT_APPROVER,
     }
     return user.groups.filter(name__in=allowed_groups).exists()
+

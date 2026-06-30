@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+﻿from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
@@ -19,7 +19,7 @@ from .utils import get_visible_documents_for_user, get_user_permission_for_docum
 
 @login_required
 def document_list(request):
-    """Liste der für den User sichtbaren Dokumente (Meine Dokumente)."""
+    """Liste der fÃ¼r den User sichtbaren Dokumente (Meine Dokumente)."""
     try:
         employee = request.user.employee
     except (AttributeError, Employee.DoesNotExist):
@@ -89,7 +89,7 @@ def document_upload(request):
                     file_content = uploaded_file.read()
                     print(f"[UPLOAD DEBUG] Datei eingelesen: {len(file_content)} Bytes")
 
-                    # Tags verarbeiten (nur für diesen User)
+                    # Tags verarbeiten (nur fÃ¼r diesen User)
                     tag_names = form.cleaned_data.get('tags', [])
                     print(f"[UPLOAD DEBUG] Tags aus Formular: {tag_names}")
                     tags = []
@@ -123,10 +123,10 @@ def document_upload(request):
                     )
                     print(f"[UPLOAD DEBUG] Document erstellt mit ID {document.id}")
 
-                    # Version mit Dokument verknüpfen
+                    # Version mit Dokument verknÃ¼pfen
                     version.document = document
                     version.save()
-                    print("[UPLOAD DEBUG] Version mit Document verknüpft")
+                    print("[UPLOAD DEBUG] Version mit Document verknÃ¼pft")
 
                     # Tags zuordnen
                     document.tags.set(tags)
@@ -144,7 +144,7 @@ def document_upload(request):
                     print("[UPLOAD DEBUG] DocumentShare erstellt")
 
                     print(f"[UPLOAD DEBUG] ERFOLG! Dokument ID {document.id} wurde gespeichert.")
-                    messages.success(request, f"Dokument „{document.title}“ wurde erfolgreich hochgeladen.")
+                    messages.success(request, f"Dokument â€ž{document.title}â€œ wurde erfolgreich hochgeladen.")
                     return redirect('documents:document_list')
 
             except Exception as e:
@@ -159,16 +159,16 @@ def document_upload(request):
             print("[UPLOAD DEBUG] Form.is_valid() = False")
             print(f"[UPLOAD DEBUG] Form errors: {form.errors}")
             for field, errors in form.errors.items():
-                print(f"[UPLOAD DEBUG]   → Feld '{field}': {errors}")
+                print(f"[UPLOAD DEBUG]   â†’ Feld '{field}': {errors}")
 
             if 'file' in form.errors:
-                messages.warning(request, "Es gab ein Problem mit der ausgewählten Datei. Bitte wähle sie erneut aus.")
+                messages.warning(request, "Es gab ein Problem mit der ausgewÃ¤hlten Datei. Bitte wÃ¤hle sie erneut aus.")
             else:
                 messages.error(request, "Bitte korrigiere die Fehler im Formular.")
 
     else:
         form = DocumentUploadForm()
-        print("[UPLOAD DEBUG] GET-Request → zeige leeres Formular")
+        print("[UPLOAD DEBUG] GET-Request â†’ zeige leeres Formular")
 
     return render(request, 'documents/document_upload.html', {'form': form})
 
@@ -514,7 +514,7 @@ def document_upload_version(request, pk):
                     uploaded_file = form.cleaned_data['file']
                     file_content = uploaded_file.read()
 
-                    # Nächste Versionsnummer ermitteln
+                    # NÃ¤chste Versionsnummer ermitteln
                     last_version = document.versions.order_by('-version_number').first()
                     next_version_number = (last_version.version_number + 1) if last_version else 1
 
@@ -550,3 +550,5 @@ def document_upload_version(request, pk):
         'form': form,
     }
     return render(request, 'documents/document_upload_version.html', context)
+
+

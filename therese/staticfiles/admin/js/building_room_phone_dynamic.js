@@ -1,4 +1,4 @@
-// therese/static/admin/js/building_room_phone_dynamic.js
+﻿// therese/static/admin/js/building_room_phone_dynamic.js
 (function() {
     function init() {
         if (typeof django === 'undefined' || typeof django.jQuery === 'undefined') {
@@ -13,7 +13,7 @@
 
         var allRoomOptions = roomSelect.find('option').clone();
 
-        console.log('DEBUG: JS geladen -', allRoomOptions.length, 'Räume gespeichert');
+        console.log('DEBUG: JS geladen -', allRoomOptions.length, 'RÃ¤ume gespeichert');
 
         buildingSelect.on('change', function() {
             var selectedText = $(this).find('option:selected').text().trim();
@@ -25,7 +25,7 @@
             roomSelect.append($('<option>').val('').text('---------'));
 
             if (!buildingNumber || buildingNumber === '---------') {
-                console.log('Kein Building gewählt → alle Räume anzeigen');
+                console.log('Kein Building gewÃ¤hlt â†’ alle RÃ¤ume anzeigen');
                 allRoomOptions.each(function() {
                     roomSelect.append($(this).clone());
                 });
@@ -36,7 +36,7 @@
             allRoomOptions.each(function() {
                 var optionText = $(this).text().trim();
 
-                // Neue, tolerante Suche: Enthält der Text die Building-Nummer am Anfang?
+                // Neue, tolerante Suche: EnthÃ¤lt der Text die Building-Nummer am Anfang?
                 if (optionText.match(new RegExp('^' + buildingNumber + '(\\s|-)'))) {
                     roomSelect.append($(this).clone());
                     hasRooms = true;
@@ -45,8 +45,8 @@
             });
 
             if (!hasRooms) {
-                roomSelect.append($('<option>').val('').text('Keine Räume für dieses Gebäude'));
-                console.log('KEIN MATCH für Nummer', buildingNumber);
+                roomSelect.append($('<option>').val('').text('Keine RÃ¤ume fÃ¼r dieses GebÃ¤ude'));
+                console.log('KEIN MATCH fÃ¼r Nummer', buildingNumber);
             } else {
                 console.log('Erfolgreich gefiltert');
             }
@@ -62,7 +62,7 @@
             if (phoneMatch) {
                 var phone = phoneMatch[1].trim();
                 phoneSelect.append($('<option>').val(phone).text(phone).prop('selected', true));
-                console.log('→ Office Phone gesetzt:', phone);
+                console.log('â†’ Office Phone gesetzt:', phone);
             }
         });
 
@@ -73,3 +73,4 @@
 
     init();
 })();
+

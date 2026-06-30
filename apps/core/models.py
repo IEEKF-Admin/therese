@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/core/models.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -46,3 +46,5 @@ class GlobalSetting(models.Model):
     def get_default_weekly_hours(cls):
         setting, _ = cls.objects.get_or_create(pk=1)
         return setting.default_weekly_hours
+
+

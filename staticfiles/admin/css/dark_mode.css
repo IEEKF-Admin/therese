@@ -1,4 +1,4 @@
-@media (prefers-color-scheme: dark) {
+﻿@media (prefers-color-scheme: dark) {
     :root {
       --primary: #264b5d;
       --primary-fg: #f7f7f7;
@@ -144,3 +144,5 @@ html[data-theme="dark"] .theme-toggle svg.theme-icon-when-dark {
 html[data-theme="light"] .theme-toggle svg.theme-icon-when-light {
     display: block;
 }
+
+

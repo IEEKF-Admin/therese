@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/permissions.py
 
 Zentrale Definition aller benutzerdefinierten Gruppen (Custom Groups) im System.
@@ -6,7 +6,7 @@ Zentrale Definition aller benutzerdefinierten Gruppen (Custom Groups) im System.
 Vorteile:
 - Einziger Ort, an dem Gruppennamen definiert sind
 - Verhindert Tippfehler bei String-Vergleichen
-- Ermöglicht automatische Erstellung nach Migrationen
+- ErmÃ¶glicht automatische Erstellung nach Migrationen
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -33,7 +33,7 @@ class GroupNames:
     INSTITUTE_ADMIN = "Institute Admin"
 
 
-# Alle Gruppen als Liste (nützlich für Iterationen)
+# Alle Gruppen als Liste (nÃ¼tzlich fÃ¼r Iterationen)
 ALL_GROUPS = [
     GroupNames.PI,
     GroupNames.PERSONNEL_COORDINATOR,
@@ -67,8 +67,10 @@ def get_or_create_default_groups():
     return created_groups
 
 
-# Optional: Hier könnten später auch Default-Permissions pro Gruppe vergeben werden.
+# Optional: Hier kÃ¶nnten spÃ¤ter auch Default-Permissions pro Gruppe vergeben werden.
 # Beispiel:
 # def assign_default_permissions():
 #     pi_group = Group.objects.get(name=GroupNames.PI)
 #     pi_group.permissions.add(...)
+
+

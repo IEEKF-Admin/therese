@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static widget_tweaks %}
 
 {% block title %}New General Request - THERESE{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
     <h1>New General Request</h1>
-    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">â† Cancel</a>
 </div>
 
 <style>
@@ -43,19 +43,19 @@
             <div class="aligned-field">
                 <label>Recipient <span style="color:#ef4444;">*</span></label>
                 {{ form.recipient|add_class:"form-control" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Empfänger</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">EmpfÃ¤nger</small>
             </div>
 
             <div class="aligned-field">
                 <label>Priority</label>
                 {{ form.priority|add_class:"form-control" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Priorität</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">PrioritÃ¤t</small>
             </div>
 
             <div class="aligned-field">
                 <label>Due Date</label>
                 {{ form.due_date|add_class:"date-picker" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Fälligkeitsdatum</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">FÃ¤lligkeitsdatum</small>
             </div>
         </div>
 
@@ -73,7 +73,7 @@
                 </label>
             </div>
 
-            <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create General Request</button>
+            <button type="submit" class="btn-primary" id="submit-btn" disabled>âœ… Create General Request</button>
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
         </div>
     </form>
@@ -95,3 +95,4 @@
     });
 </script>
 {% endblock %}
+

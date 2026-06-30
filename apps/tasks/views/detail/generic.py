@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/tasks/views/detail/generic.py
 Detail view for General Requests (generic_text).
 Recipient can update status + description.
@@ -66,3 +66,5 @@ def generic_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, 'tasks/detail/generic.html', context)
+
+

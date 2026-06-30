@@ -1,4 +1,4 @@
-// therese/static/admin/js/workgroup_checkbox.js
+﻿// therese/static/admin/js/workgroup_checkbox.js
 
 document.addEventListener('DOMContentLoaded', function() {
     const checkbox = document.querySelector('input[name="create_new_workgroup"]');
@@ -21,3 +21,4 @@ document.addEventListener('DOMContentLoaded', function() {
     checkbox.addEventListener('change', toggleInline);
     toggleInline(); // initial state
 });
+

@@ -10,10 +10,10 @@
 <script src="{% static 'js/employee_cascading.js' %}"></script>
 
 <script>
-// =====================================================
+// ====
 // Robust "Add another" for inline formsets
 // Works for both extra=0 and extra=1 cases
-// =====================================================
+// ====
 (function() {
     function replacePrefix(str, newIndex) {
         return str.replace(/__prefix__/g, newIndex);
@@ -144,3 +144,5 @@
     {% include "hr/employee_form/base.html" %}
 </form>
 {% endblock %}
+
+

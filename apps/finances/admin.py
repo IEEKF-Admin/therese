@@ -1,6 +1,6 @@
-"""
+﻿"""
 apps/finances/admin.py
-Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.contrib import admin
@@ -45,3 +45,4 @@ class WBSElementAdmin(admin.ModelAdmin):
 class WBSElementInitialBalanceAdmin(admin.ModelAdmin):
     list_display = ('wbs_element', 'year', 'initial_balance')
     list_filter = ('year',)
+

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 {
     const $ = django.jQuery;
 
@@ -31,3 +31,5 @@
         $(event.target).find('.admin-autocomplete').djangoAdminSelect2();
     });
 }
+
+

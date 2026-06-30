@@ -1,4 +1,4 @@
-/* DASHBOARD */
+﻿/* DASHBOARD */
 .dashboard td, .dashboard th {
     word-break: break-word;
 }
@@ -27,3 +27,5 @@ ul.actionlist li {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+

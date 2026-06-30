@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 {
     const SelectBox = {
         cache: {},
@@ -114,3 +114,5 @@
     };
     window.SelectBox = SelectBox;
 }
+
+

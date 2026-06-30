@@ -1,4 +1,4 @@
-// Core JavaScript helper functions
+﻿// Core JavaScript helper functions
 'use strict';
 
 // quickElement(tagType, parentReference [, textInChildNode, attribute, attributeValue ...]);
@@ -182,3 +182,5 @@ function findPosY(obj) {
         return new Date(Date.UTC(year, month, day));
     };
 }
+
+

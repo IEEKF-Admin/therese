@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/apps.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -14,3 +14,4 @@ class HrConfig(AppConfig):
 
     def ready(self):
         import apps.hr.signals  # Register signals
+

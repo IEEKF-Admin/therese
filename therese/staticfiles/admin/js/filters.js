@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Persist changelist filters state (collapsed/expanded).
  */
 'use strict';
@@ -28,3 +28,5 @@
         });
     });
 }
+
+

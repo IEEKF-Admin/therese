@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/hr/views/__init__.py
 """
 
@@ -19,3 +19,4 @@ __all__ = [
     'ajax_rooms_by_building',
     'ajax_phonenumbers_by_room'
 ]
+

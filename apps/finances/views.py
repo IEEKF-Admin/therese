@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/finances/views.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -188,12 +188,12 @@ def import_wbs_elements(request):
                         balances_created += 1
                         status = "Saved"
 
-                        print(f"DEBUG SUCCESS: {wbs_code:15} | Raw: '{raw_budget}' → Cleaned: {cleaned} → Saved: {initial_balance:.2f} €")
+                        print(f"DEBUG SUCCESS: {wbs_code:15} | Raw: '{raw_budget}' â†’ Cleaned: {cleaned} â†’ Saved: {initial_balance:.2f} â‚¬")
 
                     except ValueError as ve:
                         status = "Parse Error"
-                        errors.append(f"Row {row_num}: Cannot convert '{budget_str}' for {wbs_code} → {ve}")
-                        print(f"DEBUG FAILED:  {wbs_code:15} | Raw: '{raw_budget}' → Error: {ve}")
+                        errors.append(f"Row {row_num}: Cannot convert '{budget_str}' for {wbs_code} â†’ {ve}")
+                        print(f"DEBUG FAILED:  {wbs_code:15} | Raw: '{raw_budget}' â†’ Error: {ve}")
                 else:
                     WBSElementInitialBalance.objects.update_or_create(
                         wbs_element=wbs,
@@ -223,7 +223,7 @@ def import_wbs_elements(request):
             f"{balances_created} Initial Balances for year {current_year}."
         )
         if errors:
-            messages.warning(request, f"{len(errors)} errors – check the detailed log.")
+            messages.warning(request, f"{len(errors)} errors â€“ check the detailed log.")
 
         messages.info(request, f"Detailed log file created: {log_path.name}")
         return redirect('admin:finances_wbselement_changelist')
@@ -252,7 +252,7 @@ def ajax_payscale_levels(request):
 
     return JsonResponse(data, safe=False)
     
-# === AJAX für PayScale Dropdowns ===
+# === AJAX fÃ¼r PayScale Dropdowns ===
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.contrib.admin.views.decorators import staff_member_required
@@ -275,3 +275,4 @@ def ajax_payscale_levels(request):
     } for scale in scales]
 
     return JsonResponse(data, safe=False)
+

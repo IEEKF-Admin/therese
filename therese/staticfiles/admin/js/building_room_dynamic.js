@@ -1,4 +1,4 @@
-// therese/static/admin/js/building_room_dynamic.js
+﻿// therese/static/admin/js/building_room_dynamic.js
 (function() {
     function init() {
         if (typeof django === 'undefined' || typeof django.jQuery === 'undefined') {
@@ -30,3 +30,4 @@
 
     init();
 })();
+

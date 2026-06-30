@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/middleware.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -35,3 +35,4 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
 
     def process_response(self, request, response):
         return response
+

@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps/accounts/views.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
@@ -20,7 +20,7 @@ from django.contrib import messages
 
 class ForcePasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     template_name = 'registration/password_change_form.html'
-    success_url = reverse_lazy('tasks:my_tasks')   # ← WICHTIG: Namespace hinzugefügt
+    success_url = reverse_lazy('tasks:my_tasks')   # â† WICHTIG: Namespace hinzugefÃ¼gt
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -40,4 +40,6 @@ class ThereseLoginView(LoginView):
     """Custom Login View that always redirects to the tasks dashboard"""
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
-    success_url = reverse_lazy('tasks:my_tasks')   # ← Namespace korrigiert
+    success_url = reverse_lazy('tasks:my_tasks')   # â† Namespace korrigiert
+
+

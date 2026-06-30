@@ -47,12 +47,31 @@ def reset_database():
     print("4. Applying migrations...")
     subprocess.run([str(venv_python), "manage.py", "migrate"], check=True, cwd=base_dir)
 
+<<<<<<< HEAD
     # 5. Create superuser
     print("5. Creating superuser...")
     try:
         subprocess.run([str(venv_python), "manage.py", "createsuperuser"], check=True, cwd=base_dir)
     except subprocess.CalledProcessError:
         print("   → Superuser creation skipped or already exists")
+=======
+    # 5. Create superuser non-interactively (reliable for fresh installs)
+    print("5. Creating superuser (admin / admin123)...")
+    env = os.environ.copy()
+    env["DJANGO_SUPERUSER_USERNAME"] = "admin"
+    env["DJANGO_SUPERUSER_EMAIL"] = "admin@example.com"
+    env["DJANGO_SUPERUSER_PASSWORD"] = "admin123"
+
+    result = subprocess.run(
+        [str(venv_python), "manage.py", "createsuperuser", "--noinput"],
+        env=env,
+        cwd=base_dir,
+    )
+    if result.returncode == 0:
+        print("   → Superuser 'admin' / 'admin123' created (is_staff + is_superuser)")
+    else:
+        print("   → Superuser creation skipped (may already exist)")
+>>>>>>> new-main
 
     # 6. Load TV-L data
     print("6. Loading TV-L salary data...")

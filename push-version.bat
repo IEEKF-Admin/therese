@@ -1,5 +1,12 @@
 @echo off
 chcp 65001 >nul
+
+REM Force cmd.exe execution (prevents "." error when run from PowerShell)
+@if not "%~1"==":cmd" (
+    cmd /c "%~f0" :cmd %*
+    exit /b
+)
+
 cd /d "%~dp0"
 
 echo ==========================================

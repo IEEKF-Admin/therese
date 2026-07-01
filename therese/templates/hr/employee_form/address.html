@@ -1,11 +1,11 @@
 ﻿{% load widget_tweaks %}
 <div class="form-section">
     <h3>Address</h3>
-    <div class="aligned-field"><label>{{ form.street.label }}</label>{{ form.street|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.house_number.label }}</label>{{ form.house_number|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.postal_code.label }}</label>{{ form.postal_code|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.city.label }}</label>{{ form.city|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.country.label }}</label>{{ form.country|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.street.label }}</label>{% if form.street.errors %}{{ form.street|add_class:"form-control error" }}{% else %}{{ form.street|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.house_number.label }}</label>{% if form.house_number.errors %}{{ form.house_number|add_class:"form-control error" }}{% else %}{{ form.house_number|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.postal_code.label }}</label>{% if form.postal_code.errors %}{{ form.postal_code|add_class:"form-control error" }}{% else %}{{ form.postal_code|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.city.label }}</label>{% if form.city.errors %}{{ form.city|add_class:"form-control error" }}{% else %}{{ form.city|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.country.label }}</label>{% if form.country.errors %}{{ form.country|add_class:"form-control error" }}{% else %}{{ form.country|add_class:"form-control" }}{% endif %}</div>
 </div>
 
 

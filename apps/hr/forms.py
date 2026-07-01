@@ -128,11 +128,18 @@ class EmployeeForm(forms.ModelForm):
         phone_field = self.fields['phone_number']
         phone_field.widget.attrs.update({'class': 'phone-select form-control', 'id': 'id_phone_number'})
 
+        # Determine the phone value we want to preserve (POST or instance)
+        phone_to_preserve = None
+        if self.is_bound and self.data.get('phone_number'):
+            phone_to_preserve = self.data.get('phone_number')
+        elif instance and instance.phone_number:
+            phone_to_preserve = instance.phone_number
+
         if self.is_bound and self.data.get('room'):
             phone_field.queryset = PhoneNumber.objects.filter(room_id=self.data['room'])
             print(f"POST mode → Phone queryset for room_id={self.data['room']} → {phone_field.queryset.count()} phones")
-            if self.data.get('phone_number'):
-                phone_field.initial = self.data.get('phone_number')
+            if phone_to_preserve:
+                phone_field.initial = phone_to_preserve
                 print(f"POST mode → Phone initial set to: {phone_field.initial}")
         elif instance and instance.phone_number:
             phone_field.queryset = PhoneNumber.objects.filter(phone_number=instance.phone_number)
@@ -142,6 +149,13 @@ class EmployeeForm(forms.ModelForm):
         else:
             phone_field.queryset = PhoneNumber.objects.none()
             print("⚠️  Phone queryset = empty")
+
+        # Ensure the preserved phone is always in the queryset (for validation when room filter excludes it)
+        if phone_to_preserve and phone_field.queryset is not None:
+            if not phone_field.queryset.filter(phone_number=phone_to_preserve).exists():
+                preserved_qs = PhoneNumber.objects.filter(phone_number=phone_to_preserve)
+                phone_field.queryset = (phone_field.queryset | preserved_qs).distinct()
+                print(f"  → Added preserved phone '{phone_to_preserve}' to queryset for validation")
 
         print("\n=== FORM __INIT__ END - EXTREM EXZESSIVES DEBUGGING ===\n")
 
@@ -164,6 +178,15 @@ class EmployeeForm(forms.ModelForm):
             self.add_error('room', "Room does not belong to selected building")
         print("=== END OF clean() ===\n")
         return cleaned_data
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if phone is None:
+            if self.instance and self.instance.pk and self.instance.phone_number:
+                return self.instance.phone_number
+            return ''
+        # Ensure it's a string
+        return str(phone) if phone else ''
 
 
 # = INLINE FORMS =

@@ -15,8 +15,8 @@
             <tr class="salary-row">
                 {{ form.id }}
                 {{ form.DELETE.as_hidden }}
-                <td>{{ form.percentage|add_class:"form-control" }}</td>
-                <td>{{ form.comment|add_class:"form-control" }}</td>
+                <td>{% if form.percentage.errors %}{{ form.percentage|add_class:"form-control error" }}{% else %}{{ form.percentage|add_class:"form-control" }}{% endif %}</td>
+                <td>{% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment|add_class:"form-control" }}{% endif %}</td>
                 <td style="text-align:center;">
                     <button type="button" class="btn-danger remove-row">🗑️</button>
                 </td>
@@ -28,8 +28,8 @@
                 {% with form=salary_formset.empty_form %}
                 {{ form.id }}
                 {{ form.DELETE.as_hidden }}
-                <td>{{ form.percentage|add_class:"form-control" }}</td>
-                <td>{{ form.comment|add_class:"form-control" }}</td>
+                <td>{% if form.percentage.errors %}{{ form.percentage|add_class:"form-control error" }}{% else %}{{ form.percentage|add_class:"form-control" }}{% endif %}</td>
+                <td>{% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment|add_class:"form-control" }}{% endif %}</td>
                 <td style="text-align:center;">
                     <button type="button" class="btn-danger remove-row">🗑️</button>
                 </td>

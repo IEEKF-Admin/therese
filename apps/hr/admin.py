@@ -32,6 +32,13 @@ class FundingAllocationInline(admin.TabularInline):
     model = FundingAllocation
     extra = 1
 
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        wbs_field = formset.form.base_fields.get('wbs_element')
+        if wbs_field:
+            wbs_field.label = 'PSP - Element'
+        return formset
+
 
 class SalarySupplementInline(admin.TabularInline):
     model = SalarySupplement

@@ -36,10 +36,11 @@ class CostCenterInitialBalanceAdmin(admin.ModelAdmin):
 
 @admin.register(WBSElement, site=therese_admin)
 class WBSElementAdmin(admin.ModelAdmin):
-    list_display = ('wbs_code', 'title', 'responsible_person', 'comment')
-    list_filter = ('responsible_person',)
-    search_fields = ('wbs_code', 'title', 'comment')
+    list_display = ('wbs_code', 'title', 'work_group', 'responsible_person', 'comment')
+    list_filter = ('work_group', 'responsible_person',)
+    search_fields = ('wbs_code', 'title', 'comment', 'work_group__short_name')
     ordering = ('wbs_code',)
+    autocomplete_fields = ['work_group']  # requires search in Workgroup admin if large
 
 
 @admin.register(WBSElementInitialBalance, site=therese_admin)

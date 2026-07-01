@@ -7,13 +7,13 @@
         <div class="inline-form-row contract-row">
             {{ form.id }}           <!-- WICHTIG: Hidden ID -->
             {{ form.DELETE.as_hidden }}   <!-- Hidden for JS remove handler; no visible checkbox -->
-            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
-            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
-            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
+            <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
+            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>
@@ -27,13 +27,13 @@
         <div class="inline-form-row contract-row">
             {{ form.id }}
             {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
-            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
-            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
+            <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
+            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>

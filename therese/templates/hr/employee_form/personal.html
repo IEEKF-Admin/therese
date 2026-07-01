@@ -1,14 +1,14 @@
 ﻿{% load widget_tweaks %}
 <div class="form-section">
     <h3>Personal Information</h3>
-    <div class="aligned-field"><label>{{ form.employee_number.label }}</label>{{ form.employee_number|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.prefix.label }}</label>{{ form.prefix|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.first_name.label }}</label>{{ form.first_name|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.last_name.label }}</label>{{ form.last_name|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.gender.label }}</label>{{ form.gender|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.date_of_birth.label }}</label>{{ form.date_of_birth|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.country_of_origin.label }}</label>{{ form.country_of_origin|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.place_of_birth.label }}</label>{{ form.place_of_birth|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.employee_number.label }}</label>{% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.first_name.label }}</label>{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.last_name.label }}</label>{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.gender.label }}</label>{% if form.gender.errors %}{{ form.gender|add_class:"form-control error" }}{% else %}{{ form.gender|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.date_of_birth.label }}</label>{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.country_of_origin.label }}</label>{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.place_of_birth.label }}</label>{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}</div>
 </div>
 
 

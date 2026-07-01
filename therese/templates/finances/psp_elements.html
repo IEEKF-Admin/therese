@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+</div>
+
+<form method="get" class="filter-form">
+    <div class="form-row">
+        <div>
+            <label>WBS Element (PSP)</label>
+            <select name="wbs" style="width: 300px;">
+                {% for id, label in wbs_choices %}
+                <option value="{{ id }}" {% if selected_wbs == id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if is_institute_leader %}
+        <div>
+            <label>Workgroup Filter</label>
+            <select name="work_group">
+                {% for id, label in workgroup_choices %}
+                <option value="{{ id }}" {% if selected_workgroup == id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div>
+            <label>Start Monat</label>
+            <input type="month" name="start_month" value="{{ start_month }}">
+        </div>
+        <div>
+            <label>End Monat</label>
+            <input type="month" name="end_month" value="{{ end_month }}">
+        </div>
+
+        <div style="align-self: end;">
+            <button type="submit" class="btn btn-primary">Anzeigen</button>
+            {% if bookings %}
+            <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-secondary">Export CSV</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+{% if is_all and grouped_bookings %}
+    {% for wbs, items in grouped_bookings.items %}
+    <h3>
+        {{ wbs }}
+        {% if wbs.work_group %}
+            <small style="color:#666; font-size:0.85em;">({{ wbs.work_group }})</small>
+        {% endif %}
+    </h3>
+    <p><strong>{{ items|length }} Einträge</strong></p>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Datum / Zeitraum</th>
+                <th>Person</th>
+                <th>Betrag / Kosten</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in items %}
+            <tr>
+                <td>{{ b.date }}</td>
+                <td>{{ b.person }}</td>
+                <td>
+                    {% if b.amount %}{{ b.amount }} €{% else %}-{% endif %}
+                </td>
+                <td>
+                    <a href="{{ b.detail_url }}" class="btn btn-sm">🔍 Detail</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <hr>
+    {% endfor %}
+
+{% elif bookings %}
+<h3>Ergebnisse ({{ bookings|length }} Einträge)</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>WBS</th>
+            <th>Datum / Zeitraum</th>
+            <th>Person</th>
+            <th>Betrag / Kosten</th>
+            <th>Details</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in bookings %}
+        <tr>
+            <td>{{ b.wbs }}</td>
+            <td>{{ b.date }}</td>
+            <td>{{ b.person }}</td>
+            <td>
+                {% if b.amount %}{{ b.amount }} €{% else %}-{% endif %}
+            </td>
+            <td>
+                <a href="{{ b.detail_url }}" class="btn btn-sm">🔍 Detail</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+<p>Bitte WBS Element (oder Alle) und Zeitraum auswählen.</p>
+{% endif %}
+
+{% endblock %}

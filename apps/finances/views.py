@@ -22,12 +22,19 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from apps.accounts.permissions import GroupNames
+from django.http import HttpResponse
+import csv
+from django.urls import reverse
+from django.db.models import Q
 
 from .models import CostCenter, WBSElement, WBSElementInitialBalance, PayScale
+from apps.hr.models import Workgroup, FundingAllocation
+from apps.tasks.models import PurchaseOrderTask
+from apps.hr.models import Employee  # if needed
 
 
 def get_log_dir():
@@ -382,4 +389,236 @@ def import_pay_scales(request):
     return render(request, 'finances/import_pay_scales.html', {
         'default_date': today
     })
+
+
+def calculate_funding_cost(allocation, period_start, period_end):
+    """
+    Calculate total salary cost for a FundingAllocation over the given period,
+    respecting monthly structure, contracts and PayScale.
+    """
+    if not period_start:
+        period_start = allocation.start_date
+    if not period_end:
+        period_end = allocation.end_date or date.today()
+
+    overlap_start = max(allocation.start_date, period_start)
+    alloc_end = allocation.end_date or date(9999, 12, 31)
+    overlap_end = min(alloc_end, period_end)
+
+    if overlap_start > overlap_end:
+        return 0
+
+    # Find relevant contract at overlap_start
+    contract = allocation.employee.contracts.filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=overlap_start),
+        valid_from__lte=overlap_start
+    ).order_by('-valid_from').first()
+
+    if not contract or not contract.weekly_hours:
+        return 0
+
+    # Find latest PayScale for this group/level at overlap_start
+    payscale = PayScale.objects.filter(
+        pay_scale_group=contract.pay_scale_group,
+        experience_level=contract.experience_level,
+        effective_as_of__lte=overlap_start
+    ).order_by('-effective_as_of').first()
+
+    if not payscale:
+        return 0
+
+    # Prorated monthly salary based on allocated vs contract hours
+    full_monthly = payscale.monthly_salary
+    hours_ratio = Decimal(allocation.weekly_hours_allocated) / Decimal(contract.weekly_hours)
+    prorated_monthly = full_monthly * hours_ratio
+
+    # Number of months in overlap (monthly structure)
+    months = (overlap_end.year - overlap_start.year) * 12 + (overlap_end.month - overlap_start.month) + 1
+
+    total_cost = (prorated_monthly * months).quantize(Decimal("0.01"))
+    return total_cost
+
+
+@login_required
+def psp_elements(request):
+    """PSP / WBS Elemente Buchungen Übersicht für berechtigte Gruppen."""
+    user = request.user
+    user_groups = list(user.groups.values_list('name', flat=True)) if user.is_authenticated else []
+
+    allowed_groups = {
+        GroupNames.PROCUREMENT_COORDINATOR,
+        GroupNames.PI,
+        GroupNames.INSTITUTE_LEADER,
+    }
+
+    if not any(g in user_groups for g in allowed_groups):
+        messages.error(request, "You do not have permission to access this page.")
+        return redirect('tasks:my_tasks')
+
+    is_institute_leader = GroupNames.INSTITUTE_LEADER in user_groups
+
+    # Get user's workgroups from Employee
+    user_workgroups = []
+    if hasattr(user, 'employee') and user.employee:
+        user_workgroups = list(user.employee.workgroups.all())
+
+    # WBS selection
+    wbs_id = request.GET.get('wbs', '')
+    all_wbs = WBSElement.objects.all().order_by('wbs_code')
+
+    # Filter WBS by workgroup for non-leaders
+    if not is_institute_leader and user_workgroups:
+        all_wbs = all_wbs.filter(work_group__in=user_workgroups)
+
+    # Date range - use month inputs (YYYY-MM)
+    start_month = request.GET.get('start_month', '')
+    end_month = request.GET.get('end_month', '')
+
+    start_date = None
+    end_date = None
+
+    if start_month:
+        try:
+            y, m = map(int, start_month.split('-'))
+            start_date = date(y, m, 1)
+        except:
+            pass
+
+    if end_month:
+        try:
+            y, m = map(int, end_month.split('-'))
+            # end of month
+            last_day = (date(y, m, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            end_date = last_day
+        except:
+            pass
+
+    # Workgroup filter for Institute Leader
+    filter_workgroup_id = request.GET.get('work_group', '') if is_institute_leader else ''
+    filter_workgroup = None
+    if filter_workgroup_id and filter_workgroup_id != 'all':
+        try:
+            filter_workgroup = Workgroup.objects.get(id=filter_workgroup_id)
+        except:
+            pass
+
+    # Determine final WBS queryset
+    wbs_qs = all_wbs
+    if filter_workgroup:
+        wbs_qs = wbs_qs.filter(work_group=filter_workgroup)
+
+    # Selected WBS or all
+    selected_wbs = None
+    if wbs_id and wbs_id != 'all':
+        try:
+            selected_wbs = wbs_qs.get(id=wbs_id)
+            wbs_qs = WBSElement.objects.filter(id=wbs_id)
+        except:
+            wbs_id = 'all'
+
+    # === Fetch Bookings ===
+    pos_qs = PurchaseOrderTask.objects.filter(wbs_element__in=wbs_qs).select_related('wbs_element', 'creator')
+    alloc_qs = FundingAllocation.objects.filter(wbs_element__in=wbs_qs).select_related('wbs_element', 'employee')
+
+    # Date filter
+    if start_date:
+        pos_qs = pos_qs.filter(created_at__date__gte=start_date)
+        alloc_qs = alloc_qs.filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=start_date),
+            start_date__lte=(end_date or date(9999, 12, 31))
+        )
+
+    if end_date:
+        pos_qs = pos_qs.filter(created_at__date__lte=end_date)
+        alloc_qs = alloc_qs.filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=start_date or date.min),
+            start_date__lte=end_date,
+        )
+
+    # For non institute, already filtered via wbs_qs
+
+    # Prepare list of bookings
+    bookings = []
+
+    # Purchase Orders
+    for po in pos_qs:
+        bookings.append({
+            'type': 'Bestellung',
+            'wbs': po.wbs_element,
+            'date': po.created_at.date() if po.created_at else None,
+            'identifier': po.at_beleg_nummer or '-',
+            'amount': getattr(po, 'total_price', 0),
+            'person': str(po.creator) if po.creator else '-',
+            'detail_url': reverse('tasks:task_detail', args=[po.pk]),
+            'obj': po,
+        })
+
+    # Funding Allocations
+    for alloc in alloc_qs:
+        cost = calculate_funding_cost(alloc, start_date, end_date)
+
+        bookings.append({
+            'type': 'Funding Allocation',
+            'wbs': alloc.wbs_element,
+            'date': alloc.end_date,
+            'identifier': str(alloc.employee),
+            'amount': cost,
+            'person': alloc.employee.get_full_name() if alloc.employee else '-',
+            'end_date': alloc.end_date,
+            'detail_url': reverse('hr:employee_list') + f'?q={alloc.employee.id}',  # approximate read-only view
+            'obj': alloc,
+        })
+
+    # Sort by date desc
+    bookings.sort(key=lambda x: x['date'] or date.min, reverse=True)
+
+    # Group by WBS if "All" selected for better overview with subheadings
+    is_all = (not wbs_id or wbs_id == 'all')
+    grouped_bookings = {}
+    if is_all and bookings:
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for b in bookings:
+            wbs_obj = b['wbs']
+            grouped[wbs_obj].append(b)
+        grouped_bookings = dict(grouped)
+
+    # Export CSV (always uses flat list)
+    if request.GET.get('export'):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="psp_bookings.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['WBS', 'Date', 'Person', 'Amount'])
+        for b in bookings:
+            writer.writerow([
+                str(b['wbs']),
+                b['date'],
+                b['person'],
+                b.get('amount', '-')
+            ])
+        return response
+
+    # For Institute Leader workgroup options
+    workgroup_choices = []
+    if is_institute_leader:
+        workgroup_choices = [('', '- All -')] + [(wg.id, str(wg)) for wg in Workgroup.objects.all()]
+
+    # WBS choices for dropdown
+    wbs_choices = [('', '- All -')] + [(w.id, str(w)) for w in all_wbs]
+
+    context = {
+        'wbs_choices': wbs_choices,
+        'selected_wbs': wbs_id,
+        'start_month': start_month,
+        'end_month': end_month,
+        'bookings': bookings,
+        'grouped_bookings': grouped_bookings,
+        'is_all': is_all,
+        'is_institute_leader': is_institute_leader,
+        'workgroup_choices': workgroup_choices,
+        'selected_workgroup': filter_workgroup_id,
+        'title': 'PSP - Elemente',
+    }
+
+    return render(request, 'finances/psp_elements.html', context)
 

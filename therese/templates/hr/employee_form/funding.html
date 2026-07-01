@@ -7,11 +7,11 @@
         <div class="inline-form-row funding-row">
             {{ form.id }}           <!-- WICHTIG: Hidden ID -->
             {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>WBS Element</label>{{ form.wbs_element|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Weekly Hours Allocated</label>{{ form.weekly_hours_allocated|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Start Date</label>{{ form.start_date }}</div>
-            <div class="inline-field"><label>End Date</label>{{ form.end_date }}</div>
-            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-field"><label>PSP - Element</label>{% if form.wbs_element.errors %}{{ form.wbs_element|add_class:"form-control error" }}{% else %}{{ form.wbs_element|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Weekly Hours Allocated</label>{% if form.weekly_hours_allocated.errors %}{{ form.weekly_hours_allocated|add_class:"form-control error" }}{% else %}{{ form.weekly_hours_allocated|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Start Date</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
+            <div class="inline-field"><label>End Date</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
+            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>
@@ -25,11 +25,11 @@
         <div class="inline-form-row funding-row">
             {{ form.id }}
             {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>WBS Element</label>{{ form.wbs_element|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Weekly Hours Allocated</label>{{ form.weekly_hours_allocated|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Start Date</label>{{ form.start_date }}</div>
-            <div class="inline-field"><label>End Date</label>{{ form.end_date }}</div>
-            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
+            <div class="inline-field"><label>PSP - Element</label>{% if form.wbs_element.errors %}{{ form.wbs_element|add_class:"form-control error" }}{% else %}{{ form.wbs_element|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Weekly Hours Allocated</label>{% if form.weekly_hours_allocated.errors %}{{ form.weekly_hours_allocated|add_class:"form-control error" }}{% else %}{{ form.weekly_hours_allocated|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Start Date</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
+            <div class="inline-field"><label>End Date</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
+            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>

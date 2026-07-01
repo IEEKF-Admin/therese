@@ -10,6 +10,17 @@
     margin-bottom: 2rem;
 }
 
+/* Red highlight for fields with validation errors (required fields not filled) */
+.error,
+input.error,
+select.error,
+textarea.error {
+    background-color: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 1px #fecaca;
+}
+
+
 @media (max-width: 900px) {
     .employee-two-col {
         grid-template-columns: 1fr;

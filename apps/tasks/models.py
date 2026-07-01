@@ -182,7 +182,7 @@ class PurchaseItem(BaseModel):
         return self.unit_price * self.quantity
 
     def __str__(self):
-        return f"{self.product_name} Ã— {self.quantity}"
+        return f"{self.product_name} × {self.quantity}"
 
 
 class PersonnelReallocationTask(Task):

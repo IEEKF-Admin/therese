@@ -21,7 +21,7 @@ from apps.accounts.permissions import GroupNames
 
 class PurchaseOrderTaskForm(forms.ModelForm):
     """
-    Formular fÃ¼r Purchase Orders mit Radio-Buttons fÃ¼r Status.
+    Formular für Purchase Orders mit Radio-Buttons für Status.
     """
     class Meta:
         model = PurchaseOrderTask
@@ -59,11 +59,11 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                     self.fields['assignee'].initial = None  # bleibt unassigned, bis Coordinator/Approver es setzt
 
             else:
-                # Coordinator und andere (z.B. Approver) kÃ¶nnen Assignee aus Approvers wÃ¤hlen
+                # Coordinator und andere (z.B. Approver) können Assignee aus Approvers wählen
                 approvers = Employee.objects.filter(user__groups__name=GroupNames.PROCUREMENT_APPROVER)
                 self.fields['assignee'].queryset = approvers.order_by('last_name', 'first_name')
                 self.fields['assignee'].widget.attrs.update({'class': 'form-control'})
-                self.fields['assignee'].empty_label = "â€” Unassigned â€”"
+                self.fields['assignee'].empty_label = "— Unassigned —"
 
         # ====== AT - Beleg Nummer ======
         if 'at_beleg_nummer' in self.fields:
@@ -100,7 +100,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             self.fields['wbs_element'].empty_label = "---------"
 
             if not self.is_creation and self.user and self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists():
-                # Coordinator darf WBS Ã¤ndern (bleibt Select)
+                # Coordinator darf WBS ändern (bleibt Select)
                 pass
             elif self.is_creation:
                 self.fields['wbs_element'].widget = forms.HiddenInput()
@@ -196,12 +196,12 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
         # Employee dropdown (all employees)
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['employee'].empty_label = "â€” Select employee â€”"
+            self.fields['employee'].empty_label = "— Select employee —"
 
         # Target WBS (reasonable WBS elements)
         if 'target_wbs' in self.fields:
             self.fields['target_wbs'].queryset = WBSElement.objects.all().order_by('wbs_code')
-            self.fields['target_wbs'].empty_label = "â€” Select target WBS â€”"
+            self.fields['target_wbs'].empty_label = "— Select target WBS —"
 
 
 class PersonnelContractExtensionTaskForm(forms.ModelForm):
@@ -264,7 +264,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         # Employee dropdown (all employees)
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['employee'].empty_label = "â€” Select employee â€”"
+            self.fields['employee'].empty_label = "— Select employee —"
 
         # is_limited default True for new limited contracts
         if 'is_limited' in self.fields and self.is_creation:
@@ -289,10 +289,10 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
         if 'assignee' in self.fields:
-            # Nur Mitglieder der Gruppe "Personnel Fulfiller" dÃ¼rfen zugewiesen werden
+            # Nur Mitglieder der Gruppe "Personnel Fulfiller" dürfen zugewiesen werden
             fulfullers = Employee.objects.filter(user__groups__name=GroupNames.PERSONNEL_FULFILLER)
             self.fields['assignee'].queryset = fulfullers.order_by('last_name', 'first_name')
-            self.fields['assignee'].empty_label = "â€” Unassigned â€”"
+            self.fields['assignee'].empty_label = "— Unassigned —"
 
 
 class GenericTextTaskForm(forms.ModelForm):
@@ -347,7 +347,7 @@ class GenericTextTaskForm(forms.ModelForm):
 
         if 'recipient' in self.fields:
             self.fields['recipient'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['recipient'].empty_label = "â€” Please select a recipient â€”"
+            self.fields['recipient'].empty_label = "— Please select a recipient —"
             self.fields['recipient'].required = True
 
             # Custom label without employee number (Personnelnummer)

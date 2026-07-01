@@ -6,13 +6,8 @@ from .base import *
 
 DEBUG = True
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
+# In der Entwicklung werden schnellere Passwort-Hasher verwendet.
+# Die Datenbank-Konfiguration kommt aus base.py (MariaDB, wenn DB_HOST gesetzt).
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]

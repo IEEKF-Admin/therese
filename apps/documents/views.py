@@ -144,7 +144,7 @@ def document_upload(request):
                     print("[UPLOAD DEBUG] DocumentShare erstellt")
 
                     print(f"[UPLOAD DEBUG] ERFOLG! Dokument ID {document.id} wurde gespeichert.")
-                    messages.success(request, f"Dokument â€ž{document.title}â€œ wurde erfolgreich hochgeladen.")
+                    messages.success(request, f"Dokument „{document.title}“ wurde erfolgreich hochgeladen.")
                     return redirect('documents:document_list')
 
             except Exception as e:
@@ -162,7 +162,7 @@ def document_upload(request):
                 print(f"[UPLOAD DEBUG]   â†’ Feld '{field}': {errors}")
 
             if 'file' in form.errors:
-                messages.warning(request, "Es gab ein Problem mit der ausgewÃ¤hlten Datei. Bitte wÃ¤hle sie erneut aus.")
+                messages.warning(request, "Es gab ein Problem mit der ausgewählten Datei. Bitte wähle sie erneut aus.")
             else:
                 messages.error(request, "Bitte korrigiere die Fehler im Formular.")
 

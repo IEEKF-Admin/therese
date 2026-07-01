@@ -112,7 +112,7 @@ class DocumentVersionUploadForm(forms.Form):
             if file.content_type not in allowed_types:
                 raise forms.ValidationError("Nur PDF, JPG und PNG Dateien sind erlaubt.")
             if file.size > 20 * 1024 * 1024:
-                raise forms.ValidationError("Die Datei darf maximal 20 MB groÃŸ sein.")
+                raise forms.ValidationError("Die Datei darf maximal 20 MB groß sein.")
         return file
 
 

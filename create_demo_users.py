@@ -1,7 +1,7 @@
 ﻿"""
 create_demo_users.py
-Erstellt Demo-Benutzer fÃ¼r THERESE-PrÃ¤sentationen.
-Diese Benutzer mÃ¼ssen beim Login NICHT ihr Passwort Ã¤ndern.
+Erstellt Demo-Benutzer für THERESE-Präsentationen.
+Diese Benutzer müssen beim Login NICHT ihr Passwort ändern.
 
 Verwendung:
     cd C:\Django\Therese
@@ -11,7 +11,7 @@ Verwendung:
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings.base')
 django.setup()
 
 from django.contrib.auth import get_user_model
@@ -25,7 +25,7 @@ DEMO_USERS = [
         "username": "demo1",
         "password": "demo123",
         "first_name": "Anna",
-        "last_name": "MÃ¼ller",
+        "last_name": "Müller",
         "email": "anna.mueller@example.com",
     },
     {
@@ -56,10 +56,7 @@ DEMO_USERS = [
         "last_name": "Demo",
         "email": "admin.demo@example.com",
         "is_staff": True,
-
         "is_superuser": True,
-
->>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
     },
 ]
 
@@ -80,8 +77,6 @@ def create_demo_users():
                 "is_staff": data.get("is_staff", False),
 
                 "is_superuser": data.get("is_superuser", False),
-
->>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
             }
         )
 
@@ -98,11 +93,8 @@ def create_demo_users():
             user.email = data["email"]
             if data.get("is_staff"):
                 user.is_staff = True
-
             if data.get("is_superuser"):
                 user.is_superuser = True
-
->>>>>>> 6d6462209f0ab46def16f2edf4a2bef3e493f84e
             user.set_password(data["password"])
             user.save()
             existing += 1
@@ -112,8 +104,8 @@ def create_demo_users():
     print(f"Neu erstellt:   {created}")
     print(f"Aktualisiert:   {existing}")
     print(f"Gesamt Demo-Accounts: {len(DEMO_USERS)}")
-    print("\nAlle Benutzer kÃ¶nnen sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
-    print("ohne dass sie beim ersten Login ihr Passwort Ã¤ndern mÃ¼ssen.\n")
+    print("\nAlle Benutzer können sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
+    print("ohne dass sie beim ersten Login ihr Passwort ändern müssen.\n")
 
 
 if __name__ == "__main__":

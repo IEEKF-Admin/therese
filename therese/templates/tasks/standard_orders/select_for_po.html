@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Select Items from Standard Orders</h1>
-    <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="btn-secondary">â† Back to Purchase Order Form</a>
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="btn-secondary">← Back to Purchase Order Form</a>
 </div>
 
 <div class="card">
@@ -59,10 +59,10 @@
                         {% endif %}
                     </td>
                     <td style="color:#64748b; font-size: 0.9rem;">
-                        {{ item.product_description|truncatechars:80|default:"â€”" }}
+                        {{ item.product_description|truncatechars:80|default:"—" }}
                     </td>
                     <td style="text-align: right; white-space: nowrap;">
-                        {{ item.unit_price|floatformat:2 }} â‚¬
+                        {{ item.unit_price|floatformat:2 }} €
                     </td>
                     <td>
                         {% if item.link_to_product %}

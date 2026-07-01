@@ -1,7 +1,7 @@
 ﻿// therese/static/admin/js/contract_payscale.js - Stable Final Version
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('%câœ… contract_payscale.js v2 loaded', 'color: lime; font-weight: bold');
+    console.log('%c✅ contract_payscale.js v2 loaded', 'color: lime; font-weight: bold');
 
     function loadLevels(groupSelect) {
         const row = groupSelect.closest('tr') || groupSelect.closest('.dynamic-contract');
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.level;
-                    opt.textContent = `${item.level} (${item.salary} â‚¬)`;
+                    opt.textContent = `${item.level} (${item.salary} €)`;
                     levelSelect.appendChild(opt);
                 });
             })

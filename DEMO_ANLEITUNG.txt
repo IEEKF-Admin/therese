@@ -2,14 +2,18 @@
                         THERESE - DEMO ZUGRIFF
 ===
 
-WICHTIG: Immer HTTP verwenden â€“ NICHT HTTPS!
+WICHTIG: HTTPS mit korrektem Hostnamen verwenden (nicht rohes IP wenn möglich)!
 
 Zugriffsadresse (wird beim Starten des Servers angezeigt):
 
-    http://IP-ADRESSE-HIER:8000
+    https://ieekf-web2.ieecr.dom:8000
 
-Beispiel:
-    http://172.26.65.1:8000
+Beispiel (Hostname bevorzugen):
+    https://ieekf-web2.ieecr.dom:8000
+
+Bei IP-Zugriff (172.26.65.27):
+    https://172.26.65.27:8000
+    (kann zu "nicht sicher" führen, da Zertifikat für Hostname ausgestellt ist)
 
 ===
                               DEMO-LOGINS
@@ -27,25 +31,26 @@ Beispiel:
                            HÃ„UFIGE PROBLEME
 ===
 
-1. "You're accessing the development server over HTTPS..."
-   â†’ Die Person hat https:// statt http:// eingegeben.
-   â†’ LÃ¶sung: Im Browser "http://" statt "https://" verwenden.
+1. "You're accessing the development server over HTTPS..." (bei dev server)
+   â†’ Bei Produktion mit Gunicorn + Zertifikat normal.
 
 2. Seite lÃ¤dt nicht / Verbindung verweigert
-   â†’ Windows Firewall blockiert Port 8000.
-   â†’ Oder falsche IP-Adresse.
+   â†’ Firewall blockiert Port 8000.
+   â†’ Oder falsche IP/Hostname.
 
-3. "Bad Request" oder seltsame Fehler
-   â†’ Fast immer HTTPS statt HTTP.
+3. "Not secure" / gestrichenes https im Browser
+   â†’ Institutszertifikat (interne CA) nicht vertraut oder Hostname/IP passt nicht zum Zertifikat.
+   â†’ LÃ¶sung: Hostname ieekf-web2.ieecr.dom verwenden + CA-Zertifikat im Browser/OS installieren (/etc/ssl/certs/ieekf-cacert.pem).
 
 ===
                               TIPPS FÃœR DIE PRÃ„SENTATION
 ===
 
 - Schreibe die URL groÃŸ an die Tafel / PrÃ¤sentation:
-  http://172.26.65.1:8000
+  https://ieekf-web2.ieecr.dom:8000
 
-- Betone mehrmals: "http, nicht https!"
+- Betone: Hostname (ieekf-web2.ieecr.dom) statt reiner IP verwenden, damit das Zertifikat passt.
+- Bei "nicht sicher": CA des Instituts im Browser vertrauen.
 
 - Die Demo-Accounts mÃ¼ssen beim ersten Login NICHT das Passwort Ã¤ndern.
 

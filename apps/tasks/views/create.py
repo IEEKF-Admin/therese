@@ -216,7 +216,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 instance = form.save()
                 formset.instance = instance
                 formset.save()
-                messages.success(self.request, "âœ… Purchase Order created successfully.")
+                messages.success(self.request, "✅ Purchase Order created successfully.")
                 return redirect('tasks:my_tasks')
             else:
                 messages.error(self.request, "Please correct the errors in the items.")

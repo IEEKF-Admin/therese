@@ -118,10 +118,10 @@ class DocumentShare(models.Model):
 
     def __str__(self):
         if self.share_type == 'user' and self.shared_with_user:
-            return f"{self.document} â†’ User: {self.shared_with_user}"
+            return f"{self.document} → User: {self.shared_with_user}"
         elif self.share_type == 'group' and self.shared_with_group:
-            return f"{self.document} â†’ Gruppe: {self.shared_with_group}"
-        return f"{self.document} â†’ {self.get_share_type_display()}"
+            return f"{self.document} → Gruppe: {self.shared_with_group}"
+        return f"{self.document} → {self.get_share_type_display()}"
 
 
 class UserDocumentArchive(models.Model):

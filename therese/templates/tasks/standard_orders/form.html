@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1>{{ title }}</h1>
-    <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">â† Back to List</a>
+    <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">← Back to List</a>
 </div>
 
 <div class="card">
@@ -34,7 +34,7 @@
                 {{ form.order_number }}
             </div>
             <div class="aligned-field">
-                <label>Unit Price (â‚¬) <span style="color:#ef4444;">*</span></label>
+                <label>Unit Price (€) <span style="color:#ef4444;">*</span></label>
                 {{ form.unit_price }}
             </div>
 

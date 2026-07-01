@@ -69,7 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'therese.context_processors.user_groups',   # â† NEU
+                'therese.context_processors.user_groups',   # ← NEU
             ],
         },
     },

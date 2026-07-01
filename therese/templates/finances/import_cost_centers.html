@@ -47,14 +47,14 @@ Another Project	12345/ABC	15.03.2026	"></textarea>
         
         <br><br>
         <input type="submit" value="Import Cost Centers" class="btn btn-primary">
-        <a href="{% url 'admin:finances_costcenter_changelist' %}" class="btn btn-secondary">â† Back to Cost Centers</a>
+        <a href="{% url 'admin:finances_costcenter_changelist' %}" class="btn btn-secondary">← Back to Cost Centers</a>
     </form>
 
     <div class="help-text">
         <strong>Important:</strong><br>
-        â€¢ Only cost centers containing a slash (<code>/</code>) will be imported (e.g. <code>4711/2026</code>, <code>PSP-123/ABC</code>).<br>
-        â€¢ Existing cost centers will be skipped.<br>
-        â€¢ The first row (header) will be ignored.
+        • Only cost centers containing a slash (<code>/</code>) will be imported (e.g. <code>4711/2026</code>, <code>PSP-123/ABC</code>).<br>
+        • Existing cost centers will be skipped.<br>
+        • The first row (header) will be ignored.
     </div>
 </div>
 {% endblock %}

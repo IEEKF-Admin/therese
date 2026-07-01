@@ -42,7 +42,7 @@ def fulfiller_task_detail(request, task):
                     text=f"Status changed from '{old_status}' to '{saved_task.status}'"
                 )
             messages.success(request, "Status successfully updated.")
-            return redirect('tasks:my_tasks')          # â† Namespace korrigiert
+            return redirect('tasks:my_tasks')          # ← Namespace korrigiert
         else:
             messages.error(request, "Please correct the errors below.")
     else:

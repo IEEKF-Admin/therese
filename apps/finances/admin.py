@@ -1,6 +1,6 @@
 ﻿"""
 apps/finances/admin.py
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.contrib import admin

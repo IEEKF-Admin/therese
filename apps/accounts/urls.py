@@ -11,7 +11,7 @@ urlpatterns = [
     # Logout
     path('logout/', auth_views.LogoutView.as_view(
         template_name='registration/logged_out.html',
-        next_page='tasks:my_tasks',          # â† Hier korrigiert (mit Namespace)
+        next_page='tasks:my_tasks',          # ← Hier korrigiert (mit Namespace)
     ), name='logout'),
 
     # Force Password Change

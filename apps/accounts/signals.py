@@ -10,7 +10,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 
 
-# from django.contrib.auth.signals import user_logged_in   # â† auskommentiert / entfernt
+# from django.contrib.auth.signals import user_logged_in   # ← auskommentiert / entfernt
 
 
 # === WICHTIG: Dieses Signal wurde entfernt, weil es das Flag zu frÃ¼h gesetzt hat ===

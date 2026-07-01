@@ -1,6 +1,6 @@
 ﻿"""
 apps/tasks/views/detail/requester.py
-FÃ¼r den Ersteller (Procurement Requester) â€“ Read-Only
+Für den Ersteller (Procurement Requester) – Read-Only
 """
 
 from django.shortcuts import render

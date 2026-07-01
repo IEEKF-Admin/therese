@@ -21,9 +21,9 @@ def reset_database():
     db_path = base_dir / "db.sqlite3"
     if db_path.exists():
         db_path.unlink()
-        print("   â†’ db.sqlite3 deleted")
+        print("   → db.sqlite3 deleted")
     else:
-        print("   â†’ db.sqlite3 did not exist")
+        print("   → db.sqlite3 did not exist")
 
     # 2. Delete old migrations
     print("2. Deleting old migrations...")
@@ -33,11 +33,11 @@ def reset_database():
         migrations_dir = base_dir / "apps" / app / "migrations"
         if migrations_dir.exists():
             shutil.rmtree(migrations_dir)
-            print(f"   â†’ {app}/migrations deleted")
+            print(f"   → {app}/migrations deleted")
             
             migrations_dir.mkdir(parents=True, exist_ok=True)
             (migrations_dir / "__init__.py").touch()
-            print(f"   â†’ {app}/migrations recreated")
+            print(f"   → {app}/migrations recreated")
 
     # 3. Create new migrations
     print("3. Creating new migrations...")
@@ -53,7 +53,7 @@ def reset_database():
     try:
         subprocess.run([str(venv_python), "manage.py", "createsuperuser"], check=True, cwd=base_dir)
     except subprocess.CalledProcessError:
-        print("   â†’ Superuser creation skipped or already exists")
+        print("   → Superuser creation skipped or already exists")
 
     # 5. Create superuser non-interactively (reliable for fresh installs)
     print("5. Creating superuser (admin / admin123)...")
@@ -68,9 +68,9 @@ def reset_database():
         cwd=base_dir,
     )
     if result.returncode == 0:
-        print("   â†’ Superuser 'admin' / 'admin123' created (is_staff + is_superuser)")
+        print("   → Superuser 'admin' / 'admin123' created (is_staff + is_superuser)")
     else:
-        print("   â†’ Superuser creation skipped (may already exist)")
+        print("   → Superuser creation skipped (may already exist)")
 
 
     # 6. Load TV-L data

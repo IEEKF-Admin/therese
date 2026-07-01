@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
     <h1>ðŸ“ General Request</h1>
-    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">â† Back to My Tasks</a>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
 </div>
 
 <div class="card">
@@ -37,7 +37,7 @@
             <div class="aligned-field">
                 <label>Recipient</label>
                 <div class="form-control-static">
-                    {{ task.recipient.get_full_name|default:"â€” Not specified" }}
+                    {{ task.recipient.get_full_name|default:"— Not specified" }}
                 </div>
                 {% if can_edit %}{{ form.recipient.as_hidden }}{% endif %}
             </div>
@@ -50,7 +50,7 @@
 
             <div class="aligned-field">
                 <label>Due Date</label>
-                <strong>{{ task.due_date|date:"d.m.Y"|default:"â€”" }}</strong>
+                <strong>{{ task.due_date|date:"d.m.Y"|default:"—" }}</strong>
                 {{ form.due_date.as_hidden }}
             </div>
         </div>
@@ -83,7 +83,7 @@
             {% if can_edit %}
                 {{ form.comment|add_class:"form-control" }}
             {% else %}
-                <div class="readonly-comment" style="min-height: 160px; white-space: pre-wrap;">{{ task.comment|linebreaks|default:"â€” No description provided" }}</div>
+                <div class="readonly-comment" style="min-height: 160px; white-space: pre-wrap;">{{ task.comment|linebreaks|default:"— No description provided" }}</div>
             {% endif %}
         </div>
 
@@ -104,7 +104,7 @@
                     ðŸ—‘ Delete Request
                 </a>
             {% endif %}
-            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">â† Back to Overview</a>
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
         </div>
     </form>
 </div>

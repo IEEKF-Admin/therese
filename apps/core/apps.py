@@ -2,7 +2,7 @@
 
 class CoreConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.core'          # â† Hier Ã¤ndern
+    name = 'apps.core'          # ← Hier ändern
     verbose_name = "Core"
 
 

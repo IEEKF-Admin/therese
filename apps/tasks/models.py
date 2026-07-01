@@ -1,7 +1,7 @@
 ﻿"""
 apps/tasks/models.py
 
-Project: THERESE â€“ Transparent HR Resource System Enhanced
+Project: THERESE – Transparent HR Resource System Enhanced
 Robust polymorphic Task System
 """
 

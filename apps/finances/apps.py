@@ -2,7 +2,7 @@
 
 class FinancesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.finances'      # â† wichtig: voller Pfad
+    name = 'apps.finances'      # ← wichtig: voller Pfad
     verbose_name = "Finances"
 
 

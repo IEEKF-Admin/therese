@@ -22,8 +22,12 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from datetime import date
+from decimal import Decimal, InvalidOperation
+from django.contrib.auth.decorators import login_required
+from apps.accounts.permissions import GroupNames
 
-from .models import CostCenter, WBSElement, WBSElementInitialBalance
+from .models import CostCenter, WBSElement, WBSElementInitialBalance, PayScale
 
 
 def get_log_dir():
@@ -223,7 +227,7 @@ def import_wbs_elements(request):
             f"{balances_created} Initial Balances for year {current_year}."
         )
         if errors:
-            messages.warning(request, f"{len(errors)} errors â€“ check the detailed log.")
+            messages.warning(request, f"{len(errors)} errors – check the detailed log.")
 
         messages.info(request, f"Detailed log file created: {log_path.name}")
         return redirect('admin:finances_wbselement_changelist')
@@ -275,4 +279,107 @@ def ajax_payscale_levels(request):
     } for scale in scales]
 
     return JsonResponse(data, safe=False)
+
+
+def _parse_pay_scales_table(pasted_data, effective_date):
+    """Parse pasted table and create/update PayScale entries."""
+    created = 0
+    updated = 0
+    errors = []
+
+    lines = pasted_data.strip().splitlines()
+    if not lines:
+        return 0, 0, ["No data provided."]
+
+    reader = csv.reader(lines, delimiter='\t')
+    try:
+        header = next(reader)
+    except StopIteration:
+        return 0, 0, ["Empty table."]
+
+    # First row: ignore first cell (€), rest are experience levels
+    level_strs = [x.strip() for x in header[1:] if x.strip()]
+    try:
+        levels = [int(l) for l in level_strs]
+    except ValueError:
+        return 0, 0, ["Invalid experience level header row."]
+
+    for row in reader:
+        if not row or not row[0].strip():
+            continue
+        group = row[0].strip()
+
+        for idx, level in enumerate(levels):
+            col_idx = idx + 1
+            if col_idx >= len(row):
+                break
+            val_str = row[col_idx].strip()
+            if not val_str:
+                continue
+
+            try:
+                # Normalize decimal separator (support both , and .)
+                val_str = val_str.replace(',', '.').replace(' ', '').replace('€', '').strip()
+                salary = Decimal(val_str)
+
+                _, was_created = PayScale.objects.update_or_create(
+                    pay_scale_group=group,
+                    experience_level=level,
+                    effective_as_of=effective_date,
+                    defaults={'monthly_salary': salary}
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
+            except (InvalidOperation, ValueError, Exception) as e:
+                errors.append(f"{group} level {level}: {str(e)}")
+
+    return created, updated, errors
+
+
+@login_required
+def import_pay_scales(request):
+    """Import Pay Scale / TV-L data from pasted table for Personnel Coordinators."""
+    if not request.user.groups.filter(name=GroupNames.PERSONNEL_COORDINATOR).exists():
+        messages.error(request, "You do not have permission to access this page.")
+        return redirect('tasks:my_tasks')
+
+    if request.method == 'POST':
+        effective_str = request.POST.get('effective_as_of', '').strip()
+        pasted_data = request.POST.get('pasted_data', '').strip()
+
+        if not effective_str or not pasted_data:
+            messages.error(request, "Please provide an effective date and paste the table.")
+            return redirect('finances:import_pay_scales')
+
+        try:
+            effective_date = date.fromisoformat(effective_str)
+        except ValueError:
+            messages.error(request, "Invalid date format. Use YYYY-MM-DD.")
+            return redirect('finances:import_pay_scales')
+
+        created, updated, errors = _parse_pay_scales_table(pasted_data, effective_date)
+
+        if errors:
+            for err in errors[:5]:
+                messages.warning(request, f"Error: {err}")
+            if len(errors) > 5:
+                messages.warning(request, f"... and {len(errors) - 5} more errors.")
+
+        if created or updated:
+            messages.success(
+                request,
+                f"Import successful: {created} created, {updated} updated for effective date {effective_date}."
+            )
+        else:
+            messages.info(request, "No new or updated entries were created.")
+
+        return redirect('finances:import_pay_scales')
+
+    # GET
+    today = date.today().isoformat()
+    return render(request, 'finances/import_pay_scales.html', {
+        'default_date': today
+    })
 

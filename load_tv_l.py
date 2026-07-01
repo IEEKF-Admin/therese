@@ -22,7 +22,7 @@ django.setup()
 from apps.finances.models import PayScale
 
 # ======
-# TV-L 2025 Entgelttabelle (gÃ¼ltig ab 01.01.2025)
+# TV-L 2025 Entgelttabelle (gültig ab 01.01.2025)
 # ======
 
 data = [

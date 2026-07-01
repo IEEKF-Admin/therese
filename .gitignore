@@ -42,6 +42,9 @@ settings/local.py
 **/*password*.py
 **/*credentials*.py
 
+# Speziell ausgeschlossen (auf Wunsch)
+therese/settings.py
+
 # Sensible Zertifikate und Keys (niemals committen!)
 certs/
 *.pem

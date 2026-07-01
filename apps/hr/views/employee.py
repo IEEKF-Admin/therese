@@ -133,7 +133,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         print("ðŸ” [DEBUG] EmployeeCreateView.form_valid called")
         # ... (die gleiche form_valid Logik wie vorher)
-        return super().form_valid(form)   # Platzhalter â€“ bei Bedarf erweitern
+        return super().form_valid(form)   # Platzhalter – bei Bedarf erweitern
 
 
 # = UPDATE VIEW =

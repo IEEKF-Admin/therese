@@ -55,7 +55,7 @@ def coordinator_task_detail(request, task):
                     text=f"Assignee changed to {new_assignee}"
                 )
             messages.success(request, "Changes have been saved successfully.")
-            return redirect('tasks:my_tasks')          # â† Namespace korrigiert
+            return redirect('tasks:my_tasks')          # ← Namespace korrigiert
         else:
             messages.error(request, "Please correct the errors below.")
     else:

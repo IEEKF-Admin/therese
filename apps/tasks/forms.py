@@ -1,6 +1,6 @@
 ﻿"""
 apps/tasks/forms.py
-Project: THERESE â€“ Transparent HR Resource System Enhanced
+Project: THERESE – Transparent HR Resource System Enhanced
 """
 from django import forms
 from .models import (

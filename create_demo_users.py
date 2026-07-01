@@ -1,7 +1,7 @@
 ﻿"""
 create_demo_users.py
-Erstellt Demo-Benutzer fÃ¼r THERESE-PrÃ¤sentationen.
-Diese Benutzer mÃ¼ssen beim Login NICHT ihr Passwort Ã¤ndern.
+Erstellt Demo-Benutzer für THERESE-Präsentationen.
+Diese Benutzer müssen beim Login NICHT ihr Passwort ändern.
 
 Verwendung:
     cd C:\Django\Therese
@@ -25,7 +25,7 @@ DEMO_USERS = [
         "username": "demo1",
         "password": "demo123",
         "first_name": "Anna",
-        "last_name": "MÃ¼ller",
+        "last_name": "Müller",
         "email": "anna.mueller@example.com",
     },
     {
@@ -76,7 +76,7 @@ def create_demo_users():
                 "first_name": data["first_name"],
                 "last_name": data["last_name"],
                 "email": data["email"],
-                "password_changed": True,   # â† WICHTIG: Kein Passwort-Ã„nderungs-Zwang
+                "password_changed": True,   # ← WICHTIG: Kein Passwort-Änderungs-Zwang
                 "is_staff": data.get("is_staff", False),
 
                 "is_superuser": data.get("is_superuser", False),
@@ -112,7 +112,7 @@ def create_demo_users():
     print(f"Neu erstellt:   {created}")
     print(f"Aktualisiert:   {existing}")
     print(f"Gesamt Demo-Accounts: {len(DEMO_USERS)}")
-    print("\nAlle Benutzer kÃ¶nnen sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
+    print("\nAlle Benutzer können sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
     print("ohne dass sie beim ersten Login ihr Passwort Ã¤ndern mÃ¼ssen.\n")
 
 

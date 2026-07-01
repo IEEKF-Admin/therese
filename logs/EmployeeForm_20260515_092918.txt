@@ -1,8 +1,0 @@
-﻿THERESE - EmployeeForm Debug Log
-Date: 2026-05-15 09:29:18
-
-Instance: Prof. Heinz Beck (123456789) (PK: 11)
-Current Room: Office (1.02)
-Current Building: A01 - Verwaltung / Vorstand / Ã„rztliche Direktion
-
-

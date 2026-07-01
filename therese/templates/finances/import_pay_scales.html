@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Import Pay Scales / TV-L - THERESE{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .import-form {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    textarea {
+        width: 100%;
+        height: 420px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 13px;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+    }
+    .btn {
+        padding: 10px 20px;
+        margin-right: 10px;
+        font-size: 16px;
+    }
+    .help-text {
+        color: #666;
+        font-size: 14px;
+        margin-top: 15px;
+        line-height: 1.5;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-form">
+    <h1>Import Pay Scales / TV-L</h1>
+    <p>Paste the table below. The first row contains the experience levels. The first column is the Pay Scale Group.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="effective_as_of">Effective As Of</label>
+            <input type="date" id="effective_as_of" name="effective_as_of" value="{{ default_date }}" required>
+        </div>
+        
+        <textarea name="pasted_data" placeholder="€	1	2	3	4	5	6
+E 15Ü	6857.14	7587.33	8280.33	8734.83	8846.64	
+E 15	5658.38	6067.30	6283.38	7050.89	7632.07	7854.52
+..." required></textarea>
+        
+        <br><br>
+        <input type="submit" value="Import Pay Scales" class="btn btn-primary">
+        <a href="{% url 'admin:finances_payscale_changelist' %}" class="btn btn-secondary">← Back to Pay Scales</a>
+    </form>
+
+    <div class="help-text">
+        <strong>Instructions:</strong><br>
+        • First row = Experience Levels (1, 2, 3, ...). The "€" cell is ignored.<br>
+        • First column = Pay Scale Group (e.g. E 13, E 13Ü, E 15Ü).<br>
+        • Paste the table exactly as shown (use tabs when copying from Excel).<br>
+        • Empty cells are skipped.<br>
+        • All entries will use the selected "Effective As Of" date.<br>
+        • Existing entries for the same Group + Level + Date will be overwritten.
+    </div>
+</div>
+{% endblock %}

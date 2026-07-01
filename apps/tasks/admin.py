@@ -1,6 +1,6 @@
 ﻿"""
 apps/tasks/admin.py
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 Admin configuration for Tasks (angepasst an Bestellung-WÃ¼nsche)
 """
 
@@ -12,7 +12,7 @@ from .models import (
     PurchaseOrderTask, PurchaseItem,
     PersonnelReallocationTask, PersonnelContractExtensionTask, GenericTextTask
 )
-from .forms import PurchaseOrderTaskForm   # â† Diese Zeile hinzufÃ¼gen!
+from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
 from apps.hr.models import Employee
 from apps.accounts.permissions import GroupNames
 

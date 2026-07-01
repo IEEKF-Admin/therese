@@ -1,7 +1,7 @@
 ﻿"""
 apps/hr/models.py
 
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 All models related to employees, contracts, allocations and salary supplements.
 Fully in English.
 """
@@ -12,7 +12,7 @@ from apps.core.models import BaseModel
 from apps.accounts.models import CustomUser
 
 # Finance models - nur das, was wirklich benÃ¶tigt wird
-from apps.finances.models import WBSElement   # â† Dieser Import bleibt
+from apps.finances.models import WBSElement   # ← Dieser Import bleibt
 
 
 class Gender(models.TextChoices):
@@ -314,7 +314,7 @@ class Workgroup(models.Model):
         verbose_name="Principal Investigator"
     )
     members = models.ManyToManyField(
-        'Employee',                    # â† GeÃ¤ndert von CustomUser zu Employee
+        'Employee',                    # ← Geändert von CustomUser zu Employee
         related_name='workgroups',
         blank=True,
         verbose_name="Mitglieder"

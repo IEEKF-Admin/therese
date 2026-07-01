@@ -10,7 +10,7 @@ from .detail.base import get_task_or_404
 
 
 def task_detail(request, pk):
-    """Router â€“ leitet je nach Rolle zur passenden Detail-View weiter"""
+    """Router – leitet je nach Rolle zur passenden Detail-View weiter"""
     task = get_task_or_404(pk, request.user)
 
     # Special handling for General Requests

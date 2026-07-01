@@ -13,16 +13,41 @@
             <i class="fas fa-tasks"></i> My Tasks
         </a>
 
-        <!-- New Task -->
-        <a href="{% url 'tasks:choose_task_type' %}">
-            <i class="fas fa-plus-circle"></i> New Task
+        <!-- Direct Task Creation (moved from New Task) -->
+        {% if 'PI' in user_groups or 'Procurement Requester' in user_groups %}
+        <a href="{% url 'tasks:task_create' %}?type=purchase_order">
+            <i class="fas fa-shopping-cart"></i> New Purchase Order
         </a>
+        {% endif %}
+
+        {% if 'PI' in user_groups or 'Personnel Coordinator' in user_groups %}
+        <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation">
+            <i class="fas fa-exchange-alt"></i> Personnel Reallocation
+        </a>
+        <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension">
+            <i class="fas fa-file-contract"></i> Contract Extension
+        </a>
+        {% endif %}
+
+        {% if has_employee or 'PI' in user_groups or 'Personnel Coordinator' in user_groups or 'Procurement Requester' in user_groups %}
+        <a href="{% url 'tasks:task_create' %}?type=generic_text">
+            <i class="fas fa-comment-dots"></i> General Request
+        </a>
+        {% endif %}
 
         <!-- Employees -->
         {% if 'PI' in user_groups or 'Personnel Approver' in user_groups or 'Personnel Fulfiller' in user_groups or 'Personnel Coordinator' in user_groups %}
         <a href="{% url 'hr:employee_list' %}" 
            class="{% if '/hr/' in request.path %}active{% endif %}">
             <i class="fas fa-users"></i> Employees
+        </a>
+        {% endif %}
+
+        <!-- Import Pay Scales / TV-L -->
+        {% if 'Personnel Coordinator' in user_groups %}
+        <a href="{% url 'finances:import_pay_scales' %}" 
+           class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
+            <i class="fas fa-table"></i> Import Pay Scales / TV-L
         </a>
         {% endif %}
 

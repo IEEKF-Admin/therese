@@ -2,7 +2,7 @@
                         THERESE - DEMO ZUGRIFF
 ===
 
-WICHTIG: Immer HTTP verwenden â€“ NICHT HTTPS!
+WICHTIG: Immer HTTP verwenden – NICHT HTTPS!
 
 Zugriffsadresse (wird beim Starten des Servers angezeigt):
 

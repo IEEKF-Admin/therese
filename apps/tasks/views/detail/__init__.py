@@ -1,5 +1,5 @@
 ﻿"""
 apps/tasks/views/detail/__init__.py
-Leer â€“ nur zur Vermeidung von Import-Zirkeln.
+Leer – nur zur Vermeidung von Import-Zirkeln.
 """
 

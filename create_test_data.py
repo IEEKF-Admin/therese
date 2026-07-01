@@ -20,7 +20,7 @@ from apps.tasks.models import PurchaseOrderTask, PurchaseItem
 
 
 def create_test_data():
-    print("ðŸš€ Erstelle umfangreiche Testdaten fÃ¼r THERESE...\n")
+    print("🚀 Erstelle umfangreiche Testdaten für THERESE...\n")
 
     from apps.accounts.permissions import GroupNames, ALL_GROUPS
 
@@ -77,24 +77,24 @@ def create_test_data():
 
         user.groups.add(groups[role])
 
-        # Employee explizit mit User verknÃ¼pfen
+        # Employee explizit mit User verknüpfen
         employee, created = Employee.objects.get_or_create(
             employee_number=f"EMP{random.randint(10000,99999)}",
             defaults={
                 'first_name': first,
                 'last_name': last,
-                'user': user,                    # WICHTIG: VerknÃ¼pfung
+                'user': user,                    # WICHTIG: Verknüpfung
                 'room': room,
                 'email_professional': f"{username}@example.com",
                 'cost_center': cc,
             }
         )
         if created:
-            print(f"âœ“ Neu erstellt: {first} {last} â†’ Employee + User")
+            print(f"✓ Neu erstellt: {first} {last} → Employee + User")
         else:
             employee.user = user
             employee.save()
-            print(f"âœ“ VerknÃ¼pft: {first} {last} (Employee existierte bereits)")
+            print(f"✓ Verknüpft: {first} {last} (Employee existierte bereits)")
 
         employees.append(employee)
 
@@ -102,7 +102,7 @@ def create_test_data():
     today = date.today()
 
     for emp in employees:
-        # Contracts (2â€“4 pro Person, inkl. abgelaufener)
+        # Contracts (2–4 pro Person, inkl. abgelaufener)
         for i in range(random.randint(2, 4)):
             start = today - timedelta(days=random.randint(100, 1200))
             end = start + timedelta(days=random.randint(300, 730))
@@ -134,7 +134,7 @@ def create_test_data():
             )
 
     print("\nðŸŽ‰ Testdaten erfolgreich erstellt!")
-    print("Passwort fÃ¼r alle: test123")
+    print("Passwort für alle: test123")
 
 
 if __name__ == "__main__":

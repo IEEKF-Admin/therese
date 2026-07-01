@@ -1,6 +1,6 @@
 ﻿"""
 apps/finances/models.py
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.db import models

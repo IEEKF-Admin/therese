@@ -7,7 +7,8 @@ urlpatterns = [
     # Import Views
     path('import-cost-centers/', finance_views.import_cost_centers, name='import_cost_centers'),
     path('import-wbs-elements/', finance_views.import_wbs_elements, name='import_wbs_elements'),
+    path('import-pay-scales/', finance_views.import_pay_scales, name='import_pay_scales'),
     
-    # Falls du spÃ¤ter noch weitere Views hinzufÃ¼gst, kommen sie hier rein
+    # Falls du später noch weitere Views hinzufügst, kommen sie hier rein
 ]
 

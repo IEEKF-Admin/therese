@@ -7,7 +7,7 @@ Features / Requirements:
 - Standalone script to populate Building, Room and PhoneNumber models with real UKBonn data
 - Uses actual building numbers and names extracted from the official UKB Lageplan[](https://www.ukbonn.de/site/assets/files/5234/ukb-lageplan.pdf)
 - Creates ~10 realistic rooms per building (room numbers like "1.01", "EG.03", "2.12" etc.)
-- Each room receives 1â€“3 internal phone numbers (format: 0228-287-XXXX)
+- Each room receives 1–3 internal phone numbers (format: 0228-287-XXXX)
 - Fully idempotent (uses get_or_create / update_or_create)
 - Comprehensive English debug output to console AND dedicated log file in logs/ directory
 - All user-facing text, comments, variable names and log messages are in English
@@ -53,28 +53,28 @@ def log_population(action: str, buildings_created: int, rooms_created: int, phon
             for err in errors:
                 f.write(f"- {err}\n")
 
-    print(f"âœ… Log written: {log_path.name}")
+    print(f"✅ Log written: {log_path.name}")
     return log_path
 
 
 # = REAL UKBONN BUILDINGS =
 BUILDINGS_DATA = [
-    # === Verwaltung & HauptgebÃ¤ude ===
-    {"number": "A01", "name": "Verwaltung / Vorstand / Ã„rztliche Direktion", "address": "Venusberg-Campus 1"},
+    # === Verwaltung & Hauptgebäude ===
+    {"number": "A01", "name": "Verwaltung / Vorstand / Ärztliche Direktion", "address": "Venusberg-Campus 1"},
     {"number": "A02", "name": "Verwaltung / Personalabteilung", "address": "Venusberg-Campus 1"},
     {"number": "A03", "name": "Augenklinik und HNO-Klinik", "address": "Venusberg-Campus 1"},
     {"number": "A04", "name": "Bettenhaus HNO / Augenklinik", "address": "Venusberg-Campus 1"},
     {"number": "A05", "name": "Augenklinik Stationen", "address": "Venusberg-Campus 1"},
-    {"number": "A06", "name": "BetriebsÃ¤rztlicher Dienst / Arbeits- und Umweltschutz", "address": "Venusberg-Campus 1"},
+    {"number": "A06", "name": "Betriebsärztlicher Dienst / Arbeits- und Umweltschutz", "address": "Venusberg-Campus 1"},
     {"number": "A07", "name": "Comprehensive Research Center for Imaging", "address": "Venusberg-Campus 1"},
     {"number": "A08", "name": "Parkhaus Nord", "address": "Venusberg-Campus 1"},
-    {"number": "A10", "name": "LehrgebÃ¤ude / Fachschaft / Kiosk", "address": "Venusberg-Campus 1"},
+    {"number": "A10", "name": "Lehrgebäude / Fachschaft / Kiosk", "address": "Venusberg-Campus 1"},
     {"number": "A11", "name": "Dermatologie / MKG / Plastische Chirurgie", "address": "Venusberg-Campus 1"},
     {"number": "A19", "name": "Parkplatz Nord", "address": "Venusberg-Campus 1"},
-    {"number": "A20", "name": "CIO Bonn (Centrum fÃ¼r Integrierte Onkologie)", "address": "Venusberg-Campus 1"},
+    {"number": "A20", "name": "CIO Bonn (Centrum für Integrierte Onkologie)", "address": "Venusberg-Campus 1"},
     {"number": "A21", "name": "Nuklearmedizin", "address": "Venusberg-Campus 1"},
 
-    # === Biomedizinische & Klinische GebÃ¤ude ===
+    # === Biomedizinische & Klinische Gebäude ===
     {"number": "B12", "name": "Biomedizinisches Zentrum (BMZ II)", "address": "Venusberg-Campus 1"},
     {"number": "B13", "name": "Biomedizinisches Zentrum I (BMZ I)", "address": "Venusberg-Campus 1"},
     {"number": "B22", "name": "Chirurgisches Zentrum (OPZ)", "address": "Venusberg-Campus 1"},
@@ -83,12 +83,12 @@ BUILDINGS_DATA = [
     {"number": "B26", "name": "Medizinische Kliniken I & II", "address": "Venusberg-Campus 1"},
     {"number": "B27", "name": "Medizinische Kliniken", "address": "Venusberg-Campus 1"},
     {"number": "B30", "name": "Eltern-Kind-Zentrum (ELKI)", "address": "Venusberg-Campus 1"},
-    {"number": "B31", "name": "Zentrum fÃ¼r Frauen- und Kinderheilkunde", "address": "Venusberg-Campus 1"},
+    {"number": "B31", "name": "Zentrum für Frauen- und Kinderheilkunde", "address": "Venusberg-Campus 1"},
     {"number": "B32", "name": "Herzchirurgie / Thoraxchirurgie", "address": "Venusberg-Campus 1"},
     {"number": "B33", "name": "Medizinische Kliniken", "address": "Venusberg-Campus 1"},
     {"number": "B34", "name": "Weitere Kliniken", "address": "Venusberg-Campus 1"},
     {"number": "B41", "name": "Parkhaus", "address": "Venusberg-Campus 1"},
-    {"number": "B42", "name": "HÃ¤matologie und Transfusionsmedizin", "address": "Venusberg-Campus 1"},
+    {"number": "B42", "name": "Hämatologie und Transfusionsmedizin", "address": "Venusberg-Campus 1"},
     {"number": "B43", "name": "Blutspendedienst", "address": "Venusberg-Campus 1"},
     {"number": "B47", "name": "Parkplatz Mitte", "address": "Venusberg-Campus 1"},
     {"number": "B50", "name": "Weitere medizinische Einrichtungen", "address": "Venusberg-Campus 1"},
@@ -96,18 +96,18 @@ BUILDINGS_DATA = [
     {"number": "B53", "name": "uk-it Bonn (IT-Abteilung) / Apotheke", "address": "Venusberg-Campus 1"},
     {"number": "B61", "name": "Medical Humanities / Hebammenschule", "address": "Venusberg-Campus 1"},
 
-    # === C-GebÃ¤ude (Neurologie, Psychiatrie, etc.) ===
-    {"number": "C44", "name": "Ausbildungszentrum fÃ¼r Pflegeberufe", "address": "Venusberg-Campus 1"},
-    {"number": "C45", "name": "Zentrale Aufbereitungseinheit fÃ¼r Medizinprodukte (ZAEMP)", "address": "Venusberg-Campus 1"},
+    # === C-Gebäude (Neurologie, Psychiatrie, etc.) ===
+    {"number": "C44", "name": "Ausbildungszentrum für Pflegeberufe", "address": "Venusberg-Campus 1"},
+    {"number": "C45", "name": "Zentrale Aufbereitungseinheit für Medizinprodukte (ZAEMP)", "address": "Venusberg-Campus 1"},
     {"number": "C63", "name": "Krankenhaushygiene", "address": "Venusberg-Campus 1"},
-    {"number": "C66", "name": "Zentrum fÃ¼r seltene Erkrankungen (ZSEB)", "address": "Venusberg-Campus 1"},
+    {"number": "C66", "name": "Zentrum für seltene Erkrankungen (ZSEB)", "address": "Venusberg-Campus 1"},
     {"number": "C80", "name": "NPP Neurologie / Psychiatrie / Psychosomatik", "address": "Venusberg-Campus 1"},
     {"number": "C81", "name": "Neurochirurgie / Neurologie-Intensiv", "address": "Venusberg-Campus 1"},
     {"number": "C82", "name": "Psychiatrie und Psychotherapie", "address": "Venusberg-Campus 1"},
     {"number": "C83", "name": "Epileptologie", "address": "Venusberg-Campus 1"},
-    {"number": "C99", "name": "DZNE (Deutsches Zentrum fÃ¼r Neurodegenerative Erkrankungen)", "address": "Venusberg-Campus 1"},
+    {"number": "C99", "name": "DZNE (Deutsches Zentrum für Neurodegenerative Erkrankungen)", "address": "Venusberg-Campus 1"},
 
-    # === Weitere wichtige GebÃ¤ude ===
+    # === Weitere wichtige Gebäude ===
     {"number": "C71", "name": "Bildungszentrum", "address": "Venusberg-Campus 1"},
     {"number": "C76", "name": "Life & Brain", "address": "Venusberg-Campus 1"},
 ]
@@ -138,14 +138,14 @@ def create_buildings_rooms_phones():
             )
             if b_created:
                 buildings_created += 1
-                print(f"âœ“ Building created: {building.number} - {building.name}")
+                print(f"✓ Building created: {building.number} - {building.name}")
             else:
                 # Update name/address if it changed
                 if building.name != b_data["name"] or building.address != b_data["address"]:
                     building.name = b_data["name"]
                     building.address = b_data["address"]
                     building.save()
-                    print(f"âœ“ Building updated: {building.number} - {building.name}")
+                    print(f"✓ Building updated: {building.number} - {building.name}")
 
             # Create ~10 rooms per building
             for i in range(10):
@@ -169,14 +169,14 @@ def create_buildings_rooms_phones():
                 )
                 if r_created:
                     rooms_created += 1
-                    print(f"  â†’ Room created: {building.number}-{room.room_number} ({room.colloquial_name})")
+                    print(f"  → Room created: {building.number}-{room.room_number} ({room.colloquial_name})")
                 else:
                     # Optional: update colloquial name occasionally
                     if random.random() > 0.9:
                         room.colloquial_name = colloquial
                         room.save()
 
-                # 1â€“3 phone numbers per room
+                # 1–3 phone numbers per room
                 num_phones = random.randint(1, 3)
                 for p in range(num_phones):
                     # Internal UKB phone format
@@ -191,7 +191,7 @@ def create_buildings_rooms_phones():
         except Exception as e:
             error_msg = f"Error processing building {b_data['number']}: {e}"
             errors.append(error_msg)
-            print(f"âŒ {error_msg}")
+            print(f"❌ {error_msg}")
 
     # Final log
     log_path = log_population(
@@ -208,7 +208,7 @@ def create_buildings_rooms_phones():
     print(f"   Phones:     {phones_created}")
     print(f"   Log file:   {log_path.name}")
     if errors:
-        print(f"   âš ï¸  {len(errors)} errors â€“ check the log file.")
+        print(f"   ⚠️  {len(errors)} errors – check the log file.")
     print("\nYou can now run the server and verify the data in the admin interface or HR employee form.")
 
 

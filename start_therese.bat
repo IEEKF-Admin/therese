@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 
 echo DEBUG: === Script started ===
 echo DEBUG: Arg1 = [%~1]
@@ -24,6 +25,10 @@ cd /d "%~dp0"
 
 echo [1/3] Aktiviere virtuelle Umgebung...
 call venv\Scripts\activate.bat >nul 2>&1
+echo Using Python: 
+venv\Scripts\python.exe --version
+echo Codepage: 
+chcp
 
 echo [2/3] Ermittle IP-Adresse...
 echo.
@@ -61,7 +66,7 @@ powershell -NoProfile -Command "Set-Content -Path 'current_demo_url.txt' -Value 
 echo DEBUG: File write via PowerShell completed.
 echo Die aktuelle URL wurde in "current_demo_url.txt" gespeichert.
 
-python manage.py runserver 0.0.0.0:8000
+venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
 
 echo.
 echo Server wurde beendet.

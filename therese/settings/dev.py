@@ -18,7 +18,7 @@ PASSWORD_HASHERS = [
 ]
 
 # = AUTH REDIRECTS =
-LOGIN_REDIRECT_URL = '/tasks/'           # â† nach Login immer zum Dashboard
-LOGOUT_REDIRECT_URL = '/tasks/'          # â† nach Logout ebenfalls zum Dashboard
-LOGIN_URL = '/accounts/login/'           # â† korrekter Login-Pfad
+LOGIN_REDIRECT_URL = '/tasks/'           # ← nach Login immer zum Dashboard
+LOGOUT_REDIRECT_URL = '/tasks/'          # ← nach Logout ebenfalls zum Dashboard
+LOGIN_URL = '/accounts/login/'           # ← korrekter Login-Pfad
 

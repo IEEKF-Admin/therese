@@ -1,7 +1,7 @@
 ﻿"""
 apps/hr/models.py
 
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 All models related to employees, contracts, allocations and salary supplements.
 Fully in English.
 """
@@ -11,8 +11,8 @@ from django.core.validators import RegexValidator
 from apps.core.models import BaseModel
 from apps.accounts.models import CustomUser
 
-# Finance models - nur das, was wirklich benÃ¶tigt wird
-from apps.finances.models import WBSElement   # â† Dieser Import bleibt
+# Finance models - nur das, was wirklich benötigt wird
+from apps.finances.models import WBSElement   # ← Dieser Import bleibt
 
 
 class Gender(models.TextChoices):
@@ -144,7 +144,7 @@ class Employee(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="Monthly Salary (â‚¬)"
+        verbose_name="Monthly Salary (€)"
     )
 
     cost_center = models.ForeignKey(
@@ -271,7 +271,7 @@ class FundingAllocation(BaseModel):
         ordering = ['-start_date']
 
     def __str__(self):
-        return f"{self.employee} â†’ {self.wbs_element} ({self.weekly_hours_allocated} hours)"
+        return f"{self.employee} → {self.wbs_element} ({self.weekly_hours_allocated} hours)"
 
 
 class SalarySupplement(BaseModel):
@@ -305,7 +305,7 @@ class Workgroup(models.Model):
     )
     long_name = models.CharField(
         max_length=200,
-        help_text="VollstÃ¤ndiger Name der Arbeitsgruppe"
+        help_text="Vollständiger Name der Arbeitsgruppe"
     )
     pi = models.ForeignKey(
         'Employee',
@@ -314,7 +314,7 @@ class Workgroup(models.Model):
         verbose_name="Principal Investigator"
     )
     members = models.ManyToManyField(
-        'Employee',                    # â† GeÃ¤ndert von CustomUser zu Employee
+        'Employee',                    # ← Geändert von CustomUser zu Employee
         related_name='workgroups',
         blank=True,
         verbose_name="Mitglieder"

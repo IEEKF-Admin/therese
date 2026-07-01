@@ -30,7 +30,7 @@ class PayScale(BaseModel):
         ordering = ['pay_scale_group', 'experience_level']
 
     def __str__(self):
-        return f"{self.pay_scale_group} Level {self.experience_level} â€” {self.monthly_salary} â‚¬"
+        return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
 
     @classmethod
     def get_current(cls):

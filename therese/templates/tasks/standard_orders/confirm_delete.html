@@ -9,7 +9,7 @@
 
 <div class="card">
     <p>Are you sure you want to delete the following standard item?</p>
-    <p><strong>{{ item.supplier }} â€” {{ item.product_name }}</strong> (Order # {{ item.order_number|default:"â€”" }})</p>
+    <p><strong>{{ item.supplier }} — {{ item.product_name }}</strong> (Order # {{ item.order_number|default:"—" }})</p>
 
     <form method="post">
         {% csrf_token %}

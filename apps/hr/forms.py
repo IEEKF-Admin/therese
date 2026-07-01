@@ -2,7 +2,7 @@
 apps/hr/forms.py
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
 Realized functionalities in this file:
-- EmployeeForm with full cascading dropdowns (Building â†’ Room â†’ PhoneNumber)
+- EmployeeForm with full cascading dropdowns (Building → Room → PhoneNumber)
 - Dynamic queryset filtering for Room and PhoneNumber based on POST or instance
 - Proper ModelChoiceField handling for phone_number with forced choices on render
 - Inline form support for all related models
@@ -50,20 +50,20 @@ def log_form_init(form_name: str, data=None, instance=None, errors=None):
             f.write("BOUND DATA (excerpt):\n")
             for k, v in list(data.items())[:50]:
                 f.write(f" {k}: {v}\n")
-    print(f"ðŸ“ {form_name} debug log: {log_path.name}")
+    print(f"📝 {form_name} debug log: {log_path.name}")
 
 
 class EmployeeForm(forms.ModelForm):
     building = forms.ModelChoiceField(
         queryset=Building.objects.all().order_by('number'),
         required=False,
-        empty_label="â€” Select Building â€”",
+        empty_label="— Select Building —",
         label="Building"
     )
     phone_number = forms.ModelChoiceField(
         queryset=PhoneNumber.objects.none(),
         required=False,
-        empty_label="â€” Select Room first â€”",
+        empty_label="— Select Room first —",
         label="Office Phone",
         to_field_name='phone_number'
     )
@@ -85,7 +85,7 @@ class EmployeeForm(forms.ModelForm):
         instance = getattr(self, 'instance', None)
 
         print("\n" + "="*150)
-        print("ðŸ”¥ðŸ”¥ðŸ”¥ EXTREM EXZESSIVES DEBUGGING - EmployeeForm.__init__ ðŸ”¥ðŸ”¥ðŸ”¥")
+        print("🔥🔥🔥 EXTREM EXZESSIVES DEBUGGING - EmployeeForm.__init__ 🔥🔥🔥")
         print(f"Is bound (POST): {self.is_bound}")
         print(f"Has instance (Edit-Modus): {bool(instance and instance.pk)}")
         print(f"Instance PK: {instance.pk if instance else None}")
@@ -101,27 +101,27 @@ class EmployeeForm(forms.ModelForm):
         print(f"Building queryset count: {building_field.queryset.count()}")
         if instance and instance.room and instance.room.building:
             building_field.initial = instance.room.building.pk
-            print(f"âœ… Building initial SET to: {building_field.initial} ({instance.room.building.number} - {instance.room.building.name})")
+            print(f"✅ Building initial SET to: {building_field.initial} ({instance.room.building.number} - {instance.room.building.name})")
         else:
-            print("âš ï¸  No building initial set")
+            print("⚠️  No building initial set")
 
         # ROOM
         print("\n--- ROOM FIELD ---")
         room_field = self.fields['room']
-        room_field.empty_label = "â€” Select Building first â€”"
+        room_field.empty_label = "— Select Building first —"
         room_field.widget.attrs.update({'class': 'room-select form-control', 'id': 'id_room'})
 
         if self.is_bound and self.data.get('building'):
             room_field.queryset = Room.objects.filter(building_id=self.data['building']).order_by('room_number')
-            print(f"POST mode â†’ Room queryset filtered by building_id={self.data['building']} â†’ {room_field.queryset.count()} rooms")
+            print(f"POST mode → Room queryset filtered by building_id={self.data['building']} → {room_field.queryset.count()} rooms")
         elif instance and instance.room:
             room_field.queryset = Room.objects.filter(building=instance.room.building).order_by('room_number')
             room_field.initial = instance.room.pk
-            print(f"âœ… EDIT mode â†’ Room queryset set for building {instance.room.building}")
-            print(f"âœ… Room initial SET to: {room_field.initial} ({instance.room.room_number} - {instance.room.colloquial_name})")
+            print(f"✅ EDIT mode → Room queryset set for building {instance.room.building}")
+            print(f"✅ Room initial SET to: {room_field.initial} ({instance.room.room_number} - {instance.room.colloquial_name})")
         else:
             room_field.queryset = Room.objects.none()
-            print("âš ï¸  Room queryset = empty")
+            print("⚠️  Room queryset = empty")
 
         # PHONE
         print("\n--- PHONE FIELD ---")
@@ -130,18 +130,18 @@ class EmployeeForm(forms.ModelForm):
 
         if self.is_bound and self.data.get('room'):
             phone_field.queryset = PhoneNumber.objects.filter(room_id=self.data['room'])
-            print(f"POST mode â†’ Phone queryset for room_id={self.data['room']} â†’ {phone_field.queryset.count()} phones")
+            print(f"POST mode → Phone queryset for room_id={self.data['room']} → {phone_field.queryset.count()} phones")
             if self.data.get('phone_number'):
                 phone_field.initial = self.data.get('phone_number')
-                print(f"POST mode â†’ Phone initial set to: {phone_field.initial}")
+                print(f"POST mode → Phone initial set to: {phone_field.initial}")
         elif instance and instance.phone_number:
             phone_field.queryset = PhoneNumber.objects.filter(phone_number=instance.phone_number)
             phone_field.initial = instance.phone_number
-            print(f"âœ… EDIT mode â†’ Phone queryset filtered for '{instance.phone_number}' â†’ {phone_field.queryset.count()} phones")
-            print(f"âœ… Phone initial SET to: '{phone_field.initial}'")
+            print(f"✅ EDIT mode → Phone queryset filtered for '{instance.phone_number}' → {phone_field.queryset.count()} phones")
+            print(f"✅ Phone initial SET to: '{phone_field.initial}'")
         else:
             phone_field.queryset = PhoneNumber.objects.none()
-            print("âš ï¸  Phone queryset = empty")
+            print("⚠️  Phone queryset = empty")
 
         print("\n=== FORM __INIT__ END - EXTREM EXZESSIVES DEBUGGING ===\n")
 
@@ -152,7 +152,7 @@ class EmployeeForm(forms.ModelForm):
 
     def clean_room(self):
         room = self.cleaned_data.get('room')
-        print(f"DEBUG clean_room() â†’ Final value: {room}")
+        print(f"DEBUG clean_room() → Final value: {room}")
         return room
 
     def clean(self):
@@ -198,10 +198,10 @@ class ContractForm(forms.ModelForm):
             .distinct()
             .order_by('pay_scale_group')
         )
-        pay_scale_choices = [('', 'â€” Select Pay Scale Group â€”')] + [(g, g) for g in groups]
+        pay_scale_choices = [('', '— Select Pay Scale Group —')] + [(g, g) for g in groups]
 
         # Experience levels (will be filtered by JS, but we provide a base set)
-        level_choices = [('', 'â€” Select Group first â€”')] + [(str(i), str(i)) for i in range(1, 7)]
+        level_choices = [('', '— Select Group first —')] + [(str(i), str(i)) for i in range(1, 7)]
 
         # Force proper dropdown widgets (ChoiceField + Select) so they always render as <select>
         self.fields['pay_scale_group'] = forms.ChoiceField(

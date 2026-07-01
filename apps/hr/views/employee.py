@@ -36,9 +36,9 @@ def employee_list(request):
 
     allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
     
-    if not allowed_groups.intersection(user_groups):
+    if not (request.user.is_superuser or allowed_groups.intersection(user_groups)):
         messages.error(request, "You don't have permission to view employees.")
-        print("âŒ Permission denied for employee list")
+        print("❌ Permission denied for employee list")
         return redirect('tasks:my_tasks')
 
     archive_mode = request.GET.get('archive') == '1'
@@ -104,7 +104,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         print("ðŸ” [DEBUG] EmployeeCreateView.test_func called")
         user_groups = list(self.request.user.groups.values_list('name', flat=True))
         allowed = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
-        result = bool(allowed.intersection(user_groups))
+        result = self.request.user.is_superuser or bool(allowed.intersection(user_groups))
         print(f"ðŸ” Permission check result: {result}")
         return result
 
@@ -133,7 +133,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         print("ðŸ” [DEBUG] EmployeeCreateView.form_valid called")
         # ... (die gleiche form_valid Logik wie vorher)
-        return super().form_valid(form)   # Platzhalter â€“ bei Bedarf erweitern
+        return super().form_valid(form)   # Platzhalter – bei Bedarf erweitern
 
 
 # = UPDATE VIEW =
@@ -147,7 +147,7 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         print("ðŸ” [DEBUG] EmployeeUpdateView.test_func called")
         user_groups = list(self.request.user.groups.values_list('name', flat=True))
         allowed = {'PI', 'Personnel Approver', 'Personnel Fulfiller', 'Personnel Coordinator'}
-        result = bool(allowed.intersection(user_groups))
+        result = self.request.user.is_superuser or bool(allowed.intersection(user_groups))
         print(f"ðŸ” Permission check result: {result}")
         return result
 
@@ -195,9 +195,9 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
         if not all([contract_valid, funding_valid, salary_valid, workgroup_valid]):
             if not contract_valid:
-                messages.error(self.request, "âŒ Fehler in den VertrÃ¤gen (Contracts). Bitte prÃ¼fen Sie Pflichtfelder.")
+                messages.error(self.request, "❌ Fehler in den Verträgen (Contracts). Bitte prüfen Sie Pflichtfelder.")
             if not funding_valid:
-                messages.error(self.request, "âŒ Fehler in den Funding Allocations.")
+                messages.error(self.request, "❌ Fehler in den Funding Allocations.")
             return self.form_invalid(form)
 
         self.object = form.save(commit=False)
@@ -213,11 +213,11 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             fs.instance = self.object
             fs.save()
 
-        messages.success(self.request, "âœ… Employee successfully saved!")
+        messages.success(self.request, "✅ Employee successfully saved!")
         return redirect(self.success_url)
 
     def form_invalid(self, form):
-        print("âŒ form_invalid called in UpdateView")
+        print("❌ form_invalid called in UpdateView")
         messages.error(self.request, "Please correct the errors below.")
         return self.render_to_response(self.get_context_data(form=form))
 

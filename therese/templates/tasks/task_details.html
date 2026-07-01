@@ -13,9 +13,9 @@
         <table class="table">
             <tr><th>Typ</th><td>{{ task.get_task_type_display }}</td></tr>
             <tr><th>Erstellt von</th><td>{{ task.creator }}</td></tr>
-            <tr><th>Zugewiesen an</th><td>{{ task.assignee|default:"â€”" }}</td></tr>
+            <tr><th>Zugewiesen an</th><td>{{ task.assignee|default:"—" }}</td></tr>
             
-            <!-- Status Buttons - Verbessert fÃ¼r Order Fulfillment + Order Manager -->
+            <!-- Status Buttons - Verbessert für Order Fulfillment + Order Manager -->
             <tr>
                 <th>Aktueller Status</th>
                 <td>
@@ -24,7 +24,7 @@
                             {% if status_choice.0 == task.status %}
                                 <!-- Aktueller Status (hervorgehoben) -->
                                 <span class="button" style="background:#22c55e; color:white; font-weight:bold; padding:8px 12px;">
-                                    {{ status_choice.1 }} âœ“
+                                    {{ status_choice.1 }} ✅
                                 </span>
                             {% else %}
                                 <!-- Andere Status-Buttons -->
@@ -48,7 +48,7 @@
                 <td>{{ form.wbs_element }}</td>
             </tr>
             
-            <tr><th>PrioritÃ¤t</th><td>{{ task.priority }}</td></tr>
+            <tr><th>Priorität</th><td>{{ task.priority }}</td></tr>
             <tr><th>Erstellt am</th><td>{{ task.created_at|date:"d.m.Y H:i" }}</td></tr>
         </table>
 
@@ -71,15 +71,15 @@
                 {% for item in task.items.all %}
                 <tr>
                     <td>{{ item.product_name }}</td>
-                    <td>{{ item.product_description|default:"â€”" }}</td>
+                    <td>{{ item.product_description|default:"—" }}</td>
                     <td>
                         {% if item.link_to_product %}
-                            <a href="{{ item.link_to_product }}" target="_blank">Link Ã¶ffnen</a>
-                        {% else %}â€”{% endif %}
+                            <a href="{{ item.link_to_product }}" target="_blank">Link öffnen</a>
+                        {% else %}—{% endif %}
                     </td>
-                    <td>{{ item.unit_price }} â‚¬</td>
+                    <td>{{ item.unit_price }} €</td>
                     <td>{{ item.quantity }}</td>
-                    <td><strong>{{ item.total_price }} â‚¬</strong></td>
+                    <td><strong>{{ item.total_price }} €</strong></td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="6">Keine Positionen vorhanden.</td></tr>
@@ -87,25 +87,25 @@
             </tbody>
         </table>
 
-        <p><strong>Gesamtpreis: <span style="color:#4ade80; font-size:1.3em;">{{ task.total_price }} â‚¬</span></strong></p>
+        <p><strong>Gesamtpreis: <span style="color:#4ade80; font-size:1.3em;">{{ task.total_price }} €</span></strong></p>
         {% endif %}
 
         <br>
-        <button type="submit" name="save" class="button">Ã„nderungen speichern</button>
+        <button type="submit" name="save" class="button">Änderungen speichern</button>
     </form>
 
-    <!-- LÃ¶sch-Button -->
+    <!-- Lösch-Button -->
     {% if task.task_type == 'purchase_order' %}
         {% if task.status == 'noch nicht bearbeitet' or is_order_manager %}
-        <form method="post" action="{% url 'tasks:task_delete' task.pk %}" style="display:inline;" onsubmit="return confirm('Bestellung wirklich lÃ¶schen?');">
+        <form method="post" action="{% url 'tasks:task_delete' task.pk %}" style="display:inline;" onsubmit="return confirm('Bestellung wirklich löschen?');">
             {% csrf_token %}
-            <button type="submit" class="button" style="background:#ef4444; color:white;">Bestellung lÃ¶schen</button>
+            <button type="submit" class="button" style="background:#ef4444; color:white;">Bestellung löschen</button>
         </form>
         {% endif %}
     {% endif %}
 
     <br><br>
-    <a href="{% url 'tasks:my_tasks' %}" class="button">â† ZurÃ¼ck zur Ãœbersicht</a>
+    <a href="{% url 'tasks:my_tasks' %}" class="button">← Zurück zur Übersicht</a>
 </div>
 {% endblock %}
 

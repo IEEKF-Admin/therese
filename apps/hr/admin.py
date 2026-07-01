@@ -1,7 +1,7 @@
 ﻿"""
 apps/hr/admin.py
 
-Project: THERESE â€“ Transparent HR Employee Resource Evaluation System Enhanced
+Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.contrib import admin
@@ -59,7 +59,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ContractInline,
         FundingAllocationInline,
         SalarySupplementInline,
-        WorkgroupMembershipInline,      # â† Jetzt funktioniert es
+        WorkgroupMembershipInline,      # ← Jetzt funktioniert es
     ]
 
 

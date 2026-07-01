@@ -31,6 +31,7 @@ class GroupNames:
     # === Weitere Rollen ===
     ORDER_MANAGER = "Order Manager"
     INSTITUTE_ADMIN = "Institute Admin"
+    INSTITUTE_LEADER = "Institute Leader"
 
 
 # Alle Gruppen als Liste (nÃ¼tzlich fÃ¼r Iterationen)
@@ -45,6 +46,7 @@ ALL_GROUPS = [
     GroupNames.PROCUREMENT_APPROVER,
     GroupNames.ORDER_MANAGER,
     GroupNames.INSTITUTE_ADMIN,
+    GroupNames.INSTITUTE_LEADER,
 ]
 
 

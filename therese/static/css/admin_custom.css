@@ -421,3 +421,19 @@ body[data-theme="dark"] {
     }
 }
 
+/* === Required field validation errors - red highlight === */
+.form-row.errors input,
+.form-row.errors select,
+.form-row.errors textarea,
+.errors input,
+.errors select,
+.errors textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+}
+
+.form-row.errors label {
+    color: #dc2626 !important;
+    font-weight: 600;
+}
+

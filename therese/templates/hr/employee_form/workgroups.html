@@ -14,7 +14,7 @@
             <tr class="workgroup-row">
                 {{ form.id }}
                 {{ form.DELETE.as_hidden }}
-                <td>{{ form.workgroup|add_class:"form-control" }}</td>
+                <td>{% if form.workgroup.errors %}{{ form.workgroup|add_class:"form-control error" }}{% else %}{{ form.workgroup|add_class:"form-control" }}{% endif %}</td>
                 <td style="text-align:center;">
                     <button type="button" class="btn-danger remove-row">🗑️</button>
                 </td>
@@ -26,7 +26,7 @@
                 {% with form=workgroup_formset.empty_form %}
                 {{ form.id }}
                 {{ form.DELETE.as_hidden }}
-                <td>{{ form.workgroup|add_class:"form-control" }}</td>
+                <td>{% if form.workgroup.errors %}{{ form.workgroup|add_class:"form-control error" }}{% else %}{{ form.workgroup|add_class:"form-control" }}{% endif %}</td>
                 <td style="text-align:center;">
                     <button type="button" class="btn-danger remove-row">🗑️</button>
                 </td>

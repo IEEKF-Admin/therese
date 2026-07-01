@@ -117,7 +117,7 @@ class Employee(BaseModel):
         related_name='employees',
         verbose_name="Room"
     )
-    phone_number = models.CharField(max_length=30, blank=True, verbose_name="Office Phone")
+    phone_number = models.CharField(max_length=30, blank=True, null=True, verbose_name="Office Phone")
 
     # Address
     street = models.CharField(max_length=100, blank=True, verbose_name="Street")

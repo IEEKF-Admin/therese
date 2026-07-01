@@ -43,6 +43,14 @@
         </a>
         {% endif %}
 
+        <!-- PSP - Elemente -->
+        {% if 'Procurement Coordinator' in user_groups or 'PI' in user_groups or 'Institute Leader' in user_groups %}
+        <a href="{% url 'finances:psp_elements' %}" 
+           class="{% if 'psp-elements' in request.path %}active{% endif %}">
+            <i class="fas fa-project-diagram"></i> PSP - Elemente
+        </a>
+        {% endif %}
+
         <!-- Import Pay Scales / TV-L -->
         {% if 'Personnel Coordinator' in user_groups %}
         <a href="{% url 'finances:import_pay_scales' %}" 

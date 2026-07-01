@@ -1,15 +1,15 @@
 ﻿{% load widget_tweaks %}
 <div class="form-section">
     <h3>Contact & Location</h3>
-    <div class="aligned-field"><label>{{ form.email_professional.label }}</label>{{ form.email_professional|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.email_private.label }}</label>{{ form.email_private|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.google_account.label }}</label>{{ form.google_account|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.private_phone_number.label }}</label>{{ form.private_phone_number|add_class:"form-control" }}</div>
-    <div class="aligned-field"><label>{{ form.website.label }}</label>{{ form.website|add_class:"form-control" }}</div>
+    <div class="aligned-field"><label>{{ form.email_professional.label }}</label>{% if form.email_professional.errors %}{{ form.email_professional|add_class:"form-control error" }}{% else %}{{ form.email_professional|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.email_private.label }}</label>{% if form.email_private.errors %}{{ form.email_private|add_class:"form-control error" }}{% else %}{{ form.email_private|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.google_account.label }}</label>{% if form.google_account.errors %}{{ form.google_account|add_class:"form-control error" }}{% else %}{{ form.google_account|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.private_phone_number.label }}</label>{% if form.private_phone_number.errors %}{{ form.private_phone_number|add_class:"form-control error" }}{% else %}{{ form.private_phone_number|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>{{ form.website.label }}</label>{% if form.website.errors %}{{ form.website|add_class:"form-control error" }}{% else %}{{ form.website|add_class:"form-control" }}{% endif %}</div>
 
-    <div class="aligned-field"><label>Building</label>{{ form.building|add_class:"building-select form-control" }}</div>
-    <div class="aligned-field"><label>Room</label>{{ form.room|add_class:"room-select form-control" }}</div>
-    <div class="aligned-field"><label>Office Phone</label>{{ form.phone_number|add_class:"phone-select form-control" }}</div>
+    <div class="aligned-field"><label>Building</label>{% if form.building.errors %}{{ form.building|add_class:"building-select form-control error" }}{% else %}{{ form.building|add_class:"building-select form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>Room</label>{% if form.room.errors %}{{ form.room|add_class:"room-select form-control error" }}{% else %}{{ form.room|add_class:"room-select form-control" }}{% endif %}</div>
+    <div class="aligned-field"><label>Office Phone</label>{% if form.phone_number.errors %}{{ form.phone_number|add_class:"phone-select form-control error" }}{% else %}{{ form.phone_number|add_class:"phone-select form-control" }}{% endif %}</div>
 </div>
 
 

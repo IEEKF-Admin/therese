@@ -102,6 +102,14 @@ class WBSElement(BaseModel):
         verbose_name="Responsible Person"
     )
     comment = models.TextField(blank=True, verbose_name="Comment")
+    work_group = models.ForeignKey(
+        'hr.Workgroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Work Group",
+        related_name='wbs_elements'
+    )
 
     class Meta:
         verbose_name = "WBS Element"

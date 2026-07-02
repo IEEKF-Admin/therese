@@ -1,0 +1,41 @@
+# Created on production via makemigrations before 0013 was deployed.
+# Kept for migration-graph compatibility; superseded by 0013 + 0014 merge.
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('tasks', '0012_alter_purchaseordertask_options_and_more'),
+    ]
+
+    operations = [
+        migrations.AlterModelOptions(
+            name='purchaseordertask',
+            options={
+                'permissions': [
+                    ('create_purchase_order', 'Can create purchase orders'),
+                    ('view_all_purchase_orders', 'Can view all purchase orders'),
+                    ('change_wbs_on_purchase_order', 'Can change WBS element on purchase orders'),
+                    ('approve_purchase_order', 'Can approve purchase orders'),
+                    ('create_personnel_task', 'Can create personnel tasks'),
+                    ('create_general_request', 'Can create general requests'),
+                ],
+                'verbose_name': 'Purchase Order Task',
+                'verbose_name_plural': 'Purchase Order Tasks',
+            },
+        ),
+        migrations.AlterModelOptions(
+            name='task',
+            options={
+                'ordering': ['-created_at'],
+                'permissions': [
+                    ('view_all_personnel_tasks', 'Can view all personnel tasks'),
+                    ('approve_personnel_task', 'Can approve personnel tasks'),
+                ],
+                'verbose_name': 'Task',
+                'verbose_name_plural': 'Tasks',
+            },
+        ),
+    ]

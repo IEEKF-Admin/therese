@@ -63,9 +63,7 @@ current_*.txt
 2026-*.txt
 FETCH_HEAD
 
-# Migrations (werden neu generiert)
-apps/*/migrations/
-!apps/*/migrations/__init__.py
+
 
 # ============================================================
 # Logo / Asset files - MUST be versioned (not ignored)

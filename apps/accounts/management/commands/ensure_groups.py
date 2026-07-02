@@ -13,6 +13,7 @@ from django.contrib.auth.models import Group
 from apps.accounts.permissions import (
     get_or_create_default_groups,
     assign_permissions_to_groups,
+    audit_groups_and_permissions,
 )
 
 
@@ -32,4 +33,6 @@ class Command(BaseCommand):
             self.stdout.write(f" - {gname}")
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(f"Gesamt: {len(groups)}"))
+        self.stdout.write("")
+        audit_groups_and_permissions()
         self.stdout.write(self.style.SUCCESS("Fertig."))

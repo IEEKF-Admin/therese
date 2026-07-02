@@ -165,12 +165,15 @@ def assign_permissions_to_groups():
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
 
+    missing_permissions = []
+
     # Helper to get perm - returns None on failure
     def get_perm(codename, model):
         try:
             ct = ContentType.objects.get_for_model(model)
             return Permission.objects.get(codename=codename, content_type=ct)
         except Exception:
+            missing_permissions.append(f"{model._meta.label}.{codename}")
             return None
 
     assigned_count = 0
@@ -249,4 +252,41 @@ def assign_permissions_to_groups():
         print(f"  [Permissions] Assigned/updated permissions for {assigned_count} group(s).")
     else:
         print("  [Permissions] No new permission assignments (or groups/permissions not ready).")
+
+    if missing_permissions:
+        print("  [Permissions] WARNING - missing in database (run migrate first):")
+        for perm in missing_permissions:
+            print(f"    - {perm}")
+
+
+def audit_groups_and_permissions():
+    """Print group/permission state for deployment troubleshooting."""
+    from apps.tasks.models import PurchaseOrderTask, Task
+
+    print("=== Group / Permission Audit ===")
+    for group_name in NEW_GROUPS:
+        try:
+            group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            print(f"[MISSING GROUP] {group_name}")
+            continue
+        perm_names = sorted(group.permissions.values_list('codename', flat=True))
+        user_count = group.user_set.count()
+        print(f"[OK] {group_name}: {user_count} user(s), perms={perm_names or 'NONE'}")
+
+    required = [
+        ('tasks', 'approve_purchase_order', PurchaseOrderTask),
+        ('tasks', 'view_all_personnel_tasks', Task),
+        ('tasks', 'approve_personnel_task', Task),
+    ]
+    print("--- Required custom permissions ---")
+    for app_label, codename, model in required:
+        exists = Permission.objects.filter(
+            codename=codename,
+            content_type__app_label=app_label,
+            content_type__model=model._meta.model_name,
+        ).exists()
+        status = "OK" if exists else "MISSING"
+        print(f"[{status}] {app_label}.{codename}")
+    print("=== End Audit ===")
 

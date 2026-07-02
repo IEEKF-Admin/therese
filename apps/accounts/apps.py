@@ -27,9 +27,9 @@ class AccountsConfig(AppConfig):
 )
 
         def create_groups_after_migrate(sender, **kwargs):
-            # Nur ausfÃ¼hren, wenn die Accounts-App migriert wurde
-            if sender.name == 'apps.accounts':
-                print("[Accounts] Running group/permission setup via post_migrate...")
+            # Accounts- oder Tasks-Migrationen können neue Permissions anlegen
+            if sender.name in ('apps.accounts', 'apps.tasks'):
+                print(f"[Accounts] Running group/permission setup after {sender.name} migrate...")
                 get_or_create_default_groups()
                 assign_permissions_to_groups()
 

@@ -34,7 +34,6 @@ class GroupNames:
     PERSONNEL_COORDINATION_RIGHTS = "Personnel - Coordination Rights"
 
     GENERAL_REQUESTS_CREATE = "General Requests - Create"
-
     ASSISTING_ADMINS = "Assisting Admins"
 
 
@@ -78,6 +77,8 @@ def get_or_create_default_groups():
     """
     Erstellt die neuen Gruppen und entfernt die alten, nutzlosen Gruppen.
     Wird automatisch nach jeder Migration aufgerufen (post_migrate Signal).
+    Auf Produktion bei 'No migrations to apply' stattdessen ausführen:
+        python manage.py ensure_groups
     """
     created_groups = []
 
@@ -92,6 +93,9 @@ def get_or_create_default_groups():
         print(f"  [Groups] {len(created_groups)} new groups created.")
 
     # Alte Gruppen entfernen (auch wenn User zugewiesen sind - sie verlieren die alte Gruppe)
+    # WICHTIG für Produktion: Der Block löscht die alten Gruppen.
+    # Wenn du die alten Gruppen (z.B. Assisting Admins) erstmal behalten willst,
+    # kommentiere den folgenden Block temporär aus.
     deleted = []
     for name in OLD_GROUPS:
         try:
@@ -145,96 +149,95 @@ def assign_permissions_to_groups():
     """
     Assigns the correct permissions to the new groups.
     This should be called after groups are created (e.g. in post_migrate).
+    Safe to call multiple times; idempotent.
+    On production after deploy when no migrations run:
+        python manage.py ensure_groups
     """
     from django.contrib.contenttypes.models import ContentType
     from apps.hr.models import Employee, Workgroup, Building
     from apps.finances.models import WBSElement, PayScale
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem
 
-    # Helper to get perm
+    # Ensure groups exist first (in case assign is called standalone)
+    get_or_create_default_groups()
+
+    # Helper to get perm - returns None on failure
     def get_perm(codename, model):
-        ct = ContentType.objects.get_for_model(model)
-        return Permission.objects.get(codename=codename, content_type=ct)
+        try:
+            ct = ContentType.objects.get_for_model(model)
+            return Permission.objects.get(codename=codename, content_type=ct)
+        except Exception:
+            return None
 
-    try:
-        # Employees
-        view_emp = get_perm("can_view_employees", Employee)
-        manage_emp = get_perm("manage_employee", Employee)
+    assigned_count = 0
 
-        g = Group.objects.get(name="Employees - View")
-        g.permissions.add(view_emp)
+    def safe_add(group_name, *perms):
+        nonlocal assigned_count
+        try:
+            g = Group.objects.get(name=group_name)
+            valid_perms = [p for p in perms if p is not None]
+            if valid_perms:
+                g.permissions.add(*valid_perms)
+                assigned_count += 1
+        except Group.DoesNotExist:
+            print(f"  [Permissions] Group not found (skipping): {group_name}")
+        except Exception as e:
+            print(f"  [Permissions] Error for group {group_name}: {e}")
 
-        g = Group.objects.get(name="Employees - Manage")
-        g.permissions.add(view_emp, manage_emp)
+    # Employees
+    view_emp = get_perm("can_view_employees", Employee)
+    manage_emp = get_perm("manage_employee", Employee)
+    safe_add("Employees - View", view_emp)
+    safe_add("Employees - Manage", view_emp, manage_emp)
 
-        # Working Groups
-        g = Group.objects.get(name="Working Groups - Manage")
-        g.permissions.add(get_perm("manage_working_group", Workgroup))
+    # Working Groups
+    safe_add("Working Groups - Manage", get_perm("manage_working_group", Workgroup))
 
-        # Locations
-        g = Group.objects.get(name="Locations - Manage")
-        g.permissions.add(get_perm("manage_location", Building))
+    # Locations
+    safe_add("Locations - Manage", get_perm("manage_location", Building))
 
-        # PSP
-        view_overview = get_perm("view_psp_overview", WBSElement)
-        view_psp = get_perm("view_psp_element", WBSElement)
-        manage_psp = get_perm("manage_psp_element", WBSElement)
+    # PSP
+    view_overview = get_perm("view_psp_overview", WBSElement)
+    view_psp = get_perm("view_psp_element", WBSElement)
+    manage_psp = get_perm("manage_psp_element", WBSElement)
+    safe_add("PSP Elements - View", view_overview)
+    safe_add("PSP Elements - Manage", view_psp, manage_psp)
 
-        g = Group.objects.get(name="PSP Elements - View")
-        g.permissions.add(view_overview)
+    # Procurement
+    create_po = get_perm("create_purchase_order", PurchaseOrderTask)
+    view_all_po = get_perm("view_all_purchase_orders", PurchaseOrderTask)
+    change_wbs = get_perm("change_wbs_on_purchase_order", PurchaseOrderTask)
+    view_std = get_perm("view_standard_order", StandardPurchaseItem)
+    manage_std = get_perm("manage_standard_order", StandardPurchaseItem)
+    safe_add("Purchase Orders - Create", create_po)
+    safe_add("Standard Orders - View", view_std)
+    safe_add("Standard Orders - Manage", view_std, manage_std)
+    safe_add("Procurement - Coordination Rights", view_all_po, change_wbs, manage_std)
 
-        g = Group.objects.get(name="PSP Elements - Manage")
-        g.permissions.add(view_psp, manage_psp)
+    # Personnel
+    create_personnel = get_perm("create_personnel_task", PurchaseOrderTask)
+    import_scale = get_perm("import_pay_scale", PayScale)
+    safe_add("Personnel Tasks - Create", create_personnel)
+    safe_add("Pay Scales - Import", import_scale)
+    # Personnel - Coordination Rights intentionally left without auto-assigned perms for now
 
-        # Procurement
-        create_po = get_perm("create_purchase_order", PurchaseOrderTask)
-        view_all_po = get_perm("view_all_purchase_orders", PurchaseOrderTask)
-        change_wbs = get_perm("change_wbs_on_purchase_order", PurchaseOrderTask)
-        view_std = get_perm("view_standard_order", StandardPurchaseItem)
-        manage_std = get_perm("manage_standard_order", StandardPurchaseItem)
+    # General Requests
+    safe_add("General Requests - Create", get_perm("create_general_request", PurchaseOrderTask))
 
-        g = Group.objects.get(name="Purchase Orders - Create")
-        g.permissions.add(create_po)
+    # Assisting Admins gets the key management permissions for broad access
+    safe_add(
+        "Assisting Admins",
+        get_perm("manage_employee", Employee),
+        get_perm("manage_working_group", Workgroup),
+        get_perm("manage_location", Building),
+        get_perm("manage_psp_element", WBSElement),
+        get_perm("view_psp_overview", WBSElement),
+        get_perm("view_all_purchase_orders", PurchaseOrderTask),
+        get_perm("manage_standard_order", StandardPurchaseItem),
+    )
 
-        g = Group.objects.get(name="Standard Orders - View")
-        g.permissions.add(view_std)
-
-        g = Group.objects.get(name="Standard Orders - Manage")
-        g.permissions.add(view_std, manage_std)
-
-        g = Group.objects.get(name="Procurement - Coordination Rights")
-        g.permissions.add(view_all_po, change_wbs, manage_std)
-
-        # Personnel
-        create_personnel = get_perm("create_personnel_task", PurchaseOrderTask)
-        import_scale = get_perm("import_pay_scale", PayScale)
-
-        g = Group.objects.get(name="Personnel Tasks - Create")
-        g.permissions.add(create_personnel)
-
-        g = Group.objects.get(name="Pay Scales - Import")
-        g.permissions.add(import_scale)
-
-        # Personnel Coordination placeholder (no perms yet)
-        # g = Group.objects.get(name="Personnel - Coordination Rights")
-
-        # General Requests
-        g = Group.objects.get(name="General Requests - Create")
-        g.permissions.add(get_perm("create_general_request", PurchaseOrderTask))
-
-        # Assisting Admins gets the key management permissions for broad access
-        assisting = Group.objects.get(name="Assisting Admins")
-        assisting.permissions.add(
-            get_perm("manage_employee", Employee),
-            get_perm("manage_working_group", Workgroup),
-            get_perm("manage_location", Building),
-            get_perm("manage_psp_element", WBSElement),
-            get_perm("view_psp_overview", WBSElement),
-            get_perm("view_all_purchase_orders", PurchaseOrderTask),
-            get_perm("manage_standard_order", StandardPurchaseItem),
-        )
-
-        print("  [Permissions] Assigned permissions to new groups.")
-    except Exception as e:
-        print(f"  [Permissions] Could not assign all permissions yet (may need full migrate): {e}")
+    if assigned_count:
+        print(f"  [Permissions] Assigned/updated permissions for {assigned_count} group(s).")
+    else:
+        print("  [Permissions] No new permission assignments (or groups/permissions not ready).")
 

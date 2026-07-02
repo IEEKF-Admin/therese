@@ -22,10 +22,11 @@ from apps.tasks.models import PurchaseOrderTask, PurchaseItem
 def create_test_data():
     print("🚀 Erstelle umfangreiche Testdaten für THERESE...\n")
 
-    from apps.accounts.permissions import GroupNames, ALL_GROUPS
+    from apps.accounts.permissions import NEW_GROUPS, OLD_GROUPS
 
-    # Groups - now using centralized definitions
-    groups = {name: Group.objects.get_or_create(name=name)[0] for name in ALL_GROUPS}
+    # Groups - only new permission groups
+    groups = {name: Group.objects.get_or_create(name=name)[0] for name in NEW_GROUPS}
+    perm_groups = {name: Group.objects.get_or_create(name=name)[0] for name in NEW_PERMISSION_GROUPS}
 
     # Basic structures
     building, _ = Building.objects.get_or_create(number="A1", defaults={'name': 'Main Building'})
@@ -76,6 +77,18 @@ def create_test_data():
             user.save()
 
         user.groups.add(groups[role])
+
+        # Assign new permission-based groups (using role names from test data for convenience)
+        new_group_mapping = {
+            "PI": ["Employees - View", "Employees - Manage", "Purchase Orders - Create", "Personnel Tasks - Create", "PSP Elements - View", "Working Groups - Manage"],
+            "Procurement Requester": ["Purchase Orders - Create", "Standard Orders - View"],
+            "Procurement Coordinator": ["Purchase Orders - Create", "Standard Orders - Manage", "Procurement - Coordination Rights", "Employees - View"],
+            "Personnel Approver": ["Employees - View", "Employees - Manage"],
+            "Order Manager": ["Employees - View"],
+        }
+        for gname in new_group_mapping.get(role, []):
+            if gname in perm_groups:
+                perm_groups[gname].user_set.add(user)
 
         # Employee explizit mit User verknüpfen
         employee, created = Employee.objects.get_or_create(

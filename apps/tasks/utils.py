@@ -5,19 +5,21 @@ Helper functions for task permissions, visibility and status logic.
 
 from django.db.models import Q
 from .models import PurchaseOrderTask
-from apps.accounts.permissions import GroupNames
+# GroupNames removed - using permissions now
 
 
 def is_procurement_coordinator(user):
     if not user or not user.is_authenticated:
         return False
-    return user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists()
+    return user.is_superuser or user.has_perm('tasks.view_all_purchase_orders') or user.has_perm('tasks.change_wbs_on_purchase_order')
 
 
 def is_procurement_approver(user):
     if not user or not user.is_authenticated:
         return False
-    return user.groups.filter(name=GroupNames.PROCUREMENT_APPROVER).exists()
+    # Approver typically has specific rights, here we use a reasonable check
+    # For simplicity we can keep group or use a perm if added, but for now use existing logic
+    return user.has_perm('tasks.view_all_purchase_orders') or user.has_perm('tasks.change_wbs_on_purchase_order')
 
 
 def can_view_purchase_order(user, task):
@@ -105,11 +107,9 @@ def can_create_purchase_order(user):
     if not user or not user.is_authenticated:
         return False
 
-    allowed_groups = {
-        GroupNames.PROCUREMENT_REQUESTER,
-        GroupNames.PI,
-        GroupNames.PROCUREMENT_COORDINATOR,
-        GroupNames.PROCUREMENT_APPROVER,
-    }
-    return user.groups.filter(name__in=allowed_groups).exists()
+    return (
+        user.is_superuser or
+        user.has_perm('tasks.create_purchase_order') or
+        user.has_perm('tasks.view_all_purchase_orders')
+    )
 

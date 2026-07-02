@@ -27,7 +27,7 @@ from ..forms import (
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
 )
-from apps.accounts.permissions import GroupNames
+# GroupNames removed - using has_perm now
 
 
 PurchaseItemFormSet = inlineformset_factory(
@@ -67,10 +67,9 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         if task_type == 'generic_text':
             return True
 
-        allowed_for_purchase = {GroupNames.PROCUREMENT_REQUESTER, GroupNames.PI}
         if task_type == 'purchase_order':
             # Normal creation permission
-            if user.groups.filter(name__in=allowed_for_purchase).exists():
+            if user.has_perm('tasks.create_purchase_order') or user.has_perm('tasks.view_all_purchase_orders'):
                 return True
 
             # Allow "Reorder" / copy if the user is allowed to view the original order
@@ -86,8 +85,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             return False
 
         if task_type in ('personnel_reallocation', 'personnel_contract_extension'):
-            allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_COORDINATOR}
-            return bool(user.groups.filter(name__in=allowed_groups))
+            return user.has_perm('tasks.create_personnel_task')
 
         return False
 
@@ -269,8 +267,8 @@ def choose_task_type(request):
     has_employee = user.is_authenticated and hasattr(user, 'employee') and user.employee is not None
 
     context = {
-        'can_create_purchase': has_employee and (GroupNames.PROCUREMENT_REQUESTER in user_groups or GroupNames.PI in user_groups),
-        'can_create_personnel': has_employee and any(g in user_groups for g in [GroupNames.PI, GroupNames.PERSONNEL_COORDINATOR]),
+        'can_create_purchase': has_employee and (user.has_perm('tasks.create_purchase_order') or user.has_perm('tasks.view_all_purchase_orders')),
+        'can_create_personnel': has_employee and user.has_perm('tasks.create_personnel_task'),
         'can_create_generic': has_employee,
     }
     return render(request, 'tasks/choose_task_type.html', context)

@@ -14,7 +14,7 @@ from .models import (
 )
 from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
 from apps.hr.models import Employee
-from apps.accounts.permissions import GroupNames
+# GroupNames removed (old groups deleted)
 
 
 # = Inlines =
@@ -51,7 +51,7 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         # WBS Element nur fÃ¼r Order Manager sichtbar
-        if not request.user.groups.filter(name=GroupNames.ORDER_MANAGER).exists():
+        if not (request.user.is_superuser or request.user.has_perm('tasks.change_wbs_on_purchase_order')):
             form.base_fields['wbs_element'].widget = forms.HiddenInput()
             form.base_fields['wbs_element'].required = False
         return form

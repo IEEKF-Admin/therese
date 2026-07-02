@@ -38,7 +38,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
 
         # ====== Supplier ======
         if 'supplier' in self.fields:
-            if not self.is_creation and self.user and self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists():
+            if not self.is_creation and self.user and self.user.has_perm('tasks.view_all_purchase_orders'):
                 self.fields['supplier'].widget = forms.HiddenInput()
                 if self.instance and self.instance.pk:
                     self.fields['supplier'].initial = self.instance.supplier
@@ -48,10 +48,10 @@ class PurchaseOrderTaskForm(forms.ModelForm):
 
         # ====== Assignee ======
         if 'assignee' in self.fields:
-            # Purchase Requesters und PIs sollen das Assignee-Dropdown niemals sehen
+            # Users without full PO access should not see the Assignee dropdown
             if self.user and (
-                self.user.groups.filter(name=GroupNames.PROCUREMENT_REQUESTER).exists() or
-                self.user.groups.filter(name=GroupNames.PI).exists()
+                not self.user.has_perm('tasks.view_all_purchase_orders') and
+                not self.user.has_perm('tasks.change_wbs_on_purchase_order')
             ):
                 self.fields['assignee'].widget = forms.HiddenInput()
                 self.fields['assignee'].required = False
@@ -60,7 +60,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
 
             else:
                 # Coordinator und andere (z.B. Approver) können Assignee aus Approvers wählen
-                approvers = Employee.objects.filter(user__groups__name=GroupNames.PROCUREMENT_APPROVER)
+                approvers = Employee.objects.filter(user__groups__name__in=["Procurement - Coordination Rights"])  # or use permission check
                 self.fields['assignee'].queryset = approvers.order_by('last_name', 'first_name')
                 self.fields['assignee'].widget.attrs.update({'class': 'form-control'})
                 self.fields['assignee'].empty_label = "— Unassigned —"
@@ -71,8 +71,8 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                 self.fields['at_beleg_nummer'].widget = forms.HiddenInput()
                 self.fields['at_beleg_nummer'].required = False
             elif self.user and not (
-                self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists() or
-                self.user.groups.filter(name=GroupNames.PROCUREMENT_APPROVER).exists()
+                self.user.has_perm('tasks.view_all_purchase_orders') or
+                self.user.has_perm('tasks.manage_standard_order')
             ):
                 self.fields['at_beleg_nummer'].widget = forms.HiddenInput()
                 self.fields['at_beleg_nummer'].required = False
@@ -99,8 +99,8 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             ).order_by('wbs_code')
             self.fields['wbs_element'].empty_label = "---------"
 
-            if not self.is_creation and self.user and self.user.groups.filter(name=GroupNames.PROCUREMENT_COORDINATOR).exists():
-                # Coordinator darf WBS ändern (bleibt Select)
+            if not self.is_creation and self.user and self.user.has_perm('tasks.view_all_purchase_orders'):
+                # Users with view all permission can change WBS
                 pass
             elif self.is_creation:
                 self.fields['wbs_element'].widget = forms.HiddenInput()
@@ -110,9 +110,9 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         cleaned_data = super().clean()
         wbs_element = cleaned_data.get('wbs_element')
 
-        if self.user and self.user.groups.filter(name='Procurement Coordinator').exists():
+        if self.user and self.user.has_perm('tasks.view_all_purchase_orders'):
             if not wbs_element:
-                self.add_error('wbs_element', "WBS Element is required for Procurement Coordinators.")
+                self.add_error('wbs_element', "WBS Element is required for users with full purchase order access.")
 
         return cleaned_data
 
@@ -289,8 +289,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
         if 'assignee' in self.fields:
-            # Nur Mitglieder der Gruppe "Personnel Fulfiller" dürfen zugewiesen werden
-            fulfullers = Employee.objects.filter(user__groups__name=GroupNames.PERSONNEL_FULFILLER)
+            # Only users in personnel task groups can be assigned
+            fulfullers = Employee.objects.filter(user__groups__name__in=["Personnel Tasks - Create", "Personnel - Coordination Rights"])
             self.fields['assignee'].queryset = fulfullers.order_by('last_name', 'first_name')
             self.fields['assignee'].empty_label = "— Unassigned —"
 

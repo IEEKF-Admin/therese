@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'apps.finances',
     'apps.hr',
     'apps.tasks',
-    'apps.documents',
     'widget_tweaks',
 ]
 

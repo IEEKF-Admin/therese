@@ -25,7 +25,7 @@ from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
-from apps.accounts.permissions import GroupNames
+from apps.accounts.permissions import user_can_assist
 from django.http import HttpResponse
 import csv
 from django.urls import reverse
@@ -348,7 +348,7 @@ def _parse_pay_scales_table(pasted_data, effective_date):
 @login_required
 def import_pay_scales(request):
     """Import Pay Scale / TV-L data from pasted table for Personnel Coordinators."""
-    if not request.user.groups.filter(name=GroupNames.PERSONNEL_COORDINATOR).exists():
+    if not (request.user.is_superuser or request.user.has_perm('finances.import_pay_scale')):
         messages.error(request, "You do not have permission to access this page.")
         return redirect('tasks:my_tasks')
 
@@ -445,17 +445,13 @@ def psp_elements(request):
     user = request.user
     user_groups = list(user.groups.values_list('name', flat=True)) if user.is_authenticated else []
 
-    allowed_groups = {
-        GroupNames.PROCUREMENT_COORDINATOR,
-        GroupNames.PI,
-        GroupNames.INSTITUTE_LEADER,
-    }
-
-    if not any(g in user_groups for g in allowed_groups):
+    if not (user.is_superuser or 
+            user.has_perm('finances.view_psp_overview') or
+            user.has_perm('finances.manage_psp_element')):
         messages.error(request, "You do not have permission to access this page.")
         return redirect('tasks:my_tasks')
 
-    is_institute_leader = GroupNames.INSTITUTE_LEADER in user_groups
+    is_institute_leader = user.has_perm('finances.view_psp_overview') and 'Institute Leader' in user_groups  # transitional
 
     # Get user's workgroups from Employee
     user_workgroups = []
@@ -581,7 +577,13 @@ def psp_elements(request):
         for b in bookings:
             wbs_obj = b['wbs']
             grouped[wbs_obj].append(b)
-        grouped_bookings = dict(grouped)
+        # Compute total burden per PSP/WBS
+        for wbs_obj, items in grouped.items():
+            total = sum((item.get('amount') or 0) for item in items)
+            grouped_bookings[wbs_obj] = {
+                'items': items,
+                'total': total
+            }
 
     # Export CSV (always uses flat list)
     if request.GET.get('export'):
@@ -621,4 +623,105 @@ def psp_elements(request):
     }
 
     return render(request, 'finances/psp_elements.html', context)
+
+
+# = Assisting Admins PSP Element (WBS) CRUD =
+
+from django.views.generic import ListView, CreateView, UpdateView
+from django.views.generic.edit import DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.urls import reverse_lazy
+from django.contrib import messages
+from django.db.models.deletion import ProtectedError
+from django.shortcuts import redirect
+from .models import WBSElement
+from apps.hr.models import Workgroup
+
+
+class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = WBSElement
+    template_name = 'finances/psp_list.html'
+    context_object_name = 'psp_elements'
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_psp_element')
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get('action') == 'delete_selected':
+            ids = [i for i in request.POST.getlist('selected_ids') if i]
+            if not ids:
+                messages.warning(request, "No entries selected.")
+                return redirect('finances:psp_manage')
+
+            deleted = 0
+            protected = 0
+            for pk in ids:
+                try:
+                    obj = WBSElement.objects.get(pk=pk)
+                    obj.delete()
+                    deleted += 1
+                except WBSElement.DoesNotExist:
+                    pass
+                except ProtectedError:
+                    protected += 1
+            if deleted:
+                messages.success(request, f"{deleted} PSP element(s) deleted.")
+            if protected:
+                messages.error(request, f"{protected} PSP element(s) could not be deleted (e.g. because of Funding Allocations or bookings).")
+            return redirect('finances:psp_manage')
+        return super().post(request, *args, **kwargs)
+
+
+class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = WBSElement
+    fields = ['wbs_code', 'title', 'work_group', 'responsible_person', 'comment']
+    template_name = 'finances/psp_form.html'
+    success_url = reverse_lazy('finances:psp_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_psp_element')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Create PSP Element'
+        return context
+
+
+class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = WBSElement
+    fields = ['wbs_code', 'title', 'work_group', 'responsible_person', 'comment']
+    template_name = 'finances/psp_form.html'
+    success_url = reverse_lazy('finances:psp_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_psp_element')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit PSP Element'
+        return context
+
+
+class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = WBSElement
+    template_name = 'finances/psp_confirm_delete.html'
+    success_url = reverse_lazy('finances:psp_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_psp_element')
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        code = obj.wbs_code
+        try:
+            response = super().delete(request, *args, **kwargs)
+            messages.success(request, f'PSP element "{code}" was deleted.')
+            return response
+        except ProtectedError:
+            messages.error(request, f'PSP element "{code}" cannot be deleted because dependent data exists (e.g. Funding Allocations).')
+            return redirect(self.success_url)
+
+    def post(self, request, *args, **kwargs):
+        # Allow bulk handling if needed, but bulk is primarily handled in list view
+        return super().post(request, *args, **kwargs)
 

@@ -21,38 +21,54 @@
                value="{{ search_query }}" onkeyup="filterEmployees()">
     </div>
 
-    <table class="employee-table" id="employee-table">
-        <thead>
-            <tr>
-                <th onclick="sortTable(0)">Name</th>
-                <th onclick="sortTable(1)">Employee No.</th>
-                <th>Office Phone</th>
-                <th style="width: 120px;">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for employee in employees %}
-            <tr>
-                <td><strong>{{ employee.get_full_name }}</strong></td>
-                <td>{{ employee.employee_number }}</td>
-                <td>{{ employee.phone_number|default:"—" }}</td>
-                <td>
-                    <a href="{% url 'hr:employee_update' employee.pk %}" class="btn-small">Edit</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" style="text-align:center; padding:30px;">
-                    {% if archive_mode %}
-                        No employees in archive.
-                    {% else %}
-                        No active employees found.
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <form method="post" id="bulk-delete-employees">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_selected">
+        <table class="table" id="employee-table">
+            <thead>
+                <tr>
+                    <th style="width: 2rem;">
+                        <input type="checkbox" id="select-all-employees" title="Alle auswählen">
+                    </th>
+                    <th onclick="sortTable(0)">Name</th>
+                    <th onclick="sortTable(1)">Employee No.</th>
+                    <th>Office Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in employees %}
+                <tr>
+                    <td><input type="checkbox" name="selected_ids" value="{{ employee.pk }}"></td>
+                    <td><strong>{{ employee.get_full_name }}</strong></td>
+                    <td>{{ employee.employee_number }}</td>
+                    <td>{{ employee.phone_number|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'hr:employee_update' employee.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center; padding:30px;">
+                        {% if archive_mode %}
+                            No employees in archive.
+                        {% else %}
+                            No active employees found.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if employees %}
+        <div style="margin-top: 0.5rem;">
+            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected employees?');">
+                Delete selected
+            </button>
+        </div>
+        {% endif %}
+    </form>
 </div>
 
 <a href="{% url 'hr:employee_create' %}" class="fab-button">
@@ -98,6 +114,17 @@ function sortTable(n) {
         }
     });
 }
+
+// Select all for bulk delete
+document.addEventListener('DOMContentLoaded', function() {
+    var selectAll = document.getElementById('select-all-employees');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            var boxes = document.querySelectorAll('input[name="selected_ids"]');
+            boxes.forEach(function(box) { box.checked = selectAll.checked; });
+        });
+    }
+});
 </script>
 {% endblock %}
 

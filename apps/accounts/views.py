@@ -43,3 +43,72 @@ class ThereseLoginView(LoginView):
     success_url = reverse_lazy('tasks:my_tasks')   # ← Namespace korrigiert
 
 
+from django.shortcuts import render, redirect
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import LoginPopupConfig
+
+def login_popup_settings(request):
+    if not (request.user.is_superuser or request.user.groups.filter(name='Assisting Admins').exists()):
+        from django.shortcuts import redirect
+        return redirect('tasks:my_tasks')
+    if request.method == 'POST':
+        if request.POST.get('action') == 'delete_selected':
+            for pk in request.POST.getlist('selected_configs'):
+                try:
+                    LoginPopupConfig.objects.get(pk=pk).delete()
+                except:
+                    pass
+            return redirect('accounts:login_popup_settings')
+
+        if request.POST.get('delete_pk'):
+            try:
+                LoginPopupConfig.objects.get(pk=request.POST['delete_pk']).delete()
+            except:
+                pass
+            return redirect('accounts:login_popup_settings')
+
+        pk = request.POST.get('pk')
+        if pk:
+            config = LoginPopupConfig.objects.get(pk=pk)
+        else:
+            config = LoginPopupConfig()
+        config.name = request.POST.get('name', '')
+        config.trigger = request.POST.get('trigger', '')
+        config.reaction_type = request.POST.get('reaction_type', 'popup')
+        config.text = request.POST.get('text', '')
+        config.link_to = request.POST.get('link_to', '')
+        x = request.POST.get('x_months')
+        config.x_months = int(x) if x else None
+        dt = request.POST.get('trigger_datetime')
+        if dt:
+            from datetime import datetime
+            try:
+                config.trigger_datetime = datetime.fromisoformat(dt.replace('T', ' '))
+            except:
+                config.trigger_datetime = None
+        else:
+            config.trigger_datetime = None
+        config.enabled = bool(request.POST.get('enabled'))
+        config.save()
+        return redirect('accounts:login_popup_settings')
+
+    configs = LoginPopupConfig.objects.all().order_by('name')
+    placeholders = [
+        '{{ first_name }}',
+        '{{ last_name }}',
+        '{{ full_name }}',
+        '{{ employee_number }}',
+        '{{ contract_end }}',
+        '{{ today }}',
+        '{{ title }}',
+    ]
+
+    return render(request, 'accounts/login_popup_settings.html', {
+        'configs': configs,
+        'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
+        'reaction_choices': LoginPopupConfig.REACTION_CHOICES,
+        'link_choices': LoginPopupConfig.LINK_CHOICES,
+        'placeholders': placeholders,
+    })
+
+

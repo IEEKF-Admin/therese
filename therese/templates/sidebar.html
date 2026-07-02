@@ -7,6 +7,8 @@
     </div>
 
     <div class="sidebar-nav">
+        <div class="sidebar-heading">Tasks &amp; Requests</div>
+
         <!-- My Tasks -->
         <a href="{% url 'tasks:my_tasks' %}" 
            class="{% if '/tasks/' in request.path and not '/tasks/create' in request.path %}active{% endif %}">
@@ -14,13 +16,13 @@
         </a>
 
         <!-- Direct Task Creation (moved from New Task) -->
-        {% if 'PI' in user_groups or 'Procurement Requester' in user_groups %}
+        {% if 'Purchase Orders - Create' in user_groups %}
         <a href="{% url 'tasks:task_create' %}?type=purchase_order">
             <i class="fas fa-shopping-cart"></i> New Purchase Order
         </a>
         {% endif %}
 
-        {% if 'PI' in user_groups or 'Personnel Coordinator' in user_groups %}
+        {% if 'Personnel Tasks - Create' in user_groups %}
         <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation">
             <i class="fas fa-exchange-alt"></i> Personnel Reallocation
         </a>
@@ -29,51 +31,73 @@
         </a>
         {% endif %}
 
-        {% if has_employee or 'PI' in user_groups or 'Personnel Coordinator' in user_groups or 'Procurement Requester' in user_groups %}
+        {% if has_employee or 'General Requests - Create' in user_groups %}
         <a href="{% url 'tasks:task_create' %}?type=generic_text">
             <i class="fas fa-comment-dots"></i> General Request
         </a>
         {% endif %}
 
+        <div class="sidebar-heading">People &amp; Resources</div>
+
         <!-- Employees -->
-        {% if 'PI' in user_groups or 'Personnel Approver' in user_groups or 'Personnel Fulfiller' in user_groups or 'Personnel Coordinator' in user_groups %}
+        {% if 'Employees - View' in user_groups or 'Employees - Manage' in user_groups %}
         <a href="{% url 'hr:employee_list' %}" 
            class="{% if '/hr/' in request.path %}active{% endif %}">
             <i class="fas fa-users"></i> Employees
         </a>
         {% endif %}
 
+        {% if has_employee %}
+        <a href="{% url 'hr:my_profile' %}" 
+           class="{% if 'my-profile' in request.path %}active{% endif %}">
+            <i class="fas fa-user-edit"></i> My Profile
+        </a>
+        {% endif %}
+
         <!-- PSP - Elemente -->
-        {% if 'Procurement Coordinator' in user_groups or 'PI' in user_groups or 'Institute Leader' in user_groups %}
+        {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups %}
         <a href="{% url 'finances:psp_elements' %}" 
            class="{% if 'psp-elements' in request.path %}active{% endif %}">
-            <i class="fas fa-project-diagram"></i> PSP - Elemente
+            <i class="fas fa-project-diagram"></i> PSP Elements
         </a>
         {% endif %}
 
         <!-- Import Pay Scales / TV-L -->
-        {% if 'Personnel Coordinator' in user_groups %}
+        {% if 'Pay Scales - Import' in user_groups %}
         <a href="{% url 'finances:import_pay_scales' %}" 
            class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
             <i class="fas fa-table"></i> Import Pay Scales / TV-L
         </a>
         {% endif %}
 
-        <!-- Documents -->
-        <a href="{% url 'documents:document_list' %}" 
-           class="{% if '/documents/' in request.path %}active{% endif %}">
-            <i class="fas fa-folder-open"></i> Documents
+        <!-- Management Areas (new permission groups) -->
+        {% if 'Working Groups - Manage' in user_groups or 'PSP Elements - Manage' in user_groups or 'Locations - Manage' in user_groups or 'Assisting Admins' in user_groups %}
+        <div class="sidebar-heading">Management</div>
+        <a href="{% url 'hr:workgroup_list' %}">
+            <i class="fas fa-users-cog"></i> Working Groups
         </a>
+        <a href="{% url 'finances:psp_manage' %}">
+            <i class="fas fa-project-diagram"></i> Manage PSP Elements
+        </a>
+        <a href="{% url 'hr:location_management' %}">
+            <i class="fas fa-building"></i> Manage Buildings / Rooms / Phones
+        </a>
+        {% if 'Assisting Admins' in user_groups %}
+        <a href="{% url 'accounts:login_popup_settings' %}">
+            <i class="fas fa-cog"></i> Login Popup Settings
+        </a>
+        {% endif %}
+        {% endif %}
 
         <!-- Standard Orders / Catalog -->
-        {% if 'Procurement Coordinator' in user_groups or 'Procurement Approver' in user_groups %}
+        {% if 'Standard Orders - Manage' in user_groups %}
             {# Full management for procurement roles #}
             <a href="{% url 'tasks:standard_orders_list' %}" 
                class="{% if '/tasks/standard-orders' in request.path and '/select' not in request.path %}active{% endif %}">
                 <i class="fas fa-book"></i> Standard Orders
             </a>
-        {% elif 'PI' in user_groups or 'Procurement Requester' in user_groups %}
-            {# Requesters and PI can browse the catalog when creating orders #}
+        {% elif 'Standard Orders - View' in user_groups or 'Purchase Orders - Create' in user_groups %}
+            {# Users with create or view rights can browse the catalog #}
             <a href="{% url 'tasks:standard_order_select' %}" 
                class="{% if 'standard_order_select' in request.path %}active{% endif %}">
                 <i class="fas fa-book"></i> Standard Orders
@@ -82,6 +106,7 @@
 
         <!-- Admin -->
         {% if user.is_staff %}
+        <div class="sidebar-heading">System</div>
         <a href="{% url 'admin:index' %}">
             <i class="fas fa-cog"></i> Admin
         </a>

@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 
 from apps.hr.models import Employee
-from apps.accounts.permissions import GroupNames
+# GroupNames import removed (old groups deleted)
 from ..models import StandardPurchaseItem
 from ..forms import StandardPurchaseItemForm
 from ..utils import can_create_purchase_order
@@ -21,10 +21,11 @@ def _user_can_manage_standard_items(user) -> bool:
     """Only Procurement Coordinator and Procurement Approver may manage the catalog."""
     if not user or not user.is_authenticated:
         return False
-    return user.groups.filter(name__in=[
-        GroupNames.PROCUREMENT_COORDINATOR,
-        GroupNames.PROCUREMENT_APPROVER
-    ]).exists()
+    return (
+        user.is_superuser or
+        user.has_perm('tasks.manage_standard_order') or
+        user.has_perm('tasks.view_all_purchase_orders')
+    )
 
 
 @login_required

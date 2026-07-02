@@ -28,6 +28,9 @@ class PayScale(BaseModel):
         verbose_name_plural = "Pay Scales"
         unique_together = ('pay_scale_group', 'experience_level', 'effective_as_of')
         ordering = ['pay_scale_group', 'experience_level']
+        permissions = [
+            ("import_pay_scale", "Can import pay scales / TV-L"),
+        ]
 
     def __str__(self):
         return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
@@ -90,8 +93,8 @@ class CostCenterInitialBalance(BaseModel):
 
 
 class WBSElement(BaseModel):
-    """WBS Element"""
-    wbs_code = models.CharField(max_length=50, unique=True, verbose_name="WBS Element")
+    """PSP Element"""
+    wbs_code = models.CharField(max_length=50, unique=True, verbose_name="PSP Element")
     title = models.CharField(max_length=255, verbose_name="Title")
     responsible_person = models.ForeignKey(
         'hr.Employee',                    # String Reference (wichtig!)
@@ -112,9 +115,14 @@ class WBSElement(BaseModel):
     )
 
     class Meta:
-        verbose_name = "WBS Element"
-        verbose_name_plural = "WBS Elements"
+        verbose_name = "PSP Element"
+        verbose_name_plural = "PSP Elements"
         ordering = ['wbs_code']
+        permissions = [
+            ("view_psp_element", "Can view individual PSP elements"),
+            ("manage_psp_element", "Can manage PSP elements"),
+            ("view_psp_overview", "Can view PSP overview with bookings and costs"),
+        ]
 
     def __str__(self):
         short_title = (self.title[:80] + '...') if len(self.title) > 80 else self.title

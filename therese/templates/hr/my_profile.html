@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static widget_tweaks %}
+
+{% block title %}My Profile - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Profile</h1>
+    <p>Update your employee information. The "Personal Information" card is read-only. Current Contracts and Funding Allocations are displayed but cannot be edited.</p>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+{% csrf_token %}
+
+{% if form.errors %}
+<div class="messages error">
+    <ul>
+    {% for field, errors in form.errors.items %}
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Personal Information - READ ONLY -->
+<div class="form-section">
+    <h3>Personal Information (read-only)</h3>
+    <div class="aligned-field"><label>First Name</label><span class="form-readonly">{{ object.first_name }}</span></div>
+    <div class="aligned-field"><label>Last Name</label><span class="form-readonly">{{ object.last_name }}</span></div>
+    <div class="aligned-field"><label>Employee Number</label><span class="form-readonly">{{ object.employee_number }}</span></div>
+    <div class="aligned-field"><label>Prefix / Title</label><span class="form-readonly">{{ object.prefix|default:"-" }}</span></div>
+    <div class="aligned-field"><label>Gender</label><span class="form-readonly">{{ object.get_gender_display }}</span></div>
+    <div class="aligned-field"><label>Date of Birth</label><span class="form-readonly">{{ object.date_of_birth|default:"-" }}</span></div>
+    <div class="aligned-field"><label>Country of Origin</label><span class="form-readonly">{{ object.country_of_origin|default:"-" }}</span></div>
+    <div class="aligned-field"><label>Place of Birth</label><span class="form-readonly">{{ object.place_of_birth|default:"-" }}</span></div>
+</div>
+
+<!-- Editable sections -->
+<div class="employee-two-col">
+    <div class="left-col">
+        {% include "hr/employee_form/address.html" %}
+        {% include "hr/employee_form/workgroups.html" %}
+    </div>
+    <div class="right-col">
+        {% include "hr/employee_form/contact_location.html" %}
+        {% include "hr/employee_form/documents_finance.html" %}
+    </div>
+</div>
+
+<!-- Current Contracts READ-ONLY -->
+<div class="full-block">
+    <h3>Current Contracts (read-only)</h3>
+    {% if current_contracts %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Pay Scale Group</th>
+                <th>Experience Level</th>
+                <th>Weekly Hours</th>
+                <th>Valid From</th>
+                <th>Valid Until</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for c in current_contracts %}
+            <tr>
+                <td>{{ c.pay_scale_group }}</td>
+                <td>{{ c.experience_level }}</td>
+                <td>{{ c.weekly_hours }}</td>
+                <td>{{ c.valid_from }}</td>
+                <td>{{ c.valid_until|default:"open" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No current contracts.</p>
+    {% endif %}
+</div>
+
+<!-- Current Funding READ-ONLY -->
+<div class="full-block">
+    <h3>Current Funding Allocations (read-only)</h3>
+    {% if current_fundings %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>WBS / PSP Element</th>
+                <th>Hours/Week</th>
+                <th>Valid From</th>
+                <th>Valid Until</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for f in current_fundings %}
+            <tr>
+                <td>{{ f.wbs_element }}</td>
+                <td>{{ f.weekly_hours_allocated }}</td>
+                <td>{{ f.start_date }}</td>
+                <td>{{ f.end_date|default:"open" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No current funding allocations.</p>
+    {% endif %}
+</div>
+
+
+
+<div class="form-actions">
+    <button type="submit" class="btn-primary">💾 Save My Profile</button>
+    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>
+</div>
+
+</form>
+
+<script>
+// Minimal inline row adder for workgroup (copied/adapted for my_profile)
+(function() {
+    window.addInlineRow = function(containerId, rowSelector, formsetPrefix) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const template = document.querySelector(rowSelector + '.empty-form-template');
+        if (!template) return;
+        const totalInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+        if (!totalInput) return;
+        const newIndex = parseInt(totalInput.value);
+        const newRow = template.cloneNode(true);
+        newRow.style.display = '';
+        newRow.classList.remove('empty-form-template');
+        newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, newIndex);
+        container.appendChild(newRow);
+        totalInput.value = newIndex + 1;
+    };
+})();
+</script>
+{% endblock %}

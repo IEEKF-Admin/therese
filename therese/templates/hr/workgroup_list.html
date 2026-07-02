@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Working Groups - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Working Groups</h1>
+    <a href="{% url 'hr:workgroup_create' %}" class="btn-primary">+ New Working Group</a>
+</div>
+
+<form method="post" id="bulk-delete-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 2rem;">
+                    <input type="checkbox" id="select-all" title="Alle auswählen">
+                </th>
+                <th>Kurzname</th>
+                <th>Vollständiger Name</th>
+                <th>PI</th>
+                <th>Mitglieder</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for wg in workgroups %}
+            <tr>
+                <td><input type="checkbox" name="selected_ids" value="{{ wg.pk }}"></td>
+                <td>{{ wg.short_name }}</td>
+                <td>{{ wg.long_name }}</td>
+                <td>{{ wg.pi }}</td>
+                <td>{{ wg.members.count }}</td>
+                <td>
+                    <a href="{% url 'hr:workgroup_update' wg.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'hr:workgroup_delete' wg.pk %}" class="action-icon delete" 
+                       onclick="return confirm('Delete this working group?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No working groups found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if workgroups %}
+    <div style="margin-top: 0.5rem;">
+        <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected working groups?');">
+            Delete selected
+        </button>
+        <small style="margin-left: 1rem; color: #666;">Entries with dependencies cannot be deleted.</small>
+    </div>
+    {% endif %}
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            var boxes = document.querySelectorAll('input[name="selected_ids"]');
+            boxes.forEach(function(box) { box.checked = selectAll.checked; });
+        });
+    }
+});
+</script>
+{% endblock %}

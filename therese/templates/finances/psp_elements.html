@@ -49,14 +49,14 @@
 </form>
 
 {% if is_all and grouped_bookings %}
-    {% for wbs, items in grouped_bookings.items %}
-    <h3>
+    {% for wbs, data in grouped_bookings.items %}
+    <h3 style="margin-top: 2rem;">
         {{ wbs }}
         {% if wbs.work_group %}
             <small style="color:#666; font-size:0.85em;">({{ wbs.work_group }})</small>
         {% endif %}
     </h3>
-    <p><strong>{{ items|length }} Einträge</strong></p>
+    <p><strong>{{ data.items|length }} Einträge</strong> | <strong>Gesamtbelastung: {{ data.total|floatformat:2 }} €</strong></p>
 
     <table class="table">
         <thead>
@@ -68,7 +68,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for b in items %}
+            {% for b in data.items %}
             <tr>
                 <td>{{ b.date }}</td>
                 <td>{{ b.person }}</td>

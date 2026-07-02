@@ -269,3 +269,38 @@ FundingFormSet = inlineformset_factory(Employee, FundingAllocation, form=Funding
 SalaryFormSet = inlineformset_factory(Employee, SalarySupplement, fields='__all__', extra=0, can_delete=True)
 WorkgroupFormSet = inlineformset_factory(Employee, Workgroup.members.through, fields=('workgroup',), extra=0, can_delete=True)
 
+
+# = Location management forms for Assisting Admins (Buildings / Rooms / Phones) =
+
+class BuildingForm(forms.ModelForm):
+    class Meta:
+        model = Building
+        fields = ['number', 'name', 'address']
+        widgets = {
+            'number': forms.TextInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+
+class RoomForm(forms.ModelForm):
+    class Meta:
+        model = Room
+        fields = ['building', 'room_number', 'colloquial_name', 'comment']
+        widgets = {
+            'building': forms.Select(attrs={'class': 'form-control'}),
+            'room_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'colloquial_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+
+class PhoneNumberForm(forms.ModelForm):
+    class Meta:
+        model = PhoneNumber
+        fields = ['room', 'phone_number']
+        widgets = {
+            'room': forms.Select(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+

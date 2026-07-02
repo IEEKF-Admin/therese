@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Delete PSP Element - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Delete PSP Element?</h1>
+</div>
+
+<div class="card">
+    <p>Are you sure you want to delete the following PSP element?</p>
+    <p><strong>{{ object.wbs_code }}</strong> — {{ object.title }}</p>
+    <p><small>Workgroup: {{ object.work_group|default:"—" }} | Responsible: {{ object.responsible_person|default:"—" }}</small></p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-actions">
+            <button type="submit" class="btn-danger">Yes, delete</button>
+            <a href="{% url 'finances:psp_manage' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<p><em>Note: A PSP element cannot be deleted while used in Funding Allocations or bookings.</em></p>
+{% endblock %}

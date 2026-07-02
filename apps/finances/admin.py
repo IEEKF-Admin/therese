@@ -40,7 +40,7 @@ class WBSElementAdmin(admin.ModelAdmin):
     list_filter = ('work_group', 'responsible_person',)
     search_fields = ('wbs_code', 'title', 'comment', 'work_group__short_name')
     ordering = ('wbs_code',)
-    autocomplete_fields = ['work_group']  # requires search in Workgroup admin if large
+    autocomplete_fields = ['work_group']
 
 
 @admin.register(WBSElementInitialBalance, site=therese_admin)

@@ -154,6 +154,13 @@ class PurchaseOrderTask(Task):
     class Meta:
         verbose_name = "Purchase Order Task"
         verbose_name_plural = "Purchase Order Tasks"
+        permissions = [
+            ("create_purchase_order", "Can create purchase orders"),
+            ("view_all_purchase_orders", "Can view all purchase orders"),
+            ("change_wbs_on_purchase_order", "Can change WBS element on purchase orders"),
+            ("create_personnel_task", "Can create personnel tasks"),
+            ("create_general_request", "Can create general requests"),
+        ]
 
     @property
     def total_price(self):
@@ -218,7 +225,7 @@ class GenericTextTask(Task):
 class StandardPurchaseItem(BaseModel):
     """
     Standard / catalog items that can be quickly reused when creating new Purchase Orders.
-    Supports optional product image stored as binary (like documents).
+    Supports optional product image stored as binary.
     Duplicate check is done on (supplier + order_number).
     """
 
@@ -247,6 +254,10 @@ class StandardPurchaseItem(BaseModel):
         ordering = ['supplier', 'product_name']
         verbose_name = "Standard Purchase Item"
         verbose_name_plural = "Standard Purchase Items"
+        permissions = [
+            ("view_standard_order", "Can view standard orders"),
+            ("manage_standard_order", "Can manage standard orders"),
+        ]
 
     def __str__(self):
         return f"{self.supplier} - {self.product_name} ({self.order_number or 'no order #'})"

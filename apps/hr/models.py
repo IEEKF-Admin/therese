@@ -31,6 +31,9 @@ class Building(BaseModel):
         verbose_name = "Building"
         verbose_name_plural = "Buildings"
         ordering = ['number']
+        permissions = [
+            ("manage_location", "Can manage buildings, rooms and phones"),
+        ]
 
     def __str__(self):
         return f"{self.number} - {self.name}" if self.name else self.number
@@ -126,7 +129,6 @@ class Employee(BaseModel):
     city = models.CharField(max_length=100, blank=True, verbose_name="City")
     country = models.CharField(max_length=100, default="Germany", verbose_name="Country")
 
-    # Documents
     scan_of_contract = models.FileField(
         upload_to='contract_scans/',
         null=True,
@@ -167,6 +169,10 @@ class Employee(BaseModel):
         verbose_name = "Employee"
         verbose_name_plural = "Employees"
         ordering = ['last_name', 'first_name']
+        permissions = [
+            ("can_view_employees", "Can view employee list and details"),
+            ("manage_employee", "Can manage employees (create and fully edit)"),
+        ]
 
     def __str__(self):
         prefix = f"{self.prefix} " if self.prefix else ""
@@ -324,6 +330,9 @@ class Workgroup(models.Model):
         verbose_name = "Workgroup"
         verbose_name_plural = "Workgroups"
         ordering = ['short_name']
+        permissions = [
+            ("manage_working_group", "Can manage working groups"),
+        ]
 
     def __str__(self):
         return f"{self.short_name} ({self.long_name})"

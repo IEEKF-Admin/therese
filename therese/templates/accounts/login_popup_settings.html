@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Login Popup Settings - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Login Popup Settings</h1>
+    <p>Configure popups or notifications shown at login. Only visible to Assisting Admins.</p>
+</div>
+
+<h2>Existing Configurations</h2>
+<form method="post" id="bulk-delete-configs">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 2rem;">
+                    <input type="checkbox" id="select-all-configs" title="Alle auswählen">
+                </th>
+                <th>Name</th>
+                <th>Trigger</th>
+                <th>Reaction</th>
+                <th>Link To</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for config in configs %}
+        <tr>
+            <td><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
+            <td>{{ config.name }}</td>
+            <td>{{ config.get_trigger_display }}</td>
+            <td>{{ config.get_reaction_type_display }}</td>
+            <td>{{ config.get_link_to_display|default:"-" }}</td>
+            <td>{{ config.enabled|yesno:"Yes,No" }}</td>
+            <td>
+                <a href="#" 
+                   onclick="editConfig(this); return false;" 
+                   class="action-icon edit" 
+                   title="Edit"
+                   data-pk="{{ config.pk }}"
+                   data-name="{{ config.name }}"
+                   data-trigger="{{ config.trigger }}"
+                   data-reaction="{{ config.reaction_type }}"
+                   data-link="{{ config.link_to }}"
+                   data-x-months="{{ config.x_months|default:'' }}"
+                   data-datetime="{% if config.trigger_datetime %}{{ config.trigger_datetime|date:'Y-m-d\TH:i' }}{% endif %}">
+                    <i class="fas fa-edit"></i>
+                </a>
+                <a href="#" 
+                   onclick="if(confirm('Delete this config?')) { var f=document.createElement('form'); f.method='post'; f.innerHTML='<input type=hidden name=csrfmiddlewaretoken value=\'{{ csrf_token }}\'><input type=hidden name=delete_pk value={{ config.pk }}>'; document.body.appendChild(f); f.submit(); }" 
+                   class="action-icon delete" 
+                   title="Delete">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">No configurations yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if configs %}
+    <div style="margin-top: 0.5rem;">
+        <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected configurations?');">
+            Delete selected
+        </button>
+    </div>
+    {% endif %}
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var selectAll = document.getElementById('select-all-configs');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            var boxes = document.querySelectorAll('input[name="selected_configs"]');
+            boxes.forEach(function(box) { box.checked = selectAll.checked; });
+        });
+    }
+});
+</script>
+
+<h2>Add / Edit Configuration</h2>
+<form method="post" id="config-form">
+    {% csrf_token %}
+    <input type="hidden" name="pk" id="config-pk">
+    <div class="form-row">
+        <div>
+            <label>Name</label>
+            <input type="text" name="name" id="config-name" class="form-control" required>
+        </div>
+        <div>
+            <label>Trigger</label>
+            <select name="trigger" id="config-trigger" class="form-control" onchange="toggleFields()">
+                {% for value, label in trigger_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="datetime-field" style="display:none; margin-top: 0.5rem;">
+                <label>Trigger Date/Time (for login after)</label>
+                <input type="datetime-local" name="trigger_datetime" id="config-datetime" class="form-control">
+            </div>
+
+            <div id="x-months-field" style="display:none; margin-top: 0.5rem;">
+                <label>X Months</label>
+                <input type="number" name="x_months" id="config-x-months" class="form-control" min="1">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>Reaction Type</label>
+            <select name="reaction_type" id="config-reaction" class="form-control">
+                {% for value, label in reaction_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Link To (for Popup)</label>
+            <select name="link_to" id="config-link" class="form-control">
+                {% for value, label in link_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div>
+        <label>Message Text</label>
+        <textarea name="text" id="config-text" class="form-control" rows="30" style="min-height: 600px; width: 100%; font-family: monospace;" required placeholder="Hello {{ first_name }} {{ last_name }}, your contract ends {{ contract_end }}."></textarea>
+        <!-- For WYSIWYG: currently plain textarea (no rich editor loaded in project). Can be upgraded later with e.g. CKEditor CDN if desired. -->
+        <small style="color:#666;">Available placeholders:
+            {% for p in placeholders %}
+                <code>{{ p }}</code>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </small>
+    </div>
+
+
+
+    <div>
+        <label><input type="checkbox" name="enabled" id="config-enabled" checked> Enabled</label>
+    </div>
+
+    <div class="form-actions" style="margin-top:1rem;">
+        <button type="submit" class="btn-primary">Save Configuration</button>
+        <button type="button" onclick="resetForm()" class="btn-secondary">Cancel / New</button>
+    </div>
+</form>
+
+<script>
+function toggleFields() {
+    var trigger = document.getElementById('config-trigger').value;
+    document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
+    document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
+}
+
+function editConfig(element) {
+    const data = element.dataset;
+    document.getElementById('config-pk').value = data.pk || '';
+    document.getElementById('config-name').value = data.name || '';
+    document.getElementById('config-trigger').value = data.trigger || '';
+    document.getElementById('config-reaction').value = data.reaction || '';
+    document.getElementById('config-link').value = data.link || '';
+    document.getElementById('config-x-months').value = data.xMonths || '';
+    
+    const dtField = document.getElementById('config-datetime');
+    dtField.value = data.datetime || '';
+    
+    // Show the correct conditional fields
+    toggleFields();
+}
+
+function resetForm() {
+    document.getElementById('config-form').reset();
+    document.getElementById('config-pk').value = '';
+    document.getElementById('x-months-field').style.display = 'none';
+    document.getElementById('datetime-field').style.display = 'none';
+}
+
+// Handle delete via separate form in table (already in HTML)
+document.addEventListener('DOMContentLoaded', function() {
+    toggleFields();
+    var triggerSel = document.getElementById('config-trigger');
+    if (triggerSel) triggerSel.addEventListener('change', toggleFields);
+});
+</script>
+{% endblock %}

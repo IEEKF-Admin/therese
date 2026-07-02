@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title|default:"Working Group" }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if object %}Edit Working Group{% else %}New Working Group{% endif %}</h1>
+    <a href="{% url 'hr:workgroup_list' %}" class="btn-secondary">← Back to list</a>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn-primary">Save</button>
+</form>
+{% endblock %}

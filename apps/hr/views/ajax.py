@@ -13,7 +13,7 @@ Do not remove any existing requirements from this header without explicit instru
 """
 
 from django.http import JsonResponse
-from apps.accounts.permissions import GroupNames
+# GroupNames import removed - using permissions instead of old groups
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 
@@ -24,10 +24,9 @@ from ..models import Room, PhoneNumber
 @require_GET
 def ajax_rooms_by_building(request):
     """Return all rooms for a given building"""
-    user_groups = list(request.user.groups.values_list('name', flat=True))
-    allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
-    
-    if not (request.user.is_superuser or allowed_groups.intersection(user_groups)):
+    if not (request.user.is_superuser or 
+            request.user.has_perm('hr.view_employee') or 
+            request.user.has_perm('hr.manage_employee')):
         return JsonResponse([], safe=False)
 
     building_id = request.GET.get('building')
@@ -43,10 +42,9 @@ def ajax_rooms_by_building(request):
 @require_GET
 def ajax_phonenumbers_by_room(request):
     """Return all phone numbers for a given room"""
-    user_groups = list(request.user.groups.values_list('name', flat=True))
-    allowed_groups = {GroupNames.PI, GroupNames.PERSONNEL_APPROVER, GroupNames.PERSONNEL_FULFILLER, GroupNames.PERSONNEL_COORDINATOR}
-    
-    if not (request.user.is_superuser or allowed_groups.intersection(user_groups)):
+    if not (request.user.is_superuser or 
+            request.user.has_perm('hr.view_employee') or 
+            request.user.has_perm('hr.manage_employee')):
         return JsonResponse([], safe=False)
 
     room_id = request.GET.get('room')

@@ -49,7 +49,6 @@ from .models import LoginPopupConfig
 
 def login_popup_settings(request):
     if not (request.user.is_superuser or request.user.groups.filter(name='Assisting Admins').exists()):
-        from django.shortcuts import redirect
         return redirect('tasks:my_tasks')
     if request.method == 'POST':
         if request.POST.get('action') == 'delete_selected':

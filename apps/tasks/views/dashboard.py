@@ -115,7 +115,8 @@ def my_tasks(request):
     # Redirect only based on the last popup's link (or first with link)
     from apps.accounts.models import LoginPopupConfig
     import json
-    from datetime import date, timedelta, datetime
+    from datetime import date, timedelta
+    from django.utils import timezone
 
     def render_text(text, user, employee):
         if not employee:
@@ -147,7 +148,7 @@ def my_tasks(request):
     popups = []
 
     employee = getattr(request.user, 'employee', None)
-    now = datetime.now()
+    now = timezone.now()
 
     # Configurable popups (first_login now also via LoginPopupConfig)
     for config in LoginPopupConfig.objects.filter(enabled=True).order_by('id'):
@@ -173,7 +174,7 @@ def my_tasks(request):
                 # New tasks assigned after last login
                 new_assigned = False
                 for t in assigned_to_me:
-                    if getattr(t, 'created_at', None) and t.created_at > request.user.last_login:
+                    if getattr(t, 'created_at', None) and t.created_at > (request.user.last_login or t.created_at):
                         new_assigned = True
                         break
                 if new_assigned:
@@ -182,7 +183,7 @@ def my_tasks(request):
         elif config.trigger == 'task_status_changed' and employee:
             if request.user.last_login:
                 for t in my_created:
-                    if getattr(t, 'updated_at', None) and t.updated_at > request.user.last_login:
+                    if getattr(t, 'updated_at', None) and t.updated_at > (request.user.last_login or t.updated_at):
                         show = True
                         break
 

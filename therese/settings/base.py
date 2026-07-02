@@ -17,7 +17,27 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# ALLOWED_HOSTS should be set via .env (recommended for production)
+# Use exact hostnames/IPs. For IP ranges (e.g. 172.26.70.*) a custom patch is needed.
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+
+# Patch to support IP range wildcards like '172.26.70.*' (Django doesn't support natively)
+import django.utils.http as _http_utils
+_original_is_same = _http_utils.is_same_domain
+
+def _ip_range_is_same(host, pattern):
+    if pattern.endswith('.*'):
+        base = pattern[:-2]
+        if host == base or host.startswith(base + '.'):
+            suffix = host[len(base):].lstrip('.')
+            if suffix.isdigit():
+                return True
+    return _original_is_same(host, pattern)
+
+_http_utils.is_same_domain = _ip_range_is_same
+
+import django.http.request as _req
+_req.is_same_domain = _ip_range_is_same
 
 INSTALLED_APPS = [
     'django.contrib.admin',

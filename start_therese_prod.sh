@@ -91,6 +91,17 @@ export PYTHONUNBUFFERED=1
 echo "Führe Datenbank-Migrationen aus..."
 python manage.py migrate --noinput
 
+echo "Stelle Gruppen + Berechtigungen sicher (auch bei 'No migrations to apply')..."
+python -c '
+import os, django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "therese.settings.base")
+django.setup()
+from apps.accounts.permissions import get_or_create_default_groups, assign_permissions_to_groups
+get_or_create_default_groups()
+assign_permissions_to_groups()
+print("  [Groups] Gruppen und Berechtigungen sind aktuell.")
+' 2>&1 || echo "  [WARN] Konnte Gruppen-Setup nicht ausführen"
+
 echo "Sammle statische Dateien (collectstatic)..."
 python manage.py collectstatic --noinput
 

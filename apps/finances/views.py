@@ -451,7 +451,9 @@ def psp_elements(request):
         messages.error(request, "You do not have permission to access this page.")
         return redirect('tasks:my_tasks')
 
-    is_institute_leader = user.has_perm('finances.view_psp_overview') and 'Institute Leader' in user_groups  # transitional
+    # Users with manage_psp_element get full "institute leader"-style access (see all + workgroup filter dropdown).
+    # PSP View users are restricted to their own workgroups (unless they also hold manage).
+    is_institute_leader = user.has_perm('finances.manage_psp_element')
 
     # Get user's workgroups from Employee
     user_workgroups = []
@@ -462,7 +464,7 @@ def psp_elements(request):
     wbs_id = request.GET.get('wbs', '')
     all_wbs = WBSElement.objects.all().order_by('wbs_code')
 
-    # Filter WBS by workgroup for non-leaders
+    # Filter WBS by workgroup for non-leaders / non-managers
     if not is_institute_leader and user_workgroups:
         all_wbs = all_wbs.filter(work_group__in=user_workgroups)
 
@@ -489,7 +491,7 @@ def psp_elements(request):
         except:
             pass
 
-    # Workgroup filter for Institute Leader
+    # Workgroup filter dropdown only for managers (former Institute Leaders)
     filter_workgroup_id = request.GET.get('work_group', '') if is_institute_leader else ''
     filter_workgroup = None
     if filter_workgroup_id and filter_workgroup_id != 'all':
@@ -600,7 +602,7 @@ def psp_elements(request):
             ])
         return response
 
-    # For Institute Leader workgroup options
+    # For manager (broad access) workgroup options
     workgroup_choices = []
     if is_institute_leader:
         workgroup_choices = [('', '- All -')] + [(wg.id, str(wg)) for wg in Workgroup.objects.all()]

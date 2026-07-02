@@ -29,9 +29,13 @@ class AccountsConfig(AppConfig):
         def create_groups_after_migrate(sender, **kwargs):
             # Nur ausfÃ¼hren, wenn die Accounts-App migriert wurde
             if sender.name == 'apps.accounts':
+                print("[Accounts] Running group/permission setup via post_migrate...")
                 get_or_create_default_groups()
                 assign_permissions_to_groups()
 
         post_migrate.connect(create_groups_after_migrate, sender=self)
+
+        # Hinweis: Bei 'No migrations to apply' (kein post_migrate für accounts) auf Prod:
+        #   python manage.py ensure_groups
 
 

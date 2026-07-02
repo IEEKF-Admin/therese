@@ -25,7 +25,7 @@ from ..models import Room, PhoneNumber
 def ajax_rooms_by_building(request):
     """Return all rooms for a given building"""
     if not (request.user.is_superuser or 
-            request.user.has_perm('hr.view_employee') or 
+            request.user.has_perm('hr.can_view_employees') or 
             request.user.has_perm('hr.manage_employee')):
         return JsonResponse([], safe=False)
 
@@ -43,7 +43,7 @@ def ajax_rooms_by_building(request):
 def ajax_phonenumbers_by_room(request):
     """Return all phone numbers for a given room"""
     if not (request.user.is_superuser or 
-            request.user.has_perm('hr.view_employee') or 
+            request.user.has_perm('hr.can_view_employees') or 
             request.user.has_perm('hr.manage_employee')):
         return JsonResponse([], safe=False)
 

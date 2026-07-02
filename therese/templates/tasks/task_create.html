@@ -41,7 +41,7 @@
                 </div>
                 {% if form.assignee.field.widget.input_type != 'hidden' %}
                 <div class="aligned-field">
-                    <label>Assignee</label>
+                    <label>Assignee <span style="color:#ef4444;">*</span></label>
                     {{ form.assignee|add_class:"form-control" }}
                     <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Zuständiger</small>
                 </div>
@@ -71,7 +71,7 @@
                     <div class="purchase-item">
                         <div class="item-grid">
                             <div class="item-field">
-                                <label>Product Name</label>
+                                <label>Product Name <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.product_name|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
                             </div>
@@ -81,22 +81,22 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
                             </div>
                             <div class="item-field">
-                                <label>Link</label>
+                                <label>Link <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.link_to_product|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Link zum Produkt</small>
                             </div>
                             <div class="item-field">
-                                <label>Order #</label>
+                                <label>Order # <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.order_number|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Bestellnummer</small>
                             </div>
                             <div class="item-field">
-                                <label>Unit Price (€)</label>
+                                <label>Unit Price (€) <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.unit_price|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Einzelpreis (€)</small>
                             </div>
                             <div class="item-field">
-                                <label>Quantity</label>
+                                <label>Quantity <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.quantity|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
@@ -111,7 +111,7 @@
                     <div class="purchase-item">
                         <div class="item-grid">
                             <div class="item-field">
-                                <label>Product Name</label>
+                                <label>Product Name <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.product_name|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
                             </div>
@@ -121,22 +121,22 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
                             </div>
                             <div class="item-field">
-                                <label>Link</label>
+                                <label>Link <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.link_to_product|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Link zum Produkt</small>
                             </div>
                             <div class="item-field">
-                                <label>Order #</label>
+                                <label>Order # <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.order_number|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Bestellnummer</small>
                             </div>
                             <div class="item-field">
-                                <label>Unit Price (€)</label>
+                                <label>Unit Price (€) <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.unit_price|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Einzelpreis (€)</small>
                             </div>
                             <div class="item-field">
-                                <label>Quantity</label>
+                                <label>Quantity <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.quantity|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
@@ -150,7 +150,7 @@
 
             <!-- Comment / Notes -->
             <div class="form-section">
-                <h3>Comment / Notes</h3>
+                <h3>Comment / Notes <span style="color:#ef4444;">*</span></h3>
                 {{ form.comment|add_class:"form-control" }}
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
             </div>
@@ -299,7 +299,7 @@
     <div class="purchase-item">
         <div class="item-grid">
             <div class="item-field">
-                <label>Product Name</label>
+                <label>Product Name <span style="color:#ef4444;">*</span></label>
                 {{ item_formset.empty_form.product_name|add_class:"form-control" }}
             </div>
             <div class="item-field">
@@ -308,19 +308,19 @@
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
             </div>
             <div class="item-field">
-                <label>Link</label>
+                <label>Link <span style="color:#ef4444;">*</span></label>
                 {{ item_formset.empty_form.link_to_product|add_class:"form-control" }}
             </div>
             <div class="item-field">
-                <label>Order #</label>
+                <label>Order # <span style="color:#ef4444;">*</span></label>
                 {{ item_formset.empty_form.order_number|add_class:"form-control" }}
             </div>
             <div class="item-field">
-                <label>Unit Price (€)</label>
+                <label>Unit Price (€) <span style="color:#ef4444;">*</span></label>
                 {{ item_formset.empty_form.unit_price|add_class:"form-control" }}
             </div>
             <div class="item-field">
-                <label>Quantity</label>
+                <label>Quantity <span style="color:#ef4444;">*</span></label>
                 {{ item_formset.empty_form.quantity|add_class:"form-control" }}
             </div>
         </div>

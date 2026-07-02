@@ -203,14 +203,86 @@ Do not remove any existing requirements from this header without explicit instru
     </div>
     {% endif %}
 
+    {% if is_personnel_coordinator %}
+    <div class="task-card full-width">
+        <h3>👥 {% if is_archive_view %}Archived {% endif %}All Visible Personnel Tasks</h3>
+        {% if personnel_all_visible %}
+            {% include "tasks/partials/task_table.html" with tasks=personnel_all_visible show_assignee=True show_archive_action=True is_archive_view=is_archive_view %}
+        {% else %}
+            <p class="empty-state">No personnel tasks visible.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
 </div>
 
 <a href="{% url 'tasks:choose_task_type' %}" class="fab-button">
     <span>+</span> New Task
 </a>
+
+{% if login_popups %}
+<div id="login-popup-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; max-width:500px; width:90%; padding:20px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <p id="popup-text" style="margin-bottom:20px; line-height:1.5; white-space:pre-wrap;"></p>
+    <button id="popup-ok" class="btn-primary" style="width:100%;">OK</button>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+{% if login_popups %}
+<script>
+(function() {
+  var popups = {{ login_popups_json|default:'[]'|safe }};
+  var popupLinks = {
+    'my_profile': "{% url 'hr:my_profile' %}",
+    'my_tasks': "{% url 'tasks:my_tasks' %}",
+    'employee_list': "{% url 'hr:employee_list' %}",
+    'psp_elements': "{% url 'finances:psp_elements' %}",
+    'workgroup_list': "{% url 'hr:workgroup_list' %}",
+    'location_management': "{% url 'hr:location_management' %}"
+  };
+  var current = 0;
+  var modal = document.getElementById('login-popup-modal');
+  var textEl = document.getElementById('popup-text');
+  var okBtn = document.getElementById('popup-ok');
+
+  function showPopup() {
+    if (current >= popups.length) {
+      modal.style.display = 'none';
+      return;
+    }
+    var p = popups[current];
+    textEl.textContent = p.text;
+    okBtn.onclick = function() {
+      current++;
+      if (current < popups.length) {
+        showPopup();
+      } else {
+        var redirectLink = '';
+        for (var i = popups.length - 1; i >= 0; i--) {
+          if (popups[i].link) {
+            redirectLink = popups[i].link;
+            break;
+          }
+        }
+        if (redirectLink && popupLinks[redirectLink]) {
+          window.location.href = popupLinks[redirectLink];
+        } else {
+          modal.style.display = 'none';
+        }
+      }
+    };
+    modal.style.display = 'flex';
+  }
+
+  if (popups.length > 0) {
+    showPopup();
+  }
+})();
+</script>
+{% endif %}
 <script>
 function filterPurchaseOrders() {
     const input = document.getElementById('po-search').value.toLowerCase();

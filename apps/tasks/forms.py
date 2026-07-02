@@ -3,6 +3,7 @@ apps/tasks/forms.py
 Project: THERESE – Transparent HR Resource System Enhanced
 """
 from django import forms
+from django.forms.models import BaseInlineFormSet
 from .models import (
     PurchaseOrderTask,
     PurchaseItem,
@@ -16,7 +17,7 @@ from .models import (
 )
 from apps.finances.models import WBSElement
 from apps.hr.models import Employee
-from apps.accounts.permissions import GroupNames
+from .utils import procurement_approver_employees, personnel_approver_employees
 
 
 class PurchaseOrderTaskForm(forms.ModelForm):
@@ -45,6 +46,16 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                 self.fields['supplier'].required = True
             else:
                 self.fields['supplier'].widget.attrs.update({'class': 'form-control'})
+                if self.is_creation:
+                    self.fields['supplier'].required = True
+
+        # ====== Priority & Comment (creation rules) ======
+        if 'priority' in self.fields:
+            self.fields['priority'].required = False
+            self.fields['priority'].widget.attrs.update({'class': 'form-control'})
+
+        if 'comment' in self.fields and self.is_creation:
+            self.fields['comment'].required = True
 
         # ====== Assignee ======
         if 'assignee' in self.fields:
@@ -59,11 +70,12 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                     self.fields['assignee'].initial = None  # bleibt unassigned, bis Coordinator/Approver es setzt
 
             else:
-                # Coordinator und andere (z.B. Approver) können Assignee aus Approvers wählen
-                approvers = Employee.objects.filter(user__groups__name__in=["Procurement - Coordination Rights"])  # or use permission check
-                self.fields['assignee'].queryset = approvers.order_by('last_name', 'first_name')
+                # Coordinators wählen Assignee aus Procurement Approvers
+                self.fields['assignee'].queryset = procurement_approver_employees()
                 self.fields['assignee'].widget.attrs.update({'class': 'form-control'})
-                self.fields['assignee'].empty_label = "— Unassigned —"
+                self.fields['assignee'].empty_label = "— Select assignee —"
+                if self.is_creation:
+                    self.fields['assignee'].required = True
 
         # ====== AT - Beleg Nummer ======
         if 'at_beleg_nummer' in self.fields:
@@ -129,14 +141,94 @@ class PurchaseItemForm(forms.ModelForm):
             'quantity': forms.NumberInput(attrs={'min': 1, 'step': 1}),
         }
 
+    OPTIONAL_FIELDS = {'product_description'}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if 'order_number' in self.fields:
-            self.fields['order_number'].required = False
-            self.fields['order_number'].widget.attrs['placeholder'] = 'z.B. 4711'
-        if 'quantity' in self.fields:
-            self.fields['quantity'].widget.attrs['min'] = 1
-            self.fields['quantity'].widget.attrs['step'] = 1
+        self.empty_permitted = True
+        for field_name, field in self.fields.items():
+            field.required = field_name not in self.OPTIONAL_FIELDS
+            if field_name == 'order_number':
+                field.widget.attrs['placeholder'] = 'z.B. 4711'
+            if field_name == 'quantity':
+                field.widget.attrs['min'] = 1
+                field.widget.attrs['step'] = 1
+
+    def _is_empty_row(self, cleaned_data=None):
+        if cleaned_data is not None:
+            if not cleaned_data:
+                return True
+            for field_name, value in cleaned_data.items():
+                if field_name in self.OPTIONAL_FIELDS:
+                    continue
+                if value not in (None, ''):
+                    return False
+            return True
+
+        if not self.is_bound:
+            return False
+        for field_name in self.fields:
+            if field_name in self.OPTIONAL_FIELDS:
+                continue
+            if self.data.get(self.add_prefix(field_name), '') not in ('', None):
+                return False
+        return True
+
+    def full_clean(self):
+        if self._is_empty_row():
+            self.cleaned_data = {}
+            self._errors = {}
+            return
+        super().full_clean()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self._is_empty_row(cleaned_data):
+            return cleaned_data
+        for field_name in self.fields:
+            if field_name in self.OPTIONAL_FIELDS:
+                continue
+            if cleaned_data.get(field_name) in (None, ''):
+                self.add_error(field_name, 'This field is required.')
+        return cleaned_data
+
+
+class BasePurchaseItemFormSet(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for form in self.forms:
+            form.empty_permitted = True
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_forms = [
+            form for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False)
+            and not form._is_empty_row(form.cleaned_data)
+        ]
+        if not active_forms:
+            raise forms.ValidationError('At least one purchase item is required.')
+
+
+def _configure_personnel_assignee_field(form):
+    """Assignee nur für Personnel Coordinators sichtbar; Kandidaten = Personnel Approvers."""
+    if 'assignee' not in form.fields:
+        return
+
+    form.fields['assignee'].queryset = personnel_approver_employees()
+    form.fields['assignee'].empty_label = "— Select assignee —"
+
+    is_coordinator = (
+        form.user
+        and (form.user.is_superuser or form.user.has_perm('tasks.view_all_personnel_tasks'))
+    )
+    if is_coordinator:
+        form.fields['assignee'].widget.attrs.update({'class': 'form-control'})
+    else:
+        form.fields['assignee'].widget = forms.HiddenInput()
+        form.fields['assignee'].required = False
 
 
 class PersonnelReallocationTaskForm(forms.ModelForm):
@@ -149,7 +241,7 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelReallocationTask
         fields = ['employee', 'target_wbs', 'valid_from', 'valid_until',
-                  'plan_position_number', 'comment']
+                  'plan_position_number', 'assignee', 'status', 'comment']
         widgets = {
             'comment': forms.Textarea(attrs={'rows': 6, 'placeholder': 'Add any additional notes or context for this reallocation...'}),
             'valid_from': forms.DateInput(attrs={
@@ -174,11 +266,11 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
             self.fields['status'].choices = PERSONNEL_STATUSES
             if self.is_creation:
                 self.fields['status'].widget = forms.HiddenInput()
-                self.fields['status'].initial = 'noch nicht bearbeitet'
+                self.fields['status'].initial = 'not_yet_processed'
                 self.fields['status'].required = True
                 if self.data:
                     self.data = self.data.copy()
-                    self.data['status'] = 'noch nicht bearbeitet'
+                    self.data['status'] = 'not_yet_processed'
 
         # Style inputs
         for field_name in ['employee', 'target_wbs', 'plan_position_number']:
@@ -203,6 +295,8 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
             self.fields['target_wbs'].queryset = WBSElement.objects.all().order_by('wbs_code')
             self.fields['target_wbs'].empty_label = "— Select target WBS —"
 
+        _configure_personnel_assignee_field(self)
+
 
 class PersonnelContractExtensionTaskForm(forms.ModelForm):
     """
@@ -214,7 +308,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelContractExtensionTask
         fields = ['employee', 'plan_position_number', 'valid_from', 'valid_until',
-                  'is_limited', 'limitation_reason', 'comment']
+                  'is_limited', 'limitation_reason', 'assignee', 'status', 'comment']
         widgets = {
             'comment': forms.Textarea(attrs={'rows': 6, 'placeholder': 'Add any additional notes or context for this contract extension...'}),
             'valid_from': forms.DateInput(attrs={
@@ -240,11 +334,11 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             self.fields['status'].choices = PERSONNEL_STATUSES
             if self.is_creation:
                 self.fields['status'].widget = forms.HiddenInput()
-                self.fields['status'].initial = 'noch nicht bearbeitet'
+                self.fields['status'].initial = 'not_yet_processed'
                 self.fields['status'].required = True
                 if self.data:
                     self.data = self.data.copy()
-                    self.data['status'] = 'noch nicht bearbeitet'
+                    self.data['status'] = 'not_yet_processed'
 
         # Style inputs
         for field_name in ['employee', 'plan_position_number']:
@@ -288,11 +382,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
 
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-        if 'assignee' in self.fields:
-            # Only users in personnel task groups can be assigned
-            fulfullers = Employee.objects.filter(user__groups__name__in=["Personnel Tasks - Create", "Personnel - Coordination Rights"])
-            self.fields['assignee'].queryset = fulfullers.order_by('last_name', 'first_name')
-            self.fields['assignee'].empty_label = "— Unassigned —"
+
+        _configure_personnel_assignee_field(self)
 
 
 class GenericTextTaskForm(forms.ModelForm):

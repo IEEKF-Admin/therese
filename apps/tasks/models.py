@@ -87,6 +87,10 @@ class Task(BaseModel):
         ordering = ['-created_at']
         verbose_name = "Task"
         verbose_name_plural = "Tasks"
+        permissions = [
+            ('view_all_personnel_tasks', 'Can view all personnel tasks'),
+            ('approve_personnel_task', 'Can approve personnel tasks'),
+        ]
 
     def __str__(self):
         display = self.task_number or self.title
@@ -158,6 +162,7 @@ class PurchaseOrderTask(Task):
             ("create_purchase_order", "Can create purchase orders"),
             ("view_all_purchase_orders", "Can view all purchase orders"),
             ("change_wbs_on_purchase_order", "Can change WBS element on purchase orders"),
+            ("approve_purchase_order", "Can approve purchase orders"),
             ("create_personnel_task", "Can create personnel tasks"),
             ("create_general_request", "Can create general requests"),
         ]

@@ -1,25 +1,57 @@
-﻿"""
+"""
 apps/tasks/utils.py
 Helper functions for task permissions, visibility and status logic.
 """
 
 from django.db.models import Q
 from .models import PurchaseOrderTask
-# GroupNames removed - using permissions now
+from apps.accounts.permissions import GroupNames
+
+
+def employees_in_group(group_name):
+    """Return active employees whose user belongs to the given auth group."""
+    from apps.hr.models import Employee
+
+    return Employee.objects.filter(
+        user__is_active=True,
+        user__groups__name=group_name,
+    ).order_by('last_name', 'first_name').distinct()
+
+
+def procurement_approver_employees():
+    return employees_in_group(GroupNames.PROCUREMENT_APPROVAL_RIGHTS)
+
+
+def personnel_approver_employees():
+    return employees_in_group(GroupNames.PERSONNEL_APPROVAL_RIGHTS)
 
 
 def is_procurement_coordinator(user):
     if not user or not user.is_authenticated:
         return False
-    return user.is_superuser or user.has_perm('tasks.view_all_purchase_orders') or user.has_perm('tasks.change_wbs_on_purchase_order')
+    return (
+        user.is_superuser
+        or user.has_perm('tasks.view_all_purchase_orders')
+        or user.has_perm('tasks.change_wbs_on_purchase_order')
+    )
 
 
 def is_procurement_approver(user):
     if not user or not user.is_authenticated:
         return False
-    # Approver typically has specific rights, here we use a reasonable check
-    # For simplicity we can keep group or use a perm if added, but for now use existing logic
-    return user.has_perm('tasks.view_all_purchase_orders') or user.has_perm('tasks.change_wbs_on_purchase_order')
+    return user.is_superuser or user.has_perm('tasks.approve_purchase_order')
+
+
+def is_personnel_coordinator(user):
+    if not user or not user.is_authenticated:
+        return False
+    return user.is_superuser or user.has_perm('tasks.view_all_personnel_tasks')
+
+
+def is_personnel_approver(user):
+    if not user or not user.is_authenticated:
+        return False
+    return user.is_superuser or user.has_perm('tasks.approve_personnel_task')
 
 
 def can_view_purchase_order(user, task):
@@ -52,7 +84,7 @@ def can_view_purchase_order(user, task):
 
 
 def get_purchase_orders_queryset(user):
-    """Zentrale Query fÃ¼r alle Purchase Orders"""
+    """Zentrale Query für alle Purchase Orders"""
     if not user or not user.is_authenticated:
         return PurchaseOrderTask.objects.none()
 
@@ -71,7 +103,7 @@ def get_purchase_orders_queryset(user):
     visible = Q(creator=employee)
 
     if is_procurement_approver(user):
-        # Approver sehen zusÃ¤tzlich alle Bestellungen, sobald WBS gesetzt ist
+        # Approver sehen zusätzlich alle Bestellungen, sobald WBS gesetzt ist
         # (auch wenn sie jemand anderem assigned sind)
         approver_visible = Q(wbs_element__isnull=False)
         visible |= approver_visible
@@ -108,8 +140,7 @@ def can_create_purchase_order(user):
         return False
 
     return (
-        user.is_superuser or
-        user.has_perm('tasks.create_purchase_order') or
-        user.has_perm('tasks.view_all_purchase_orders')
+        user.is_superuser
+        or user.has_perm('tasks.create_purchase_order')
+        or user.has_perm('tasks.view_all_purchase_orders')
     )
-

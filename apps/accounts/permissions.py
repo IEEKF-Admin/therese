@@ -28,10 +28,12 @@ class GroupNames:
     STANDARD_ORDERS_VIEW = "Standard Orders - View"
     STANDARD_ORDERS_MANAGE = "Standard Orders - Manage"
     PROCUREMENT_COORDINATION_RIGHTS = "Procurement - Coordination Rights"
+    PROCUREMENT_APPROVAL_RIGHTS = "Procurement - Approval Rights"
 
     PERSONNEL_TASKS_CREATE = "Personnel Tasks - Create"
     PAY_SCALES_IMPORT = "Pay Scales - Import"
     PERSONNEL_COORDINATION_RIGHTS = "Personnel - Coordination Rights"
+    PERSONNEL_APPROVAL_RIGHTS = "Personnel - Approval Rights"
 
     GENERAL_REQUESTS_CREATE = "General Requests - Create"
     ASSISTING_ADMINS = "Assisting Admins"
@@ -49,9 +51,11 @@ NEW_GROUPS = [
     GroupNames.STANDARD_ORDERS_VIEW,
     GroupNames.STANDARD_ORDERS_MANAGE,
     GroupNames.PROCUREMENT_COORDINATION_RIGHTS,
+    GroupNames.PROCUREMENT_APPROVAL_RIGHTS,
     GroupNames.PERSONNEL_TASKS_CREATE,
     GroupNames.PAY_SCALES_IMPORT,
     GroupNames.PERSONNEL_COORDINATION_RIGHTS,
+    GroupNames.PERSONNEL_APPROVAL_RIGHTS,
     GroupNames.GENERAL_REQUESTS_CREATE,
     GroupNames.ASSISTING_ADMINS,
 ]
@@ -156,7 +160,7 @@ def assign_permissions_to_groups():
     from django.contrib.contenttypes.models import ContentType
     from apps.hr.models import Employee, Workgroup, Building
     from apps.finances.models import WBSElement, PayScale
-    from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem
+    from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
 
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
@@ -209,17 +213,22 @@ def assign_permissions_to_groups():
     change_wbs = get_perm("change_wbs_on_purchase_order", PurchaseOrderTask)
     view_std = get_perm("view_standard_order", StandardPurchaseItem)
     manage_std = get_perm("manage_standard_order", StandardPurchaseItem)
+    approve_po = get_perm("approve_purchase_order", PurchaseOrderTask)
     safe_add("Purchase Orders - Create", create_po)
     safe_add("Standard Orders - View", view_std)
     safe_add("Standard Orders - Manage", view_std, manage_std)
     safe_add("Procurement - Coordination Rights", view_all_po, change_wbs, manage_std)
+    safe_add("Procurement - Approval Rights", approve_po)
 
     # Personnel
     create_personnel = get_perm("create_personnel_task", PurchaseOrderTask)
+    view_all_personnel = get_perm("view_all_personnel_tasks", Task)
+    approve_personnel = get_perm("approve_personnel_task", Task)
     import_scale = get_perm("import_pay_scale", PayScale)
     safe_add("Personnel Tasks - Create", create_personnel)
     safe_add("Pay Scales - Import", import_scale)
-    # Personnel - Coordination Rights intentionally left without auto-assigned perms for now
+    safe_add("Personnel - Coordination Rights", view_all_personnel)
+    safe_add("Personnel - Approval Rights", approve_personnel)
 
     # General Requests
     safe_add("General Requests - Create", get_perm("create_general_request", PurchaseOrderTask))

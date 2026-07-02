@@ -11,6 +11,18 @@ from ...forms import (
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
 )
+from ...utils import is_personnel_coordinator
+
+
+def can_view_personnel_task(user, task):
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return False
+    if user.is_superuser or is_personnel_coordinator(user):
+        return True
+    if task.creator == employee or task.assignee == employee:
+        return True
+    return False
 
 
 def personnel_task_detail(request, task):
@@ -20,11 +32,22 @@ def personnel_task_detail(request, task):
     """
     employee = getattr(request.user, 'employee', None)
 
+    if not can_view_personnel_task(request.user, task):
+        messages.error(request, "You don't have permission to view this task.")
+        return redirect('tasks:my_tasks')
+
     task_type = task.task_type
     is_creator = task.creator == employee
+    is_coordinator = is_personnel_coordinator(request.user)
+    is_assignee = task.assignee == employee
 
-    # For simplicity in v1: Creator + Assignee can edit
-    can_edit = is_creator or (task.assignee == employee) or request.user.is_staff
+    # Coordinator: full edit inkl. Assignee | Approver (Assignee): bearbeiten | Creator: read-only
+    can_edit = (
+        request.user.is_superuser
+        or is_coordinator
+        or is_assignee
+    )
+    can_set_assignee = is_coordinator
 
     if task_type == 'personnel_reallocation':
         form_class = PersonnelReallocationTaskForm
@@ -74,7 +97,9 @@ def personnel_task_detail(request, task):
         'task': task,
         'form': form,
         'can_edit': can_edit,
+        'can_set_assignee': can_set_assignee,
         'is_creator': is_creator,
+        'is_coordinator': is_coordinator,
         'task_type': task_type,
         'employee': employee,
         'is_archived_by_user': is_archived_by_user,

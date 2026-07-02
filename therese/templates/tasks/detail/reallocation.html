@@ -39,6 +39,16 @@
                 <label>Plan Position Number</label>
                 {% if can_edit %}{{ form.plan_position_number|add_class:"form-control" }}{% else %}<strong>{{ task.plan_position_number }}</strong>{% endif %}
             </div>
+
+            <div class="aligned-field">
+                <label>Assigned to</label>
+                {% if can_set_assignee %}
+                    {{ form.assignee|add_class:"form-control" }}
+                {% else %}
+                    <strong>{{ task.assignee.get_full_name|default:"— Not assigned yet" }}</strong>
+                    {{ form.assignee.as_hidden }}
+                {% endif %}
+            </div>
         </div>
 
         <div class="form-section">

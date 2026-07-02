@@ -259,6 +259,12 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
             return redirect('tasks:my_tasks')
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field_name in ('monthly_salary', 'cost_center'):
+            form.fields.pop(field_name, None)
+        return form
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         emp = self.object

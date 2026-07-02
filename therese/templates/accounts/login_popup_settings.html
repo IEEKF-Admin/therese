@@ -8,6 +8,8 @@
     <p>Configure popups or notifications shown at login. Only visible to Assisting Admins.</p>
 </div>
 
+{{ configs_data|json_script:"login-popup-configs-data" }}
+
 <h2>Existing Configurations</h2>
 <form method="post" id="bulk-delete-configs">
     {% csrf_token %}
@@ -37,22 +39,15 @@
             <td>{{ config.get_link_to_display|default:"-" }}</td>
             <td>{{ config.enabled|yesno:"Yes,No" }}</td>
             <td>
-                <a href="#" 
-                   onclick="editConfig(this); return false;" 
-                   class="action-icon edit" 
-                   title="Edit"
-                   data-pk="{{ config.pk }}"
-                   data-name="{{ config.name }}"
-                   data-trigger="{{ config.trigger }}"
-                   data-reaction="{{ config.reaction_type }}"
-                   data-link="{{ config.link_to }}"
-                   data-x-months="{{ config.x_months|default:'' }}"
-                   data-datetime="{% if config.trigger_datetime %}{{ config.trigger_datetime|date:'Y-m-d\TH:i' }}{% endif %}">
+                <a href="#"
+                   onclick="editConfig({{ config.pk }}); return false;"
+                   class="action-icon edit"
+                   title="Edit">
                     <i class="fas fa-edit"></i>
                 </a>
-                <a href="#" 
-                   onclick="if(confirm('Delete this config?')) { var f=document.createElement('form'); f.method='post'; f.innerHTML='<input type=hidden name=csrfmiddlewaretoken value=\'{{ csrf_token }}\'><input type=hidden name=delete_pk value={{ config.pk }}>'; document.body.appendChild(f); f.submit(); }" 
-                   class="action-icon delete" 
+                <a href="#"
+                   onclick="if(confirm('Delete this config?')) { var f=document.createElement('form'); f.method='post'; f.innerHTML='<input type=hidden name=csrfmiddlewaretoken value=\'{{ csrf_token }}\'><input type=hidden name=delete_pk value={{ config.pk }}>'; document.body.appendChild(f); f.submit(); }"
+                   class="action-icon delete"
                    title="Delete">
                     <i class="fas fa-trash-alt"></i>
                 </a>
@@ -136,15 +131,12 @@ document.addEventListener('DOMContentLoaded', function() {
     <div>
         <label>Message Text</label>
         <textarea name="text" id="config-text" class="form-control" rows="30" style="min-height: 600px; width: 100%; font-family: monospace;" required placeholder="Hello {{ first_name }} {{ last_name }}, your contract ends {{ contract_end }}."></textarea>
-        <!-- For WYSIWYG: currently plain textarea (no rich editor loaded in project). Can be upgraded later with e.g. CKEditor CDN if desired. -->
         <small style="color:#666;">Available placeholders:
             {% for p in placeholders %}
                 <code>{{ p }}</code>{% if not forloop.last %}, {% endif %}
             {% endfor %}
         </small>
     </div>
-
-
 
     <div>
         <label><input type="checkbox" name="enabled" id="config-enabled" checked> Enabled</label>
@@ -157,36 +149,48 @@ document.addEventListener('DOMContentLoaded', function() {
 </form>
 
 <script>
+var loginPopupConfigsByPk = {};
+(function() {
+    var dataEl = document.getElementById('login-popup-configs-data');
+    if (!dataEl) return;
+    var configs = JSON.parse(dataEl.textContent);
+    configs.forEach(function(cfg) {
+        loginPopupConfigsByPk[String(cfg.pk)] = cfg;
+    });
+})();
+
 function toggleFields() {
     var trigger = document.getElementById('config-trigger').value;
     document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
     document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
 }
 
-function editConfig(element) {
-    const data = element.dataset;
-    document.getElementById('config-pk').value = data.pk || '';
-    document.getElementById('config-name').value = data.name || '';
-    document.getElementById('config-trigger').value = data.trigger || '';
-    document.getElementById('config-reaction').value = data.reaction || '';
-    document.getElementById('config-link').value = data.link || '';
-    document.getElementById('config-x-months').value = data.xMonths || '';
-    
-    const dtField = document.getElementById('config-datetime');
-    dtField.value = data.datetime || '';
-    
-    // Show the correct conditional fields
+function editConfig(pk) {
+    var cfg = loginPopupConfigsByPk[String(pk)];
+    if (!cfg) return;
+
+    document.getElementById('config-pk').value = cfg.pk || '';
+    document.getElementById('config-name').value = cfg.name || '';
+    document.getElementById('config-trigger').value = cfg.trigger || '';
+    document.getElementById('config-reaction').value = cfg.reaction_type || '';
+    document.getElementById('config-link').value = cfg.link_to || '';
+    document.getElementById('config-x-months').value = cfg.x_months != null ? cfg.x_months : '';
+    document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
+    document.getElementById('config-text').value = cfg.text || '';
+    document.getElementById('config-enabled').checked = !!cfg.enabled;
+
     toggleFields();
+    document.getElementById('config-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function resetForm() {
     document.getElementById('config-form').reset();
     document.getElementById('config-pk').value = '';
+    document.getElementById('config-enabled').checked = true;
     document.getElementById('x-months-field').style.display = 'none';
     document.getElementById('datetime-field').style.display = 'none';
 }
 
-// Handle delete via separate form in table (already in HTML)
 document.addEventListener('DOMContentLoaded', function() {
     toggleFields();
     var triggerSel = document.getElementById('config-trigger');

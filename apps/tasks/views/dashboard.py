@@ -7,7 +7,12 @@ from django.contrib import messages
 
 from ..models import Task, PurchaseOrderTask
 from apps.hr.models import Employee
-from ..utils import get_purchase_orders_queryset, is_procurement_coordinator, is_procurement_approver
+from ..utils import (
+    get_purchase_orders_queryset,
+    is_procurement_coordinator,
+    is_procurement_approver,
+    is_personnel_coordinator,
+)
 
 
 @login_required
@@ -97,6 +102,16 @@ def my_tasks(request):
     else:
         po_all_visible = None  # Requesters only see their own split
 
+    personnel_all_visible = None
+    if is_personnel_coordinator(request.user):
+        personnel_qs = Task.objects.filter(
+            task_type__in=['personnel_reallocation', 'personnel_contract_extension']
+        ).select_related('assignee', 'creator').order_by('-created_at')
+        if is_archive_view:
+            personnel_all_visible = personnel_qs.filter(archived_by=employee)
+        else:
+            personnel_all_visible = personnel_qs.exclude(archived_by=employee)
+
     context = {
         'employee': employee,
         'user_groups': user_groups,
@@ -107,6 +122,8 @@ def my_tasks(request):
         'po_all_visible': po_all_visible,
         'is_coordinator': is_coordinator,
         'is_approver': is_approver,
+        'is_personnel_coordinator': is_personnel_coordinator(request.user),
+        'personnel_all_visible': personnel_all_visible,
         'is_archive_view': is_archive_view,
         'page_title': page_title,
     }
@@ -149,9 +166,15 @@ def my_tasks(request):
 
     employee = getattr(request.user, 'employee', None)
     now = timezone.now()
+    shown_config_ids = set(
+        LoginPopupConfig.objects.filter(shown_to_users=request.user).values_list('pk', flat=True)
+    )
 
     # Configurable popups (first_login now also via LoginPopupConfig)
     for config in LoginPopupConfig.objects.filter(enabled=True).order_by('id'):
+        if config.pk in shown_config_ids:
+            continue
+
         show = False
         if config.trigger == 'first_login':
             if request.user.first_login_welcome_shown:
@@ -197,6 +220,9 @@ def my_tasks(request):
                 'text': rendered_text,
                 'link': config.link_to or ''
             })
+
+            config.shown_to_users.add(request.user)
+            shown_config_ids.add(config.pk)
 
             if config.trigger == 'first_login':
                 request.user.first_login_welcome_shown = True

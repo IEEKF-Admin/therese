@@ -70,6 +70,13 @@ class LoginPopupConfig(models.Model):
     x_months = models.PositiveIntegerField(null=True, blank=True, help_text="For 'contract_ending_soon' or 'any_contract_ending_soon' trigger.")
     trigger_datetime = models.DateTimeField(null=True, blank=True, help_text="For 'login_after_datetime' trigger.")
     enabled = models.BooleanField(default=True)
+    shown_to_users = models.ManyToManyField(
+        CustomUser,
+        related_name='shown_login_popups',
+        blank=True,
+        verbose_name="Shown to users",
+        help_text="Users who have already seen this popup.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

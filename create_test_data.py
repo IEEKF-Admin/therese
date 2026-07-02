@@ -83,7 +83,9 @@ def create_test_data():
             "PI": ["Employees - View", "Employees - Manage", "Purchase Orders - Create", "Personnel Tasks - Create", "PSP Elements - View", "Working Groups - Manage"],
             "Procurement Requester": ["Purchase Orders - Create", "Standard Orders - View"],
             "Procurement Coordinator": ["Purchase Orders - Create", "Standard Orders - Manage", "Procurement - Coordination Rights", "Employees - View"],
-            "Personnel Approver": ["Employees - View", "Employees - Manage"],
+            "Procurement Approver": ["Procurement - Approval Rights", "Standard Orders - View"],
+            "Personnel Approver": ["Personnel - Approval Rights", "Employees - View", "Employees - Manage"],
+            "Personnel Coordinator": ["Personnel - Coordination Rights", "Personnel Tasks - Create", "Employees - View"],
             "Order Manager": ["Employees - View"],
         }
         for gname in new_group_mapping.get(role, []):

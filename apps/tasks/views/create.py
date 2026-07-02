@@ -23,6 +23,7 @@ from ..models import PurchaseOrderTask, PurchaseItem, StandardPurchaseItem, Task
 from ..forms import (
     PurchaseOrderTaskForm,
     PurchaseItemForm,
+    BasePurchaseItemFormSet,
     GenericTextTaskForm,
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
@@ -34,8 +35,11 @@ PurchaseItemFormSet = inlineformset_factory(
     PurchaseOrderTask,
     PurchaseItem,
     form=PurchaseItemForm,
+    formset=BasePurchaseItemFormSet,
     extra=1,
     can_delete=True,
+    min_num=1,
+    validate_min=True,
     fields=('product_name', 'product_description', 'link_to_product', 'order_number', 'unit_price', 'quantity')
 )
 

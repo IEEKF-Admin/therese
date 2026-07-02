@@ -16,7 +16,11 @@ if [ "$DEBUG" = true ]; then
     echo "User: $(whoami)"
 fi
 
-# Lade .env falls vorhanden (für CERT_FILE / KEY_FILE etc.)
+# Lade .env falls vorhanden (für CERT_FILE / KEY_FILE / ALLOWED_HOSTS / DEBUG etc.)
+# Empfohlen: Lege auf dem Server eine .env Datei an, damit du settings/base.py nicht editieren musst.
+# Beispiel:
+#   ALLOWED_HOSTS=ieekf-web2.ieecr.dom,localhost,127.0.0.1,172.26.70.115
+#   DEBUG=False
 if [ -f .env ]; then
     set -a
     . .env

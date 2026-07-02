@@ -43,9 +43,41 @@ class ThereseLoginView(LoginView):
     success_url = reverse_lazy('tasks:my_tasks')   # ← Namespace korrigiert
 
 
+from datetime import datetime
+
 from django.shortcuts import render, redirect
-from django.contrib.admin.views.decorators import staff_member_required
+from django.utils import timezone as dj_timezone
+
 from .models import LoginPopupConfig
+
+
+def _parse_trigger_datetime(dt_value):
+    """Parse datetime-local input (naive, local) into an aware datetime."""
+    if not dt_value:
+        return None
+    try:
+        naive = datetime.fromisoformat(dt_value.replace('T', ' '))
+        return dj_timezone.make_aware(naive, dj_timezone.get_current_timezone())
+    except (ValueError, TypeError):
+        return None
+
+
+def _login_popup_config_dict(config):
+    trigger_dt = ''
+    if config.trigger_datetime:
+        trigger_dt = dj_timezone.localtime(config.trigger_datetime).strftime('%Y-%m-%dT%H:%M')
+    return {
+        'pk': config.pk,
+        'name': config.name,
+        'trigger': config.trigger,
+        'reaction_type': config.reaction_type,
+        'link_to': config.link_to,
+        'x_months': config.x_months,
+        'trigger_datetime': trigger_dt,
+        'text': config.text,
+        'enabled': config.enabled,
+    }
+
 
 def login_popup_settings(request):
     if not (request.user.is_superuser or request.user.groups.filter(name='Assisting Admins').exists()):
@@ -78,15 +110,7 @@ def login_popup_settings(request):
         config.link_to = request.POST.get('link_to', '')
         x = request.POST.get('x_months')
         config.x_months = int(x) if x else None
-        dt = request.POST.get('trigger_datetime')
-        if dt:
-            from datetime import datetime
-            try:
-                config.trigger_datetime = datetime.fromisoformat(dt.replace('T', ' '))
-            except:
-                config.trigger_datetime = None
-        else:
-            config.trigger_datetime = None
+        config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
         config.enabled = bool(request.POST.get('enabled'))
         config.save()
         return redirect('accounts:login_popup_settings')
@@ -102,8 +126,11 @@ def login_popup_settings(request):
         '{{ title }}',
     ]
 
+    configs_data = [_login_popup_config_dict(c) for c in configs]
+
     return render(request, 'accounts/login_popup_settings.html', {
         'configs': configs,
+        'configs_data': configs_data,
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
         'reaction_choices': LoginPopupConfig.REACTION_CHOICES,
         'link_choices': LoginPopupConfig.LINK_CHOICES,

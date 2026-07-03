@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+    &rsaquo; User Group Matrix
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="user-group-matrix-page">
+    <h1>User Group Matrix</h1>
+    <p class="matrix-intro">
+        Overview of group memberships for all {% if include_inactive %}users{% else %}active users{% endif %}
+        ({{ user_count }} users × {{ group_count }} groups).
+    </p>
+
+    <div class="matrix-toolbar">
+        <form method="get" class="matrix-filter-form">
+            <label>
+                <input type="checkbox" name="include_inactive" value="1" {% if include_inactive %}checked{% endif %}
+                       onchange="this.form.submit()">
+                Include inactive users
+            </label>
+        </form>
+        <a href="{% url 'admin:accounts_customuser_changelist' %}" class="button">Manage Users</a>
+        <a href="{% url 'admin:auth_group_changelist' %}" class="button">Manage Groups</a>
+    </div>
+
+    <div class="user-group-matrix-wrap">
+        <table class="user-group-matrix">
+            <thead>
+                <tr>
+                    <th class="matrix-sticky-col matrix-user-header">User</th>
+                    {% for group in groups %}
+                    <th class="matrix-group-header" title="{{ group.name }}">
+                        <span>{{ group.name }}</span>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <th class="matrix-sticky-col matrix-user-cell" scope="row">
+                        <a href="{% url 'admin:accounts_customuser_change' row.user.pk %}" title="{{ row.user.username }}">
+                            {{ row.display_name }}
+                        </a>
+                        {% if not row.user.is_active %}
+                        <span class="matrix-inactive-badge">inactive</span>
+                        {% endif %}
+                        {% if row.user.is_superuser %}
+                        <span class="matrix-superuser-badge">superuser</span>
+                        {% endif %}
+                    </th>
+                    {% for cell in row.cells %}
+                    <td class="matrix-membership-cell {% if cell.is_member %}is-member{% endif %}"
+                        title="{{ row.display_name }} — {{ cell.group.name }}">
+                        {% if cell.is_member %}✓{% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ group_count|add:1 }}">No users found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

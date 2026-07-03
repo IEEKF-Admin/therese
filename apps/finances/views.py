@@ -31,7 +31,8 @@ import csv
 from django.urls import reverse
 from django.db.models import Q
 
-from .models import CostCenter, WBSElement, WBSElementInitialBalance, PayScale
+from .models import CostCenter, WBSElement, WBSElementYearEstimate, PayScale
+from .forms import WBSElementForm, WBSElementYearEstimateFormSet
 from apps.hr.models import Workgroup, FundingAllocation
 from apps.tasks.models import PurchaseOrderTask
 from apps.hr.models import Employee  # if needed
@@ -191,10 +192,10 @@ def import_wbs_elements(request):
                         initial_balance = float(cleaned)
                         saved_value = initial_balance
 
-                        WBSElementInitialBalance.objects.update_or_create(
+                        WBSElementYearEstimate.objects.update_or_create(
                             wbs_element=wbs,
                             year=current_year,
-                            defaults={'initial_balance': initial_balance}
+                            defaults={'funding': initial_balance}
                         )
                         balances_created += 1
                         status = "Saved"
@@ -206,10 +207,10 @@ def import_wbs_elements(request):
                         errors.append(f"Row {row_num}: Cannot convert '{budget_str}' for {wbs_code} â†’ {ve}")
                         print(f"DEBUG FAILED:  {wbs_code:15} | Raw: '{raw_budget}' â†’ Error: {ve}")
                 else:
-                    WBSElementInitialBalance.objects.update_or_create(
+                    WBSElementYearEstimate.objects.update_or_create(
                         wbs_element=wbs,
                         year=current_year,
-                        defaults={'initial_balance': 0.00}
+                        defaults={'funding': 0.00}
                     )
                     balances_created += 1
                     status = "Saved as 0.00"
@@ -231,7 +232,7 @@ def import_wbs_elements(request):
         messages.success(
             request, 
             f"Import successful: {created_wbs} new + {updated_wbs} updated WBS Elements | "
-            f"{balances_created} Initial Balances for year {current_year}."
+            f"{balances_created} year estimate(s) for year {current_year}."
         )
         if errors:
             messages.warning(request, f"{len(errors)} errors – check the detailed log.")
@@ -645,6 +646,11 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     template_name = 'finances/psp_list.html'
     context_object_name = 'psp_elements'
 
+    def get_queryset(self):
+        return WBSElement.objects.select_related(
+            'work_group', 'responsible_person', 'cost_center'
+        )
+
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
 
@@ -676,7 +682,7 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
 class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = WBSElement
-    fields = ['wbs_code', 'title', 'work_group', 'responsible_person', 'comment']
+    form_class = WBSElementForm
     template_name = 'finances/psp_form.html'
     success_url = reverse_lazy('finances:psp_manage')
 
@@ -685,13 +691,29 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['year_estimate_formset'] = WBSElementYearEstimateFormSet(self.request.POST)
+        else:
+            context['year_estimate_formset'] = WBSElementYearEstimateFormSet()
         context['title'] = 'Create PSP Element'
         return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = None
+        form = self.get_form()
+        formset = WBSElementYearEstimateFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(request, f'PSP element "{self.object.wbs_code}" was created.')
+            return redirect(self.success_url)
+        return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
 
 
 class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = WBSElement
-    fields = ['wbs_code', 'title', 'work_group', 'responsible_person', 'comment']
+    form_class = WBSElementForm
     template_name = 'finances/psp_form.html'
     success_url = reverse_lazy('finances:psp_manage')
 
@@ -700,8 +722,26 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['year_estimate_formset'] = WBSElementYearEstimateFormSet(
+                self.request.POST, instance=self.object
+            )
+        else:
+            context['year_estimate_formset'] = WBSElementYearEstimateFormSet(instance=self.object)
         context['title'] = 'Edit PSP Element'
         return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        formset = WBSElementYearEstimateFormSet(request.POST, instance=self.object)
+        if form.is_valid() and formset.is_valid():
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(request, f'PSP element "{self.object.wbs_code}" was updated.')
+            return redirect(self.success_url)
+        return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
 
 
 class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):

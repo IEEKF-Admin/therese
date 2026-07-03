@@ -1,0 +1,83 @@
+<script>
+(function() {
+    function replacePrefix(str, newIndex) {
+        return str.replace(/__prefix__/g, newIndex);
+    }
+
+    function getTotalFormsInput(container) {
+        let input = container.querySelector('input[name$="-TOTAL_FORMS"]');
+        if (input) return input;
+        let sibling = container.previousElementSibling;
+        while (sibling) {
+            input = sibling.querySelector && sibling.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (input) return input;
+            sibling = sibling.previousElementSibling;
+        }
+        const parent = container.parentElement;
+        if (parent) {
+            input = parent.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (input) return input;
+        }
+        const all = document.querySelectorAll('input[name$="-TOTAL_FORMS"]');
+        return all.length ? all[0] : null;
+    }
+
+    window.addInlineRow = function(containerId, templateSelector, formsetPrefix) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        let template = document.getElementById('recruitment-funding-empty-template');
+        if (!template) {
+            template = container.querySelector('.empty-form-template');
+        }
+        if (!template) {
+            template = container.querySelector(templateSelector);
+        }
+        if (!template) return;
+
+        const totalInput = getTotalFormsInput(container);
+        let newIndex = totalInput ? (parseInt(totalInput.value, 10) || 0) : 0;
+
+        const clone = template.cloneNode(true);
+        clone.classList.remove('empty-form-template');
+        clone.style.display = '';
+        clone.id = '';
+
+        clone.querySelectorAll('[name],[id],[for]').forEach(el => {
+            ['name', 'id', 'for'].forEach(attr => {
+                if (el.hasAttribute(attr)) {
+                    el.setAttribute(attr, el.getAttribute(attr).replace(/__prefix__/g, newIndex));
+                }
+            });
+        });
+
+        clone.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.type === 'hidden') return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+        });
+
+        container.appendChild(clone.firstElementChild || clone);
+        if (totalInput) {
+            totalInput.value = newIndex + 1;
+        }
+    };
+
+    document.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-row');
+        if (!removeBtn) return;
+        const row = removeBtn.closest('.inline-form-row, .funding-row, .recruitment-funding-row');
+        if (!row) return;
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+        } else {
+            row.remove();
+        }
+    });
+})();
+</script>

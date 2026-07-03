@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        {% if document %}<a href="{% url 'documents:manage_detail' document.pk %}" class="btn-secondary">← Details</a>{% endif %}
+        <a href="{% url 'documents:manage_list' %}" class="btn-secondary">← List</a>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="document-draft-form">
+    {% csrf_token %}
+    <div class="two-col-layout">
+        <div class="left-col">
+            <div class="form-section">
+                <h3>Document settings</h3>
+                {% for field in meta_form %}
+                <div class="aligned-field">
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                    <div class="form-check-row">
+                        {{ field }}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    </div>
+                    {% else %}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% endif %}
+                    {% if field.help_text %}<small class="field-hint-de">{{ field.help_text }}</small>{% endif %}
+                    {{ field.errors }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="right-col">
+            <div class="form-section document-attachments-panel">
+                <h3>Attachments</h3>
+                {{ attachment_formset.management_form }}
+                <div id="attachment-formset">
+                    {% for form in attachment_formset %}
+                    <div class="attachment-row" data-attachment-id="{{ form.instance.pk|default:'' }}">
+                        {{ form.id }}
+                        <div class="aligned-field">
+                            <label>Label</label>
+                            {{ form.label|add_class:"form-control" }}
+                        </div>
+                        <div class="aligned-field attachment-file-field">
+                            <label>File</label>
+                            {% if form.instance.pk and form.instance.file %}
+                            <div class="attachment-current-file">
+                                <a href="{{ form.instance.file.url }}" target="_blank" rel="noopener">
+                                    {{ form.instance.label|default:form.instance.file.name }}
+                                </a>
+                            </div>
+                            {% endif %}
+                            {{ form.file }}
+                        </div>
+                        {% if document and form.instance.pk %}
+                        <button type="button"
+                                class="action-icon delete attachment-delete-btn"
+                                title="Remove attachment"
+                                data-delete-url="{% url 'documents:manage_attachment_delete' document.pk form.instance.pk %}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        {% endif %}
+                        {{ form.errors }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="field-hint-de">Anhänge werden bei neuer Version übernommen und im Entwurf änderbar.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section document-editor-section">
+        <h3>Version draft</h3>
+        {% for field in content_form %}
+        <div class="aligned-field{% if field.name == 'content_html' %} document-content-field{% endif %}">
+            <label>{{ field.label }}</label>
+            {% if field.name == 'content_html' %}{{ field }}{% else %}{{ field|add_class:"form-control" }}{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save draft</button>
+        {% if can_publish and document %}
+        <a href="{% url 'documents:manage_publish' document.pk %}" class="btn-secondary"
+           onclick="return confirm('Publish this draft?');">Publish draft</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>window.DOCUMENT_EDITOR_IMAGE_UPLOAD_URL = "{% url 'documents:upload_editor_image' %}";</script>
+{% include "documents/includes/wysiwyg.html" %}
+{% if document %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('#document-draft-form input[name=csrfmiddlewaretoken]').value;
+
+    document.querySelectorAll('.attachment-delete-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (!confirm('Remove this attachment?')) return;
+
+            const row = btn.closest('.attachment-row');
+            const url = btn.dataset.deleteUrl;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+            .then(function(response) {
+                if (!response.ok) throw new Error('Delete failed');
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.ok) row.remove();
+            })
+            .catch(function() {
+                alert('Could not remove attachment. Please try again.');
+            });
+        });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

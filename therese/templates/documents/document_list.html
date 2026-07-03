@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Documents &amp; SOPs - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Documents &amp; SOPs</h1>
+</div>
+
+<form method="get" class="search-toolbar">
+    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search title and content...">
+    <button type="submit" class="btn-secondary">Search</button>
+    {% if search_query %}
+    <a href="{% url 'documents:list' %}" class="btn-secondary">Clear</a>
+    {% endif %}
+</form>
+
+{% for section in sections %}
+    {% if section.type == 'heading' %}
+    <h{{ section.level }} class="section-heading category-heading-level-{{ section.level }}">{{ section.title }}</h{{ section.level }}>
+    {% else %}
+    <div class="page-section">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Version</th>
+                    <th>Published</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in section.documents %}
+                <tr>
+                    <td><strong>{{ doc.title }}</strong></td>
+                    <td>{{ doc.current_published_version.version_label }}</td>
+                    <td>{{ doc.current_published_version.published_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <a href="{% url 'documents:detail' doc.pk %}" class="btn-secondary btn-sm">Open</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+{% empty %}
+<p class="empty-state">No documents found.</p>
+{% endfor %}
+{% endblock %}

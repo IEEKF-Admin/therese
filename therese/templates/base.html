@@ -80,6 +80,18 @@
 
         document.addEventListener('DOMContentLoaded', initFlatpickrDatePickers);
         window.addEventListener('load', initFlatpickrDatePickers);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.select-all-checkbox').forEach(function(selectAll) {
+                var targetName = selectAll.dataset.target || 'selected_ids';
+                selectAll.addEventListener('change', function() {
+                    var form = selectAll.closest('form') || document;
+                    form.querySelectorAll('input[name="' + targetName + '"]').forEach(function(box) {
+                        box.checked = selectAll.checked;
+                    });
+                });
+            });
+        });
     </script>
 </body>
 </html>

@@ -5,37 +5,39 @@
 {% block content %}
 <div class="page-header">
     <h1>Working Groups</h1>
-    <a href="{% url 'hr:workgroup_create' %}" class="btn-primary">+ New Working Group</a>
+    <div class="page-header-actions">
+        <a href="{% url 'hr:workgroup_create' %}" class="btn-primary">+ New Working Group</a>
+    </div>
 </div>
 
-<form method="post" id="bulk-delete-form">
+<form method="post" id="bulk-delete-form" class="list-panel">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected">
 
     <table class="table">
         <thead>
             <tr>
-                <th style="width: 2rem;">
-                    <input type="checkbox" id="select-all" title="Alle auswählen">
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
                 </th>
-                <th>Kurzname</th>
-                <th>Vollständiger Name</th>
+                <th>Short name</th>
+                <th>Full name</th>
                 <th>PI</th>
-                <th>Mitglieder</th>
+                <th>Members</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for wg in workgroups %}
             <tr>
-                <td><input type="checkbox" name="selected_ids" value="{{ wg.pk }}"></td>
+                <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ wg.pk }}"></td>
                 <td>{{ wg.short_name }}</td>
                 <td>{{ wg.long_name }}</td>
                 <td>{{ wg.pi }}</td>
                 <td>{{ wg.members.count }}</td>
                 <td>
                     <a href="{% url 'hr:workgroup_update' wg.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
-                    <a href="{% url 'hr:workgroup_delete' wg.pk %}" class="action-icon delete" 
+                    <a href="{% url 'hr:workgroup_delete' wg.pk %}" class="action-icon delete"
                        onclick="return confirm('Delete this working group?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
                 </td>
             </tr>
@@ -46,24 +48,12 @@
     </table>
 
     {% if workgroups %}
-    <div style="margin-top: 0.5rem;">
+    <div class="table-bulk-actions">
         <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected working groups?');">
             Delete selected
         </button>
-        <small style="margin-left: 1rem; color: #666;">Entries with dependencies cannot be deleted.</small>
+        <small>Entries with dependencies cannot be deleted.</small>
     </div>
     {% endif %}
 </form>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var selectAll = document.getElementById('select-all');
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            var boxes = document.querySelectorAll('input[name="selected_ids"]');
-            boxes.forEach(function(box) { box.checked = selectAll.checked; });
-        });
-    }
-});
-</script>
 {% endblock %}

@@ -48,7 +48,11 @@ from datetime import datetime
 from django.shortcuts import render, redirect
 from django.utils import timezone as dj_timezone
 
-from .models import LoginPopupConfig
+from django.contrib.auth.models import Group
+
+from apps.hr.models import Workgroup
+
+from .models import CustomUser, LoginPopupConfig
 
 
 def _parse_trigger_datetime(dt_value):
@@ -76,7 +80,17 @@ def _login_popup_config_dict(config):
         'trigger_datetime': trigger_dt,
         'text': config.text,
         'enabled': config.enabled,
+        'audience_match_mode': config.audience_match_mode,
+        'target_user_ids': list(config.target_users.values_list('pk', flat=True)),
+        'target_workgroup_ids': list(config.target_workgroups.values_list('pk', flat=True)),
+        'target_group_ids': list(config.target_groups.values_list('pk', flat=True)),
     }
+
+
+def _set_popup_audience(config, post_data):
+    config.target_users.set(post_data.getlist('target_users'))
+    config.target_workgroups.set(post_data.getlist('target_workgroups'))
+    config.target_groups.set(post_data.getlist('target_groups'))
 
 
 def login_popup_settings(request):
@@ -112,10 +126,17 @@ def login_popup_settings(request):
         config.x_months = int(x) if x else None
         config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
         config.enabled = bool(request.POST.get('enabled'))
+        match_mode = request.POST.get('audience_match_mode', 'or')
+        config.audience_match_mode = match_mode if match_mode in ('or', 'and') else 'or'
         config.save()
+        _set_popup_audience(config, request.POST)
         return redirect('accounts:login_popup_settings')
 
-    configs = LoginPopupConfig.objects.all().order_by('name')
+    configs = (
+        LoginPopupConfig.objects.all()
+        .prefetch_related('target_users', 'target_workgroups', 'target_groups')
+        .order_by('name')
+    )
     placeholders = [
         '{{ first_name }}',
         '{{ last_name }}',
@@ -134,7 +155,11 @@ def login_popup_settings(request):
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
         'reaction_choices': LoginPopupConfig.REACTION_CHOICES,
         'link_choices': LoginPopupConfig.LINK_CHOICES,
+        'audience_match_choices': LoginPopupConfig.AUDIENCE_MATCH_CHOICES,
         'placeholders': placeholders,
+        'all_users': CustomUser.objects.filter(is_active=True).order_by('last_name', 'first_name', 'username'),
+        'all_workgroups': Workgroup.objects.order_by('short_name'),
+        'all_groups': Group.objects.order_by('name'),
     })
 
 

@@ -5,14 +5,14 @@
 {% block content %}
 <div class="page-header">
     <h1>Standard Orders</h1>
-    <div>
+    <div class="page-header-actions">
         <a href="{% url 'tasks:standard_order_create' %}" class="btn-primary">+ Add New Standard Item</a>
         <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back</a>
     </div>
 </div>
 
-<div class="card">
-    <form method="get" style="margin-bottom: 1rem; display: flex; gap: 8px;">
+<div class="card list-panel">
+    <form method="get" class="search-toolbar">
         <input type="text" name="q" value="{{ search_query }}" placeholder="Search by supplier, product or order #" class="form-control" style="max-width: 320px;">
         <button type="submit" class="btn-secondary">Search</button>
         {% if search_query %}
@@ -21,7 +21,7 @@
     </form>
 
     {% if items %}
-    <table class="detail-table">
+    <table class="table">
         <thead>
             <tr>
                 <th>Supplier</th>

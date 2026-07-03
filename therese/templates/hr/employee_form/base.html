@@ -1,62 +1,9 @@
-﻿{% load widget_tweaks %}
-{% load static widget_tweaks %}   <!-- WICHTIG: Hier laden! -->
+{% load widget_tweaks %}
+{% load static widget_tweaks %}
 
-<style>
-/* Main two-column layout for the Employee form */
-.employee-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-bottom: 2rem;
-}
-
-/* Red highlight for fields with validation errors (required fields not filled) */
-.error,
-input.error,
-select.error,
-textarea.error {
-    background-color: #fee2e2 !important;
-    border-color: #ef4444 !important;
-    box-shadow: 0 0 0 1px #fecaca;
-}
-
-
-@media (max-width: 900px) {
-    .employee-two-col {
-        grid-template-columns: 1fr;
-    }
-}
-
-.left-col,
-.right-col {
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;   /* vertical space between cards inside the column */
-}
-
-/* Full-width blocks below the two-column area (inlines etc.) */
-.full-block {
-    margin-bottom: 2rem;
-}
-
-/* Make the inline cards (Contracts, Funding) look consistent with the normal cards */
-.full-block .form-section {
-    padding: 1.25rem 1.4rem;
-}
-
-.full-block .form-section h3 {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    color: #374151;
-    border-bottom: 1px solid #f3f4f6;
-    padding-bottom: 0.5rem;
-}
-</style>
-
-<!-- SEHR SICHTBARE FEHLER -->
 {% if messages %}
 <div class="alert alert-danger">
-    <strong>Fehler beim Speichern:</strong>
+    <strong>Could not save:</strong>
     <ul>
         {% for message in messages %}
             <li>{{ message }}</li>
@@ -65,25 +12,18 @@ textarea.error {
 </div>
 {% endif %}
 
-<!-- Two-column layout -->
-<div class="employee-two-col">
-
-    <!-- Left column -->
+<div class="two-col-layout employee-two-col">
     <div class="left-col">
         {% include "hr/employee_form/personal.html" %}
         {% include "hr/employee_form/address.html" %}
         {% include "hr/employee_form/workgroups.html" %}
     </div>
-
-    <!-- Right column -->
     <div class="right-col">
         {% include "hr/employee_form/contact_location.html" %}
         {% include "hr/employee_form/documents_finance.html" %}
     </div>
-
 </div>
 
-<!-- Full-width sections below (Contracts, Funding, Salary) -->
 <div class="full-block">
     {% include "hr/employee_form/contracts.html" %}
 </div>
@@ -100,5 +40,3 @@ textarea.error {
     <button type="submit" class="btn-primary">💾 Save Employee</button>
     <a href="{% url 'hr:employee_list' %}" class="btn-secondary">Cancel</a>
 </div>
-
-

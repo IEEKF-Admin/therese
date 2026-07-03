@@ -22,11 +22,89 @@ import json
 
 from ..models import Employee, Workgroup, Building, Room, PhoneNumber
 from ..forms import EmployeeForm, BuildingForm, RoomForm, PhoneNumberForm
+from ..document_utils import (
+    get_document_blocks_for_template,
+    process_document_uploads,
+    copy_recruitment_documents_to_employee,
+    user_can_manage_employee_documents,
+)
 from .employee_form_helpers import (
-    ContractFormSet, FundingFormSet, 
-    SalaryFormSet, WorkgroupFormSet
+    ContractFormSet, FundingFormSet,
+    SalaryFormSet, WorkgroupFormSet,
 )
 from apps.finances.models import PayScale
+from apps.tasks.models import PersonnelRecruitmentTask
+from apps.tasks.utils import can_create_employee_from_recruitment
+
+
+def _employee_document_context(request, employee=None):
+    can_upload = (
+        user_can_manage_employee_documents(request.user, employee)
+        if employee
+        else request.user.has_perm('hr.manage_employee')
+    )
+    blocks = get_document_blocks_for_template(employee)
+    for block in blocks:
+        block['can_delete_any'] = request.user.has_perm('hr.manage_employee') or request.user.is_superuser
+    return {
+        'document_blocks': blocks,
+        'can_upload_documents': can_upload,
+    }
+
+
+def _save_employee_with_formsets(request, form, formsets):
+    contract_formset, funding_formset, salary_formset, workgroup_formset = formsets
+    if not all(fs.is_valid() for fs in formsets):
+        return None
+
+    employee = form.save()
+    for fs in formsets:
+        fs.instance = employee
+        fs.save()
+
+    uploader = getattr(request.user, 'employee', None)
+    process_document_uploads(request, employee, uploaded_by=uploader)
+    return employee
+
+
+def _get_recruitment_task(request):
+    task_pk = request.GET.get('from_recruitment_task')
+    if not task_pk:
+        return None
+    try:
+        return PersonnelRecruitmentTask.objects.select_related('wbs_element').get(pk=task_pk)
+    except PersonnelRecruitmentTask.DoesNotExist:
+        return None
+
+
+def _recruitment_employee_initial(task):
+    return {
+        'prefix': task.prefix,
+        'first_name': task.first_name,
+        'last_name': task.last_name,
+        'gender': task.gender,
+        'date_of_birth': task.date_of_birth,
+        'country_of_origin': task.country_of_origin,
+        'place_of_birth': task.place_of_birth,
+        'email_professional': task.email_professional,
+        'private_phone_number': task.private_phone_number,
+        'street': task.street,
+        'house_number': task.house_number,
+        'postal_code': task.postal_code,
+        'city': task.city,
+        'country': task.country,
+    }
+
+
+def _finalize_recruitment_task(request, employee):
+    task = _get_recruitment_task(request)
+    if not task or not can_create_employee_from_recruitment(request.user, task):
+        return
+    task.created_employee = employee
+    task.status = 'recruitment_completed'
+    task.save(update_fields=['created_employee', 'status'])
+    uploader = getattr(request.user, 'employee', None)
+    copy_recruitment_documents_to_employee(task, employee, uploaded_by=uploader)
 
 
 # = LIST VIEW =
@@ -120,19 +198,56 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = '/hr/employees/'
 
     def test_func(self):
-        print("ðŸ” [DEBUG] EmployeeCreateView.test_func called")
         user = self.request.user
-        result = user.is_superuser or user.has_perm('hr.manage_employee')
-        print(f"ðŸ” Permission check result: {result}")
-        return result
+        if user.is_superuser or user.has_perm('hr.manage_employee'):
+            return True
+        task = _get_recruitment_task(self.request)
+        return task is not None and can_create_employee_from_recruitment(user, task)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field_name in ('scan_of_contract', 'profile_picture'):
+            form.fields.pop(field_name, None)
+        return form
+
+    def get_initial(self):
+        initial = super().get_initial()
+        task = _get_recruitment_task(self.request)
+        if task:
+            initial.update(_recruitment_employee_initial(task))
+        return initial
 
     def get_context_data(self, **kwargs):
-        print("ðŸ” [DEBUG] EmployeeCreateView.get_context_data called")
         context = super().get_context_data(**kwargs)
-        context['contract_formset'] = ContractFormSet()
-        context['funding_formset'] = FundingFormSet()
-        context['salary_formset'] = SalaryFormSet()
-        context['workgroup_formset'] = WorkgroupFormSet()
+        task = _get_recruitment_task(self.request)
+        if self.request.POST:
+            context['contract_formset'] = ContractFormSet(self.request.POST)
+            context['funding_formset'] = FundingFormSet(self.request.POST)
+            context['salary_formset'] = SalaryFormSet(self.request.POST)
+            context['workgroup_formset'] = WorkgroupFormSet(self.request.POST)
+        else:
+            contract_initial = []
+            funding_initial = []
+            if task:
+                contract_initial = [{
+                    'valid_from': task.valid_from,
+                    'valid_until': task.valid_until,
+                }]
+                funding_initial = [
+                    {
+                        'wbs_element': allocation.wbs_element_id,
+                        'weekly_hours_allocated': allocation.weekly_hours_allocated,
+                        'start_date': task.valid_from,
+                        'end_date': task.valid_until,
+                    }
+                    for allocation in task.funding_allocations.all()
+                ]
+            context['contract_formset'] = ContractFormSet(initial=contract_initial)
+            context['funding_formset'] = FundingFormSet(initial=funding_initial)
+            context['salary_formset'] = SalaryFormSet()
+            context['workgroup_formset'] = WorkgroupFormSet()
+        context['from_recruitment_task'] = task
+        context.update(_employee_document_context(self.request))
 
         # Current PayScales for JS cascading in Contracts inline
         current = PayScale.get_current()
@@ -149,9 +264,24 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        print("ðŸ” [DEBUG] EmployeeCreateView.form_valid called")
-        # ... (die gleiche form_valid Logik wie vorher)
-        return super().form_valid(form)   # Platzhalter – bei Bedarf erweitern
+        context = self.get_context_data()
+        formsets = (
+            context['contract_formset'],
+            context['funding_formset'],
+            context['salary_formset'],
+            context['workgroup_formset'],
+        )
+        employee = _save_employee_with_formsets(self.request, form, formsets)
+        if employee is None:
+            if not context['contract_formset'].is_valid():
+                messages.error(self.request, "Please correct errors in Contracts.")
+            elif not context['funding_formset'].is_valid():
+                messages.error(self.request, "Please correct errors in Funding Allocations.")
+            return self.form_invalid(form)
+
+        _finalize_recruitment_task(self.request, employee)
+        messages.success(self.request, "Employee successfully created.")
+        return redirect(self.success_url)
 
 
 # = UPDATE VIEW =
@@ -168,8 +298,13 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         print(f"ðŸ” Permission check result: {result}")
         return result
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field_name in ('scan_of_contract', 'profile_picture'):
+            form.fields.pop(field_name, None)
+        return form
+
     def get_context_data(self, **kwargs):
-        print("ðŸ” [DEBUG] EmployeeUpdateView.get_context_data called - PK:", self.object.pk if self.object else None)
         context = super().get_context_data(**kwargs)
         if self.request.POST:
             context['contract_formset'] = ContractFormSet(self.request.POST, instance=self.object)
@@ -194,43 +329,23 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                 'monthly_salary': str(ps.monthly_salary),
             })
         context['current_payscales_json'] = json.dumps(payscale_data)
+        context.update(_employee_document_context(self.request, self.object))
         return context
 
     def form_valid(self, form):
-        print("ðŸ” [DEBUG] EmployeeUpdateView.form_valid called - checking all inlines...")
         context = self.get_context_data()
-        
-        contract_valid = context['contract_formset'].is_valid()
-        funding_valid = context['funding_formset'].is_valid()
-        salary_valid = context['salary_formset'].is_valid()
-        workgroup_valid = context['workgroup_formset'].is_valid()
-
-        print(f"Contract valid: {contract_valid}")
-        print(f"Funding valid: {funding_valid}")
-        print(f"Salary valid: {salary_valid}")
-        print(f"Workgroup valid: {workgroup_valid}")
-
-        if not all([contract_valid, funding_valid, salary_valid, workgroup_valid]):
-            if not contract_valid:
-                messages.error(self.request, "❌ Fehler in den Verträgen (Contracts). Bitte prüfen Sie Pflichtfelder.")
-            if not funding_valid:
-                messages.error(self.request, "❌ Fehler in den Funding Allocations.")
+        formsets = (
+            context['contract_formset'],
+            context['funding_formset'],
+            context['salary_formset'],
+            context['workgroup_formset'],
+        )
+        employee = _save_employee_with_formsets(self.request, form, formsets)
+        if employee is None:
+            messages.error(self.request, "Please correct errors in the related sections.")
             return self.form_invalid(form)
 
-        self.object = form.save(commit=False)
-        if not self.object.user_id and self.object.pk:
-            existing = Employee.objects.filter(pk=self.object.pk).first()
-            if existing and existing.user_id:
-                self.object.user = existing.user
-
-        self.object.save()
-
-        for fs in [context['contract_formset'], context['funding_formset'],
-                   context['salary_formset'], context['workgroup_formset']]:
-            fs.instance = self.object
-            fs.save()
-
-        messages.success(self.request, "✅ Employee successfully saved!")
+        messages.success(self.request, "Employee successfully saved.")
         return redirect(self.success_url)
 
     def form_invalid(self, form):
@@ -261,7 +376,7 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        for field_name in ('monthly_salary', 'cost_center'):
+        for field_name in ('monthly_salary', 'cost_center', 'scan_of_contract', 'profile_picture'):
             form.fields.pop(field_name, None)
         return form
 
@@ -288,6 +403,7 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
         context['workgroup_formset'] = workgroup_formset
 
         context['is_self_profile'] = True
+        context.update(_employee_document_context(self.request, self.object))
         return context
 
     def form_valid(self, form):
@@ -297,6 +413,8 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
             self.object = form.save()
             workgroup_formset.instance = self.object
             workgroup_formset.save()
+            uploader = getattr(self.request.user, 'employee', None)
+            process_document_uploads(self.request, self.object, uploaded_by=uploader)
             messages.success(self.request, "✅ Your profile has been updated!")
             return redirect(self.success_url)
         messages.error(self.request, "Please correct the errors below.")

@@ -7,7 +7,7 @@
     <h1>Delete Working Group?</h1>
 </div>
 
-<div class="card">
+<div class="card confirm-panel">
     <p>Are you sure you want to delete the following working group?</p>
     <p><strong>{{ object.short_name }}</strong> — {{ object.long_name }}</p>
     <p><small>PI: {{ object.pi }} | Members: {{ object.members.count }}</small></p>
@@ -17,9 +17,8 @@
         <div class="form-actions">
             <button type="submit" class="btn-danger">Yes, delete</button>
             <a href="{% url 'hr:workgroup_list' %}" class="btn-secondary">Cancel</a>
-        </form>
-    </div>
+        </div>
+    </form>
+    <p style="margin-top:1rem;color:#64748b;font-size:0.9rem;"><em>Note: Deletion is only possible if no dependent data exists.</em></p>
 </div>
-
-<p><em>Note: Deletion is only possible if no dependent data (e.g. PI assignments or members) exist.</em></p>
 {% endblock %}

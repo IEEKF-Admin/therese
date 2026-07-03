@@ -7,166 +7,141 @@
     <h1>Buildings, Rooms & Phone Numbers</h1>
 </div>
 
-<div class="location-sections">
-    <section>
+<p style="color:#64748b;margin-bottom:2rem;">Manage buildings, rooms and phone numbers. Changes are available immediately (e.g. in employee forms).</p>
+
+<div class="page-section">
+    <div class="section-toolbar">
         <h2>Buildings</h2>
         <a href="{% url 'hr:building_create' %}" class="btn-primary">+ New Building</a>
-        <form method="post" id="bulk-delete-buildings">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="delete_selected">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th style="width: 2rem;">
-                            <input type="checkbox" id="select-all-buildings" title="Alle auswählen">
-                        </th>
-                        <th>Number</th>
-                        <th>Name</th>
-                        <th>Address</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for b in buildings %}
-                    <tr>
-                        <td><input type="checkbox" name="selected_buildings" value="{{ b.pk }}"></td>
-                        <td>{{ b.number }}</td>
-                        <td>{{ b.name|default:"-" }}</td>
-                        <td>{{ b.address|default:"-" }}</td>
-                        <td>
-                            <a href="{% url 'hr:building_update' b.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
-                            <a href="{% url 'hr:building_delete' b.pk %}" class="action-icon delete"
-                               onclick="return confirm('Delete this building? (Rooms must be removed first)');" title="Delete"><i class="fas fa-trash-alt"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5">No buildings.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% if buildings %}
-            <div style="margin-top: 0.5rem;">
-                <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected buildings?');">
-                    Delete selected
-                </button>
-            </div>
-            {% endif %}
-        </form>
-    </section>
-
-    <section>
-        <h2>Rooms</h2>
-        <a href="{% url 'hr:room_create' %}" class="btn-primary">+ New Room</a>
-        <form method="post" id="bulk-delete-rooms">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="delete_selected">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th style="width: 2rem;">
-                            <input type="checkbox" id="select-all-rooms" title="Alle auswählen">
-                        </th>
-                        <th>Building</th>
-                        <th>Room Number</th>
-                        <th>Colloquial Name</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in rooms %}
-                    <tr>
-                        <td><input type="checkbox" name="selected_rooms" value="{{ r.pk }}"></td>
-                        <td>{{ r.building.number }}</td>
-                        <td>{{ r.room_number }}</td>
-                        <td>{{ r.colloquial_name|default:"-" }}</td>
-                        <td>
-                            <a href="{% url 'hr:room_update' r.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
-                            <a href="{% url 'hr:room_delete' r.pk %}" class="action-icon delete"
-                               onclick="return confirm('Delete this room?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5">No rooms.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% if rooms %}
-            <div style="margin-top: 0.5rem;">
-                <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected rooms?');">
-                    Delete selected
-                </button>
-            </div>
-            {% endif %}
-        </form>
-    </section>
-
-    <section>
-        <h2>Phone Numbers</h2>
-        <a href="{% url 'hr:phone_create' %}" class="btn-primary">+ New Phone Number</a>
-        <form method="post" id="bulk-delete-phones">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="delete_selected">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th style="width: 2rem;">
-                            <input type="checkbox" id="select-all-phones" title="Alle auswählen">
-                        </th>
-                        <th>Room</th>
-                        <th>Phone Number</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in phones %}
-                    <tr>
-                        <td><input type="checkbox" name="selected_phones" value="{{ p.pk }}"></td>
-                        <td>{{ p.room }}</td>
-                        <td>{{ p.phone_number }}</td>
-                        <td>
-                            <a href="{% url 'hr:phone_update' p.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
-                            <a href="{% url 'hr:phone_delete' p.pk %}" class="action-icon delete"
-                               onclick="return confirm('Delete this phone number?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4">No phone numbers.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% if phones %}
-            <div style="margin-top: 0.5rem;">
-                <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected phone numbers?');">
-                    Delete selected
-                </button>
-            </div>
-            {% endif %}
-        </form>
-    </section>
+    </div>
+    <form method="post" id="bulk-delete-buildings" class="list-panel">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_selected">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_buildings" title="Select all">
+                    </th>
+                    <th>Number</th>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in buildings %}
+                <tr>
+                    <td class="table-checkbox-col"><input type="checkbox" name="selected_buildings" value="{{ b.pk }}"></td>
+                    <td>{{ b.number }}</td>
+                    <td>{{ b.name|default:"-" }}</td>
+                    <td>{{ b.address|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'hr:building_update' b.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'hr:building_delete' b.pk %}" class="action-icon delete"
+                           onclick="return confirm('Delete this building? (Rooms must be removed first)');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No buildings.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if buildings %}
+        <div class="table-bulk-actions">
+            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected buildings?');">Delete selected</button>
+        </div>
+        {% endif %}
+    </form>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    function setupSelectAll(allId, name) {
-        var selectAll = document.getElementById(allId);
-        if (selectAll) {
-            selectAll.addEventListener('change', function() {
-                var boxes = document.querySelectorAll('input[name="' + name + '"]');
-                boxes.forEach(function(box) { box.checked = selectAll.checked; });
-            });
-        }
-    }
-    setupSelectAll('select-all-buildings', 'selected_buildings');
-    setupSelectAll('select-all-rooms', 'selected_rooms');
-    setupSelectAll('select-all-phones', 'selected_phones');
-});
-</script>
+<div class="page-section">
+    <div class="section-toolbar">
+        <h2>Rooms</h2>
+        <a href="{% url 'hr:room_create' %}" class="btn-primary">+ New Room</a>
+    </div>
+    <form method="post" id="bulk-delete-rooms" class="list-panel">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_selected">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_rooms" title="Select all">
+                    </th>
+                    <th>Building</th>
+                    <th>Room Number</th>
+                    <th>Colloquial Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rooms %}
+                <tr>
+                    <td class="table-checkbox-col"><input type="checkbox" name="selected_rooms" value="{{ r.pk }}"></td>
+                    <td>{{ r.building.number }}</td>
+                    <td>{{ r.room_number }}</td>
+                    <td>{{ r.colloquial_name|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'hr:room_update' r.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'hr:room_delete' r.pk %}" class="action-icon delete"
+                           onclick="return confirm('Delete this room?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No rooms.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if rooms %}
+        <div class="table-bulk-actions">
+            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected rooms?');">Delete selected</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Add select-all functionality per section if needed; simple version for now
-});
-</script>
-
-<p><em>Verwaltung von Gebäuden, Räumen und Telefonnummern. Änderungen sind sofort verfügbar (z.B. für Mitarbeiter-Formulare).</em></p>
+<div class="page-section">
+    <div class="section-toolbar">
+        <h2>Phone Numbers</h2>
+        <a href="{% url 'hr:phone_create' %}" class="btn-primary">+ New Phone Number</a>
+    </div>
+    <form method="post" id="bulk-delete-phones" class="list-panel">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_selected">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_phones" title="Select all">
+                    </th>
+                    <th>Room</th>
+                    <th>Phone Number</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in phones %}
+                <tr>
+                    <td class="table-checkbox-col"><input type="checkbox" name="selected_phones" value="{{ p.pk }}"></td>
+                    <td>{{ p.room }}</td>
+                    <td>{{ p.phone_number }}</td>
+                    <td>
+                        <a href="{% url 'hr:phone_update' p.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'hr:phone_delete' p.pk %}" class="action-icon delete"
+                           onclick="return confirm('Delete this phone number?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4">No phone numbers.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if phones %}
+        <div class="table-bulk-actions">
+            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected phone numbers?');">Delete selected</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
 {% endblock %}

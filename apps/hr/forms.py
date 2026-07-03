@@ -262,6 +262,12 @@ class FundingAllocationForm(forms.ModelForm):
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.finances.models import WBSElement
+        self.fields['wbs_element'].queryset = WBSElement.objects.active().order_by('wbs_code')
+        self.fields['wbs_element'].empty_label = '— Select PSP element —'
+
 
 # = FORMSETS =
 ContractFormSet = inlineformset_factory(Employee, Contract, form=ContractForm, extra=1, can_delete=True, min_num=1)

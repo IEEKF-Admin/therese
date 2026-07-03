@@ -1,0 +1,81 @@
+{% load widget_tweaks %}
+<div class="form-section full-width recruitment-full-block">
+    <h3>Funding Allocations</h3>
+    <p style="color:#64748b; font-size:0.9rem; margin-top:-0.5rem; margin-bottom:1rem;">
+        PSP-Element und Wochenarbeitszeit gehören zusammen. Sie können mehrere Kombinationen erfassen.
+    </p>
+
+    {% if can_edit_fields|default:True %}
+        {{ funding_formset.management_form }}
+        <div id="recruitment-funding-container">
+            {% for fform in funding_formset %}
+            <div class="recruitment-funding-row inline-form-row funding-row">
+                {{ fform.id }}
+                {{ fform.DELETE.as_hidden }}
+                <div class="inline-field">
+                    <label>PSP - Element <span style="color:#ef4444;">*</span></label>
+                    {% if fform.wbs_element.errors %}{{ fform.wbs_element|add_class:"form-control error" }}{% else %}{{ fform.wbs_element|add_class:"form-control" }}{% endif %}
+                    <small class="field-hint-de">WBS-Element</small>
+                </div>
+                <div class="inline-field">
+                    <label>Weekly Working Hours <span style="color:#ef4444;">*</span></label>
+                    {% if fform.weekly_hours_allocated.errors %}{{ fform.weekly_hours_allocated|add_class:"form-control error" }}{% else %}{{ fform.weekly_hours_allocated|add_class:"form-control" }}{% endif %}
+                    <small class="field-hint-de">Wochenarbeitszeit</small>
+                </div>
+                <div class="inline-delete">
+                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="recruitment-funding-empty-template" class="empty-form-template" style="display:none;">
+            {% with fform=funding_formset.empty_form %}
+            <div class="recruitment-funding-row inline-form-row funding-row">
+                {{ fform.id }}
+                {{ fform.DELETE.as_hidden }}
+                <div class="inline-field">
+                    <label>PSP - Element <span style="color:#ef4444;">*</span></label>
+                    {{ fform.wbs_element|add_class:"form-control" }}
+                    <small class="field-hint-de">WBS-Element</small>
+                </div>
+                <div class="inline-field">
+                    <label>Weekly Working Hours <span style="color:#ef4444;">*</span></label>
+                    {{ fform.weekly_hours_allocated|add_class:"form-control" }}
+                    <small class="field-hint-de">Wochenarbeitszeit</small>
+                </div>
+                <div class="inline-delete">
+                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                </div>
+            </div>
+            {% endwith %}
+        </div>
+
+        <button type="button"
+                onclick="addInlineRow('recruitment-funding-container', '.funding-row', 'recruitmentfundingallocation_set')"
+                class="btn-secondary" style="margin-top:0.75rem;">
+            + Add another Funding Allocation
+        </button>
+    {% else %}
+        {% if task.funding_allocations.all %}
+        <table class="table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>PSP - Element</th>
+                    <th>Weekly Working Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for allocation in task.funding_allocations.all %}
+                <tr>
+                    <td>{{ allocation.wbs_element }}</td>
+                    <td>{{ allocation.weekly_hours_allocated }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No funding allocations recorded.</p>
+        {% endif %}
+    {% endif %}
+</div>

@@ -135,8 +135,17 @@
 {% block content %}
 <div class="page-header">
     <h1>{% if object %}Edit{% else %}Create{% endif %} Employee</h1>
-    <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to List</a>
+    <div class="page-header-actions">
+        <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to List</a>
+    </div>
 </div>
+
+{% if from_recruitment_task %}
+<div class="alert alert-info" style="margin-bottom:1rem;">
+    Pre-filled from recruitment task <strong>{{ from_recruitment_task.task_number }}</strong>.
+    Enter the employee number manually. Documents from the task will be copied after saving.
+</div>
+{% endif %}
 
 <form method="post" enctype="multipart/form-data" class="employee-form">
     {% csrf_token %}

@@ -3,21 +3,32 @@ apps/tasks/forms.py
 Project: THERESE – Transparent HR Resource System Enhanced
 """
 from django import forms
-from django.forms.models import BaseInlineFormSet
+from django.forms.models import BaseInlineFormSet, inlineformset_factory
 from .models import (
     PurchaseOrderTask,
     PurchaseItem,
     PersonnelReallocationTask,
     PersonnelContractExtensionTask,
+    PersonnelRecruitmentTask,
+    RecruitmentFundingAllocation,
     GenericTextTask,
     StandardPurchaseItem,
     PURCHASE_STATUSES,
     GENERIC_STATUSES,
     PERSONNEL_STATUSES,
+    RECRUITMENT_STATUSES,
+    RECRUITMENT_STATUS_ORDER,
 )
 from apps.finances.models import WBSElement
-from apps.hr.models import Employee
-from .utils import procurement_approver_employees, personnel_approver_employees
+from apps.hr.models import Employee, Gender
+from apps.hr.document_utils import validate_personnel_document
+from .utils import (
+    procurement_approver_employees,
+    personnel_approver_employees,
+    is_personnel_coordinator,
+    is_personnel_approver,
+    get_recruitment_status_choices,
+)
 
 
 class PurchaseOrderTaskForm(forms.ModelForm):
@@ -106,7 +117,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
 
         # ====== WBS Element ======
         if 'wbs_element' in self.fields:
-            self.fields['wbs_element'].queryset = WBSElement.objects.filter(
+            self.fields['wbs_element'].queryset = WBSElement.objects.active().filter(
                 wbs_code__regex=r'.*-\d+\.\d+\.1$'
             ).order_by('wbs_code')
             self.fields['wbs_element'].empty_label = "---------"
@@ -212,6 +223,16 @@ class BasePurchaseItemFormSet(BaseInlineFormSet):
             raise forms.ValidationError('At least one purchase item is required.')
 
 
+def _configure_gender_field(form, required=True):
+    """Match the Gender dropdown used on the Employee form."""
+    form.fields['gender'] = forms.ChoiceField(
+        label=Employee._meta.get_field('gender').verbose_name,
+        choices=Gender.choices,
+        required=required,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+
+
 def _configure_personnel_assignee_field(form):
     """Assignee nur für Personnel Coordinators sichtbar; Kandidaten = Personnel Approvers."""
     if 'assignee' not in form.fields:
@@ -292,7 +313,7 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
 
         # Target WBS (reasonable WBS elements)
         if 'target_wbs' in self.fields:
-            self.fields['target_wbs'].queryset = WBSElement.objects.all().order_by('wbs_code')
+            self.fields['target_wbs'].queryset = WBSElement.objects.active().order_by('wbs_code')
             self.fields['target_wbs'].empty_label = "— Select target WBS —"
 
         _configure_personnel_assignee_field(self)
@@ -384,6 +405,216 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
 
         _configure_personnel_assignee_field(self)
+
+
+class RecruitmentFundingAllocationForm(forms.ModelForm):
+    class Meta:
+        model = RecruitmentFundingAllocation
+        fields = ['wbs_element', 'weekly_hours_allocated']
+        widgets = {
+            'weekly_hours_allocated': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['wbs_element'].queryset = WBSElement.objects.active().order_by('wbs_code')
+        self.fields['wbs_element'].empty_label = '— Select WBS —'
+        self.fields['wbs_element'].widget.attrs.update({'class': 'form-control'})
+        self.fields['wbs_element'].required = True
+        self.fields['weekly_hours_allocated'].required = True
+        self.empty_permitted = True
+
+    def _is_empty_row(self, cleaned_data=None):
+        if cleaned_data is not None:
+            if not cleaned_data:
+                return True
+            return (
+                not cleaned_data.get('wbs_element')
+                and cleaned_data.get('weekly_hours_allocated') in (None, '')
+            )
+        if not self.is_bound:
+            return not (self.instance and self.instance.pk)
+        wbs = self.data.get(self.add_prefix('wbs_element'), '').strip()
+        hours = self.data.get(self.add_prefix('weekly_hours_allocated'), '').strip()
+        return not wbs and not hours
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self._is_empty_row(cleaned_data):
+            if cleaned_data is not None:
+                cleaned_data['DELETE'] = True
+            return cleaned_data
+        if not cleaned_data.get('wbs_element'):
+            self.add_error('wbs_element', 'WBS Element is required.')
+        if cleaned_data.get('weekly_hours_allocated') in (None, ''):
+            self.add_error('weekly_hours_allocated', 'Weekly working hours are required.')
+        return cleaned_data
+
+
+class BaseRecruitmentFundingFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_forms = [
+            form for form in self.forms
+            if form.cleaned_data
+            and not form.cleaned_data.get('DELETE', False)
+            and not form._is_empty_row(form.cleaned_data)
+        ]
+        if not active_forms:
+            raise forms.ValidationError(
+                'At least one WBS Element / Weekly Working Hours combination is required.'
+            )
+
+
+RecruitmentFundingFormSet = inlineformset_factory(
+    PersonnelRecruitmentTask,
+    RecruitmentFundingAllocation,
+    form=RecruitmentFundingAllocationForm,
+    formset=BaseRecruitmentFundingFormSet,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
+
+
+class PersonnelRecruitmentTaskForm(forms.ModelForm):
+    class Meta:
+        model = PersonnelRecruitmentTask
+        fields = [
+            'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
+            'country_of_origin', 'place_of_birth', 'email_professional',
+            'private_phone_number', 'street', 'house_number', 'postal_code',
+            'city', 'country', 'job_title', 'plan_position_number',
+            'valid_from', 'valid_until', 'application_file', 'cv_file',
+            'measles_proof_file', 'assignee', 'status', 'comment',
+        ]
+        widgets = {
+            'comment': forms.Textarea(attrs={'rows': 6}),
+            'valid_from': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ',
+            }),
+            'valid_until': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ',
+            }),
+            'date_of_birth': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ',
+            }),
+        }
+
+    OPTIONAL_FIELDS = {'prefix', 'comment'}
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.is_creation = kwargs.pop('is_creation', False)
+        super().__init__(*args, **kwargs)
+
+        for field_name, field in self.fields.items():
+            if field_name in self.OPTIONAL_FIELDS:
+                field.required = False
+            elif field_name not in ('application_file', 'cv_file', 'measles_proof_file', 'gender'):
+                field.required = True
+            if field_name not in ('application_file', 'cv_file', 'measles_proof_file', 'status', 'gender'):
+                field.widget.attrs.setdefault('class', 'form-control')
+
+        _configure_gender_field(self, required=False)
+
+        if 'plan_position_number' in self.fields:
+            if self.is_creation:
+                self.fields['plan_position_number'].widget = forms.HiddenInput()
+                self.fields['plan_position_number'].required = False
+            else:
+                self.fields['plan_position_number'].required = True
+
+        if 'status' in self.fields:
+            if self.is_creation:
+                self.fields['status'].choices = RECRUITMENT_STATUSES
+                self.fields['status'].widget = forms.HiddenInput()
+                self.fields['status'].initial = 'not_yet_processed'
+                self.fields['status'].required = True
+                if self.data:
+                    self.data = self.data.copy()
+                    self.data['status'] = 'not_yet_processed'
+            elif self.instance and self.instance.pk:
+                allowed = get_recruitment_status_choices(self.user, self.instance)
+                self.fields['status'].choices = allowed or RECRUITMENT_STATUSES
+                can_change_status = (
+                    self.user
+                    and (
+                        self.user.is_superuser
+                        or is_personnel_coordinator(self.user)
+                        or (
+                            is_personnel_approver(self.user)
+                            and getattr(self.user, 'employee', None) == self.instance.assignee
+                        )
+                    )
+                )
+                if not can_change_status:
+                    self.fields['status'].widget = forms.HiddenInput()
+
+        for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
+            if file_field in self.fields:
+                if self.is_creation:
+                    self.fields[file_field].required = True
+                else:
+                    self.fields[file_field].required = False
+
+        _configure_personnel_assignee_field(self)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.is_creation:
+            for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
+                uploaded = cleaned_data.get(file_field)
+                if not uploaded:
+                    self.add_error(file_field, 'This document is required.')
+                else:
+                    try:
+                        validate_personnel_document(uploaded)
+                    except forms.ValidationError as exc:
+                        self.add_error(file_field, exc.messages[0])
+            return cleaned_data
+
+        for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
+            uploaded = cleaned_data.get(file_field)
+            if uploaded:
+                try:
+                    validate_personnel_document(uploaded)
+                except forms.ValidationError as exc:
+                    self.add_error(file_field, exc.messages[0])
+
+        new_status = cleaned_data.get('status')
+        if (
+            new_status
+            and self.instance
+            and self.instance.pk
+            and self.user
+            and is_personnel_approver(self.user)
+            and not is_personnel_coordinator(self.user)
+            and getattr(self.user, 'employee', None) == self.instance.assignee
+        ):
+            try:
+                current_index = RECRUITMENT_STATUS_ORDER.index(self.instance.status)
+                new_index = RECRUITMENT_STATUS_ORDER.index(new_status)
+            except ValueError:
+                pass
+            else:
+                if new_index <= current_index:
+                    self.add_error('status', 'Approvers may only move the status forward.')
+
+        return cleaned_data
 
 
 class GenericTextTaskForm(forms.ModelForm):

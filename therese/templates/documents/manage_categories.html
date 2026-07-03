@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Document Categories - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Document Categories</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'documents:manage_list' %}" class="btn-secondary">← Manage documents</a>
+    </div>
+</div>
+
+<p class="field-hint-de" style="margin-bottom:1.5rem;">Hierarchische Kategorien: Eltern A→Z, dann Unterkategorien A→Z, dann Dokumenttitel A→Z.</p>
+
+<div class="two-col-layout">
+    <div class="left-col">
+        <div class="form-section">
+            <h3 id="category-form-title">Add category</h3>
+            <form method="post" id="category-form">
+                {% csrf_token %}
+                <input type="hidden" name="pk" id="category-pk" value="">
+                <div class="aligned-field">
+                    <label for="{{ form.name.id_for_label }}">Name</label>
+                    {{ form.name|add_class:"form-control" }}
+                    {{ form.name.errors }}
+                </div>
+                <div class="aligned-field">
+                    <label for="{{ form.parent.id_for_label }}">Parent category</label>
+                    {{ form.parent }}
+                    {% if form.parent.help_text %}<small class="field-hint-de">{{ form.parent.help_text }}</small>{% endif %}
+                    {{ form.parent.errors }}
+                </div>
+                {{ form.non_field_errors }}
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save category</button>
+                    <button type="button" class="btn-secondary" id="category-reset" style="display:none;" onclick="resetCategoryForm();">Cancel edit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="form-section list-panel">
+            <h3>Category tree</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Documents</th>
+                        <th>Subcategories</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in category_rows %}
+                    {% with cat=row.category %}
+                    <tr>
+                        <td>
+                            <span style="padding-left:{{ row.depth }}rem;">{% if row.depth %}↳ {% endif %}<strong>{{ cat.name }}</strong></span>
+                        </td>
+                        <td>{{ cat.documents.count }}</td>
+                        <td>{{ cat.children.count }}</td>
+                        <td>
+                            <a href="#" class="action-icon edit" title="Edit"
+                               onclick="editCategory({{ cat.pk }}, '{{ cat.name|escapejs }}', '{{ cat.parent_id|default:'' }}'); return false;">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="#" class="action-icon delete" title="Delete"
+                               onclick="if(confirm('Delete category {{ cat.name|escapejs }}?')) { var f=document.createElement('form'); f.method='post'; f.innerHTML='<input type=hidden name=csrfmiddlewaretoken value=\'{{ csrf_token }}\'><input type=hidden name=delete_pk value={{ cat.pk }}>'; document.body.appendChild(f); f.submit(); } return false;">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr><td colspan="4">No categories yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function editCategory(pk, name, parentId) {
+    document.getElementById('category-pk').value = pk;
+    document.getElementById('id_name').value = name;
+    document.getElementById('id_parent').value = parentId || '';
+    document.getElementById('category-form-title').textContent = 'Edit category';
+    document.getElementById('category-reset').style.display = 'inline-block';
+    document.getElementById('category-form').scrollIntoView({ behavior: 'smooth' });
+}
+function resetCategoryForm() {
+    document.getElementById('category-pk').value = '';
+    document.getElementById('id_name').value = '';
+    document.getElementById('id_parent').value = '';
+    document.getElementById('category-form-title').textContent = 'Add category';
+    document.getElementById('category-reset').style.display = 'none';
+}
+</script>
+{% endblock %}

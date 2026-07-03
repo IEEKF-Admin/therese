@@ -27,6 +27,8 @@ from ..forms import (
     GenericTextTaskForm,
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
+    PersonnelRecruitmentTaskForm,
+    RecruitmentFundingFormSet,
 )
 # GroupNames removed - using has_perm now
 
@@ -88,7 +90,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
             return False
 
-        if task_type in ('personnel_reallocation', 'personnel_contract_extension'):
+        if task_type in ('personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment'):
             return user.has_perm('tasks.create_personnel_task')
 
         return False
@@ -99,6 +101,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             'purchase_order': PurchaseOrderTaskForm,
             'personnel_reallocation': PersonnelReallocationTaskForm,
             'personnel_contract_extension': PersonnelContractExtensionTaskForm,
+            'personnel_recruitment': PersonnelRecruitmentTaskForm,
             'generic_text': GenericTextTaskForm,
         }
         return mapping.get(task_type, PurchaseOrderTaskForm)
@@ -108,7 +111,10 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         task_type = self.request.GET.get('type')
 
         # Formulare die user + is_creation brauchen
-        if task_type in ('purchase_order', 'generic_text', 'personnel_reallocation', 'personnel_contract_extension'):
+        if task_type in (
+            'purchase_order', 'generic_text', 'personnel_reallocation',
+            'personnel_contract_extension', 'personnel_recruitment',
+        ):
             kwargs['user'] = self.request.user
             kwargs['is_creation'] = True
 
@@ -199,6 +205,12 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 context['item_formset'] = PurchaseItemFormSet(
                     self.request.POST if self.request.method == 'POST' else None
                 )
+
+        if task_type == 'personnel_recruitment':
+            if self.request.method == 'POST':
+                context['funding_formset'] = RecruitmentFundingFormSet(self.request.POST)
+            else:
+                context['funding_formset'] = RecruitmentFundingFormSet()
         return context
 
     def form_valid(self, form):
@@ -224,18 +236,30 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 messages.error(self.request, "Please correct the errors in the items.")
                 return self.render_to_response(self.get_context_data(form=form))
 
-        # Andere Task-Typen (spÃ¤ter)
-        instance = form.save()
+        if task_type == 'personnel_recruitment':
+            funding_formset = self.get_context_data()['funding_formset']
+            if funding_formset.is_valid():
+                instance = form.save()
+                funding_formset.instance = instance
+                funding_formset.save()
+            else:
+                messages.error(self.request, "Please correct errors in the funding allocations.")
+                return self.render_to_response(self.get_context_data(form=form))
+        else:
+            instance = form.save()
 
-        # Automatische Task-Nummer fÃ¼r Personnel Reallocation und Contract Extension
-        if instance.task_type in ['personnel_reallocation', 'personnel_contract_extension'] and not instance.task_number:
+        if instance.task_type in [
+            'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+        ] and not instance.task_number:
             from django.utils import timezone
             year = timezone.now().year
 
             if instance.task_type == 'personnel_reallocation':
                 prefix = "RA"
-            else:
+            elif instance.task_type == 'personnel_contract_extension':
                 prefix = "CE"
+            else:
+                prefix = "REC"
 
             # NÃ¤chste laufende Nummer ermitteln
             existing_numbers = Task.objects.filter(

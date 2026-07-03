@@ -1,7 +1,6 @@
-﻿"""
+"""
 apps/tasks/views/detail/personnel.py
-Detail views for Personnel Reallocation and Contract Extension tasks.
-Only accessible to PI users and involved employees.
+Detail views for personnel task types.
 """
 
 from django.shortcuts import render, redirect
@@ -10,11 +9,24 @@ from django.contrib import messages
 from ...forms import (
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
+    PersonnelRecruitmentTaskForm,
+    RecruitmentFundingFormSet,
 )
-from ...utils import is_personnel_coordinator
+from ...models import RECRUITMENT_STATUS_ORDER
+from ...utils import (
+    is_personnel_coordinator,
+    is_personnel_approver,
+    can_view_recruitment_task,
+    can_edit_recruitment_fields,
+    can_edit_recruitment_status,
+    can_create_employee_from_recruitment,
+)
 
 
 def can_view_personnel_task(user, task):
+    if task.task_type == 'personnel_recruitment':
+        return can_view_recruitment_task(user, task)
+
     employee = getattr(user, 'employee', None)
     if not employee:
         return False
@@ -25,23 +37,134 @@ def can_view_personnel_task(user, task):
     return False
 
 
+def _log_task_changes(task, employee, old_status, saved, old_assignee_id):
+    from ...models import TaskComment
+
+    if old_status != saved.status:
+        TaskComment.objects.create(
+            task=saved,
+            author=employee,
+            text=f"Status changed from '{old_status}' to '{saved.status}'"
+        )
+    if old_assignee_id != saved.assignee_id:
+        new_assignee = saved.assignee.get_full_name() if saved.assignee else "unassigned"
+        TaskComment.objects.create(
+            task=saved,
+            author=employee,
+            text=f"Assignee changed to {new_assignee}"
+        )
+
+
+def _handle_recruitment_detail(request, task):
+    employee = getattr(request.user, 'employee', None)
+    is_creator = task.creator == employee
+    is_coordinator = is_personnel_coordinator(request.user)
+    is_assignee = task.assignee == employee
+    can_edit_fields = can_edit_recruitment_fields(request.user, task)
+    can_edit_status = can_edit_recruitment_status(request.user, task)
+    can_edit = can_edit_fields or can_edit_status
+    can_set_assignee = is_coordinator
+    form = None
+    funding_formset = None
+
+    if request.method == 'POST' and can_edit_status and not can_edit_fields:
+        new_status = request.POST.get('status')
+        old_status = task.status
+        try:
+            current_index = RECRUITMENT_STATUS_ORDER.index(old_status)
+            new_index = RECRUITMENT_STATUS_ORDER.index(new_status)
+        except ValueError:
+            messages.error(request, "Invalid status value.")
+        elif new_index <= current_index:
+            messages.error(request, "Approvers may only move the status forward.")
+        else:
+            task.status = new_status
+            if employee:
+                task.last_changed_by = employee
+            task.save(update_fields=['status', 'last_changed_by', 'last_status_change'])
+            _log_task_changes(task, employee, old_status, task, task.assignee_id)
+            messages.success(request, "Task updated successfully.")
+            return redirect('tasks:task_detail', pk=task.pk)
+    elif request.method == 'POST' and can_edit_fields:
+        form = PersonnelRecruitmentTaskForm(
+            request.POST,
+            request.FILES,
+            instance=task,
+            user=request.user,
+            is_creation=False,
+        )
+        funding_formset = RecruitmentFundingFormSet(
+            request.POST,
+            instance=task,
+        )
+        if form.is_valid() and funding_formset.is_valid():
+            old_status = task.status
+            old_assignee_id = task.assignee_id
+            saved = form.save(commit=False)
+            if employee:
+                saved.last_changed_by = employee
+            saved.save()
+            funding_formset.instance = saved
+            funding_formset.save()
+            _log_task_changes(task, employee, old_status, saved, old_assignee_id)
+            messages.success(request, "Task updated successfully.")
+            return redirect('tasks:task_detail', pk=task.pk)
+        messages.error(request, "Please correct the errors below.")
+    else:
+        form = PersonnelRecruitmentTaskForm(
+            instance=task,
+            user=request.user,
+            is_creation=False,
+        )
+        funding_formset = RecruitmentFundingFormSet(instance=task)
+
+    if form is None:
+        form = PersonnelRecruitmentTaskForm(
+            instance=task,
+            user=request.user,
+            is_creation=False,
+        )
+    if funding_formset is None:
+        funding_formset = RecruitmentFundingFormSet(instance=task)
+
+    is_archived_by_user = employee and employee in task.archived_by.all()
+
+    context = {
+        'task': task,
+        'form': form,
+        'funding_formset': funding_formset,
+        'can_edit': can_edit,
+        'can_edit_fields': can_edit_fields,
+        'can_edit_status': can_edit_status,
+        'can_set_assignee': can_set_assignee,
+        'is_creator': is_creator,
+        'is_coordinator': is_coordinator,
+        'is_assignee': is_assignee,
+        'task_type': task.task_type,
+        'employee': employee,
+        'is_archived_by_user': is_archived_by_user,
+        'can_create_employee': can_create_employee_from_recruitment(request.user, task),
+        'created_employee': task.created_employee,
+        'is_creation': False,
+    }
+    return render(request, 'tasks/detail/recruitment.html', context)
+
+
 def personnel_task_detail(request, task):
-    """
-    Shared detail handler for both personnel task types.
-    Uses the correct form based on task_type.
-    """
     employee = getattr(request.user, 'employee', None)
 
     if not can_view_personnel_task(request.user, task):
         messages.error(request, "You don't have permission to view this task.")
         return redirect('tasks:my_tasks')
 
+    if task.task_type == 'personnel_recruitment':
+        return _handle_recruitment_detail(request, task)
+
     task_type = task.task_type
     is_creator = task.creator == employee
     is_coordinator = is_personnel_coordinator(request.user)
     is_assignee = task.assignee == employee
 
-    # Coordinator: full edit inkl. Assignee | Approver (Assignee): bearbeiten | Creator: read-only
     can_edit = (
         request.user.is_superuser
         or is_coordinator
@@ -64,7 +187,7 @@ def personnel_task_detail(request, task):
             request.POST,
             instance=task,
             user=request.user,
-            is_creation=False
+            is_creation=False,
         )
         if form.is_valid():
             old_status = task.status
@@ -72,26 +195,18 @@ def personnel_task_detail(request, task):
             if employee:
                 saved.last_changed_by = employee
             saved.save()
-            # Log status change
-            from ...models import TaskComment
-            if old_status != saved.status:
-                TaskComment.objects.create(
-                    task=saved,
-                    author=employee,
-                    text=f"Status changed from '{old_status}' to '{saved.status}'"
-                )
+            _log_task_changes(task, employee, old_status, saved, task.assignee_id)
             messages.success(request, "Task updated successfully.")
             return redirect('tasks:my_tasks')
-        else:
-            messages.error(request, "Please correct the errors below.")
+        messages.error(request, "Please correct the errors below.")
     else:
         form = form_class(
             instance=task,
             user=request.user,
-            is_creation=False
+            is_creation=False,
         )
 
-    is_archived_by_user = employee and employee in task.archived_by.all() if hasattr(task, 'archived_by') else False
+    is_archived_by_user = employee and employee in task.archived_by.all()
 
     context = {
         'task': task,
@@ -105,5 +220,3 @@ def personnel_task_detail(request, task):
         'is_archived_by_user': is_archived_by_user,
     }
     return render(request, template, context)
-
-

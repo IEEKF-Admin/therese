@@ -1,4 +1,4 @@
-﻿"""
+"""
 apps/finances/admin.py
 Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
@@ -6,12 +6,24 @@ Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 from django.contrib import admin
 from therese.admin import therese_admin
 from .models import (
-    CostCenter, 
-    CostCenterInitialBalance, 
-    WBSElement, 
-    WBSElementInitialBalance, 
-    PayScale
+    CostCenter,
+    CostCenterInitialBalance,
+    WBSElement,
+    WBSElementYearEstimate,
+    PayScale,
 )
+
+
+class WBSElementYearEstimateInline(admin.TabularInline):
+    model = WBSElementYearEstimate
+    extra = 1
+    fields = (
+        'year',
+        'funding',
+        'consumables_estimate',
+        'travel_estimate',
+        'animal_costs_estimate',
+    )
 
 
 @admin.register(PayScale, site=therese_admin)
@@ -36,15 +48,36 @@ class CostCenterInitialBalanceAdmin(admin.ModelAdmin):
 
 @admin.register(WBSElement, site=therese_admin)
 class WBSElementAdmin(admin.ModelAdmin):
-    list_display = ('wbs_code', 'title', 'work_group', 'responsible_person', 'comment')
-    list_filter = ('work_group', 'responsible_person',)
+    list_display = (
+        'wbs_code',
+        'title',
+        'cost_center',
+        'work_group',
+        'responsible_person',
+        'is_inactive',
+    )
+    list_filter = ('work_group', 'responsible_person', 'is_inactive', 'subject_to_annual_recurrence')
     search_fields = ('wbs_code', 'title', 'comment', 'work_group__short_name')
     ordering = ('wbs_code',)
     autocomplete_fields = ['work_group']
-
-
-@admin.register(WBSElementInitialBalance, site=therese_admin)
-class WBSElementInitialBalanceAdmin(admin.ModelAdmin):
-    list_display = ('wbs_element', 'year', 'initial_balance')
-    list_filter = ('year',)
-
+    inlines = [WBSElementYearEstimateInline]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'wbs_code',
+                'title',
+                'cost_center',
+                'work_group',
+                'responsible_person',
+                'comment',
+            ),
+        }),
+        ('Period & status', {
+            'fields': (
+                'period_start',
+                'period_end',
+                'subject_to_annual_recurrence',
+                'is_inactive',
+            ),
+        }),
+    )

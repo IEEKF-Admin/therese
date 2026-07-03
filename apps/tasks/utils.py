@@ -4,7 +4,7 @@ Helper functions for task permissions, visibility and status logic.
 """
 
 from django.db.models import Q
-from .models import PurchaseOrderTask
+from .models import PurchaseOrderTask, RECRUITMENT_STATUSES, RECRUITMENT_STATUS_ORDER
 from apps.accounts.permissions import GroupNames
 
 
@@ -129,6 +129,63 @@ def can_change_status(user, task):
 
 def can_edit_wbs_element(user):
     return is_procurement_coordinator(user)
+
+
+def can_view_recruitment_task(user, task):
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return False
+    if user.is_superuser or is_personnel_coordinator(user):
+        return True
+    if task.creator == employee:
+        return True
+    if is_personnel_approver(user) and task.assignee == employee:
+        return True
+    return False
+
+
+def can_edit_recruitment_fields(user, task):
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return False
+    if user.is_superuser or is_personnel_coordinator(user):
+        return True
+    if task.creator == employee and task.status == 'not_yet_processed':
+        return True
+    return False
+
+
+def can_edit_recruitment_status(user, task):
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return False
+    if user.is_superuser or is_personnel_coordinator(user):
+        return True
+    if is_personnel_approver(user) and task.assignee == employee:
+        return True
+    return False
+
+
+def get_recruitment_status_choices(user, task):
+    choices = list(RECRUITMENT_STATUSES)
+    if user.is_superuser or is_personnel_coordinator(user):
+        return choices
+    if is_personnel_approver(user) and getattr(user, 'employee', None) == task.assignee:
+        try:
+            current_index = RECRUITMENT_STATUS_ORDER.index(task.status)
+        except ValueError:
+            return choices
+        return [choice for choice in choices if RECRUITMENT_STATUS_ORDER.index(choice[0]) > current_index]
+    return []
+
+
+def can_create_employee_from_recruitment(user, task):
+    employee = getattr(user, 'employee', None)
+    if not employee or task.created_employee_id:
+        return False
+    if not (user.is_superuser or is_personnel_approver(user)):
+        return False
+    return task.assignee == employee and task.status == 'sent_to_administration'
 
 
 def can_create_purchase_order(user):

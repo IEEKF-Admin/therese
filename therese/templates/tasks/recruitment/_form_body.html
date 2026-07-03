@@ -1,0 +1,148 @@
+{% load widget_tweaks %}
+{% include "tasks/recruitment/_styles.html" %}
+
+<div class="recruitment-two-col">
+    <div class="left-col">
+        <div class="form-section">
+            <h3>Personal Information</h3>
+            <div class="aligned-field">
+                <label>{{ form.prefix.label }}</label>
+                {% if can_edit_fields|default:True %}{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.prefix|default:"—" }}</span>{% endif %}
+                <small class="field-hint-de">Präfix / Titel</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.first_name.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.first_name }}</span>{% endif %}
+                <small class="field-hint-de">Vorname</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.last_name.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.last_name }}</span>{% endif %}
+                <small class="field-hint-de">Nachname</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.gender.label }}</label>
+                {% if can_edit_fields|default:True %}{% if form.gender.errors %}{{ form.gender|add_class:"form-control error" }}{% else %}{{ form.gender|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_gender_display }}</span>{% endif %}
+                <small class="field-hint-de">Geschlecht</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.date_of_birth.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"date-picker form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.date_of_birth }}</span>{% endif %}
+                <small class="field-hint-de">Geburtsdatum</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.country_of_origin.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country_of_origin }}</span>{% endif %}
+                <small class="field-hint-de">Herkunftsland</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.place_of_birth.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.place_of_birth }}</span>{% endif %}
+                <small class="field-hint-de">Geburtsort</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Address</h3>
+            <div class="aligned-field">
+                <label>{{ form.street.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.street.errors %}{{ form.street|add_class:"form-control error" }}{% else %}{{ form.street|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.street }}</span>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.house_number.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.house_number.errors %}{{ form.house_number|add_class:"form-control error" }}{% else %}{{ form.house_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.house_number }}</span>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.postal_code.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.postal_code.errors %}{{ form.postal_code|add_class:"form-control error" }}{% else %}{{ form.postal_code|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.postal_code }}</span>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.city.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.city.errors %}{{ form.city|add_class:"form-control error" }}{% else %}{{ form.city|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.city }}</span>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.country.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.country.errors %}{{ form.country|add_class:"form-control error" }}{% else %}{{ form.country|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="form-section">
+            <h3>Contact</h3>
+            <div class="aligned-field">
+                <label>{{ form.email_professional.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.email_professional.errors %}{{ form.email_professional|add_class:"form-control error" }}{% else %}{{ form.email_professional|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.email_professional }}</span>{% endif %}
+                <small class="field-hint-de">Dienstliche E-Mail</small>
+            </div>
+            <div class="aligned-field">
+                <label>{{ form.private_phone_number.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.private_phone_number.errors %}{{ form.private_phone_number|add_class:"form-control error" }}{% else %}{{ form.private_phone_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.private_phone_number }}</span>{% endif %}
+                <small class="field-hint-de">Private Telefonnummer</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Position</h3>
+            <div class="aligned-field">
+                <label>{{ form.job_title.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.job_title.errors %}{{ form.job_title|add_class:"form-control error" }}{% else %}{{ form.job_title|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.job_title }}</span>{% endif %}
+                <small class="field-hint-de">Jobbezeichnung (nicht im Employee-Profil)</small>
+            </div>
+            {% if is_creation %}
+                {{ form.plan_position_number.as_hidden }}
+            {% else %}
+            <div class="aligned-field">
+                <label>{{ form.plan_position_number.label }} <span style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.plan_position_number|default:"—" }}</span>{% endif %}
+                <small class="field-hint-de">Planstellen-Nummer</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% include "tasks/recruitment/_funding_allocations.html" %}
+
+<div class="form-section recruitment-full-block">
+    <h3>Contract Period</h3>
+    <div class="aligned-field">
+        <label>{{ form.valid_from.label }} <span style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from|add_class:"date-picker form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_from }}</span>{% endif %}
+        <small class="field-hint-de">Vertragsbeginn</small>
+    </div>
+    <div class="aligned-field">
+        <label>{{ form.valid_until.label }} <span style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until|add_class:"date-picker form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_until|default:"—" }}</span>{% endif %}
+        <small class="field-hint-de">Vertragsende</small>
+    </div>
+</div>
+
+<div class="form-section recruitment-full-block">
+    <h3>Required Documents</h3>
+    <p style="color:#64748b; font-size:0.9rem;">Re-uploading replaces the current file on the task.</p>
+    <div class="aligned-field">
+        <label>{{ form.application_file.label }} <span style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}
+            {{ form.application_file }}
+            {% if task.application_file %}<small>Current file on record.</small>{% endif %}
+        {% else %}<strong>{% if task.application_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
+        <small class="field-hint-de">Bewerbung</small>
+    </div>
+    <div class="aligned-field">
+        <label>{{ form.cv_file.label }} <span style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}
+            {{ form.cv_file }}
+            {% if task.cv_file %}<small>Current file on record.</small>{% endif %}
+        {% else %}<strong>{% if task.cv_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
+        <small class="field-hint-de">Lebenslauf</small>
+    </div>
+    <div class="aligned-field">
+        <label>{{ form.measles_proof_file.label }} <span style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}
+            {{ form.measles_proof_file }}
+            {% if task.measles_proof_file %}<small>Current file on record.</small>{% endif %}
+        {% else %}<strong>{% if task.measles_proof_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
+        <small class="field-hint-de">Nachweis Masernschutzimpfung</small>
+    </div>
+</div>

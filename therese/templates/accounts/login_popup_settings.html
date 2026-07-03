@@ -5,26 +5,28 @@
 {% block content %}
 <div class="page-header">
     <h1>Login Popup Settings</h1>
-    <p>Configure popups or notifications shown at login. Only visible to Assisting Admins.</p>
 </div>
+
+<p style="color:#64748b;margin-bottom:2rem;">Configure popups or notifications shown at login. Only visible to Assisting Admins.</p>
 
 {{ configs_data|json_script:"login-popup-configs-data" }}
 
-<h2>Existing Configurations</h2>
-<form method="post" id="bulk-delete-configs">
+<h2 class="section-heading">Existing Configurations</h2>
+<form method="post" id="bulk-delete-configs" class="list-panel">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected">
 
     <table class="table">
         <thead>
             <tr>
-                <th style="width: 2rem;">
-                    <input type="checkbox" id="select-all-configs" title="Alle auswählen">
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_configs" title="Select all">
                 </th>
                 <th>Name</th>
                 <th>Trigger</th>
                 <th>Reaction</th>
                 <th>Link To</th>
+                <th>Audience</th>
                 <th>Enabled</th>
                 <th>Actions</th>
             </tr>
@@ -32,11 +34,21 @@
         <tbody>
         {% for config in configs %}
         <tr>
-            <td><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
+                <td class="table-checkbox-col"><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
             <td>{{ config.name }}</td>
             <td>{{ config.get_trigger_display }}</td>
             <td>{{ config.get_reaction_type_display }}</td>
             <td>{{ config.get_link_to_display|default:"-" }}</td>
+            <td>
+                {% if config.target_users.exists or config.target_workgroups.exists or config.target_groups.exists %}
+                    <span style="font-size:0.8rem;color:#6b7280;">{{ config.get_audience_match_mode_display }}</span><br>
+                    {% if config.target_users.exists %}Users: {{ config.target_users.count }}{% endif %}
+                    {% if config.target_workgroups.exists %}{% if config.target_users.exists %}, {% endif %}Work groups: {{ config.target_workgroups.count }}{% endif %}
+                    {% if config.target_groups.exists %}{% if config.target_users.exists or config.target_workgroups.exists %}, {% endif %}Groups: {{ config.target_groups.count }}{% endif %}
+                {% else %}
+                    All users
+                {% endif %}
+            </td>
             <td>{{ config.enabled|yesno:"Yes,No" }}</td>
             <td>
                 <a href="#"
@@ -54,13 +66,13 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7">No configurations yet.</td></tr>
+        <tr><td colspan="8">No configurations yet.</td></tr>
         {% endfor %}
         </tbody>
     </table>
 
     {% if configs %}
-    <div style="margin-top: 0.5rem;">
+    <div class="table-bulk-actions">
         <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected configurations?');">
             Delete selected
         </button>
@@ -68,19 +80,8 @@
     {% endif %}
 </form>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var selectAll = document.getElementById('select-all-configs');
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            var boxes = document.querySelectorAll('input[name="selected_configs"]');
-            boxes.forEach(function(box) { box.checked = selectAll.checked; });
-        });
-    }
-});
-</script>
-
-<h2>Add / Edit Configuration</h2>
+<h2 class="section-heading">Add / Edit Configuration</h2>
+<div class="card">
 <form method="post" id="config-form">
     {% csrf_token %}
     <input type="hidden" name="pk" id="config-pk">
@@ -105,6 +106,50 @@ document.addEventListener('DOMContentLoaded', function() {
             <div id="x-months-field" style="display:none; margin-top: 0.5rem;">
                 <label>X Months</label>
                 <input type="number" name="x_months" id="config-x-months" class="form-control" min="1">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section" style="margin: 1.5rem 0;">
+        <h3>Audience (optional)</h3>
+        <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 1rem;">
+            Leave all empty to show the popup to everyone. If you select targets, choose whether <strong>any</strong> (OR) or <strong>all</strong> (AND) of the selected criteria must match.
+        </p>
+        <div style="margin-bottom: 1rem;">
+            <label>Combine targets with</label>
+            <select name="audience_match_mode" id="config-audience-match" class="form-control" style="max-width: 28rem;">
+                {% for value, label in audience_match_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <small style="color:#666; display:block; margin-top:0.35rem;">
+                Example AND: user must be in the selected Django group <em>and</em> a member of the selected work group.
+            </small>
+        </div>
+        <div class="form-row">
+            <div>
+                <label>Target users</label>
+                <select name="target_users" id="config-target-users" class="form-control" multiple size="6">
+                    {% for u in all_users %}
+                    <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Target work groups</label>
+                <select name="target_workgroups" id="config-target-workgroups" class="form-control" multiple size="6">
+                    {% for wg in all_workgroups %}
+                    <option value="{{ wg.pk }}">{{ wg.short_name }} — {{ wg.long_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Target Django groups</label>
+                <select name="target_groups" id="config-target-groups" class="form-control" multiple size="6">
+                    {% for g in all_groups %}
+                    <option value="{{ g.pk }}">{{ g.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
     </div>
@@ -142,11 +187,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <label><input type="checkbox" name="enabled" id="config-enabled" checked> Enabled</label>
     </div>
 
-    <div class="form-actions" style="margin-top:1rem;">
+    <div class="form-actions">
         <button type="submit" class="btn-primary">Save Configuration</button>
         <button type="button" onclick="resetForm()" class="btn-secondary">Cancel / New</button>
     </div>
 </form>
+</div>
 
 <script>
 var loginPopupConfigsByPk = {};
@@ -165,6 +211,15 @@ function toggleFields() {
     document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
 }
 
+function setMultiSelectValues(selectId, values) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+    var valueSet = new Set((values || []).map(String));
+    Array.prototype.forEach.call(select.options, function(option) {
+        option.selected = valueSet.has(String(option.value));
+    });
+}
+
 function editConfig(pk) {
     var cfg = loginPopupConfigsByPk[String(pk)];
     if (!cfg) return;
@@ -178,6 +233,10 @@ function editConfig(pk) {
     document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
     document.getElementById('config-text').value = cfg.text || '';
     document.getElementById('config-enabled').checked = !!cfg.enabled;
+    document.getElementById('config-audience-match').value = cfg.audience_match_mode || 'or';
+    setMultiSelectValues('config-target-users', cfg.target_user_ids);
+    setMultiSelectValues('config-target-workgroups', cfg.target_workgroup_ids);
+    setMultiSelectValues('config-target-groups', cfg.target_group_ids);
 
     toggleFields();
     document.getElementById('config-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -187,6 +246,10 @@ function resetForm() {
     document.getElementById('config-form').reset();
     document.getElementById('config-pk').value = '';
     document.getElementById('config-enabled').checked = true;
+    document.getElementById('config-audience-match').value = 'or';
+    setMultiSelectValues('config-target-users', []);
+    setMultiSelectValues('config-target-workgroups', []);
+    setMultiSelectValues('config-target-groups', []);
     document.getElementById('x-months-field').style.display = 'none';
     document.getElementById('datetime-field').style.display = 'none';
 }

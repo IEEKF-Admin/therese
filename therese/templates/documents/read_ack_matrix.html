@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Read Acknowledgement Matrix - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Read Acknowledgement Matrix</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'documents:manage_list' %}" class="btn-secondary">← Manage documents</a>
+    </div>
+</div>
+
+<p class="field-hint-de" style="margin-bottom:1rem;">Übersicht Lesebestätigungen: Nutzer mit View-Berechtigung × Dokumente mit Lesebestätigung.</p>
+
+<form method="get" class="search-toolbar list-panel" style="margin-bottom:1.5rem;">
+    <select name="user" class="form-select">
+        <option value="">All users</option>
+        {% for u in all_users %}
+        <option value="{{ u.pk }}" {% if filter_user_id == u.pk|stringformat:"s" %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+        </option>
+        {% endfor %}
+    </select>
+    <select name="document" class="form-select">
+        <option value="">All documents</option>
+        {% for d in all_documents %}
+        <option value="{{ d.pk }}" {% if filter_doc_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.title }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn-secondary">Filter</button>
+    {% if filter_user_id or filter_doc_id %}
+    <a href="{% url 'documents:read_ack_matrix' %}" class="btn-secondary">Clear</a>
+    {% endif %}
+</form>
+
+<div style="margin-bottom:0.75rem;font-size:0.875rem;color:#64748b;">
+    <span style="display:inline-block;width:1rem;height:1rem;background:#d1fae5;border:1px solid #6ee7b7;vertical-align:middle;margin-right:0.25rem;"></span> Confirmed
+    <span style="display:inline-block;width:1rem;height:1rem;background:#fef3c7;border:1px solid #fcd34d;vertical-align:middle;margin:0 0.25rem 0 1rem;"></span> Declined
+    <span style="display:inline-block;width:1rem;height:1rem;background:#f1f5f9;border:1px solid #cbd5e1;vertical-align:middle;margin:0 0.25rem 0 1rem;"></span> Pending / n/a
+</div>
+
+<div class="user-group-matrix-wrap" style="overflow-x:auto;">
+    <table class="table" style="min-width:max-content;">
+        <thead>
+            <tr>
+                <th style="position:sticky;left:0;background:#fff;z-index:1;">User</th>
+                {% for doc in documents %}
+                <th title="{{ doc.title }}" style="writing-mode:vertical-rl;text-orientation:mixed;max-width:2.5rem;padding:0.5rem 0.25rem;">
+                    {{ doc.title|truncatechars:30 }}
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <th scope="row" style="position:sticky;left:0;background:#fff;white-space:nowrap;">
+                    {{ row.user.get_full_name|default:row.user.username }}
+                </th>
+                {% for cell in row.cells %}
+                <td style="text-align:center;{% if cell.status == 'confirmed' %}background:#d1fae5;{% elif cell.status == 'declined' %}background:#fef3c7;{% elif cell.status == 'n/a' %}background:#f8fafc;color:#94a3b8;{% else %}background:#fff;{% endif %}">
+                    {% if cell.status == 'confirmed' %}✓{% elif cell.status == 'declined' %}✗{% elif cell.status == 'n/a' %}—{% else %}?{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{{ documents|length|add:1 }}">No data for the selected filters.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

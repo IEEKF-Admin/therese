@@ -1,0 +1,68 @@
+<script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof tinymce === 'undefined') return;
+
+    const uploadUrl = window.DOCUMENT_EDITOR_IMAGE_UPLOAD_URL || '';
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    const editorConfig = {
+        selector: 'textarea.wysiwyg-editor',
+        license_key: 'gpl',
+        height: 520,
+        width: '100%',
+        menubar: false,
+        plugins: 'lists link table code image',
+        toolbar: 'undo redo | styles | bold italic | bullist numlist | link image table | code',
+        promotion: false,
+        paste_data_images: true,
+        image_title: true,
+        automatic_uploads: true,
+    };
+
+    if (uploadUrl && csrfToken) {
+        editorConfig.images_upload_handler = function(blobInfo, progress) {
+            return new Promise(function(resolve, reject) {
+                const formData = new FormData();
+                formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', uploadUrl);
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                xhr.upload.onprogress = function(event) {
+                    if (event.lengthComputable) {
+                        progress(event.loaded / event.total * 100);
+                    }
+                };
+
+                xhr.onload = function() {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        reject('Image upload failed (' + xhr.status + ').');
+                        return;
+                    }
+                    try {
+                        const json = JSON.parse(xhr.responseText);
+                        if (!json.location) {
+                            reject(json.error || 'Invalid upload response.');
+                            return;
+                        }
+                        resolve(json.location);
+                    } catch (error) {
+                        reject('Invalid upload response.');
+                    }
+                };
+
+                xhr.onerror = function() {
+                    reject('Image upload failed.');
+                };
+
+                xhr.send(formData);
+            });
+        };
+    }
+
+    tinymce.init(editorConfig);
+});
+</script>

@@ -1,0 +1,35 @@
+{% for block in document_blocks %}
+<div class="document-type-block" style="margin-bottom: 1.25rem;">
+    <label style="font-weight:600; display:block; margin-bottom:0.35rem;">
+        {{ block.label_en }}
+        <small style="color:#64748b; font-weight:400; display:block;">{{ block.label_de }}</small>
+    </label>
+
+    {% if object.pk and block.versions %}
+    <ul class="document-version-list" style="list-style:none; padding:0; margin:0 0 0.5rem 0;">
+        {% for version in block.versions %}
+        <li style="display:flex; align-items:center; gap:0.75rem; padding:0.35rem 0; border-bottom:1px solid #f1f5f9;">
+            <span style="flex:1;">
+                {{ version.original_filename }}
+                <small style="color:#64748b; display:block;">{{ version.created_at|date:"Y-m-d H:i" }}</small>
+            </span>
+            <a href="{% url 'hr:employee_document_download' object.pk version.pk %}" class="btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.85rem;">Download</a>
+            {% if block.can_delete_any or request.user.employee and version.uploaded_by_id == request.user.employee.id %}
+            <a href="{% url 'hr:employee_document_delete' object.pk version.pk %}?next={{ request.path }}"
+               class="btn-secondary"
+               style="padding:0.25rem 0.6rem; font-size:0.85rem; color:#b91c1c;"
+               onclick="return confirm('Delete this document version?');">Delete</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% elif object.pk %}
+    <p style="color:#64748b; font-size:0.9rem; margin:0 0 0.5rem 0;">No versions uploaded yet.</p>
+    {% endif %}
+
+    {% if can_upload_documents %}
+    <input type="file" name="{{ block.upload_field }}" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
+    <small style="color:#64748b;">PDF or image, max. 10 MB</small>
+    {% endif %}
+</div>
+{% endfor %}

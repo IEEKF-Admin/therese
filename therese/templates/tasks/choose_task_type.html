@@ -51,6 +51,12 @@ Do not remove any existing requirements from this header without explicit instru
             <h3>Contract Extension</h3>
             <p>Extend or modify employment contracts</p>
         </a>
+
+        <a href="{% url 'tasks:task_create' %}?type=personnel_recruitment" class="task-type-card">
+            <i class="fas fa-user-plus fa-3x"></i>
+            <h3>Personnel Recruitment</h3>
+            <p>Initiate hiring for a new employee</p>
+        </a>
         {% endif %}
 
         {% if can_create_generic %}

@@ -5,34 +5,46 @@
 {% block content %}
 <div class="page-header">
     <h1>PSP Elements (WBS)</h1>
-    <a href="{% url 'finances:psp_create' %}" class="btn-primary">+ New PSP Element</a>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:psp_create' %}" class="btn-primary">+ New PSP Element</a>
+    </div>
 </div>
 
-<form method="post" id="bulk-delete-form">
+<form method="post" id="bulk-delete-form" class="list-panel">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected">
 
     <table class="table">
         <thead>
             <tr>
-                <th style="width: 2rem;">
-                    <input type="checkbox" id="select-all" title="Alle auswählen">
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
                 </th>
                 <th>Code</th>
-                <th>Titel</th>
-                <th>Work Group</th>
-                <th>Verantwortlich</th>
+                <th>Title</th>
+                <th>Cost center</th>
+                <th>Work group</th>
+                <th>Responsible</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for psp in psp_elements %}
             <tr>
-                <td><input type="checkbox" name="selected_ids" value="{{ psp.pk }}"></td>
+                <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ psp.pk }}"></td>
                 <td>{{ psp.wbs_code }}</td>
                 <td>{{ psp.title }}</td>
+                <td>{{ psp.cost_center|default:"-" }}</td>
                 <td>{{ psp.work_group|default:"-" }}</td>
                 <td>{{ psp.responsible_person|default:"-" }}</td>
+                <td>
+                    {% if psp.is_inactive %}
+                    <span style="color:#b45309;font-size:0.85rem;">Inactive</span>
+                    {% else %}
+                    <span style="color:#059669;font-size:0.85rem;">Active</span>
+                    {% endif %}
+                </td>
                 <td>
                     <a href="{% url 'finances:psp_update' psp.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
                     <a href="{% url 'finances:psp_delete' psp.pk %}" class="action-icon delete"
@@ -40,30 +52,18 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6">No PSP elements found.</td></tr>
+            <tr><td colspan="8">No PSP elements found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     {% if psp_elements %}
-    <div style="margin-top: 0.5rem;">
+    <div class="table-bulk-actions">
         <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected PSP elements?');">
             Delete selected
         </button>
-        <small style="margin-left: 1rem; color: #666;">PSP elements with allocations/bookings cannot be deleted.</small>
+        <small>PSP elements with allocations/bookings cannot be deleted.</small>
     </div>
     {% endif %}
 </form>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var selectAll = document.getElementById('select-all');
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            var boxes = document.querySelectorAll('input[name="selected_ids"]');
-            boxes.forEach(function(box) { box.checked = selectAll.checked; });
-        });
-    }
-});
-</script>
 {% endblock %}

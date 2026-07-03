@@ -1,16 +1,264 @@
 {% extends "base.html" %}
+{% load widget_tweaks %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>{{ title }}</h1>
-    <a href="{% url 'finances:psp_manage' %}" class="btn-secondary">← Back</a>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:psp_manage' %}" class="btn-secondary">← Back</a>
+    </div>
 </div>
 
-<form method="post">
+{% if form.non_field_errors or year_estimate_formset.non_form_errors %}
+<div class="alert alert-danger" style="margin-bottom: 1rem;">
+    <strong>Could not save:</strong>
+    <ul>
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+        {% for error in year_estimate_formset.non_form_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="post" id="psp-form">
     {% csrf_token %}
-    {{ form.as_p }}
+
+    <div class="psp-two-col">
+        <div class="left-col">
+            <div class="form-card">
+                <h3>Basic data</h3>
+                <div class="form-field">
+                    <label for="{{ form.wbs_code.id_for_label }}">{{ form.wbs_code.label }}</label>
+                    {% if form.wbs_code.errors %}{{ form.wbs_code|add_class:"form-control error" }}{% else %}{{ form.wbs_code }}{% endif %}
+                    {% if form.wbs_code.help_text %}<span class="helptext">{{ form.wbs_code.help_text }}</span>{% endif %}
+                    {{ form.wbs_code.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {% if form.title.errors %}{{ form.title|add_class:"form-control error" }}{% else %}{{ form.title }}{% endif %}
+                    {% if form.title.help_text %}<span class="helptext">{{ form.title.help_text }}</span>{% endif %}
+                    {{ form.title.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.work_group.id_for_label }}">{{ form.work_group.label }}</label>
+                    {% if form.work_group.errors %}{{ form.work_group|add_class:"form-select error" }}{% else %}{{ form.work_group }}{% endif %}
+                    {% if form.work_group.help_text %}<span class="helptext">{{ form.work_group.help_text }}</span>{% endif %}
+                    {{ form.work_group.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.responsible_person.id_for_label }}">{{ form.responsible_person.label }}</label>
+                    {% if form.responsible_person.errors %}{{ form.responsible_person|add_class:"form-select error" }}{% else %}{{ form.responsible_person }}{% endif %}
+                    {% if form.responsible_person.help_text %}<span class="helptext">{{ form.responsible_person.help_text }}</span>{% endif %}
+                    {{ form.responsible_person.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.cost_center.id_for_label }}">{{ form.cost_center.label }} *</label>
+                    {% if form.cost_center.errors %}{{ form.cost_center|add_class:"form-select error" }}{% else %}{{ form.cost_center }}{% endif %}
+                    {% if form.cost_center.help_text %}<span class="helptext">{{ form.cost_center.help_text }} — Pflichtfeld im Editor.</span>{% endif %}
+                    {{ form.cost_center.errors }}
+                </div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="form-card">
+                <h3>Period &amp; status</h3>
+                <div class="form-field">
+                    <label for="{{ form.period_start.id_for_label }}">{{ form.period_start.label }}</label>
+                    {% if form.period_start.errors %}{{ form.period_start|add_class:"form-control error" }}{% else %}{{ form.period_start }}{% endif %}
+                    {% if form.period_start.help_text %}<span class="helptext">{{ form.period_start.help_text }} — Monat/Jahr-Picker (ohne Tag).</span>{% endif %}
+                    {{ form.period_start.errors }}
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.period_end.id_for_label }}">{{ form.period_end.label }}</label>
+                    {% if form.period_end.errors %}{{ form.period_end|add_class:"form-control error" }}{% else %}{{ form.period_end }}{% endif %}
+                    {% if form.period_end.help_text %}<span class="helptext">{{ form.period_end.help_text }} — Monat/Jahr-Picker (ohne Tag).</span>{% endif %}
+                    {{ form.period_end.errors }}
+                </div>
+                <div class="form-field checkbox-field">
+                    {{ form.subject_to_annual_recurrence }}
+                    <div>
+                        <label for="{{ form.subject_to_annual_recurrence.id_for_label }}">{{ form.subject_to_annual_recurrence.label }}</label>
+                        {% if form.subject_to_annual_recurrence.help_text %}<span class="helptext">{{ form.subject_to_annual_recurrence.help_text }}</span>{% endif %}
+                    </div>
+                </div>
+                <div class="form-field checkbox-field">
+                    {{ form.is_inactive }}
+                    <div>
+                        <label for="{{ form.is_inactive.id_for_label }}">{{ form.is_inactive.label }}</label>
+                        {% if form.is_inactive.help_text %}<span class="helptext">{{ form.is_inactive.help_text }}</span>{% endif %}
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+                    {% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment }}{% endif %}
+                    {% if form.comment.help_text %}<span class="helptext">{{ form.comment.help_text }}</span>{% endif %}
+                    {{ form.comment.errors }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-card" style="margin-bottom: 2rem;">
+        <h3>Year estimates (EUR)</h3>
+        <p class="helptext" style="margin-bottom: 1rem;">One row per year. All fields optional. Funding replaces the former initial balance.</p>
+
+        {{ year_estimate_formset.management_form }}
+        {% if year_estimate_formset.non_form_errors %}
+        <div class="alert alert-danger">{{ year_estimate_formset.non_form_errors }}</div>
+        {% endif %}
+
+        <div class="year-estimate-header">
+            <span>Year / period</span>
+            <span>Funding</span>
+            <span>Consumables</span>
+            <span>Travel</span>
+            <span>Animal costs</span>
+            <span></span>
+        </div>
+
+        <div id="year-estimate-container">
+            {% for estimate_form in year_estimate_formset %}
+            <div class="year-estimate-row inline-form-row">
+                {{ estimate_form.id }}
+                {{ estimate_form.DELETE.as_hidden }}
+                <div class="inline-field">
+                    {% if estimate_form.year.errors %}{{ estimate_form.year|add_class:"error" }}{% else %}{{ estimate_form.year }}{% endif %}
+                    {{ estimate_form.year.errors }}
+                </div>
+                <div class="inline-field">
+                    {% if estimate_form.funding.errors %}{{ estimate_form.funding|add_class:"error" }}{% else %}{{ estimate_form.funding }}{% endif %}
+                    {{ estimate_form.funding.errors }}
+                </div>
+                <div class="inline-field">
+                    {% if estimate_form.consumables_estimate.errors %}{{ estimate_form.consumables_estimate|add_class:"error" }}{% else %}{{ estimate_form.consumables_estimate }}{% endif %}
+                    {{ estimate_form.consumables_estimate.errors }}
+                </div>
+                <div class="inline-field">
+                    {% if estimate_form.travel_estimate.errors %}{{ estimate_form.travel_estimate|add_class:"error" }}{% else %}{{ estimate_form.travel_estimate }}{% endif %}
+                    {{ estimate_form.travel_estimate.errors }}
+                </div>
+                <div class="inline-field">
+                    {% if estimate_form.animal_costs_estimate.errors %}{{ estimate_form.animal_costs_estimate|add_class:"error" }}{% else %}{{ estimate_form.animal_costs_estimate }}{% endif %}
+                    {{ estimate_form.animal_costs_estimate.errors }}
+                </div>
+                <div class="inline-delete">
+                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="year-estimate-empty-template" class="empty-form-template" style="display:none;">
+            {% with estimate_form=year_estimate_formset.empty_form %}
+            <div class="year-estimate-row inline-form-row">
+                {{ estimate_form.id }}
+                {{ estimate_form.DELETE.as_hidden }}
+                <div class="inline-field">{{ estimate_form.year }}</div>
+                <div class="inline-field">{{ estimate_form.funding }}</div>
+                <div class="inline-field">{{ estimate_form.consumables_estimate }}</div>
+                <div class="inline-field">{{ estimate_form.travel_estimate }}</div>
+                <div class="inline-field">{{ estimate_form.animal_costs_estimate }}</div>
+                <div class="inline-delete">
+                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                </div>
+            </div>
+            {% endwith %}
+        </div>
+
+        <button type="button" id="add-year-estimate" class="btn-secondary" style="margin-top: 0.5rem;">
+            + Add year row
+        </button>
+    </div>
+
     <button type="submit" class="btn-primary">Save</button>
 </form>
+
+<script>
+(function() {
+    const formsetPrefix = '{{ year_estimate_formset.prefix }}';
+
+    function getTotalFormsInput() {
+        return document.querySelector(`input[name="${formsetPrefix}-TOTAL_FORMS"]`);
+    }
+
+    function getMaxYear() {
+        let maxYear = null;
+        document.querySelectorAll('#year-estimate-container input[name$="-year"]').forEach(function(input) {
+            const row = input.closest('.year-estimate-row');
+            if (!row || row.style.display === 'none') return;
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && (maxYear === null || val > maxYear)) {
+                maxYear = val;
+            }
+        });
+        return maxYear;
+    }
+
+    function addYearEstimateRow() {
+        const template = document.getElementById('year-estimate-empty-template');
+        const container = document.getElementById('year-estimate-container');
+        const totalInput = getTotalFormsInput();
+        if (!template || !container || !totalInput) return;
+
+        const newIndex = parseInt(totalInput.value, 10) || 0;
+        const clone = template.firstElementChild.cloneNode(true);
+        clone.style.display = '';
+
+        clone.querySelectorAll('[name],[id],[for]').forEach(function(el) {
+            ['name', 'id', 'for'].forEach(function(attr) {
+                if (el.hasAttribute(attr)) {
+                    el.setAttribute(attr, el.getAttribute(attr).replace(/__prefix__/g, newIndex));
+                }
+            });
+        });
+
+        clone.querySelectorAll('input, select, textarea').forEach(function(el) {
+            if (el.type === 'hidden') return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+        });
+
+        const maxYear = getMaxYear();
+        const yearInput = clone.querySelector('input[name$="-year"]');
+        if (yearInput && maxYear !== null) {
+            yearInput.value = maxYear + 1;
+        }
+
+        container.appendChild(clone);
+        totalInput.value = newIndex + 1;
+    }
+
+    document.getElementById('add-year-estimate').addEventListener('click', addYearEstimateRow);
+
+    document.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-row');
+        if (!removeBtn || !removeBtn.closest('#year-estimate-container, #year-estimate-empty-template')) return;
+
+        const row = removeBtn.closest('.year-estimate-row');
+        if (!row) return;
+
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+        } else {
+            row.remove();
+            const totalInput = getTotalFormsInput();
+            if (totalInput) {
+                const visible = document.querySelectorAll('#year-estimate-container .year-estimate-row:not([style*="display: none"])');
+                totalInput.value = visible.length;
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

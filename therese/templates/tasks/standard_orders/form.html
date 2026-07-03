@@ -5,7 +5,9 @@
 {% block content %}
 <div class="page-header">
     <h1>{{ title }}</h1>
-    <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">← Back to List</a>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:standard_orders_list' %}" class="btn-secondary">← Back to List</a>
+    </div>
 </div>
 
 <div class="card">

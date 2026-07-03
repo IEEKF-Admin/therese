@@ -36,6 +36,8 @@ class GroupNames:
     PERSONNEL_APPROVAL_RIGHTS = "Personnel - Approval Rights"
 
     GENERAL_REQUESTS_CREATE = "General Requests - Create"
+    DOCUMENTS_VIEW = "Documents & SOPs - View"
+    DOCUMENTS_MANAGE = "Documents & SOPs - Manage"
     ASSISTING_ADMINS = "Assisting Admins"
 
 
@@ -57,6 +59,8 @@ NEW_GROUPS = [
     GroupNames.PERSONNEL_COORDINATION_RIGHTS,
     GroupNames.PERSONNEL_APPROVAL_RIGHTS,
     GroupNames.GENERAL_REQUESTS_CREATE,
+    GroupNames.DOCUMENTS_VIEW,
+    GroupNames.DOCUMENTS_MANAGE,
     GroupNames.ASSISTING_ADMINS,
 ]
 
@@ -161,6 +165,7 @@ def assign_permissions_to_groups():
     from apps.hr.models import Employee, Workgroup, Building
     from apps.finances.models import WBSElement, PayScale
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
+    from apps.documents.models import Document
 
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
@@ -236,6 +241,12 @@ def assign_permissions_to_groups():
     # General Requests
     safe_add("General Requests - Create", get_perm("create_general_request", PurchaseOrderTask))
 
+    # Documents & SOPs
+    view_doc = get_perm("view_document", Document)
+    manage_doc = get_perm("manage_document", Document)
+    safe_add("Documents & SOPs - View", view_doc)
+    safe_add("Documents & SOPs - Manage", view_doc, manage_doc)
+
     # Assisting Admins gets the key management permissions for broad access
     safe_add(
         "Assisting Admins",
@@ -246,6 +257,8 @@ def assign_permissions_to_groups():
         get_perm("view_psp_overview", WBSElement),
         get_perm("view_all_purchase_orders", PurchaseOrderTask),
         get_perm("manage_standard_order", StandardPurchaseItem),
+        manage_doc,
+        view_doc,
     )
 
     if assigned_count:

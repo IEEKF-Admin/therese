@@ -25,13 +25,17 @@ Do not remove any existing requirements from this header without explicit instru
 
 {% block content %}
 <div class="page-header">
-    <h1>{% if is_archive_view %}My Archive{% else %}My Tasks{% endif %}</h1>
-    <p>Welcome back, {{ request.user.get_full_name|default:request.user.username }} 👋</p>
-    {% if is_archive_view %}
-        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary" style="margin-left: auto;">← Back to My Tasks</a>
-    {% else %}
-        <a href="{% url 'tasks:my_tasks' %}?archive=1" class="btn-secondary" style="margin-left: auto;">📦 View My Archive</a>
-    {% endif %}
+    <div>
+        <h1>{% if is_archive_view %}My Archive{% else %}My Tasks{% endif %}</h1>
+        <p class="page-subtitle">Welcome back, {{ request.user.get_full_name|default:request.user.username }}</p>
+    </div>
+    <div class="page-header-actions">
+        {% if is_archive_view %}
+            <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
+        {% else %}
+            <a href="{% url 'tasks:my_tasks' %}?archive=1" class="btn-secondary">📦 View My Archive</a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="tasks-dashboard">
@@ -267,7 +271,10 @@ Do not remove any existing requirements from this header without explicit instru
             break;
           }
         }
-        if (redirectLink && popupLinks[redirectLink]) {
+        var lastPopup = popups[popups.length - 1];
+        if (lastPopup && lastPopup.url) {
+          window.location.href = lastPopup.url;
+        } else if (redirectLink && popupLinks[redirectLink]) {
           window.location.href = popupLinks[redirectLink];
         } else {
           modal.style.display = 'none';

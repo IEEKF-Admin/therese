@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ version.document.title }} {{ version.version_label }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 11pt; margin: 2cm; }
+        h1 { font-size: 16pt; margin-bottom: 0.25rem; }
+        .meta { color: #555; font-size: 9pt; margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+    <h1>{{ version.document.title }}</h1>
+    <div class="meta">
+        {{ version.document.category.breadcrumb }} · {{ version.version_label }}
+        {% if version.published_at %}· {{ version.published_at|date:"d.m.Y" }}{% endif %}
+    </div>
+    {{ version.content_html|safe }}
+</body>
+</html>

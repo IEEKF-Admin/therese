@@ -437,3 +437,168 @@ body[data-theme="dark"] {
     font-weight: 600;
 }
 
+/* === User Group Matrix (admin) === */
+#content:has(.user-group-matrix-page) {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.user-group-matrix-page {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.matrix-intro {
+    color: #475569;
+    margin: 0 0 1rem;
+}
+
+.matrix-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.matrix-filter-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+}
+
+.user-group-matrix-wrap {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.user-group-matrix {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    font-size: 0.82rem;
+}
+
+.user-group-matrix th,
+.user-group-matrix td {
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.user-group-matrix thead th {
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.matrix-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #fff;
+    text-align: left !important;
+    min-width: 160px;
+    max-width: 220px;
+    box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+}
+
+.matrix-user-header {
+    z-index: 4 !important;
+    background: #eff6ff !important;
+    font-weight: 700;
+}
+
+.matrix-group-header {
+    min-width: 44px;
+    max-width: 56px;
+    width: 48px;
+    height: 110px;
+    padding: 0.25rem 0.15rem !important;
+    vertical-align: bottom;
+}
+
+.matrix-group-header span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 100px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.matrix-user-cell a {
+    font-weight: 600;
+    color: #1e40af;
+    text-decoration: none;
+}
+
+.matrix-user-cell a:hover {
+    text-decoration: underline;
+}
+
+.matrix-inactive-badge,
+.matrix-superuser-badge {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.matrix-inactive-badge {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.matrix-superuser-badge {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.matrix-membership-cell {
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    padding: 0.35rem 0.2rem !important;
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.matrix-membership-cell.is-member {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.user-group-matrix tbody tr:hover td,
+.user-group-matrix tbody tr:hover th.matrix-sticky-col {
+    background-color: #f8fafc;
+}
+
+.user-group-matrix tbody tr:hover td.is-member {
+    background-color: #d1fae5;
+}
+

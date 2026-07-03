@@ -7,7 +7,11 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages
 from django.shortcuts import redirect
 
-from ...models import Task, PurchaseOrderTask, GenericTextTask, PersonnelReallocationTask, PersonnelContractExtensionTask
+from ...models import (
+    Task, PurchaseOrderTask, GenericTextTask,
+    PersonnelReallocationTask, PersonnelContractExtensionTask,
+    PersonnelRecruitmentTask,
+)
 from ...utils import can_view_purchase_order
 
 
@@ -46,6 +50,14 @@ def get_task_or_404(pk, user):
         task = PersonnelContractExtensionTask.objects.select_related(
             'assignee', 'creator', 'employee', 'last_changed_by'
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
+        return task
+
+    if base_task.task_type == 'personnel_recruitment':
+        task = PersonnelRecruitmentTask.objects.select_related(
+            'assignee', 'creator', 'created_employee', 'last_changed_by',
+        ).prefetch_related(
+            'comments', 'comments__author', 'funding_allocations__wbs_element',
+        ).get(pk=pk)
         return task
 
     return base_task

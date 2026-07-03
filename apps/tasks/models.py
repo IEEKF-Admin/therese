@@ -7,7 +7,7 @@ Robust polymorphic Task System
 
 from django.db import models
 from apps.core.models import BaseModel
-from apps.hr.models import Employee
+from apps.hr.models import Employee, Gender
 from apps.finances.models import WBSElement
 
 
@@ -30,6 +30,20 @@ PERSONNEL_STATUSES = [
     ('completed', 'Completed'),
 ]
 
+RECRUITMENT_STATUSES = [
+    ('not_yet_processed', 'Not yet processed / Noch nicht bearbeitet'),
+    ('coordination_completed', 'Coordination completed / Koordination abgeschlossen'),
+    ('sent_to_administration', 'Sent to administration / An Verwaltung geschickt'),
+    ('recruitment_completed', 'Recruitment completed / Einstellung abgeschlossen'),
+]
+
+RECRUITMENT_STATUS_ORDER = [
+    'not_yet_processed',
+    'coordination_completed',
+    'sent_to_administration',
+    'recruitment_completed',
+]
+
 GENERIC_STATUSES = [
     ('seen', 'Seen'),
     ('in_progress', 'In Progress'),
@@ -43,6 +57,7 @@ class Task(BaseModel):
         ('purchase_order', 'Purchase Order'),
         ('personnel_reallocation', 'Personnel Reallocation'),
         ('personnel_contract_extension', 'Personnel Contract Extension'),
+        ('personnel_recruitment', 'Personnel Recruitment'),
         ('generic_text', 'General Request'),
     ]
 
@@ -104,7 +119,7 @@ class Task(BaseModel):
     def get_initial_status(self):
         if self.task_type == 'purchase_order':
             return 'not_yet_processed'
-        if self.task_type in ('personnel_reallocation', 'personnel_contract_extension'):
+        if self.task_type in ('personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment'):
             return 'not_yet_processed'
         return 'seen'  # generic_text
 
@@ -112,6 +127,9 @@ class Task(BaseModel):
         """Human readable status depending on task type"""
         if self.task_type == 'generic_text':
             mapping = dict(GENERIC_STATUSES)
+            return mapping.get(self.status, self.status)
+        if self.task_type == 'personnel_recruitment':
+            mapping = dict(RECRUITMENT_STATUSES)
             return mapping.get(self.status, self.status)
         if self.task_type in ('personnel_reallocation', 'personnel_contract_extension'):
             mapping = dict(PERSONNEL_STATUSES)
@@ -218,6 +236,89 @@ class PersonnelContractExtensionTask(Task):
 
     class Meta:
         verbose_name = "Contract Extension Task"
+
+
+class PersonnelRecruitmentTask(Task):
+    """New hire recruitment workflow."""
+
+    prefix = models.CharField(max_length=20, blank=True, verbose_name="Prefix / Title")
+    first_name = models.CharField(max_length=100, verbose_name="First Name")
+    last_name = models.CharField(max_length=100, verbose_name="Last Name")
+    gender = models.CharField(
+        max_length=1,
+        choices=Gender.choices,
+        default=Gender.NOT_SPECIFIED,
+        verbose_name="Gender",
+    )
+    date_of_birth = models.DateField(verbose_name="Date of Birth")
+    country_of_origin = models.CharField(max_length=100, verbose_name="Country of Origin")
+    place_of_birth = models.CharField(max_length=100, verbose_name="Place of Birth")
+    email_professional = models.EmailField(verbose_name="Professional Email")
+    private_phone_number = models.CharField(max_length=30, verbose_name="Private Phone")
+    street = models.CharField(max_length=100, verbose_name="Street")
+    house_number = models.CharField(max_length=20, verbose_name="House Number")
+    postal_code = models.CharField(max_length=10, verbose_name="Postal Code")
+    city = models.CharField(max_length=100, verbose_name="City")
+    country = models.CharField(max_length=100, default="Germany", verbose_name="Country")
+    job_title = models.CharField(max_length=200, verbose_name="Job Title")
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
+    )
+    valid_from = models.DateField(verbose_name="Contract Start Date")
+    valid_until = models.DateField(null=True, blank=True, verbose_name="Contract End Date")
+    application_file = models.FileField(
+        upload_to='recruitment_tasks/application/',
+        verbose_name="Application",
+    )
+    cv_file = models.FileField(
+        upload_to='recruitment_tasks/cv/',
+        verbose_name="Curriculum Vitae",
+    )
+    measles_proof_file = models.FileField(
+        upload_to='recruitment_tasks/measles/',
+        verbose_name="Measles Vaccination Proof",
+    )
+    created_employee = models.OneToOneField(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recruitment_source_task',
+        verbose_name="Created Employee",
+    )
+
+    class Meta:
+        verbose_name = "Personnel Recruitment Task"
+
+
+class RecruitmentFundingAllocation(BaseModel):
+    """WBS element + weekly hours pair for a recruitment task."""
+    recruitment_task = models.ForeignKey(
+        PersonnelRecruitmentTask,
+        on_delete=models.CASCADE,
+        related_name='funding_allocations',
+        verbose_name="Recruitment Task",
+    )
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.PROTECT,
+        verbose_name="WBS Element",
+    )
+    weekly_hours_allocated = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Weekly Working Hours",
+    )
+
+    class Meta:
+        verbose_name = "Recruitment Funding Allocation"
+        verbose_name_plural = "Recruitment Funding Allocations"
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.wbs_element} ({self.weekly_hours_allocated}h/week)"
 
 
 class GenericTextTask(Task):

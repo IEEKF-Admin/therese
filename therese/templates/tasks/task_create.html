@@ -4,6 +4,7 @@
 {% block title %}
 {% if task_type == 'personnel_reallocation' %}New Personnel Reallocation - THERESE
 {% elif task_type == 'personnel_contract_extension' %}New Personnel Contract Extension - THERESE
+{% elif task_type == 'personnel_recruitment' %}New Personnel Recruitment - THERESE
 {% else %}New Purchase Order - THERESE{% endif %}
 {% endblock %}
 
@@ -13,14 +14,18 @@
         <h1>New Personnel Reallocation</h1>
     {% elif task_type == 'personnel_contract_extension' %}
         <h1>New Personnel Contract Extension</h1>
+    {% elif task_type == 'personnel_recruitment' %}
+        <h1>New Personnel Recruitment</h1>
     {% else %}
         <h1>New Purchase Order</h1>
     {% endif %}
-    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    </div>
 </div>
 
 <div class="card">
-    <form method="post" {% if task_type == 'purchase_order' %}enctype="multipart/form-data"{% endif %}>
+    <form method="post" {% if task_type == 'purchase_order' or task_type == 'personnel_recruitment' %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         {{ form.status }}
 
@@ -242,6 +247,14 @@
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
             </div>
 
+        {% elif task_type == 'personnel_recruitment' %}
+            {% include "tasks/recruitment/_form_body.html" with task=form.instance can_edit_fields=True is_creation=True %}
+            <div class="form-section comment-full">
+                <h3>Comment / Notes</h3>
+                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                <small style="color:#64748b;">Kommentar / Notizen</small>
+            </div>
+
         {% endif %}
 
         <div class="form-actions">
@@ -256,6 +269,8 @@
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Personnel Reallocation</button>
             {% elif task_type == 'personnel_contract_extension' %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Contract Extension</button>
+            {% elif task_type == 'personnel_recruitment' %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Personnel Recruitment</button>
             {% else %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Purchase Order</button>
             {% endif %}
@@ -266,6 +281,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if task_type == 'personnel_recruitment' %}
+{% include "tasks/recruitment/_inline_form_js.html" %}
+{% endif %}
 <style>
   /* Force vertical layout for fields in task creation (English label above, German below) */
   .form-section .aligned-field {

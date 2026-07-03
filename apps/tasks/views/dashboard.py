@@ -105,7 +105,11 @@ def my_tasks(request):
     personnel_all_visible = None
     if is_personnel_coordinator(request.user):
         personnel_qs = Task.objects.filter(
-            task_type__in=['personnel_reallocation', 'personnel_contract_extension']
+            task_type__in=[
+                'personnel_reallocation',
+                'personnel_contract_extension',
+                'personnel_recruitment',
+            ]
         ).select_related('assignee', 'creator').order_by('-created_at')
         if is_archive_view:
             personnel_all_visible = personnel_qs.filter(archived_by=employee)
@@ -128,107 +132,30 @@ def my_tasks(request):
         'page_title': page_title,
     }
 
-    # Collect popups for sequential display (to handle multiple triggers without collision)
-    # Redirect only based on the last popup's link (or first with link)
-    from apps.accounts.models import LoginPopupConfig
     import json
-    from datetime import date, timedelta
-    from django.utils import timezone
-
-    def render_text(text, user, employee):
-        if not employee:
-            return text
-        # Compute placeholders
-        first = getattr(user, 'first_name', '') or getattr(employee, 'first_name', '')
-        last = getattr(user, 'last_name', '') or getattr(employee, 'last_name', '')
-        full = (first + ' ' + last).strip() or str(employee)
-        emp_no = getattr(employee, 'employee_number', '')
-        # Latest contract end
-        contract_end = ''
-        latest_contract = employee.contracts.filter(valid_until__isnull=False).order_by('-valid_until').first()
-        if latest_contract:
-            contract_end = latest_contract.valid_until.strftime('%d.%m.%Y')
-        today_str = date.today().strftime('%d.%m.%Y')
-        replacements = {
-            '{{ first_name }}': first,
-            '{{ last_name }}': last,
-            '{{ full_name }}': full,
-            '{{ employee_number }}': emp_no,
-            '{{ contract_end }}': contract_end,
-            '{{ today }}': today_str,
-            '{{ title }}': 'THERESE',
-        }
-        for placeholder, value in replacements.items():
-            text = text.replace(placeholder, value)
-        return text
-
-    popups = []
-
-    employee = getattr(request.user, 'employee', None)
-    now = timezone.now()
-    shown_config_ids = set(
-        LoginPopupConfig.objects.filter(shown_to_users=request.user).values_list('pk', flat=True)
+    from apps.accounts.login_popups import evaluate_login_popups, persist_popup_acknowledgements
+    from apps.documents.popups import (
+        evaluate_document_publish_popups,
+        persist_document_publish_popup_acks,
     )
 
-    # Configurable popups (first_login now also via LoginPopupConfig)
-    for config in LoginPopupConfig.objects.filter(enabled=True).order_by('id'):
-        if config.pk in shown_config_ids:
-            continue
+    employee = getattr(request.user, 'employee', None)
+    popup_results = evaluate_login_popups(
+        request.user,
+        employee=employee,
+        assigned_to_me=assigned_to_me,
+        my_created=my_created,
+    )
+    doc_popup_results = evaluate_document_publish_popups(request.user)
+    all_popup_results = popup_results + doc_popup_results
 
-        show = False
-        if config.trigger == 'first_login':
-            if request.user.first_login_welcome_shown:
-                continue
-            show = True
-
-        elif config.trigger == 'contract_ending_soon' and config.x_months and employee:
-            cutoff = date.today() + timedelta(days=config.x_months * 30)
-            if employee.contracts.filter(valid_until__isnull=False, valid_until__lte=cutoff, valid_until__gte=date.today()).exists():
-                show = True
-
-        elif config.trigger == 'any_contract_ending_soon' and config.x_months:
-            cutoff = date.today() + timedelta(days=config.x_months * 30)
-            from apps.hr.models import Contract
-            if Contract.objects.filter(valid_until__isnull=False, valid_until__lte=cutoff, valid_until__gte=date.today()).exists():
-                show = True
-
-        elif config.trigger == 'new_task_assigned' and employee:
-            if request.user.last_login:
-                # New tasks assigned after last login
-                new_assigned = False
-                for t in assigned_to_me:
-                    if getattr(t, 'created_at', None) and t.created_at > (request.user.last_login or t.created_at):
-                        new_assigned = True
-                        break
-                if new_assigned:
-                    show = True
-
-        elif config.trigger == 'task_status_changed' and employee:
-            if request.user.last_login:
-                for t in my_created:
-                    if getattr(t, 'updated_at', None) and t.updated_at > (request.user.last_login or t.updated_at):
-                        show = True
-                        break
-
-        elif config.trigger == 'login_after_datetime' and config.trigger_datetime:
-            if now > config.trigger_datetime:
-                show = True
-
-        if show:
-            rendered_text = render_text(config.text, request.user, employee)
-            popups.append({
-                'text': rendered_text,
-                'link': config.link_to or ''
-            })
-
-            config.shown_to_users.add(request.user)
-            shown_config_ids.add(config.pk)
-
-            if config.trigger == 'first_login':
-                request.user.first_login_welcome_shown = True
-                request.user.save(update_fields=['first_login_welcome_shown'])
-
-    if popups:
+    if all_popup_results:
+        persist_popup_acknowledgements(request.user, popup_results)
+        persist_document_publish_popup_acks(request.user, doc_popup_results)
+        popups = [
+            {'text': p['text'], 'link': p.get('link', ''), 'url': p.get('url', '')}
+            for p in all_popup_results
+        ]
         context['login_popups'] = popups
         context['login_popups_json'] = json.dumps(popups)
 

@@ -10,7 +10,8 @@ from django import forms
 from .models import (
     Task, TaskComment, TaskAttachment,
     PurchaseOrderTask, PurchaseItem,
-    PersonnelReallocationTask, PersonnelContractExtensionTask, GenericTextTask
+    PersonnelReallocationTask, PersonnelContractExtensionTask,
+    PersonnelRecruitmentTask, RecruitmentFundingAllocation, GenericTextTask,
 )
 from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
 from apps.hr.models import Employee
@@ -69,6 +70,18 @@ class PersonnelContractExtensionTaskAdmin(admin.ModelAdmin):
     inlines = [TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'employee', 'valid_from', 'is_limited', 'status', 'assignee']
     list_filter = ['status', 'is_limited']
+
+
+class RecruitmentFundingInline(admin.TabularInline):
+    model = RecruitmentFundingAllocation
+    extra = 1
+
+
+@admin.register(PersonnelRecruitmentTask, site=therese_admin)
+class PersonnelRecruitmentTaskAdmin(admin.ModelAdmin):
+    inlines = [RecruitmentFundingInline, TaskCommentInline, TaskAttachmentInline]
+    list_display = ['task_number', 'last_name', 'first_name', 'status', 'assignee']
+    list_filter = ['status']
 
 
 @admin.register(GenericTextTask, site=therese_admin)

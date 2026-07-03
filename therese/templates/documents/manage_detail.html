@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} — Manage - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ document.title }}</h1>
+    <div class="page-header-actions">
+        {% if document.latest_draft %}
+        <a href="{% url 'documents:manage_edit' document.pk %}" class="btn-primary">Edit draft</a>
+        {% else %}
+        <a href="{% url 'documents:manage_new_version' document.pk %}" class="btn-secondary"
+           onclick="return confirm('Start a new draft version? Attachments will be copied from the current version.');">New version</a>
+        {% endif %}
+        {% if document.current_published_version %}
+        <a href="{% url 'documents:detail' document.pk %}" class="btn-secondary">Reader view</a>
+        {% endif %}
+        <a href="{% url 'documents:manage_list' %}" class="btn-secondary">← List</a>
+    </div>
+</div>
+
+<div class="two-col-layout">
+    <div class="left-col">
+        <div class="form-section">
+            <h3>Document info</h3>
+            <table class="table table-compact">
+                <tbody>
+                    <tr><th>Category</th><td>{{ document.category.breadcrumb }}</td></tr>
+                    <tr><th>Archived</th><td>{{ document.is_archived|yesno:"Yes,No" }}</td></tr>
+                    <tr><th>Read acknowledgement</th><td>{{ document.requires_read_acknowledgement|yesno:"Required,Not required" }}</td></tr>
+                    <tr><th>Audience</th>
+                        <td>
+                            {% if document.target_users.exists or document.target_workgroups.exists or document.target_groups.exists %}
+                                {{ document.get_audience_match_mode_display }}<br>
+                                {% if document.target_users.exists %}Users: {{ document.target_users.count }}{% endif %}
+                                {% if document.target_workgroups.exists %}{% if document.target_users.exists %}, {% endif %}Work groups: {{ document.target_workgroups.count }}{% endif %}
+                                {% if document.target_groups.exists %}{% if document.target_users.exists or document.target_workgroups.exists %}, {% endif %}Groups: {{ document.target_groups.count }}{% endif %}
+                            {% else %}
+                                All viewers
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><th>Created by</th><td>{{ document.created_by|default:"—" }}</td></tr>
+                </tbody>
+            </table>
+            <p class="field-hint-de">Metadaten im Entwurf bearbeiten.</p>
+        </div>
+
+        {% if not document.is_archived %}
+        <div class="form-actions" style="margin-top:1rem;">
+            {% if document.latest_draft %}
+            <a href="{% url 'documents:manage_publish' document.pk %}" class="btn-primary"
+               onclick="return confirm('Publish {{ document.latest_draft.version_label }}?');">Publish draft</a>
+            {% endif %}
+            <a href="{% url 'documents:manage_archive' document.pk %}" class="btn-secondary"
+               onclick="return confirm('Archive this document? It will be hidden from readers.');">Archive</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="right-col">
+        <div class="form-section">
+            <h3>Versions</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>Published</th>
+                        <th>Attachments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in versions %}
+                    <tr>
+                        <td><strong>{{ v.version_label }}</strong>{% if document.current_published_version_id == v.pk %} <span style="color:#059669;">(current)</span>{% endif %}</td>
+                        <td>{{ v.get_status_display }}</td>
+                        <td>{% if v.published_at %}{{ v.published_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+                        <td>{{ v.attachments.count }}</td>
+                        <td>
+                            {% if v.status == 'published' %}
+                            <a href="{% url 'documents:detail_version' document.pk v.pk %}" class="action-icon edit" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'documents:pdf_version' document.pk v.pk %}" class="action-icon edit" title="PDF"><i class="fas fa-file-pdf"></i></a>
+                            {% elif v == document.latest_draft %}
+                            <a href="{% url 'documents:manage_edit' document.pk %}" class="action-icon edit" title="Edit draft"><i class="fas fa-edit"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">No versions yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="form-section full-block" style="margin-top:1.5rem;">
+    <h3>Activity log</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>When</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Version</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in activity_logs %}
+            <tr>
+                <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ log.user|default:"—" }}</td>
+                <td>{{ log.action }}</td>
+                <td>{{ log.version.version_label|default:"—" }}</td>
+                <td>{{ log.details|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No activity yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

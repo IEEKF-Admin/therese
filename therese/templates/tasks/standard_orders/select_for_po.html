@@ -5,16 +5,18 @@
 {% block content %}
 <div class="page-header">
     <h1>Select Items from Standard Orders</h1>
-    <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="btn-secondary">← Back to Purchase Order Form</a>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="btn-secondary">← Back to Purchase Order Form</a>
+    </div>
 </div>
 
-<div class="card">
+<div class="card list-panel">
     <p style="margin-bottom: 1rem; color: #475569;">
         Select one or more items. After choosing the first item, only products from the same supplier will remain selectable.
     </p>
 
     <!-- Search -->
-    <form method="get" style="margin-bottom: 1.25rem; display: flex; gap: 8px;">
+    <form method="get" class="search-toolbar">
         <input type="text" name="q" value="{{ search_query }}" placeholder="Search by supplier or product..." class="form-control" style="max-width: 340px;">
         <button type="submit" class="btn-secondary">Search</button>
         {% if search_query %}
@@ -26,7 +28,7 @@
         {% csrf_token %}
 
         {% if items %}
-        <table class="detail-table" id="standard-items-table">
+        <table class="table" id="standard-items-table">
             <thead>
                 <tr>
                     <th style="width: 28px;"></th>

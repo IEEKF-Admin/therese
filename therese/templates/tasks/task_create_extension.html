@@ -6,7 +6,9 @@
 {% block content %}
 <div class="page-header">
     <h1>New Contract Extension</h1>
-    <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Cancel</a>
+    </div>
 </div>
 
 <div class="card">

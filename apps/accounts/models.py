@@ -11,7 +11,7 @@ Features / Requirements:
 - All user-facing text must be in English
 """
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 
 
@@ -62,6 +62,11 @@ class LoginPopupConfig(models.Model):
         ('location_management', 'Manage Locations'),
     ]
 
+    AUDIENCE_MATCH_CHOICES = [
+        ('or', 'OR — match any selected criterion'),
+        ('and', 'AND — match all selected criteria'),
+    ]
+
     name = models.CharField(max_length=100, unique=True)
     trigger = models.CharField(max_length=50, choices=TRIGGER_CHOICES)
     reaction_type = models.CharField(max_length=20, choices=REACTION_CHOICES, default='popup')
@@ -70,12 +75,33 @@ class LoginPopupConfig(models.Model):
     x_months = models.PositiveIntegerField(null=True, blank=True, help_text="For 'contract_ending_soon' or 'any_contract_ending_soon' trigger.")
     trigger_datetime = models.DateTimeField(null=True, blank=True, help_text="For 'login_after_datetime' trigger.")
     enabled = models.BooleanField(default=True)
-    shown_to_users = models.ManyToManyField(
+    audience_match_mode = models.CharField(
+        max_length=3,
+        choices=AUDIENCE_MATCH_CHOICES,
+        default='or',
+        verbose_name="Audience match mode",
+        help_text="How user, work group, and Django group targets are combined.",
+    )
+    target_users = models.ManyToManyField(
         CustomUser,
-        related_name='shown_login_popups',
+        related_name='targeted_login_popups',
         blank=True,
-        verbose_name="Shown to users",
-        help_text="Users who have already seen this popup.",
+        verbose_name="Target users",
+        help_text="If set, only these users see this popup (combined with other targets below).",
+    )
+    target_workgroups = models.ManyToManyField(
+        'hr.Workgroup',
+        related_name='targeted_login_popups',
+        blank=True,
+        verbose_name="Target work groups",
+        help_text="If set, members of these work groups also see this popup.",
+    )
+    target_groups = models.ManyToManyField(
+        Group,
+        related_name='targeted_login_popups',
+        blank=True,
+        verbose_name="Target Django groups",
+        help_text="If set, users in these Django groups also see this popup.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -86,6 +112,54 @@ class LoginPopupConfig(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.get_trigger_display()}"
+
+    def has_audience_restrictions(self):
+        if self.pk:
+            return (
+                self.target_users.exists()
+                or self.target_workgroups.exists()
+                or self.target_groups.exists()
+            )
+        return False
+
+
+class LoginPopupAcknowledgement(models.Model):
+    """Tracks which popup conditions a user has already confirmed."""
+
+    GLOBAL_REFERENCE = 'global'
+
+    config = models.ForeignKey(
+        LoginPopupConfig,
+        on_delete=models.CASCADE,
+        related_name='acknowledgements',
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='login_popup_acknowledgements',
+    )
+    reference_key = models.CharField(
+        max_length=64,
+        help_text="'global' for one-time triggers, or 'contract:<pk>' per contract.",
+    )
+    shown_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Login Popup Acknowledgement"
+        verbose_name_plural = "Login Popup Acknowledgements"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['config', 'user', 'reference_key'],
+                name='unique_login_popup_ack',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} — {self.config.name} — {self.reference_key}"
+
+    @classmethod
+    def contract_reference(cls, contract):
+        return f'contract:{contract.pk}'
 
 
 # Prevent reverse accessor clashes

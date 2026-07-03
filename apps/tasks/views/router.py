@@ -19,7 +19,9 @@ def task_detail(request, pk):
         return generic_task_detail(request, task)
 
     # Personnel tasks (Reallocation + Contract Extension)
-    if getattr(task, 'task_type', None) in ('personnel_reallocation', 'personnel_contract_extension'):
+    if getattr(task, 'task_type', None) in (
+        'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+    ):
         from .detail.personnel import personnel_task_detail
         return personnel_task_detail(request, task)
 

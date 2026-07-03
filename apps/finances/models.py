@@ -92,17 +92,30 @@ class CostCenterInitialBalance(BaseModel):
         ordering = ['cost_center', '-year']
 
 
+class WBSElementQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(is_inactive=False)
+
+
 class WBSElement(BaseModel):
     """PSP Element"""
     wbs_code = models.CharField(max_length=50, unique=True, verbose_name="PSP Element")
     title = models.CharField(max_length=255, verbose_name="Title")
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='wbs_elements',
+        verbose_name="Cost Center",
+    )
     responsible_person = models.ForeignKey(
-        'hr.Employee',                    # String Reference (wichtig!)
+        'hr.Employee',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='responsible_wbs_elements',
-        verbose_name="Responsible Person"
+        verbose_name="Responsible Person",
     )
     comment = models.TextField(blank=True, verbose_name="Comment")
     work_group = models.ForeignKey(
@@ -111,8 +124,28 @@ class WBSElement(BaseModel):
         null=True,
         blank=True,
         verbose_name="Work Group",
-        related_name='wbs_elements'
+        related_name='wbs_elements',
     )
+    period_start = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Period Start",
+    )
+    period_end = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Period End",
+    )
+    subject_to_annual_recurrence = models.BooleanField(
+        default=False,
+        verbose_name="Subject to Annual Recurrence",
+    )
+    is_inactive = models.BooleanField(
+        default=False,
+        verbose_name="Is Inactive",
+    )
+
+    objects = WBSElementQuerySet.as_manager()
 
     class Meta:
         verbose_name = "PSP Element"
@@ -129,19 +162,47 @@ class WBSElement(BaseModel):
         return f"{self.wbs_code} - {short_title}"
 
 
-class WBSElementInitialBalance(BaseModel):
+class WBSElementYearEstimate(BaseModel):
+    """Yearly funding and cost estimates for a PSP element."""
     wbs_element = models.ForeignKey(
         WBSElement,
         on_delete=models.CASCADE,
-        related_name='initial_balances',
-        verbose_name="WBS Element"
+        related_name='year_estimates',
+        verbose_name="PSP Element",
     )
-    year = models.PositiveIntegerField(verbose_name="Year")
-    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Initial Balance")
+    year = models.PositiveIntegerField(verbose_name="Year / Period")
+    funding = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Funding",
+    )
+    consumables_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Consumables Estimate",
+    )
+    travel_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Travel Costs Estimate",
+    )
+    animal_costs_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Animal Costs Estimate",
+    )
 
     class Meta:
-        verbose_name = "WBS Element Initial Balance"
-        verbose_name_plural = "WBS Element Initial Balances"
+        verbose_name = "PSP Element Year Estimate"
+        verbose_name_plural = "PSP Element Year Estimates"
         unique_together = ('wbs_element', 'year')
-        ordering = ['wbs_element', '-year']
+        ordering = ['year']
 

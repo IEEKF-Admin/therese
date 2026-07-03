@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
+from django.urls import path
+
+from apps.accounts.admin_views import user_group_matrix_view
 
 
 class ThereseAdminSite(admin.AdminSite):
@@ -25,6 +28,17 @@ class ThereseAdminSite(admin.AdminSite):
             'tasks.manage_standard_order',
         ]
         return any(request.user.has_perm(perm) for perm in management_perms)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'user-group-matrix/',
+                self.admin_view(user_group_matrix_view),
+                name='user_group_matrix',
+            ),
+        ]
+        return custom_urls + urls
 
 
 therese_admin = ThereseAdminSite(name="therese_admin")

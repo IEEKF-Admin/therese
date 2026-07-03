@@ -241,6 +241,47 @@ class Contract(BaseModel):
         )
 
 
+class EmployeeDocumentType(models.TextChoices):
+    APPLICATION = 'application', 'Application / Bewerbung'
+    CV = 'cv', 'Curriculum Vitae / Lebenslauf'
+    MEASLES_PROOF = 'measles_proof', 'Measles Vaccination Proof / Nachweis Masernschutzimpfung'
+    SCAN_OF_CONTRACT = 'scan_of_contract', 'Scan of Contract / Vertragsscan'
+    PROFILE_PICTURE = 'profile_picture', 'Profile Picture / Profilbild'
+
+
+class EmployeeDocumentVersion(BaseModel):
+    """Versioned employee documents (multiple uploads per document type)."""
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='document_versions',
+        verbose_name="Employee",
+    )
+    document_type = models.CharField(
+        max_length=30,
+        choices=EmployeeDocumentType.choices,
+        verbose_name="Document Type",
+    )
+    file = models.FileField(upload_to='employee_documents/%Y/%m/%d/')
+    original_filename = models.CharField(max_length=255)
+    uploaded_by = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_document_versions',
+        verbose_name="Uploaded By",
+    )
+
+    class Meta:
+        verbose_name = "Employee Document Version"
+        verbose_name_plural = "Employee Document Versions"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} – {self.original_filename}"
+
+
 class FundingAllocation(BaseModel):
     """Hours-based funding allocation for an employee on a WBS Element"""
     employee = models.ForeignKey(

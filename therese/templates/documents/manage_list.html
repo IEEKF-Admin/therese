@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Documents &amp; SOPs - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Manage Documents &amp; SOPs</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'documents:manage_create' %}" class="btn-primary">+ New Document</a>
+        <a href="{% url 'documents:manage_categories' %}" class="btn-secondary">Categories</a>
+        <a href="{% url 'documents:read_ack_matrix' %}" class="btn-secondary">Read Ack. Matrix</a>
+    </div>
+</div>
+
+<form method="get" class="search-toolbar list-panel">
+    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search...">
+    <button type="submit" class="btn-secondary">Search</button>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Current</th>
+            <th>Draft</th>
+            <th>Archived</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td><strong>{{ doc.title }}</strong></td>
+            <td>{{ doc.category.breadcrumb }}</td>
+            <td>{{ doc.current_published_version.version_label|default:"—" }}</td>
+            <td>{% if doc.latest_draft %}{{ doc.latest_draft.version_label }}{% else %}—{% endif %}</td>
+            <td>{{ doc.is_archived|yesno:"Yes,No" }}</td>
+            <td>
+                <a href="{% url 'documents:manage_detail' doc.pk %}" class="action-icon edit" title="Details"><i class="fas fa-eye"></i></a>
+                {% if doc.latest_draft %}
+                <a href="{% url 'documents:manage_edit' doc.pk %}" class="action-icon edit" title="Edit draft"><i class="fas fa-edit"></i></a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No documents yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

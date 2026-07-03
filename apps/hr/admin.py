@@ -8,8 +8,9 @@ from django.contrib import admin
 from django import forms
 from therese.admin import therese_admin
 from .models import (
-    Employee, Building, Room, PhoneNumber, Contract, 
-    FundingAllocation, SalarySupplement, Workgroup
+    Employee, Building, Room, PhoneNumber, Contract,
+    FundingAllocation, SalarySupplement, Workgroup,
+    EmployeeDocumentVersion,
 )
 from apps.finances.models import PayScale, WBSElement
 
@@ -37,6 +38,7 @@ class FundingAllocationInline(admin.TabularInline):
         wbs_field = formset.form.base_fields.get('wbs_element')
         if wbs_field:
             wbs_field.label = 'PSP - Element'
+            wbs_field.queryset = WBSElement.objects.active().order_by('wbs_code')
         return formset
 
 
@@ -89,4 +91,5 @@ therese_admin.register(PhoneNumber)
 therese_admin.register(Contract)
 therese_admin.register(FundingAllocation)
 therese_admin.register(SalarySupplement)
+therese_admin.register(EmployeeDocumentVersion)
 

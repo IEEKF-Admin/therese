@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Employees - THERESE{% endblock %}
@@ -6,19 +6,19 @@
 {% block content %}
 <div class="page-header">
     <h1>Employees</h1>
-    <a href="{% url 'hr:employee_list' %}" class="btn-secondary">All Employees</a>
-    {% if archive_mode %}
-        <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to Active Employees</a>
-    {% else %}
-        <a href="{% url 'hr:employee_list' %}?archive=1" class="btn-secondary">📦 View Archive (No valid contract)</a>
-    {% endif %}
+    <div class="page-header-actions">
+        {% if archive_mode %}
+            <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to Active Employees</a>
+        {% else %}
+            <a href="{% url 'hr:employee_list' %}?archive=1" class="btn-secondary">📦 View Archive</a>
+        {% endif %}
+    </div>
 </div>
 
-<div class="card">
-    <!-- Search -->
-    <div class="search-box mb-4">
-        <input type="text" id="employee-search" placeholder="Search by name or employee number..." 
-               value="{{ search_query }}" onkeyup="filterEmployees()">
+<div class="card list-panel">
+    <div class="search-toolbar">
+        <input type="text" id="employee-search" class="form-control" placeholder="Search by name or employee number..."
+               value="{{ search_query }}">
     </div>
 
     <form method="post" id="bulk-delete-employees">
@@ -27,8 +27,8 @@
         <table class="table" id="employee-table">
             <thead>
                 <tr>
-                    <th style="width: 2rem;">
-                        <input type="checkbox" id="select-all-employees" title="Alle auswählen">
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
                     </th>
                     <th onclick="sortTable(0)">Name</th>
                     <th onclick="sortTable(1)">Employee No.</th>
@@ -39,7 +39,7 @@
             <tbody>
                 {% for employee in employees %}
                 <tr>
-                    <td><input type="checkbox" name="selected_ids" value="{{ employee.pk }}"></td>
+                    <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ employee.pk }}"></td>
                     <td><strong>{{ employee.get_full_name }}</strong></td>
                     <td>{{ employee.employee_number }}</td>
                     <td>{{ employee.phone_number|default:"—" }}</td>
@@ -49,12 +49,8 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align:center; padding:30px;">
-                        {% if archive_mode %}
-                            No employees in archive.
-                        {% else %}
-                            No active employees found.
-                        {% endif %}
+                    <td colspan="5" class="empty-state">
+                        {% if archive_mode %}No employees in archive.{% else %}No active employees found.{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -62,7 +58,7 @@
         </table>
 
         {% if employees %}
-        <div style="margin-top: 0.5rem;">
+        <div class="table-bulk-actions">
             <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected employees?');">
                 Delete selected
             </button>
@@ -80,11 +76,8 @@
 <script>
 function filterEmployees() {
     const input = document.getElementById('employee-search').value.toLowerCase();
-    const rows = document.querySelectorAll('#employee-table tbody tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(input) ? '' : 'none';
+    document.querySelectorAll('#employee-table tbody tr').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(input) ? '' : 'none';
     });
 }
 
@@ -92,40 +85,23 @@ function sortTable(n) {
     const table = document.getElementById("employee-table");
     let rows = Array.from(table.rows).slice(1);
     const isAsc = table.rows[0].cells[n].getAttribute('data-dir') !== 'asc';
-    
-    rows.sort((a, b) => {
+
+    rows.sort(function(a, b) {
         let x = a.cells[n].textContent.trim();
         let y = b.cells[n].textContent.trim();
-        
-        if (n === 1) { // Employee No. als Zahl sortieren
-            x = parseInt(x) || 0;
-            y = parseInt(y) || 0;
+        if (n === 1) {
+            x = parseInt(x, 10) || 0;
+            y = parseInt(y, 10) || 0;
         }
-        
         return (x < y ? -1 : (x > y ? 1 : 0)) * (isAsc ? 1 : -1);
     });
-    
-    rows.forEach(row => table.tBodies[0].appendChild(row));
-    
-    // Direction toggle
-    Array.from(table.rows[0].cells).forEach((cell, i) => {
-        if (i === n) {
-            cell.setAttribute('data-dir', isAsc ? 'asc' : 'desc');
-        }
+
+    rows.forEach(function(row) { table.tBodies[0].appendChild(row); });
+    Array.from(table.rows[0].cells).forEach(function(cell, i) {
+        if (i === n) cell.setAttribute('data-dir', isAsc ? 'asc' : 'desc');
     });
 }
 
-// Select all for bulk delete
-document.addEventListener('DOMContentLoaded', function() {
-    var selectAll = document.getElementById('select-all-employees');
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            var boxes = document.querySelectorAll('input[name="selected_ids"]');
-            boxes.forEach(function(box) { box.checked = selectAll.checked; });
-        });
-    }
-});
+document.getElementById('employee-search').addEventListener('keyup', filterEmployees);
 </script>
 {% endblock %}
-
-

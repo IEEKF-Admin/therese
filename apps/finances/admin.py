@@ -7,7 +7,7 @@ from django.contrib import admin
 from therese.admin import therese_admin
 from .models import (
     CostCenter,
-    CostCenterInitialBalance,
+    CostCenterYearEstimate,
     WBSElement,
     WBSElementYearEstimate,
     PayScale,
@@ -20,6 +20,20 @@ class WBSElementYearEstimateInline(admin.TabularInline):
     fields = (
         'year',
         'funding',
+        'personnel_estimate',
+        'consumables_estimate',
+        'travel_estimate',
+        'animal_costs_estimate',
+    )
+
+
+class CostCenterYearEstimateInline(admin.TabularInline):
+    model = CostCenterYearEstimate
+    extra = 1
+    fields = (
+        'year',
+        'lomv',
+        'personnel_estimate',
         'consumables_estimate',
         'travel_estimate',
         'animal_costs_estimate',
@@ -36,14 +50,23 @@ class PayScaleAdmin(admin.ModelAdmin):
 
 @admin.register(CostCenter, site=therese_admin)
 class CostCenterAdmin(admin.ModelAdmin):
-    list_display = ('cost_center', 'comments')
-    search_fields = ('cost_center', 'comments')
-
-
-@admin.register(CostCenterInitialBalance, site=therese_admin)
-class CostCenterInitialBalanceAdmin(admin.ModelAdmin):
-    list_display = ('cost_center', 'year', 'initial_balance')
-    list_filter = ('year',)
+    list_display = ('cost_center', 'third_party_funder_identifier', 'comments')
+    search_fields = ('cost_center', 'comments', 'third_party_funder_identifier')
+    inlines = [CostCenterYearEstimateInline]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'cost_center',
+                'comments',
+            ),
+        }),
+        ('Third-party funding', {
+            'fields': (
+                'third_party_funding_commitment',
+                'third_party_funder_identifier',
+            ),
+        }),
+    )
 
 
 @admin.register(WBSElement, site=therese_admin)
@@ -70,6 +93,12 @@ class WBSElementAdmin(admin.ModelAdmin):
                 'work_group',
                 'responsible_person',
                 'comment',
+            ),
+        }),
+        ('Third-party funding', {
+            'fields': (
+                'third_party_funding_commitment',
+                'third_party_funder_identifier',
             ),
         }),
         ('Period & status', {

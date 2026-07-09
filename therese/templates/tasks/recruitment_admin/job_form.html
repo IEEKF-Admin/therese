@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:recruitment_job_manage' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<form method="post" class="form-card">
+    {% csrf_token %}
+
+    <div class="psp-two-col" style="margin-bottom: 1.5rem;">
+        <div class="aligned-field">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }} *</label>
+            {{ form.name }}
+            <small class="field-hint-de">Jobname</small>
+        </div>
+        <div class="aligned-field checkbox-field">
+            {{ form.is_active }}
+            <label for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+            <small class="field-hint-de">Aktiv</small>
+        </div>
+    </div>
+
+    <h3>TV-L defaults</h3>
+    <p class="helptext" style="margin-bottom: 1rem;">Optional pay scale defaults used for estimated salary in recruitment and pre-fill when creating an employee.</p>
+    <div class="psp-two-col" style="margin-bottom: 1.5rem;">
+        <div class="aligned-field">
+            <label for="{{ form.pay_scale_group.id_for_label }}">{{ form.pay_scale_group.label }}</label>
+            {{ form.pay_scale_group }}
+            <small class="field-hint-de">Entgeltgruppe</small>
+        </div>
+        <div class="aligned-field">
+            <label for="{{ form.experience_level.id_for_label }}">{{ form.experience_level.label }}</label>
+            {{ form.experience_level }}
+            <small class="field-hint-de">Erfahrungsstufe</small>
+        </div>
+    </div>
+
+    <h3>Field rules per job</h3>
+    <p class="helptext" style="margin-bottom: 1rem;">
+        Configure visibility and required status for each recruitment field. Duration conditions use full calendar months between contract start and end.
+    </p>
+
+    <div class="job-rules-table">
+        <div class="job-rules-header">
+            <span>Field</span>
+            <span>Visibility</span>
+            <span>Visibility condition</span>
+            <span>Required</span>
+            <span>Required condition</span>
+        </div>
+        {% for row in field_rules %}
+        <div class="job-rules-row">
+            <div>
+                <strong>{{ row.label_en }}</strong>
+                <small class="field-hint-de">{{ row.label_de }}</small>
+            </div>
+            <div>
+                <select name="rule_{{ row.field_key }}_visibility_mode" class="form-control form-control-sm rule-visibility-mode" data-field="{{ row.field_key }}">
+                    {% for value, label in visibility_modes %}
+                    <option value="{{ value }}" {% if row.visibility_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="rule-duration-group" data-field="{{ row.field_key }}" data-kind="visibility">
+                <select name="rule_{{ row.field_key }}_visibility_operator" class="form-control form-control-sm">
+                    {% for value, label in duration_operators %}
+                    <option value="{{ value }}" {% if row.visibility_duration_operator == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" min="0" name="rule_{{ row.field_key }}_visibility_months" class="form-control form-control-sm" value="{{ row.visibility_duration_months }}" placeholder="Months">
+            </div>
+            <div>
+                <select name="rule_{{ row.field_key }}_required_mode" class="form-control form-control-sm rule-required-mode" data-field="{{ row.field_key }}">
+                    {% for value, label in required_modes %}
+                    <option value="{{ value }}" {% if row.required_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="rule-duration-group" data-field="{{ row.field_key }}" data-kind="required">
+                <select name="rule_{{ row.field_key }}_required_operator" class="form-control form-control-sm">
+                    {% for value, label in duration_operators %}
+                    <option value="{{ value }}" {% if row.required_duration_operator == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" min="0" name="rule_{{ row.field_key }}_required_months" class="form-control form-control-sm" value="{{ row.required_duration_months }}" placeholder="Months">
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <button type="submit" class="btn-primary" style="margin-top: 1.5rem;">Save</button>
+</form>
+
+<script>
+(function() {
+    const PAYSCALE_DATA = {{ recruitment_payscale_data_json|safe }};
+
+    function updateJobExperienceLevels() {
+        const groupSelect = document.getElementById('job-pay-scale-group');
+        const levelSelect = document.getElementById('job-experience-level');
+        if (!groupSelect || !levelSelect) return;
+
+        const group = groupSelect.value;
+        const currentLevel = levelSelect.value;
+        levelSelect.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '— Select group first —';
+        levelSelect.appendChild(empty);
+
+        if (group && PAYSCALE_DATA[group]) {
+            PAYSCALE_DATA[group].forEach(function(item) {
+                const opt = document.createElement('option');
+                opt.value = String(item.experience_level);
+                opt.textContent = String(item.experience_level);
+                levelSelect.appendChild(opt);
+            });
+        }
+        if (currentLevel) {
+            levelSelect.value = currentLevel;
+        }
+    }
+
+    const groupSelect = document.getElementById('job-pay-scale-group');
+    if (groupSelect) {
+        groupSelect.addEventListener('change', updateJobExperienceLevels);
+        updateJobExperienceLevels();
+    }
+
+    function toggleDurationGroups() {
+        document.querySelectorAll('.rule-visibility-mode').forEach(function(select) {
+            const field = select.dataset.field;
+            const group = document.querySelector('.rule-duration-group[data-field="' + field + '"][data-kind="visibility"]');
+            if (group) {
+                group.style.display = select.value === 'when_duration' ? 'grid' : 'none';
+            }
+        });
+        document.querySelectorAll('.rule-required-mode').forEach(function(select) {
+            const field = select.dataset.field;
+            const group = document.querySelector('.rule-duration-group[data-field="' + field + '"][data-kind="required"]');
+            if (group) {
+                group.style.display = select.value === 'when_duration' ? 'grid' : 'none';
+            }
+        });
+    }
+    document.addEventListener('change', function(event) {
+        if (event.target.matches('.rule-visibility-mode, .rule-required-mode')) {
+            toggleDurationGroups();
+        }
+    });
+    toggleDurationGroups();
+})();
+</script>
+{% endblock %}

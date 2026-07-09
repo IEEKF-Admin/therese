@@ -1,4 +1,4 @@
-﻿/*global DateTimeShortcuts, SelectFilter*/
+/*global DateTimeShortcuts, SelectFilter*/
 /**
  * Django admin inlines
  *
@@ -357,5 +357,3 @@
         });
     });
 }
-
-

@@ -11,6 +11,8 @@ from .models import (
     PersonnelContractExtensionTask,
     PersonnelRecruitmentTask,
     RecruitmentFundingAllocation,
+    RecruitmentJob,
+    LimitationReason,
     GenericTextTask,
     StandardPurchaseItem,
     PURCHASE_STATUSES,
@@ -19,9 +21,15 @@ from .models import (
     RECRUITMENT_STATUSES,
     RECRUITMENT_STATUS_ORDER,
 )
-from apps.finances.models import WBSElement
+from apps.finances.models import PayScale, WBSElement
 from apps.hr.models import Employee, Gender
 from apps.hr.document_utils import validate_personnel_document
+from .recruitment_form_helpers import (
+    add_limitation_reason_template_field,
+    apply_recruitment_field_defaults,
+    configure_recruitment_job_field,
+    validate_recruitment_dynamic_rules,
+)
 from .utils import (
     procurement_approver_employees,
     personnel_approver_employees,
@@ -405,6 +413,14 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
 
         _configure_personnel_assignee_field(self)
+        add_limitation_reason_template_field(self, include_all_reasons=True)
+
+        if 'limitation_reason' in self.fields:
+            self.fields['limitation_reason'].widget = forms.Textarea(attrs={
+                'class': 'form-control limitation-reason-text',
+                'rows': 3,
+                'data-limitation-text': 'true',
+            })
 
 
 class RecruitmentFundingAllocationForm(forms.ModelForm):
@@ -456,20 +472,24 @@ class RecruitmentFundingAllocationForm(forms.ModelForm):
 
 
 class BaseRecruitmentFundingFormSet(BaseInlineFormSet):
+    def __init__(self, *args, job=None, contract_dates=None, is_creation=True, **kwargs):
+        self.job = job
+        self.contract_dates = contract_dates or {}
+        self.is_creation = is_creation
+        super().__init__(*args, **kwargs)
+
     def clean(self):
         super().clean()
         if any(self.errors):
             return
-        active_forms = [
-            form for form in self.forms
-            if form.cleaned_data
-            and not form.cleaned_data.get('DELETE', False)
-            and not form._is_empty_row(form.cleaned_data)
-        ]
-        if not active_forms:
-            raise forms.ValidationError(
-                'At least one WBS Element / Weekly Working Hours combination is required.'
-            )
+        from .recruitment_form_helpers import validate_funding_allocations_required
+
+        validate_funding_allocations_required(
+            self,
+            self.job,
+            self.contract_dates,
+            is_creation=self.is_creation,
+        )
 
 
 RecruitmentFundingFormSet = inlineformset_factory(
@@ -479,8 +499,8 @@ RecruitmentFundingFormSet = inlineformset_factory(
     formset=BaseRecruitmentFundingFormSet,
     extra=1,
     can_delete=True,
-    min_num=1,
-    validate_min=True,
+    min_num=0,
+    validate_min=False,
 )
 
 
@@ -491,9 +511,10 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'country_of_origin', 'place_of_birth', 'email_professional',
             'private_phone_number', 'street', 'house_number', 'postal_code',
-            'city', 'country', 'job_title', 'plan_position_number',
-            'valid_from', 'valid_until', 'application_file', 'cv_file',
-            'measles_proof_file', 'assignee', 'status', 'comment',
+            'city', 'country', 'job', 'plan_position_number',
+            'valid_from', 'valid_until', 'limitation_reason',
+            'cv_file', 'latest_degree_certificate_file',
+            'assignee', 'status', 'comment',
         ]
         widgets = {
             'comment': forms.Textarea(attrs={'rows': 6}),
@@ -501,11 +522,13 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 'type': 'text',
                 'class': 'form-control date-picker',
                 'placeholder': 'TT.MM.JJJJ',
+                'data-contract-date': 'true',
             }),
             'valid_until': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
                 'placeholder': 'TT.MM.JJJJ',
+                'data-contract-date': 'true',
             }),
             'date_of_birth': forms.DateInput(attrs={
                 'type': 'text',
@@ -514,20 +537,19 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             }),
         }
 
-    OPTIONAL_FIELDS = {'prefix', 'comment'}
-
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.is_creation = kwargs.pop('is_creation', False)
         super().__init__(*args, **kwargs)
 
+        configure_recruitment_job_field(self)
+        apply_recruitment_field_defaults(self, is_creation=self.is_creation)
+
         for field_name, field in self.fields.items():
-            if field_name in self.OPTIONAL_FIELDS:
-                field.required = False
-            elif field_name not in ('application_file', 'cv_file', 'measles_proof_file', 'gender'):
-                field.required = True
-            if field_name not in ('application_file', 'cv_file', 'measles_proof_file', 'status', 'gender'):
+            if field_name not in ('status', 'gender', 'job'):
                 field.widget.attrs.setdefault('class', 'form-control')
+            if field_name not in ('status', 'assignee', 'job'):
+                field.widget.attrs.setdefault('data-recruitment-field', field_name)
 
         _configure_gender_field(self, required=False)
 
@@ -564,36 +586,27 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 if not can_change_status:
                     self.fields['status'].widget = forms.HiddenInput()
 
-        for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
+        for file_field in ('cv_file', 'latest_degree_certificate_file'):
             if file_field in self.fields:
-                if self.is_creation:
-                    self.fields[file_field].required = True
-                else:
-                    self.fields[file_field].required = False
+                self.fields[file_field].widget.attrs['data-recruitment-field'] = file_field
+
+        job_id = None
+        if self.data.get('job'):
+            job_id = self.data.get('job')
+        elif self.instance and self.instance.job_id:
+            job_id = self.instance.job_id
+        add_limitation_reason_template_field(self, job_id=job_id)
 
         _configure_personnel_assignee_field(self)
 
     def clean(self):
         cleaned_data = super().clean()
-        if self.is_creation:
-            for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
-                uploaded = cleaned_data.get(file_field)
-                if not uploaded:
-                    self.add_error(file_field, 'This document is required.')
-                else:
-                    try:
-                        validate_personnel_document(uploaded)
-                    except forms.ValidationError as exc:
-                        self.add_error(file_field, exc.messages[0])
-            return cleaned_data
-
-        for file_field in ('application_file', 'cv_file', 'measles_proof_file'):
-            uploaded = cleaned_data.get(file_field)
-            if uploaded:
-                try:
-                    validate_personnel_document(uploaded)
-                except forms.ValidationError as exc:
-                    self.add_error(file_field, exc.messages[0])
+        validate_recruitment_dynamic_rules(
+            self,
+            cleaned_data,
+            is_creation=self.is_creation,
+            files=getattr(self, 'files', None),
+        )
 
         new_status = cleaned_data.get('status')
         if (
@@ -615,6 +628,80 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                     self.add_error('status', 'Approvers may only move the status forward.')
 
         return cleaned_data
+
+
+class RecruitmentJobForm(forms.ModelForm):
+    class Meta:
+        model = RecruitmentJob
+        fields = ['name', 'pay_scale_group', 'experience_level', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'name': 'Job name',
+            'pay_scale_group': 'Pay scale group',
+            'experience_level': 'Experience level',
+            'is_active': 'Active',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current = PayScale.get_current()
+        groups = (
+            current.values_list('pay_scale_group', flat=True)
+            .distinct()
+            .order_by('pay_scale_group')
+        )
+        pay_scale_choices = [('', '— Select pay scale group —')] + [(g, g) for g in groups]
+        level_choices = [('', '— Select group first —')] + [(str(i), str(i)) for i in range(1, 7)]
+
+        self.fields['pay_scale_group'] = forms.ChoiceField(
+            choices=pay_scale_choices,
+            required=False,
+            widget=forms.Select(attrs={'class': 'form-control', 'id': 'job-pay-scale-group'}),
+        )
+        self.fields['experience_level'] = forms.ChoiceField(
+            choices=level_choices,
+            required=False,
+            widget=forms.Select(attrs={'class': 'form-control', 'id': 'job-experience-level'}),
+        )
+        if self.instance and self.instance.pk:
+            if self.instance.pay_scale_group:
+                self.fields['pay_scale_group'].initial = self.instance.pay_scale_group
+            if self.instance.experience_level is not None:
+                self.fields['experience_level'].initial = str(self.instance.experience_level)
+
+    def clean_experience_level(self):
+        value = self.cleaned_data.get('experience_level')
+        if value in (None, ''):
+            return None
+        return int(value)
+
+
+class LimitationReasonForm(forms.ModelForm):
+    class Meta:
+        model = LimitationReason
+        fields = ['title', 'text', 'applies_to_all_jobs', 'jobs', 'is_active']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'applies_to_all_jobs': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'jobs': forms.SelectMultiple(attrs={'class': 'form-control', 'size': 8}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'title': 'Title',
+            'text': 'Limitation reason text',
+            'applies_to_all_jobs': 'Applies to all jobs',
+            'jobs': 'Associated jobs',
+            'is_active': 'Active',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['jobs'].queryset = RecruitmentJob.objects.filter(is_active=True).order_by('name')
+        self.fields['jobs'].required = False
 
 
 class GenericTextTaskForm(forms.ModelForm):

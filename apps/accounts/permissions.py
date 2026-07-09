@@ -23,6 +23,7 @@ class GroupNames:
 
     PSP_ELEMENTS_VIEW = "PSP Elements - View"
     PSP_ELEMENTS_MANAGE = "PSP Elements - Manage"
+    COST_CENTERS_MANAGE = "Cost Centers - Manage"
 
     PURCHASE_ORDERS_CREATE = "Purchase Orders - Create"
     STANDARD_ORDERS_VIEW = "Standard Orders - View"
@@ -49,6 +50,7 @@ NEW_GROUPS = [
     GroupNames.LOCATIONS_MANAGE,
     GroupNames.PSP_ELEMENTS_VIEW,
     GroupNames.PSP_ELEMENTS_MANAGE,
+    GroupNames.COST_CENTERS_MANAGE,
     GroupNames.PURCHASE_ORDERS_CREATE,
     GroupNames.STANDARD_ORDERS_VIEW,
     GroupNames.STANDARD_ORDERS_MANAGE,
@@ -143,6 +145,7 @@ def user_can_assist(user):
         'hr.manage_working_group',
         'hr.manage_location',
         'finances.manage_psp_element',
+        'finances.manage_cost_center',
     ]
     return any(user.has_perm(perm) for perm in management_perms)
 
@@ -163,7 +166,7 @@ def assign_permissions_to_groups():
     """
     from django.contrib.contenttypes.models import ContentType
     from apps.hr.models import Employee, Workgroup, Building
-    from apps.finances.models import WBSElement, PayScale
+    from apps.finances.models import CostCenter, WBSElement, PayScale
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
     from apps.documents.models import Document
 
@@ -215,6 +218,10 @@ def assign_permissions_to_groups():
     safe_add("PSP Elements - View", view_overview)
     safe_add("PSP Elements - Manage", view_psp, manage_psp)
 
+    # Cost Centers
+    manage_cc = get_perm("manage_cost_center", CostCenter)
+    safe_add(GroupNames.COST_CENTERS_MANAGE, manage_cc)
+
     # Procurement
     create_po = get_perm("create_purchase_order", PurchaseOrderTask)
     view_all_po = get_perm("view_all_purchase_orders", PurchaseOrderTask)
@@ -255,6 +262,7 @@ def assign_permissions_to_groups():
         get_perm("manage_location", Building),
         get_perm("manage_psp_element", WBSElement),
         get_perm("view_psp_overview", WBSElement),
+        get_perm("manage_cost_center", CostCenter),
         get_perm("view_all_purchase_orders", PurchaseOrderTask),
         get_perm("manage_standard_order", StandardPurchaseItem),
         manage_doc,

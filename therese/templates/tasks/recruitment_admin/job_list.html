@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Jobs - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Edit Jobs</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:recruitment_job_create' %}" class="btn-primary">+ New Job</a>
+    </div>
+</div>
+
+<table class="table list-panel">
+    <thead>
+        <tr>
+            <th>Job name</th>
+            <th>Pay scale</th>
+            <th>Status</th>
+            <th>Field rules</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.name }}</td>
+            <td>
+                {% if job.pay_scale_group and job.experience_level %}
+                    {{ job.pay_scale_group }} / {{ job.experience_level }}
+                {% else %}—{% endif %}
+            </td>
+            <td>{% if job.is_active %}<span style="color:#059669;">Active</span>{% else %}<span style="color:#b45309;">Inactive</span>{% endif %}</td>
+            <td>{{ job.field_rules.count }}</td>
+            <td>
+                <a href="{% url 'tasks:recruitment_job_update' job.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a href="{% url 'tasks:recruitment_job_delete' job.pk %}" class="action-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></a>
+            </td>
+        </tr>
+        {% empty %}
+            <tr><td colspan="5">No jobs defined yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

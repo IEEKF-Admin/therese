@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Limitation Reason - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1>Delete Limitation Reason?</h1></div>
+<div class="card confirm-panel">
+    <p>Delete limitation reason <strong>{{ object.title }}</strong>?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-actions">
+            <button type="submit" class="btn-danger">Yes, delete</button>
+            <a href="{% url 'tasks:limitation_reason_manage' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

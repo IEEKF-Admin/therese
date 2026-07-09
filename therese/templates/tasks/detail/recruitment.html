@@ -78,8 +78,25 @@
         {% endif %}
     </form>
 </div>
+
+{% include "tasks/detail/_personnel_documents.html" %}
 {% endblock %}
 
 {% block extra_js %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
+<script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initRecruitmentDynamicForm({
+        enableJobRules: true,
+        enableLimitationTemplates: true,
+        jobRules: {{ recruitment_job_rules_json|safe }},
+        limitationReasons: {{ limitation_reasons_json|safe }},
+        allFieldKeys: {{ recruitment_field_keys_json|safe }},
+        jobPayscale: {{ recruitment_job_payscale_json|safe }},
+        payscaleData: {{ recruitment_payscale_data_json|safe }},
+        defaultRequired: {},
+    });
+});
+</script>
 {% endblock %}

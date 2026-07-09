@@ -32,8 +32,14 @@ from django.urls import reverse
 from django.db.models import Q
 
 from .models import CostCenter, WBSElement, WBSElementYearEstimate, PayScale
-from .forms import WBSElementForm, WBSElementYearEstimateFormSet
+from .forms import (
+    CostCenterForm,
+    CostCenterYearEstimateFormSet,
+    WBSElementForm,
+    WBSElementYearEstimateFormSet,
+)
 from apps.hr.models import Workgroup, FundingAllocation
+from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
 from apps.tasks.models import PurchaseOrderTask
 from apps.hr.models import Employee  # if needed
 
@@ -452,22 +458,14 @@ def psp_elements(request):
         messages.error(request, "You do not have permission to access this page.")
         return redirect('tasks:my_tasks')
 
-    # Users with manage_psp_element get full "institute leader"-style access (see all + workgroup filter dropdown).
-    # PSP View users are restricted to their own workgroups (unless they also hold manage).
-    is_institute_leader = user.has_perm('finances.manage_psp_element')
-
-    # Get user's workgroups from Employee
-    user_workgroups = []
-    if hasattr(user, 'employee') and user.employee:
-        user_workgroups = list(user.employee.workgroups.all())
+    user_workgroups = list(get_user_workgroups(user))
 
     # WBS selection
     wbs_id = request.GET.get('wbs', '')
-    all_wbs = WBSElement.objects.all().order_by('wbs_code')
-
-    # Filter WBS by workgroup for non-leaders / non-managers
-    if not is_institute_leader and user_workgroups:
-        all_wbs = all_wbs.filter(work_group__in=user_workgroups)
+    all_wbs = filter_by_user_workgroups(
+        WBSElement.objects.all().order_by('wbs_code'),
+        user,
+    )
 
     # Date range - use month inputs (YYYY-MM)
     start_month = request.GET.get('start_month', '')
@@ -492,14 +490,10 @@ def psp_elements(request):
         except:
             pass
 
-    # Workgroup filter dropdown only for managers (former Institute Leaders)
-    filter_workgroup_id = request.GET.get('work_group', '') if is_institute_leader else ''
+    filter_workgroup_id = request.GET.get('work_group', '')
     filter_workgroup = None
     if filter_workgroup_id and filter_workgroup_id != 'all':
-        try:
-            filter_workgroup = Workgroup.objects.get(id=filter_workgroup_id)
-        except:
-            pass
+        filter_workgroup = get_user_workgroups(user).filter(pk=filter_workgroup_id).first()
 
     # Determine final WBS queryset
     wbs_qs = all_wbs
@@ -603,10 +597,7 @@ def psp_elements(request):
             ])
         return response
 
-    # For manager (broad access) workgroup options
-    workgroup_choices = []
-    if is_institute_leader:
-        workgroup_choices = [('', '- All -')] + [(wg.id, str(wg)) for wg in Workgroup.objects.all()]
+    workgroup_choices = [('', '- All -')] + [(wg.id, str(wg)) for wg in user_workgroups]
 
     # WBS choices for dropdown
     wbs_choices = [('', '- All -')] + [(w.id, str(w)) for w in all_wbs]
@@ -619,7 +610,6 @@ def psp_elements(request):
         'bookings': bookings,
         'grouped_bookings': grouped_bookings,
         'is_all': is_all,
-        'is_institute_leader': is_institute_leader,
         'workgroup_choices': workgroup_choices,
         'selected_workgroup': filter_workgroup_id,
         'title': 'PSP - Elemente',
@@ -647,9 +637,10 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     context_object_name = 'psp_elements'
 
     def get_queryset(self):
-        return WBSElement.objects.select_related(
+        queryset = WBSElement.objects.select_related(
             'work_group', 'responsible_person', 'cost_center'
         )
+        return filter_by_user_workgroups(queryset, self.request.user)
 
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
@@ -665,7 +656,10 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             protected = 0
             for pk in ids:
                 try:
-                    obj = WBSElement.objects.get(pk=pk)
+                    obj = filter_by_user_workgroups(
+                        WBSElement.objects.filter(pk=pk),
+                        request.user,
+                    ).get()
                     obj.delete()
                     deleted += 1
                 except WBSElement.DoesNotExist:
@@ -688,6 +682,16 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['files'] = self.request.FILES
+        return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['work_group'].queryset = get_user_workgroups(self.request.user)
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -717,8 +721,21 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     template_name = 'finances/psp_form.html'
     success_url = reverse_lazy('finances:psp_manage')
 
+    def get_queryset(self):
+        return filter_by_user_workgroups(WBSElement.objects.all(), self.request.user)
+
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['files'] = self.request.FILES
+        return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['work_group'].queryset = get_user_workgroups(self.request.user)
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -749,6 +766,9 @@ class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     template_name = 'finances/psp_confirm_delete.html'
     success_url = reverse_lazy('finances:psp_manage')
 
+    def get_queryset(self):
+        return filter_by_user_workgroups(WBSElement.objects.all(), self.request.user)
+
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
 
@@ -766,4 +786,135 @@ class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def post(self, request, *args, **kwargs):
         # Allow bulk handling if needed, but bulk is primarily handled in list view
         return super().post(request, *args, **kwargs)
+
+
+class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = CostCenter
+    template_name = 'finances/cost_center_list.html'
+    context_object_name = 'cost_centers'
+
+    def get_queryset(self):
+        return CostCenter.objects.all().order_by('cost_center')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_cost_center')
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get('action') == 'delete_selected':
+            ids = [i for i in request.POST.getlist('selected_ids') if i]
+            if not ids:
+                messages.warning(request, "No entries selected.")
+                return redirect('finances:cost_center_manage')
+
+            deleted = 0
+            protected = 0
+            for pk in ids:
+                try:
+                    obj = CostCenter.objects.get(pk=pk)
+                    obj.delete()
+                    deleted += 1
+                except CostCenter.DoesNotExist:
+                    pass
+                except ProtectedError:
+                    protected += 1
+            if deleted:
+                messages.success(request, f"{deleted} cost center(s) deleted.")
+            if protected:
+                messages.error(request, f"{protected} cost center(s) could not be deleted (e.g. because of linked PSP elements).")
+            return redirect('finances:cost_center_manage')
+        return super().post(request, *args, **kwargs)
+
+
+class CostCenterCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = CostCenter
+    form_class = CostCenterForm
+    template_name = 'finances/cost_center_form.html'
+    success_url = reverse_lazy('finances:cost_center_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_cost_center')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['files'] = self.request.FILES
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['year_estimate_formset'] = CostCenterYearEstimateFormSet(self.request.POST)
+        else:
+            context['year_estimate_formset'] = CostCenterYearEstimateFormSet()
+        context['title'] = 'Create Cost Center'
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = None
+        form = self.get_form()
+        formset = CostCenterYearEstimateFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(request, f'Cost center "{self.object.cost_center}" was created.')
+            return redirect(self.success_url)
+        return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
+
+
+class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = CostCenter
+    form_class = CostCenterForm
+    template_name = 'finances/cost_center_form.html'
+    success_url = reverse_lazy('finances:cost_center_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_cost_center')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['files'] = self.request.FILES
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['year_estimate_formset'] = CostCenterYearEstimateFormSet(
+                self.request.POST, instance=self.object
+            )
+        else:
+            context['year_estimate_formset'] = CostCenterYearEstimateFormSet(instance=self.object)
+        context['title'] = 'Edit Cost Center'
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        formset = CostCenterYearEstimateFormSet(request.POST, instance=self.object)
+        if form.is_valid() and formset.is_valid():
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(request, f'Cost center "{self.object.cost_center}" was updated.')
+            return redirect(self.success_url)
+        return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
+
+
+class CostCenterDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = CostCenter
+    template_name = 'finances/cost_center_confirm_delete.html'
+    success_url = reverse_lazy('finances:cost_center_manage')
+
+    def test_func(self):
+        return self.request.user.has_perm('finances.manage_cost_center')
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        code = obj.cost_center
+        try:
+            response = super().delete(request, *args, **kwargs)
+            messages.success(request, f'Cost center "{code}" was deleted.')
+            return response
+        except ProtectedError:
+            messages.error(request, f'Cost center "{code}" cannot be deleted because dependent data exists (e.g. PSP elements).')
+            return redirect(self.success_url)
 

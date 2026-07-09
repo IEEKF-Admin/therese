@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Cost Centers - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Cost Centers</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:cost_center_create' %}" class="btn-primary">+ New Cost Center</a>
+    </div>
+</div>
+
+<form method="post" id="bulk-delete-form" class="list-panel">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
+                </th>
+                <th>Cost center</th>
+                <th>Funder identifier</th>
+                <th>Comments</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cc in cost_centers %}
+            <tr>
+                <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ cc.pk }}"></td>
+                <td>{{ cc.cost_center }}</td>
+                <td>{{ cc.third_party_funder_identifier|default:"-" }}</td>
+                <td>{{ cc.comments|truncatechars:60|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'finances:cost_center_update' cc.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'finances:cost_center_delete' cc.pk %}" class="action-icon delete"
+                       onclick="return confirm('Delete this cost center?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No cost centers found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if cost_centers %}
+    <div class="table-bulk-actions">
+        <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected cost centers?');">
+            Delete selected
+        </button>
+        <small>Cost centers linked to PSP elements cannot be deleted.</small>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

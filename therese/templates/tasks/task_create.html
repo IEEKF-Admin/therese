@@ -233,9 +233,14 @@
                 </div>
 
                 <div class="aligned-field">
+                    <label>Limitation Reason Template</label>
+                    {{ form.limitation_reason_template|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Befristungsgrund Vorlagen</small>
+                </div>
+                <div class="aligned-field">
                     <label>Limitation Reason</label>
                     {{ form.limitation_reason|add_class:"form-control" }}
-                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Begründung der Befristung</small>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Befristungsgrund</small>
                     <small class="help-text" style="color:#64748b;">Only required if the extension is limited in duration.</small>
                 </div>
             </div>
@@ -283,6 +288,36 @@
 {% block extra_js %}
 {% if task_type == 'personnel_recruitment' %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
+<script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initRecruitmentDynamicForm({
+        enableJobRules: true,
+        enableLimitationTemplates: true,
+        jobRules: {{ recruitment_job_rules_json|safe }},
+        limitationReasons: {{ limitation_reasons_json|safe }},
+        allFieldKeys: {{ recruitment_field_keys_json|safe }},
+        jobPayscale: {{ recruitment_job_payscale_json|safe }},
+        payscaleData: {{ recruitment_payscale_data_json|safe }},
+        defaultRequired: {
+            cv_file: true,
+            latest_degree_certificate_file: true,
+            funding_allocations: true,
+        },
+    });
+});
+</script>
+{% elif task_type == 'personnel_contract_extension' %}
+<script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initRecruitmentDynamicForm({
+        enableJobRules: false,
+        enableLimitationTemplates: true,
+        limitationReasons: {{ limitation_reasons_json|safe }},
+    });
+});
+</script>
 {% endif %}
 <style>
   /* Force vertical layout for fields in task creation (English label above, German below) */

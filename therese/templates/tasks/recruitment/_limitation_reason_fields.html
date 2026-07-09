@@ -1,0 +1,20 @@
+{% load widget_tweaks %}
+<div class="aligned-field recruitment-field" data-recruitment-field="limitation_reason">
+    <label>Limitation Reason Template</label>
+    {% if can_edit_fields|default:True %}
+        {{ form.limitation_reason_template }}
+    {% else %}
+        <span class="form-readonly">—</span>
+    {% endif %}
+    <small class="field-hint-de">Befristungsgrund Vorlagen</small>
+</div>
+<div class="aligned-field recruitment-field" data-recruitment-field="limitation_reason">
+    <label>Limitation Reason <span class="required-marker" data-required-for="limitation_reason" style="color:#ef4444;"></span></label>
+    {% if can_edit_fields|default:True %}
+        {% if form.limitation_reason.errors %}{{ form.limitation_reason|add_class:"form-control error" }}{% else %}{{ form.limitation_reason }}{% endif %}
+    {% else %}
+        <span class="form-readonly">{{ task.limitation_reason|default:"—"|linebreaksbr }}</span>
+    {% endif %}
+    <small class="field-hint-de">Befristungsgrund</small>
+    {{ form.limitation_reason.errors }}
+</div>

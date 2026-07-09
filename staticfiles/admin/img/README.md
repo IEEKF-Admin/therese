@@ -1,4 +1,4 @@
-﻿# Information about icons in this directory
+# Information about icons in this directory
 
 ## License
 
@@ -31,7 +31,7 @@ All icons in this directory are provided by
 To ensure visual consistency, traceability, and proper license attribution,
 follow these guidelines. This applies when adding or modifying icons.
 
-## âš ï¸ Important: Changing Font Awesome Version
+## ⚠️ Important: Changing Font Awesome Version
 
 If you update to a different Font Awesome version, you must **update all SVG
 files** and **comments inside the files** to reflect the new version number and
@@ -78,5 +78,3 @@ licensing URL accordingly. For example:
   <path fill="#5fa225" stroke="#5fa225" stroke-width="30" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"/>
 </svg>
 ```
-
-

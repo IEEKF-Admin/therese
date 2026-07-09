@@ -19,9 +19,9 @@
             </select>
         </div>
 
-        {% if is_institute_leader %}
+        {% if workgroup_choices|length > 1 %}
         <div>
-            <label>Workgroup Filter</label>
+            <label>Work group</label>
             <select name="work_group">
                 {% for id, label in workgroup_choices %}
                 <option value="{{ id }}" {% if selected_workgroup == id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>

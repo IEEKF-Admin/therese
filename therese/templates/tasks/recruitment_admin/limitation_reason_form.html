@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:limitation_reason_manage' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<form method="post" class="form-card">
+    {% csrf_token %}
+    <div class="aligned-field">
+        <label>{{ form.title.label }} *</label>
+        {{ form.title }}
+        <small class="field-hint-de">Titel (Dropdown-Anzeige)</small>
+    </div>
+    <div class="aligned-field">
+        <label>{{ form.text.label }} *</label>
+        {{ form.text }}
+        <small class="field-hint-de">Befristungsgrund-Text</small>
+    </div>
+    <div class="aligned-field checkbox-field">
+        {{ form.applies_to_all_jobs }}
+        <label for="{{ form.applies_to_all_jobs.id_for_label }}">{{ form.applies_to_all_jobs.label }}</label>
+        <small class="field-hint-de">Gilt für alle Jobs</small>
+    </div>
+    <div class="aligned-field">
+        <label>{{ form.jobs.label }}</label>
+        {{ form.jobs }}
+        <small class="field-hint-de">Zugeordnete Jobs (kombinierbar mit „alle Jobs“)</small>
+    </div>
+    <div class="aligned-field checkbox-field">
+        {{ form.is_active }}
+        <label for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+    </div>
+    <button type="submit" class="btn-primary">Save</button>
+</form>
+{% endblock %}

@@ -30,6 +30,10 @@ from ..forms import (
     PersonnelRecruitmentTaskForm,
     RecruitmentFundingFormSet,
 )
+from ..recruitment_form_helpers import (
+    build_recruitment_template_context,
+    funding_formset_kwargs_from_post,
+)
 # GroupNames removed - using has_perm now
 
 
@@ -206,11 +210,19 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                     self.request.POST if self.request.method == 'POST' else None
                 )
 
+        if task_type in ('personnel_recruitment', 'personnel_contract_extension'):
+            context.update(build_recruitment_template_context())
+
         if task_type == 'personnel_recruitment':
             if self.request.method == 'POST':
-                context['funding_formset'] = RecruitmentFundingFormSet(self.request.POST)
+                context['funding_formset'] = RecruitmentFundingFormSet(
+                    self.request.POST,
+                    **funding_formset_kwargs_from_post(self.request.POST, is_creation=True),
+                )
             else:
-                context['funding_formset'] = RecruitmentFundingFormSet()
+                context['funding_formset'] = RecruitmentFundingFormSet(
+                    is_creation=True,
+                )
         return context
 
     def form_valid(self, form):
@@ -237,7 +249,10 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 return self.render_to_response(self.get_context_data(form=form))
 
         if task_type == 'personnel_recruitment':
-            funding_formset = self.get_context_data()['funding_formset']
+            funding_formset = RecruitmentFundingFormSet(
+                self.request.POST,
+                **funding_formset_kwargs_from_post(self.request.POST, is_creation=True),
+            )
             if funding_formset.is_valid():
                 instance = form.save()
                 funding_formset.instance = instance

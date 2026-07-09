@@ -60,8 +60,14 @@
                 {% if can_edit %}{{ form.is_limited }}{% else %}<strong>{{ task.is_limited|yesno:"Yes,No" }}</strong>{% endif %}
             </div>
             <div class="aligned-field">
+                <label>Limitation Reason Template</label>
+                {% if can_edit %}{{ form.limitation_reason_template|add_class:"form-control" }}{% else %}<span>—</span>{% endif %}
+                <small class="field-hint-de">Befristungsgrund Vorlagen</small>
+            </div>
+            <div class="aligned-field">
                 <label>Limitation Reason</label>
                 {% if can_edit %}{{ form.limitation_reason|add_class:"form-control" }}{% else %}<div class="readonly-comment">{{ task.limitation_reason|linebreaks|default:"—" }}</div>{% endif %}
+                <small class="field-hint-de">Befristungsgrund</small>
             </div>
         </div>
 
@@ -95,5 +101,20 @@
         </div>
     </form>
 </div>
+
+{% include "tasks/detail/_personnel_documents.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initRecruitmentDynamicForm({
+        enableJobRules: false,
+        enableLimitationTemplates: true,
+        limitationReasons: {{ limitation_reasons_json|safe }},
+    });
+});
+</script>
 {% endblock %}
 

@@ -4,7 +4,12 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
-from apps.finances.models import CostCenter, WBSElement, WBSElementYearEstimate
+from apps.finances.models import (
+    CostCenter,
+    CostCenterYearEstimate,
+    WBSElement,
+    WBSElementYearEstimate,
+)
 
 
 class MonthYearField(forms.Field):
@@ -57,6 +62,8 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence',
             'is_inactive',
             'comment',
+            'third_party_funding_commitment',
+            'third_party_funder_identifier',
         ]
         widgets = {
             'wbs_code': forms.TextInput(attrs={'class': 'form-control'}),
@@ -67,6 +74,11 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_inactive': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'third_party_funding_commitment': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.gif,.webp',
+            }),
+            'third_party_funder_identifier': forms.TextInput(attrs={'class': 'form-control'}),
         }
         labels = {
             'wbs_code': 'PSP code',
@@ -77,6 +89,8 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence': 'Subject to annual recurrence',
             'is_inactive': 'Inactive',
             'comment': 'Comment',
+            'third_party_funding_commitment': 'Drittmittelzusage',
+            'third_party_funder_identifier': 'Kennzeichen des Drittmittelgebers',
         }
         help_texts = {
             'wbs_code': 'Unique PSP identifier.',
@@ -87,6 +101,8 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence': 'Whether this PSP element repeats annually.',
             'is_inactive': 'Inactive PSP elements are hidden from selection dropdowns.',
             'comment': 'Optional notes.',
+            'third_party_funding_commitment': 'PDF or image file (optional).',
+            'third_party_funder_identifier': 'Identifier of the third-party funder (optional).',
         }
 
     def __init__(self, *args, **kwargs):
@@ -116,6 +132,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         fields = [
             'year',
             'funding',
+            'personnel_estimate',
             'consumables_estimate',
             'travel_estimate',
             'animal_costs_estimate',
@@ -128,6 +145,12 @@ class WBSElementYearEstimateForm(forms.ModelForm):
                 'placeholder': 'YYYY',
             }),
             'funding': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+            'personnel_estimate': forms.NumberInput(attrs={
                 'class': 'form-control form-control-sm',
                 'step': '0.01',
                 'min': '0',
@@ -155,6 +178,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         labels = {
             'year': 'Year / period',
             'funding': 'Funding',
+            'personnel_estimate': 'Personal',
             'consumables_estimate': 'Consumables estimate',
             'travel_estimate': 'Travel estimate',
             'animal_costs_estimate': 'Animal costs estimate',
@@ -162,6 +186,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         help_texts = {
             'year': 'Calendar year for this estimate row.',
             'funding': 'Funding amount (EUR). Replaces former initial balance.',
+            'personnel_estimate': 'Estimated personnel costs (EUR).',
             'consumables_estimate': 'Estimated consumables (EUR).',
             'travel_estimate': 'Estimated travel costs (EUR).',
             'animal_costs_estimate': 'Estimated animal costs (EUR).',
@@ -175,6 +200,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         if year is None and not any(
             cleaned.get(f) for f in (
                 'funding',
+                'personnel_estimate',
                 'consumables_estimate',
                 'travel_estimate',
                 'animal_costs_estimate',
@@ -211,6 +237,154 @@ WBSElementYearEstimateFormSet = inlineformset_factory(
     WBSElementYearEstimate,
     form=WBSElementYearEstimateForm,
     formset=BaseWBSElementYearEstimateFormSet,
+    extra=1,
+    can_delete=True,
+)
+
+
+class CostCenterForm(forms.ModelForm):
+    class Meta:
+        model = CostCenter
+        fields = [
+            'cost_center',
+            'comments',
+            'third_party_funding_commitment',
+            'third_party_funder_identifier',
+        ]
+        widgets = {
+            'cost_center': forms.TextInput(attrs={'class': 'form-control'}),
+            'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'third_party_funding_commitment': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.gif,.webp',
+            }),
+            'third_party_funder_identifier': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'cost_center': 'Cost center',
+            'comments': 'Comments',
+            'third_party_funding_commitment': 'Drittmittelzusage',
+            'third_party_funder_identifier': 'Kennzeichen des Drittmittelgebers',
+        }
+        help_texts = {
+            'cost_center': 'Unique cost center identifier (e.g. 4711/2026).',
+            'comments': 'Optional notes.',
+            'third_party_funding_commitment': 'PDF or image file (optional).',
+            'third_party_funder_identifier': 'Identifier of the third-party funder (optional).',
+        }
+
+
+class CostCenterYearEstimateForm(forms.ModelForm):
+    class Meta:
+        model = CostCenterYearEstimate
+        fields = [
+            'year',
+            'lomv',
+            'personnel_estimate',
+            'consumables_estimate',
+            'travel_estimate',
+            'animal_costs_estimate',
+        ]
+        widgets = {
+            'year': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'min': 1900,
+                'max': 2100,
+                'placeholder': 'YYYY',
+            }),
+            'lomv': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+            'personnel_estimate': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+            'consumables_estimate': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+            'travel_estimate': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+            'animal_costs_estimate': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
+        }
+        labels = {
+            'year': 'Year / period',
+            'lomv': 'Lomv',
+            'personnel_estimate': 'Personal',
+            'consumables_estimate': 'Consumables estimate',
+            'travel_estimate': 'Travel estimate',
+            'animal_costs_estimate': 'Animal costs estimate',
+        }
+        help_texts = {
+            'year': 'Calendar year for this estimate row.',
+            'lomv': 'Lomv amount (EUR). Replaces former initial balance.',
+            'personnel_estimate': 'Estimated personnel costs (EUR).',
+            'consumables_estimate': 'Estimated consumables (EUR).',
+            'travel_estimate': 'Estimated travel costs (EUR).',
+            'animal_costs_estimate': 'Estimated animal costs (EUR).',
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        year = cleaned.get('year')
+        if year is None and not any(
+            cleaned.get(f) for f in (
+                'lomv',
+                'personnel_estimate',
+                'consumables_estimate',
+                'travel_estimate',
+                'animal_costs_estimate',
+            )
+        ):
+            cleaned['DELETE'] = True
+        return cleaned
+
+
+class BaseCostCenterYearEstimateFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+
+        years_seen = set()
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            year = form.cleaned_data.get('year')
+            if year is None:
+                continue
+            if year in years_seen:
+                raise ValidationError(
+                    f'Year {year} appears more than once. Each year may only be entered once per cost center.'
+                )
+            years_seen.add(year)
+
+
+CostCenterYearEstimateFormSet = inlineformset_factory(
+    CostCenter,
+    CostCenterYearEstimate,
+    form=CostCenterYearEstimateForm,
+    formset=BaseCostCenterYearEstimateFormSet,
     extra=1,
     can_delete=True,
 )

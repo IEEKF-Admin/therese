@@ -11,7 +11,8 @@ from .models import (
     Task, TaskComment, TaskAttachment,
     PurchaseOrderTask, PurchaseItem,
     PersonnelReallocationTask, PersonnelContractExtensionTask,
-    PersonnelRecruitmentTask, RecruitmentFundingAllocation, GenericTextTask,
+    PersonnelRecruitmentTask, RecruitmentFundingAllocation, RecruitmentJob,
+    RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
 from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
 from apps.hr.models import Employee
@@ -75,6 +76,18 @@ class PersonnelContractExtensionTaskAdmin(admin.ModelAdmin):
 class RecruitmentFundingInline(admin.TabularInline):
     model = RecruitmentFundingAllocation
     extra = 1
+
+
+@admin.register(RecruitmentJob, site=therese_admin)
+class RecruitmentJobAdmin(admin.ModelAdmin):
+    list_display = ('name', 'pay_scale_group', 'experience_level', 'is_active')
+    search_fields = ('name', 'pay_scale_group')
+
+
+@admin.register(LimitationReason, site=therese_admin)
+class LimitationReasonAdmin(admin.ModelAdmin):
+    list_display = ('title', 'applies_to_all_jobs', 'is_active')
+    filter_horizontal = ('jobs',)
 
 
 @admin.register(PersonnelRecruitmentTask, site=therese_admin)

@@ -13,6 +13,14 @@ from ...forms import (
     RecruitmentFundingFormSet,
 )
 from ...models import RECRUITMENT_STATUS_ORDER
+from ...recruitment_form_helpers import (
+    build_recruitment_template_context,
+    funding_formset_kwargs_from_post,
+)
+from ...personnel_documents import (
+    can_download_personnel_documents,
+    get_personnel_task_documents,
+)
 from ...utils import (
     is_personnel_coordinator,
     is_personnel_approver,
@@ -21,6 +29,16 @@ from ...utils import (
     can_edit_recruitment_status,
     can_create_employee_from_recruitment,
 )
+
+
+def _personnel_documents_context(request, task):
+    can_download = can_download_personnel_documents(request.user)
+    documents = get_personnel_task_documents(task) if can_download else []
+    return {
+        'can_download_personnel_documents': can_download,
+        'personnel_documents': documents,
+        'has_personnel_documents': bool(documents),
+    }
 
 
 def can_view_personnel_task(user, task):
@@ -96,6 +114,7 @@ def _handle_recruitment_detail(request, task):
         funding_formset = RecruitmentFundingFormSet(
             request.POST,
             instance=task,
+            **funding_formset_kwargs_from_post(request.POST, is_creation=False),
         )
         if form.is_valid() and funding_formset.is_valid():
             old_status = task.status
@@ -116,7 +135,15 @@ def _handle_recruitment_detail(request, task):
             user=request.user,
             is_creation=False,
         )
-        funding_formset = RecruitmentFundingFormSet(instance=task)
+        funding_formset = RecruitmentFundingFormSet(
+            instance=task,
+            job=task.job,
+            contract_dates={
+                'valid_from': task.valid_from,
+                'valid_until': task.valid_until,
+            },
+            is_creation=False,
+        )
 
     if form is None:
         form = PersonnelRecruitmentTaskForm(
@@ -125,7 +152,15 @@ def _handle_recruitment_detail(request, task):
             is_creation=False,
         )
     if funding_formset is None:
-        funding_formset = RecruitmentFundingFormSet(instance=task)
+        funding_formset = RecruitmentFundingFormSet(
+            instance=task,
+            job=task.job,
+            contract_dates={
+                'valid_from': task.valid_from,
+                'valid_until': task.valid_until,
+            },
+            is_creation=False,
+        )
 
     is_archived_by_user = employee and employee in task.archived_by.all()
 
@@ -147,6 +182,8 @@ def _handle_recruitment_detail(request, task):
         'created_employee': task.created_employee,
         'is_creation': False,
     }
+    context.update(build_recruitment_template_context())
+    context.update(_personnel_documents_context(request, task))
     return render(request, 'tasks/detail/recruitment.html', context)
 
 
@@ -219,4 +256,7 @@ def personnel_task_detail(request, task):
         'employee': employee,
         'is_archived_by_user': is_archived_by_user,
     }
+    if task_type == 'personnel_contract_extension':
+        context.update(build_recruitment_template_context())
+    context.update(_personnel_documents_context(request, task))
     return render(request, template, context)

@@ -1,4 +1,4 @@
-﻿/* SELECTOR (FILTER INTERFACE) */
+/* SELECTOR (FILTER INTERFACE) */
 
 .selector {
     display: flex;
@@ -604,5 +604,3 @@ ul.timelist, .timelist li {
     width: 600px;
     height: 400px;
 }
-
-

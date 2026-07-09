@@ -25,6 +25,7 @@ class ThereseAdminSite(admin.AdminSite):
             'hr.manage_working_group',
             'hr.manage_location',
             'finances.manage_psp_element',
+            'finances.manage_cost_center',
             'tasks.manage_standard_order',
         ]
         return any(request.user.has_perm(perm) for perm in management_perms)

@@ -1,4 +1,4 @@
-﻿/* TABLETS */
+/* TABLETS */
 
 @media (max-width: 1024px) {
     [dir="rtl"] .colMS {
@@ -93,5 +93,3 @@
         background-position-x: calc(100% - 15px);
     }
 }
-
-

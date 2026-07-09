@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView, UpdateView, ListView, TemplateView
 from django.views.generic.edit import DeleteView
+from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from django.db import models
 from django.db.models import Q
@@ -21,7 +22,7 @@ from django.urls import reverse_lazy
 import json
 
 from ..models import Employee, Workgroup, Building, Room, PhoneNumber
-from ..forms import EmployeeForm, BuildingForm, RoomForm, PhoneNumberForm
+from ..forms import EmployeeForm, BuildingForm, RoomForm, PhoneNumberForm, WorkgroupForm
 from ..document_utils import (
     get_document_blocks_for_template,
     process_document_uploads,
@@ -72,13 +73,13 @@ def _get_recruitment_task(request):
     if not task_pk:
         return None
     try:
-        return PersonnelRecruitmentTask.objects.select_related('wbs_element').get(pk=task_pk)
+        return PersonnelRecruitmentTask.objects.select_related('job').get(pk=task_pk)
     except PersonnelRecruitmentTask.DoesNotExist:
         return None
 
 
 def _recruitment_employee_initial(task):
-    return {
+    initial = {
         'prefix': task.prefix,
         'first_name': task.first_name,
         'last_name': task.last_name,
@@ -94,6 +95,24 @@ def _recruitment_employee_initial(task):
         'city': task.city,
         'country': task.country,
     }
+    if task.job_id:
+        initial['job'] = task.job_id
+    return initial
+
+
+def _recruitment_contract_initial(task):
+    contract_data = {
+        'valid_from': task.valid_from,
+        'valid_until': task.valid_until,
+    }
+    if task.plan_position_number:
+        contract_data['job_number'] = task.plan_position_number
+    if task.job:
+        if task.job.pay_scale_group:
+            contract_data['pay_scale_group'] = task.job.pay_scale_group
+        if task.job.experience_level is not None:
+            contract_data['experience_level'] = str(task.job.experience_level)
+    return contract_data
 
 
 def _finalize_recruitment_task(request, employee):
@@ -229,10 +248,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             contract_initial = []
             funding_initial = []
             if task:
-                contract_initial = [{
-                    'valid_from': task.valid_from,
-                    'valid_until': task.valid_until,
-                }]
+                contract_initial = [_recruitment_contract_initial(task)]
                 funding_initial = [
                     {
                         'wbs_element': allocation.wbs_element_id,
@@ -459,22 +475,48 @@ class WorkgroupListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
 class WorkgroupCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Workgroup
-    fields = ['short_name', 'long_name', 'pi', 'members']
+    form_class = WorkgroupForm
     template_name = 'hr/workgroup_form.html'
     success_url = reverse_lazy('hr:workgroup_list')
 
     def test_func(self):
         return self.request.user.has_perm('hr.manage_working_group')
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except ValidationError as exc:
+            _add_workgroup_validation_errors(form, exc)
+            return self.form_invalid(form)
 
 
 class WorkgroupUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Workgroup
-    fields = ['short_name', 'long_name', 'pi', 'members']
+    form_class = WorkgroupForm
     template_name = 'hr/workgroup_form.html'
     success_url = reverse_lazy('hr:workgroup_list')
 
     def test_func(self):
         return self.request.user.has_perm('hr.manage_working_group')
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except ValidationError as exc:
+            _add_workgroup_validation_errors(form, exc)
+            return self.form_invalid(form)
+
+
+def _add_workgroup_validation_errors(form, exc):
+    if hasattr(exc, 'error_dict'):
+        for field, errors in exc.error_dict.items():
+            for error in errors:
+                form.add_error(field if field != '__all__' else None, error)
+    elif hasattr(exc, 'messages'):
+        for message in exc.messages:
+            form.add_error('short_name', message)
+    else:
+        form.add_error('short_name', exc)
 
 
 class LocationManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):

@@ -3,8 +3,12 @@ apps/finances/models.py
 Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
 
+from django.core.validators import FileExtensionValidator
 from django.db import models
+
 from apps.core.models import BaseModel
+
+THIRD_PARTY_FUNDING_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp']
 
 
 class PayScale(BaseModel):
@@ -65,31 +69,81 @@ class PayScale(BaseModel):
 class CostCenter(BaseModel):
     cost_center = models.CharField(max_length=50, unique=True, verbose_name="Cost Center")
     comments = models.TextField(blank=True, verbose_name="Comments")
+    third_party_funding_commitment = models.FileField(
+        upload_to='finances/cost_center/third_party_funding/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name="Drittmittelzusage",
+        validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
+    )
+    third_party_funder_identifier = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Kennzeichen des Drittmittelgebers",
+    )
 
     class Meta:
         verbose_name = "Cost Center"
         verbose_name_plural = "Cost Centers"
         ordering = ['cost_center']
+        permissions = [
+            ("manage_cost_center", "Can manage cost centers"),
+        ]
 
     def __str__(self):
         return self.cost_center
 
 
-class CostCenterInitialBalance(BaseModel):
+class CostCenterYearEstimate(BaseModel):
+    """Yearly Lomv and cost estimates for a cost center."""
     cost_center = models.ForeignKey(
         CostCenter,
         on_delete=models.CASCADE,
-        related_name='initial_balances',
-        verbose_name="Cost Center"
+        related_name='year_estimates',
+        verbose_name="Cost Center",
     )
-    year = models.PositiveIntegerField(verbose_name="Year")
-    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Initial Balance")
+    year = models.PositiveIntegerField(verbose_name="Year / Period")
+    lomv = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Lomv",
+    )
+    consumables_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Consumables Estimate",
+    )
+    travel_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Travel Costs Estimate",
+    )
+    animal_costs_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Animal Costs Estimate",
+    )
+    personnel_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Personal",
+    )
 
     class Meta:
-        verbose_name = "Cost Center Initial Balance"
-        verbose_name_plural = "Cost Center Initial Balances"
+        verbose_name = "Cost Center Year Estimate"
+        verbose_name_plural = "Cost Center Year Estimates"
         unique_together = ('cost_center', 'year')
-        ordering = ['cost_center', '-year']
+        ordering = ['year']
 
 
 class WBSElementQuerySet(models.QuerySet):
@@ -143,6 +197,18 @@ class WBSElement(BaseModel):
     is_inactive = models.BooleanField(
         default=False,
         verbose_name="Is Inactive",
+    )
+    third_party_funding_commitment = models.FileField(
+        upload_to='finances/psp/third_party_funding/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name="Drittmittelzusage",
+        validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
+    )
+    third_party_funder_identifier = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Kennzeichen des Drittmittelgebers",
     )
 
     objects = WBSElementQuerySet.as_manager()
@@ -198,6 +264,13 @@ class WBSElementYearEstimate(BaseModel):
         null=True,
         blank=True,
         verbose_name="Animal Costs Estimate",
+    )
+    personnel_estimate = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Personal",
     )
 
     class Meta:

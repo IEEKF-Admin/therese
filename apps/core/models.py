@@ -25,6 +25,28 @@ class BaseModel(models.Model):
         abstract = True
 
 
+class StoredFile(BaseModel):
+    """Binary file content stored in the database (used by DatabaseStorage)."""
+    name = models.CharField(
+        max_length=500,
+        unique=True,
+        verbose_name='Storage Path',
+        help_text='Logical path, e.g. recruitment_tasks/cv/example.pdf',
+    )
+    original_filename = models.CharField(max_length=255, verbose_name='Original Filename')
+    content_type = models.CharField(max_length=100, blank=True, verbose_name='Content Type')
+    size = models.PositiveBigIntegerField(default=0, verbose_name='Size (bytes)')
+    content = models.BinaryField(verbose_name='File Content')
+
+    class Meta:
+        verbose_name = 'Stored File'
+        verbose_name_plural = 'Stored Files'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.original_filename} ({self.size} bytes)'
+
+
 class GlobalSetting(models.Model):
     """Global application settings"""
     default_weekly_hours = models.DecimalField(

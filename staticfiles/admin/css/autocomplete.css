@@ -1,4 +1,4 @@
-﻿select.admin-autocomplete {
+select.admin-autocomplete {
     width: 20em;
 }
 
@@ -277,5 +277,3 @@
 .errors .select2-selection {
     border: 1px solid var(--error-fg);
 }
-
-

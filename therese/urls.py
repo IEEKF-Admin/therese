@@ -1,6 +1,4 @@
-﻿from django.conf import settings
-from django.conf.urls.static import static
-from django.urls import path, include
+﻿from django.urls import path, include
 from django.views.generic import RedirectView
 
 from .admin import therese_admin
@@ -22,10 +20,10 @@ urlpatterns = [
     path('hr/', include('apps.hr.urls')),
     path('finances/', include('apps.finances.urls')),
     path('documents/', include('apps.documents.urls')),
-]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Uploaded files served from database (login required)
+    path('media/', include('apps.core.urls', namespace='core')),
+]
 
 
 

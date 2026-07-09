@@ -152,13 +152,18 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 
-# WhiteNoise configuration (recommended for Gunicorn deploys)
-# Use compressed + hashed filenames for better caching
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# = MEDIA FILES =
+# = MEDIA FILES (database-backed via apps.core.storage.DatabaseStorage) =
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media'  # legacy import path for migrate_media_to_database
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'apps.core.storage.DatabaseStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # = AUTH =
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

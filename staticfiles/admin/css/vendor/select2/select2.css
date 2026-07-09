@@ -1,4 +1,4 @@
-﻿.select2-container {
+.select2-container {
   box-sizing: border-box;
   display: inline-block;
   margin: 0;
@@ -479,5 +479,3 @@
 
 .select2-container--classic.select2-container--open .select2-dropdown {
   border-color: #5897fb; }
-
-

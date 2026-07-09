@@ -6,9 +6,11 @@ Robust polymorphic Task System
 """
 
 from django.db import models
+
 from apps.core.models import BaseModel
-from apps.hr.models import Employee, Gender
 from apps.finances.models import WBSElement
+from apps.hr.models import Employee, Gender
+from apps.tasks.recruitment_config import DurationOperator, RequiredMode, VisibilityMode
 
 
 # = STATUS DEFINITIONS =
@@ -238,6 +240,130 @@ class PersonnelContractExtensionTask(Task):
         verbose_name = "Contract Extension Task"
 
 
+class RecruitmentJob(BaseModel):
+    """Configurable job type for personnel recruitment tasks."""
+    name = models.CharField(max_length=200, unique=True, verbose_name="Job Name")
+    is_active = models.BooleanField(default=True, verbose_name="Active")
+    pay_scale_group = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Pay Scale Group",
+    )
+    experience_level = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Experience Level",
+    )
+
+    class Meta:
+        verbose_name = "Recruitment Job"
+        verbose_name_plural = "Recruitment Jobs"
+        ordering = ['name']
+        permissions = [
+            ("manage_recruitment_job", "Can manage recruitment jobs"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def get_estimated_monthly_salary(self):
+        if not self.pay_scale_group or self.experience_level is None:
+            return None
+        from apps.finances.models import PayScale
+
+        return (
+            PayScale.get_current()
+            .filter(
+                pay_scale_group=self.pay_scale_group,
+                experience_level=self.experience_level,
+            )
+            .values_list('monthly_salary', flat=True)
+            .first()
+        )
+
+
+class RecruitmentJobFieldRule(BaseModel):
+    """Per-job visibility and required rules for recruitment form fields."""
+    job = models.ForeignKey(
+        RecruitmentJob,
+        on_delete=models.CASCADE,
+        related_name='field_rules',
+        verbose_name="Job",
+    )
+    field_key = models.CharField(max_length=50, verbose_name="Field Key")
+    visibility_mode = models.CharField(
+        max_length=20,
+        choices=VisibilityMode.CHOICES,
+        default=VisibilityMode.ALWAYS,
+        verbose_name="Visibility",
+    )
+    visibility_duration_operator = models.CharField(
+        max_length=5,
+        choices=DurationOperator.CHOICES,
+        blank=True,
+        verbose_name="Visibility Duration Operator",
+    )
+    visibility_duration_months = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Visibility Duration (months)",
+    )
+    required_mode = models.CharField(
+        max_length=20,
+        choices=RequiredMode.CHOICES,
+        default=RequiredMode.NEVER,
+        verbose_name="Required",
+    )
+    required_duration_operator = models.CharField(
+        max_length=5,
+        choices=DurationOperator.CHOICES,
+        blank=True,
+        verbose_name="Required Duration Operator",
+    )
+    required_duration_months = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Required Duration (months)",
+    )
+
+    class Meta:
+        verbose_name = "Recruitment Job Field Rule"
+        verbose_name_plural = "Recruitment Job Field Rules"
+        unique_together = ('job', 'field_key')
+        ordering = ['field_key']
+
+    def __str__(self):
+        return f"{self.job} — {self.field_key}"
+
+
+class LimitationReason(BaseModel):
+    """Template texts for limitation reasons on recruitment and extension tasks."""
+    title = models.CharField(max_length=200, verbose_name="Title")
+    text = models.TextField(verbose_name="Limitation Reason Text")
+    applies_to_all_jobs = models.BooleanField(
+        default=False,
+        verbose_name="Applies to All Jobs",
+    )
+    jobs = models.ManyToManyField(
+        RecruitmentJob,
+        blank=True,
+        related_name='limitation_reasons',
+        verbose_name="Associated Jobs",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Active")
+
+    class Meta:
+        verbose_name = "Limitation Reason"
+        verbose_name_plural = "Limitation Reasons"
+        ordering = ['title']
+        permissions = [
+            ("manage_limitation_reason", "Can manage limitation reasons"),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
 class PersonnelRecruitmentTask(Task):
     """New hire recruitment workflow."""
 
@@ -254,31 +380,43 @@ class PersonnelRecruitmentTask(Task):
     country_of_origin = models.CharField(max_length=100, verbose_name="Country of Origin")
     place_of_birth = models.CharField(max_length=100, verbose_name="Place of Birth")
     email_professional = models.EmailField(verbose_name="Professional Email")
-    private_phone_number = models.CharField(max_length=30, verbose_name="Private Phone")
+    private_phone_number = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Private Phone",
+    )
     street = models.CharField(max_length=100, verbose_name="Street")
     house_number = models.CharField(max_length=20, verbose_name="House Number")
     postal_code = models.CharField(max_length=10, verbose_name="Postal Code")
     city = models.CharField(max_length=100, verbose_name="City")
     country = models.CharField(max_length=100, default="Germany", verbose_name="Country")
-    job_title = models.CharField(max_length=200, verbose_name="Job Title")
+    job = models.ForeignKey(
+        RecruitmentJob,
+        on_delete=models.PROTECT,
+        related_name='recruitment_tasks',
+        verbose_name="Job",
+    )
     plan_position_number = models.CharField(
         max_length=50,
         blank=True,
         verbose_name="Plan Position Number",
     )
     valid_from = models.DateField(verbose_name="Contract Start Date")
-    valid_until = models.DateField(null=True, blank=True, verbose_name="Contract End Date")
+    valid_until = models.DateField(verbose_name="Contract End Date")
+    limitation_reason = models.TextField(blank=True, verbose_name="Limitation Reason")
     application_file = models.FileField(
         upload_to='recruitment_tasks/application/',
+        blank=True,
+        null=True,
         verbose_name="Application",
     )
     cv_file = models.FileField(
         upload_to='recruitment_tasks/cv/',
         verbose_name="Curriculum Vitae",
     )
-    measles_proof_file = models.FileField(
-        upload_to='recruitment_tasks/measles/',
-        verbose_name="Measles Vaccination Proof",
+    latest_degree_certificate_file = models.FileField(
+        upload_to='recruitment_tasks/degree_certificates/',
+        verbose_name="Latest Degree Certificate",
     )
     created_employee = models.OneToOneField(
         Employee,

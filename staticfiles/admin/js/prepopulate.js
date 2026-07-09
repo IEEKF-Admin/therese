@@ -1,4 +1,4 @@
-﻿/*global URLify*/
+/*global URLify*/
 'use strict';
 {
     const $ = django.jQuery;
@@ -41,5 +41,3 @@
         });
     };
 }
-
-

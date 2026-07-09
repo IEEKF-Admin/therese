@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Limitation Reasons - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Limitation Reasons</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:limitation_reason_create' %}" class="btn-primary">+ New Limitation Reason</a>
+    </div>
+</div>
+
+<table class="table list-panel">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>All jobs</th>
+            <th>Associated jobs</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reason in limitation_reasons %}
+        <tr>
+            <td>{{ reason.title }}</td>
+            <td>{% if reason.applies_to_all_jobs %}Yes{% else %}—{% endif %}</td>
+            <td>
+                {% for job in reason.jobs.all %}
+                    {{ job.name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}—{% endfor %}
+            </td>
+            <td>{% if reason.is_active %}Active{% else %}Inactive{% endif %}</td>
+            <td>
+                <a href="{% url 'tasks:limitation_reason_update' reason.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a href="{% url 'tasks:limitation_reason_delete' reason.pk %}" class="action-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No limitation reasons defined yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

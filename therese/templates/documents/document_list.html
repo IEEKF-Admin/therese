@@ -7,6 +7,13 @@
     <h1>Documents &amp; SOPs</h1>
 </div>
 
+{% if pending_read_ack_count %}
+<p class="document-read-ack-notice">
+    <i class="fas fa-exclamation-circle"></i>
+    {% if pending_read_ack_count == 1 %}1 document requires{% else %}{{ pending_read_ack_count }} documents require{% endif %} your read acknowledgement.
+</p>
+{% endif %}
+
 <form method="get" class="search-toolbar">
     <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search title and content...">
     <button type="submit" class="btn-secondary">Search</button>
@@ -31,8 +38,13 @@
             </thead>
             <tbody>
                 {% for doc in section.documents %}
-                <tr>
-                    <td><strong>{{ doc.title }}</strong></td>
+                <tr{% if doc.pending_read_ack %} class="document-row-needs-read-ack"{% endif %}>
+                    <td>
+                        <strong>{{ doc.title }}</strong>
+                        {% if doc.pending_read_ack %}
+                        <span class="read-ack-badge">Read acknowledgement required</span>
+                        {% endif %}
+                    </td>
                     <td>{{ doc.current_published_version.version_label }}</td>
                     <td>{{ doc.current_published_version.published_at|date:"d.m.Y" }}</td>
                     <td>

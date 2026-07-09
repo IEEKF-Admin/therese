@@ -24,6 +24,7 @@ from .models import (
     Employee, Building, Room, PhoneNumber, Contract,
     FundingAllocation, SalarySupplement, Workgroup
 )
+from .workgroup_groups import sync_auth_group_for_workgroup
 from apps.finances.models import PayScale
 
 
@@ -274,6 +275,31 @@ ContractFormSet = inlineformset_factory(Employee, Contract, form=ContractForm, e
 FundingFormSet = inlineformset_factory(Employee, FundingAllocation, form=FundingAllocationForm, extra=1, can_delete=True, min_num=1)
 SalaryFormSet = inlineformset_factory(Employee, SalarySupplement, fields='__all__', extra=0, can_delete=True)
 WorkgroupFormSet = inlineformset_factory(Employee, Workgroup.members.through, fields=('workgroup',), extra=0, can_delete=True)
+
+
+class WorkgroupForm(forms.ModelForm):
+    class Meta:
+        model = Workgroup
+        fields = ['short_name', 'long_name', 'pi', 'members']
+        widgets = {
+            'short_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'long_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'pi': forms.Select(attrs={'class': 'form-select'}),
+            'members': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 8}),
+        }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        old_short_name = None
+        if instance.pk:
+            old_short_name = Workgroup.objects.filter(pk=instance.pk).values_list(
+                'short_name', flat=True
+            ).first()
+        if commit:
+            instance.save()
+            self.save_m2m()
+            sync_auth_group_for_workgroup(instance, old_short_name=old_short_name)
+        return instance
 
 
 # = Location management forms for Assisting Admins (Buildings / Rooms / Phones) =

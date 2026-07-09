@@ -148,6 +148,14 @@ class Employee(BaseModel):
         blank=True,
         verbose_name="Monthly Salary (€)"
     )
+    job = models.ForeignKey(
+        'tasks.RecruitmentJob',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='employees',
+        verbose_name="Job",
+    )
 
     cost_center = models.ForeignKey(
         'finances.CostCenter',
@@ -244,7 +252,10 @@ class Contract(BaseModel):
 class EmployeeDocumentType(models.TextChoices):
     APPLICATION = 'application', 'Application / Bewerbung'
     CV = 'cv', 'Curriculum Vitae / Lebenslauf'
-    MEASLES_PROOF = 'measles_proof', 'Measles Vaccination Proof / Nachweis Masernschutzimpfung'
+    LATEST_DEGREE_CERTIFICATE = (
+        'latest_degree_certificate',
+        'Latest Degree Certificate / Zeugnis des letzten Abschlusses',
+    )
     SCAN_OF_CONTRACT = 'scan_of_contract', 'Scan of Contract / Vertragsscan'
     PROFILE_PICTURE = 'profile_picture', 'Profile Picture / Profilbild'
 
@@ -345,6 +356,14 @@ class Workgroup(models.Model):
     Project: THERESE
     Workgroup / Research Group Management
     """
+    auth_group = models.OneToOneField(
+        'auth.Group',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workgroup',
+        verbose_name='Django group',
+    )
     short_name = models.CharField(
         max_length=80, 
         unique=True,

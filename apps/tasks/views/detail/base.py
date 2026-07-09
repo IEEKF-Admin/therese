@@ -54,6 +54,7 @@ def get_task_or_404(pk, user):
 
     if base_task.task_type == 'personnel_recruitment':
         task = PersonnelRecruitmentTask.objects.select_related(
+            'job',
             'assignee', 'creator', 'created_employee', 'last_changed_by',
         ).prefetch_related(
             'comments', 'comments__author', 'funding_allocations__wbs_element',

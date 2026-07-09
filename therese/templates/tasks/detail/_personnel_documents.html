@@ -1,0 +1,28 @@
+{% if can_download_personnel_documents and has_personnel_documents %}
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="form-section">
+        <h3>Dokumente</h3>
+        <p class="field-hint-de" style="margin-bottom: 1rem;">
+            Herunterladbare Unterlagen zu diesem Personalvorgang.
+        </p>
+
+        <ul class="personnel-document-list" style="list-style: none; padding: 0; margin: 0 0 1rem 0;">
+            {% for document in personnel_documents %}
+            <li style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color, #e5e7eb);">
+                <span>{{ document.label }}</span>
+                <a href="{% url 'tasks:personnel_task_document_download' task.pk document.key %}"
+                   class="btn-secondary btn-small">
+                    Herunterladen
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+
+        {% if personnel_documents|length > 1 %}
+        <a href="{% url 'tasks:personnel_task_documents_zip' task.pk %}" class="btn-primary">
+            Alle als ZIP herunterladen
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

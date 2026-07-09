@@ -32,6 +32,10 @@ from apps.documents.models import (
     DocumentVersion,
 )
 from apps.documents.pdf import render_document_pdf_response
+from apps.documents.sidebar_notifications import (
+    get_pending_read_ack_document_ids,
+    mark_publish_notifications_seen,
+)
 from apps.documents.utils import (
     create_next_version,
     log_document_activity,
@@ -102,9 +106,15 @@ def document_list(request):
             or q_lower in (d.current_published_version.content_html or '').lower()
         ]
 
+    mark_publish_notifications_seen(request.user)
+    pending_read_ack_ids = get_pending_read_ack_document_ids(request.user)
+    for document in visible:
+        document.pending_read_ack = document.pk in pending_read_ack_ids
+
     return render(request, 'documents/document_list.html', {
         'sections': build_document_list_sections(visible),
         'search_query': query,
+        'pending_read_ack_count': len(pending_read_ack_ids & {doc.pk for doc in visible}),
     })
 
 

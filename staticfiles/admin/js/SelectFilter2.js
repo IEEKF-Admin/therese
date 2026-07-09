@@ -1,4 +1,4 @@
-﻿/*global SelectBox, gettext, ngettext, interpolate, quickElement, SelectFilter*/
+/*global SelectBox, gettext, ngettext, interpolate, quickElement, SelectFilter*/
 /*
 SelectFilter2 - Turns a multiple-select box into a filter interface.
 
@@ -327,5 +327,3 @@ Requires core.js and SelectBox.js.
         });
     });
 }
-
-

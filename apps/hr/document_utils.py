@@ -33,10 +33,10 @@ DOCUMENT_TYPE_DEFINITIONS = [
         'upload_field': 'upload_cv',
     },
     {
-        'type': EmployeeDocumentType.MEASLES_PROOF,
-        'label_en': 'Measles Vaccination Proof',
-        'label_de': 'Nachweis Masernschutzimpfung',
-        'upload_field': 'upload_measles_proof',
+        'type': EmployeeDocumentType.LATEST_DEGREE_CERTIFICATE,
+        'label_en': 'Latest Degree Certificate',
+        'label_de': 'Zeugnis des letzten Abschlusses',
+        'upload_field': 'upload_latest_degree_certificate',
     },
     {
         'type': EmployeeDocumentType.SCAN_OF_CONTRACT,
@@ -124,7 +124,7 @@ def copy_recruitment_documents_to_employee(task, employee, uploaded_by=None):
     mapping = [
         (EmployeeDocumentType.APPLICATION, task.application_file),
         (EmployeeDocumentType.CV, task.cv_file),
-        (EmployeeDocumentType.MEASLES_PROOF, task.measles_proof_file),
+        (EmployeeDocumentType.LATEST_DEGREE_CERTIFICATE, task.latest_degree_certificate_file),
     ]
     created = []
     for document_type, source_field in mapping:

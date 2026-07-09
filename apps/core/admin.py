@@ -13,12 +13,19 @@ Do not remove any existing requirements from this header without explicit instru
 
 from django.contrib import admin
 from therese.admin import therese_admin
-from .models import GlobalSetting
+from .models import GlobalSetting, StoredFile
 
 
 @admin.register(GlobalSetting, site=therese_admin)
 class GlobalSettingAdmin(admin.ModelAdmin):
     list_display = ['default_weekly_hours', 'updated_at']
     readonly_fields = ['updated_at']
+
+
+@admin.register(StoredFile, site=therese_admin)
+class StoredFileAdmin(admin.ModelAdmin):
+    list_display = ['original_filename', 'name', 'content_type', 'size', 'created_at']
+    search_fields = ['name', 'original_filename']
+    readonly_fields = ['name', 'original_filename', 'content_type', 'size', 'created_at', 'updated_at']
 
 

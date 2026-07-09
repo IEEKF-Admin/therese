@@ -10,8 +10,22 @@ from .views.delete import task_delete
 
 # Router importieren (jetzt Ã¼ber die neue Datei)
 from .views.router import task_detail
+from .views.personnel_documents import (
+    personnel_task_document_download,
+    personnel_task_documents_zip,
+)
 
 # Standard Orders views (from the dedicated submodule)
+from .views.recruitment_admin import (
+    LimitationReasonCreateView,
+    LimitationReasonDeleteView,
+    LimitationReasonListView,
+    LimitationReasonUpdateView,
+    RecruitmentJobCreateView,
+    RecruitmentJobDeleteView,
+    RecruitmentJobListView,
+    RecruitmentJobUpdateView,
+)
 from .views.standard_orders import (
     standard_orders_list,
     standard_order_create,
@@ -27,6 +41,8 @@ urlpatterns = [
     path('create/', choose_task_type, name='choose_task_type'),
     path('create/new/', TaskCreateView.as_view(), name='task_create'),
     path('<int:pk>/', task_detail, name='task_detail'),
+    path('<int:pk>/documents/download-all/', personnel_task_documents_zip, name='personnel_task_documents_zip'),
+    path('<int:pk>/documents/<slug:doc_key>/', personnel_task_document_download, name='personnel_task_document_download'),
     path('<int:pk>/delete/', task_delete, name='task_delete'),
 
     # Standard Purchase Items (Catalog / Standard Orders)
@@ -37,6 +53,16 @@ urlpatterns = [
     path('standard-orders/select/', standard_order_select, name='standard_order_select'),
     path('standard-orders/image/<int:pk>/', standard_item_thumbnail, name='standard_item_thumbnail'),
     path('<int:pk>/standardize/', save_standard_checkboxes, name='save_standard_checkboxes'),
+
+    # Recruitment administration (Assisting Admins)
+    path('admin/jobs/', RecruitmentJobListView.as_view(), name='recruitment_job_manage'),
+    path('admin/jobs/new/', RecruitmentJobCreateView.as_view(), name='recruitment_job_create'),
+    path('admin/jobs/<int:pk>/edit/', RecruitmentJobUpdateView.as_view(), name='recruitment_job_update'),
+    path('admin/jobs/<int:pk>/delete/', RecruitmentJobDeleteView.as_view(), name='recruitment_job_delete'),
+    path('admin/limitation-reasons/', LimitationReasonListView.as_view(), name='limitation_reason_manage'),
+    path('admin/limitation-reasons/new/', LimitationReasonCreateView.as_view(), name='limitation_reason_create'),
+    path('admin/limitation-reasons/<int:pk>/edit/', LimitationReasonUpdateView.as_view(), name='limitation_reason_update'),
+    path('admin/limitation-reasons/<int:pk>/delete/', LimitationReasonDeleteView.as_view(), name='limitation_reason_delete'),
 ]
 
 app_name = 'tasks'

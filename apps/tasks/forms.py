@@ -28,8 +28,10 @@ from .recruitment_form_helpers import (
     add_limitation_reason_template_field,
     apply_recruitment_field_defaults,
     configure_recruitment_job_field,
+    strip_limitation_reason_template,
     validate_recruitment_dynamic_rules,
 )
+from .recruitment_upload_cache import apply_stashed_uploads
 from .utils import (
     procurement_approver_employees,
     personnel_approver_employees,
@@ -73,8 +75,8 @@ class PurchaseOrderTaskForm(forms.ModelForm):
             self.fields['priority'].required = False
             self.fields['priority'].widget.attrs.update({'class': 'form-control'})
 
-        if 'comment' in self.fields and self.is_creation:
-            self.fields['comment'].required = True
+        if 'comment' in self.fields:
+            self.fields['comment'].required = False
 
         # ====== Assignee ======
         if 'assignee' in self.fields:
@@ -141,7 +143,11 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         cleaned_data = super().clean()
         wbs_element = cleaned_data.get('wbs_element')
 
-        if self.user and self.user.has_perm('tasks.view_all_purchase_orders'):
+        if (
+            not self.is_creation
+            and self.user
+            and self.user.has_perm('tasks.view_all_purchase_orders')
+        ):
             if not wbs_element:
                 self.add_error('wbs_element', "WBS Element is required for users with full purchase order access.")
 
@@ -161,12 +167,16 @@ class PurchaseItemForm(forms.ModelForm):
         }
 
     OPTIONAL_FIELDS = {'product_description'}
+    INTERNAL_FIELDS = {'id', 'purchase_task', 'DELETE'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.empty_permitted = True
         for field_name, field in self.fields.items():
-            field.required = field_name not in self.OPTIONAL_FIELDS
+            if field_name in self.INTERNAL_FIELDS:
+                field.required = False
+            else:
+                field.required = field_name not in self.OPTIONAL_FIELDS
             if field_name == 'order_number':
                 field.widget.attrs['placeholder'] = 'z.B. 4711'
             if field_name == 'quantity':
@@ -178,7 +188,7 @@ class PurchaseItemForm(forms.ModelForm):
             if not cleaned_data:
                 return True
             for field_name, value in cleaned_data.items():
-                if field_name in self.OPTIONAL_FIELDS:
+                if field_name in self.OPTIONAL_FIELDS or field_name in self.INTERNAL_FIELDS:
                     continue
                 if value not in (None, ''):
                     return False
@@ -187,7 +197,7 @@ class PurchaseItemForm(forms.ModelForm):
         if not self.is_bound:
             return False
         for field_name in self.fields:
-            if field_name in self.OPTIONAL_FIELDS:
+            if field_name in self.OPTIONAL_FIELDS or field_name in self.INTERNAL_FIELDS:
                 continue
             if self.data.get(self.add_prefix(field_name), '') not in ('', None):
                 return False
@@ -205,7 +215,7 @@ class PurchaseItemForm(forms.ModelForm):
         if self._is_empty_row(cleaned_data):
             return cleaned_data
         for field_name in self.fields:
-            if field_name in self.OPTIONAL_FIELDS:
+            if field_name in self.OPTIONAL_FIELDS or field_name in self.INTERNAL_FIELDS:
                 continue
             if cleaned_data.get(field_name) in (None, ''):
                 self.add_error(field_name, 'This field is required.')
@@ -509,7 +519,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         model = PersonnelRecruitmentTask
         fields = [
             'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
-            'country_of_origin', 'place_of_birth', 'email_professional',
+            'country_of_origin', 'place_of_birth', 'email_private',
             'private_phone_number', 'street', 'house_number', 'postal_code',
             'city', 'country', 'job', 'plan_position_number',
             'valid_from', 'valid_until', 'limitation_reason',
@@ -540,6 +550,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.is_creation = kwargs.pop('is_creation', False)
+        self.stashed_uploads = kwargs.pop('stashed_uploads', None) or {}
         super().__init__(*args, **kwargs)
 
         configure_recruitment_job_field(self)
@@ -552,13 +563,6 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 field.widget.attrs.setdefault('data-recruitment-field', field_name)
 
         _configure_gender_field(self, required=False)
-
-        if 'plan_position_number' in self.fields:
-            if self.is_creation:
-                self.fields['plan_position_number'].widget = forms.HiddenInput()
-                self.fields['plan_position_number'].required = False
-            else:
-                self.fields['plan_position_number'].required = True
 
         if 'status' in self.fields:
             if self.is_creation:
@@ -595,12 +599,18 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             job_id = self.data.get('job')
         elif self.instance and self.instance.job_id:
             job_id = self.instance.job_id
-        add_limitation_reason_template_field(self, job_id=job_id)
+        add_limitation_reason_template_field(
+            self,
+            job_id=job_id if not self.is_creation else None,
+            include_all_reasons=self.is_creation,
+        )
 
         _configure_personnel_assignee_field(self)
 
     def clean(self):
         cleaned_data = super().clean()
+        apply_stashed_uploads(cleaned_data, self.stashed_uploads)
+        strip_limitation_reason_template(cleaned_data)
         validate_recruitment_dynamic_rules(
             self,
             cleaned_data,

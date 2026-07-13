@@ -25,15 +25,20 @@ def add_limitation_reason_template_field(form, *, job_id=None, include_all_reaso
     for reason in reasons:
         choices.append((str(reason['id']), reason['title']))
 
-    form.fields['limitation_reason_template'] = forms.ChoiceField(
-        choices=choices,
+    # CharField + Select: UI helper only, never validated against choices or saved.
+    form.fields['limitation_reason_template'] = forms.CharField(
         required=False,
         label='Limitation Reason Template',
-        widget=forms.Select(attrs={
+        widget=forms.Select(choices=choices, attrs={
             'class': 'form-control limitation-reason-template',
             'data-limitation-template': 'true',
         }),
     )
+
+
+def strip_limitation_reason_template(cleaned_data):
+    cleaned_data.pop('limitation_reason_template', None)
+    return cleaned_data
 
 
 def configure_recruitment_job_field(form):
@@ -52,14 +57,15 @@ def configure_recruitment_job_field(form):
 
 
 def apply_recruitment_field_defaults(form, *, is_creation):
-    optional_always = {'prefix', 'comment', 'gender', 'private_phone_number', 'limitation_reason'}
+    optional_always = {
+        'prefix', 'comment', 'gender', 'private_phone_number',
+        'limitation_reason', 'plan_position_number',
+    }
     for field_name, field in form.fields.items():
         if field_name in optional_always:
             field.required = False
         elif field_name in FILE_FIELDS:
             field.required = is_creation
-        elif field_name == 'plan_position_number':
-            field.required = not is_creation
         elif field_name not in ('assignee', 'status'):
             field.required = True
 

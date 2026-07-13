@@ -87,7 +87,7 @@ def _recruitment_employee_initial(task):
         'date_of_birth': task.date_of_birth,
         'country_of_origin': task.country_of_origin,
         'place_of_birth': task.place_of_birth,
-        'email_professional': task.email_professional,
+        'email_private': task.email_private,
         'private_phone_number': task.private_phone_number,
         'street': task.street,
         'house_number': task.house_number,

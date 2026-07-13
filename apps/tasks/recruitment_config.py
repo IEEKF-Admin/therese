@@ -59,7 +59,7 @@ RECRUITMENT_CONFIGURABLE_FIELDS = [
     ('postal_code', 'Postal Code', 'Postleitzahl'),
     ('city', 'City', 'Stadt'),
     ('country', 'Country', 'Land'),
-    ('email_professional', 'Professional Email', 'Dienstliche E-Mail'),
+    ('email_private', 'Private Email', 'Private E-Mail'),
     ('private_phone_number', 'Private Phone', 'Private Telefonnummer'),
     ('job', 'Job', 'Job'),
     ('plan_position_number', 'Plan Position Number', 'Planstellen-Nummer'),

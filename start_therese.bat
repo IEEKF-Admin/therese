@@ -1,73 +1,39 @@
 @echo off
 chcp 65001 >nul 2>&1
-
-echo DEBUG: === Script started ===
-echo DEBUG: Arg1 = [%~1]
-echo DEBUG: COMSPEC = [%COMSPEC%]
-echo.
-
-REM Force cmd.exe
-@if not "%~1"==":cmd" (
-    cmd /c "%~f0" :cmd %*
-    exit /b
-)
-
-echo DEBUG: === Running in cmd.exe ===
-echo.
-
-cls
-echo ============================================================
-echo     THERESE - DEMO START (Netzwerk-Zugriff)
-echo ============================================================
-echo.
-
 cd /d "%~dp0"
 
-echo [1/3] Aktiviere virtuelle Umgebung...
-call venv\Scripts\activate.bat >nul 2>&1
-echo Using Python: 
-venv\Scripts\python.exe --version
-echo Codepage: 
-chcp
-
-echo [2/3] Ermittle IP-Adresse...
+echo ============================================================
+echo     THERESE - Development Server
+echo ============================================================
 echo.
 
-setlocal enabledelayedexpansion
-set "IP="
-
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do (
-    set "candidate=%%a"
-    set "candidate=!candidate: =!"
-    if not "!candidate!"=="127.0.0.1" (
-        if "!IP!"=="" set "IP=!candidate!"
-    )
+set "PYTHON=venv\Scripts\python.exe"
+if not exist "%PYTHON%" (
+    echo FEHLER: Virtuelle Umgebung nicht gefunden.
+    echo Bitte zuerst anlegen: python -m venv venv
+    pause
+    exit /b 1
 )
 
-if "!IP!"=="" set "IP=IP-NICHT-GEFUNDEN"
+"%PYTHON%" --version
+echo.
 
-endlocal & set "IP=%IP%"
+set "IP="
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4" ^| findstr /V "127.0.0.1"') do (
+    if not defined IP set "IP=%%a"
+)
+set "IP=%IP: =%"
+if not defined IP set "IP=localhost"
 
-echo DEBUG: Detected IP = [%IP%]
-
+echo   Lokal:    http://127.0.0.1:8000
+echo   Netzwerk: http://%IP%:8000
+echo.
+echo   Beenden mit Ctrl+C
 echo ============================================================
 echo.
-echo   SERVER LAEUFT JETZT FUER NETZWERK-ZUGRIFF!
-echo.
-echo   Zugriffs-URL: http://%IP%:8000
-echo.
-echo ============================================================
-echo.
 
-echo DEBUG: === Writing current_demo_url.txt (using PowerShell to avoid > issues) ===
-
-powershell -NoProfile -Command "Set-Content -Path 'current_demo_url.txt' -Value 'http://%IP%:8000' -Encoding ASCII"
-
-echo DEBUG: File write via PowerShell completed.
-echo Die aktuelle URL wurde in "current_demo_url.txt" gespeichert.
-
-venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
+"%PYTHON%" manage.py runserver 0.0.0.0:8000
 
 echo.
-echo Server wurde beendet.
+echo Server beendet.
 pause

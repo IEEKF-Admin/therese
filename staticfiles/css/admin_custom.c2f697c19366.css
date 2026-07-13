@@ -1,0 +1,604 @@
+﻿/* ====
+   THERESE ADMIN - CLEAN CUSTOM THEME
+   ==== */
+
+/* ------------------ CSS Variables (Light Theme) ------------------ */
+:root {
+    /* Brand */
+    --primary: #1e40af;
+    --primary-light: #3b82f6;
+    --header-bg: #1e3a8a;
+
+    /* Surfaces */
+    --body-bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-alt: #f1f5f9;
+
+    /* Text */
+    --text-primary: #1e2937;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+
+    /* Borders & Dividers */
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    /* Status / Accents */
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #ca8a04;
+}
+
+/* ------------------ Base ------------------ */
+body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--body-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ------------------ Header ------------------ */
+#header {
+    background: var(--header-bg) !important;
+    color: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-bottom: 4px solid var(--primary-light);
+}
+
+#header a,
+#header a:visited {
+    color: white;
+}
+
+/* ------------------ Branding ------------------ */
+#branding h1 {
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+/* ------------------ Modules / Cards ------------------ */
+.module {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.module h2,
+.module caption {
+    background: #e0f2fe !important;
+    color: var(--primary) !important;
+    border-bottom: 2px solid var(--primary) !important;
+    font-weight: 600;
+}
+
+/* ------------------ Tables ------------------ */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+table thead th {
+    background: var(--surface-alt) !important;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+}
+
+.row1, .row2,
+.results table tbody td,
+.results table tbody th {
+    background: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+table tbody tr:hover {
+    background: #f8fafc !important;
+}
+
+/* ------------------ Sidebar ------------------ */
+#nav-sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+}
+
+#nav-sidebar a {
+    color: var(--text-primary) !important;
+}
+
+#nav-sidebar a:hover,
+#nav-sidebar .current-model a {
+    background-color: #e0f2fe !important;
+    color: var(--primary) !important;
+}
+
+#nav-filter {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+}
+
+/* ------------------ Changelist Filters ------------------ */
+.changelist-filter {
+    background: var(--surface);
+}
+
+.changelist-filter h2 {
+    background: var(--surface-alt) !important;
+    color: var(--primary) !important;
+}
+
+/* ------------------ Buttons ------------------ */
+.button,
+input[type=submit],
+input[type=button],
+.submit-row input {
+    background: var(--primary) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 500;
+}
+
+.button:hover,
+input[type=submit]:hover {
+    background: var(--primary-light) !important;
+}
+
+.deletelink {
+    color: var(--danger) !important;
+}
+
+/* ------------------ Object Tools (Add buttons) ------------------ */
+.object-tools a.addlink,
+.object-tools a.addlink:link,
+.object-tools a.addlink:visited {
+    background: var(--primary) !important;
+    color: white !important;
+    border: 1px solid var(--primary) !important;
+    border-radius: 6px;
+    padding: 6px 14px !important;
+    text-decoration: none !important;
+    font-weight: 500;
+}
+
+.object-tools a.addlink:hover {
+    background: var(--primary-light) !important;
+    border-color: var(--primary-light) !important;
+}
+
+/* ------------------ Toolbar (Search) ------------------ */
+#toolbar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+/* ------------------ Actions Bar ------------------ */
+.actions {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+.actions select {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+}
+
+.actions button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-weight: 500;
+}
+
+.actions button:hover {
+    background: var(--primary-light);
+}
+
+/* ------------------ Paginator ------------------ */
+.paginator {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.paginator .this-page {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.paginator a {
+    color: var(--primary);
+}
+
+.paginator a:hover {
+    background: var(--surface-alt);
+    color: var(--primary);
+}
+
+/* ====
+   ADMIN INDEX PAGE - RIGHT SIDEBAR FIX (STARK)
+   "Neueste Aktionen" soll ganz oben rechts stehen
+   ==== */
+
+/* Force flex layout on the main content wrapper and align everything to the top */
+#content {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 30px !important;
+}
+
+/* The right sidebar must start at the very top */
+#content-related,
+.content-related {
+    flex: 0 0 280px !important;        /* fixed width, do not grow */
+    align-self: flex-start !important; /* critical: stick to top */
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Extra safety: Force the entire admin content area into proper side-by-side layout */
+#container #content,
+.main #content {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+}
+
+/* Make sure the first module inside has no extra top space */
+#content-related .module:first-child {
+    margin-top: 0 !important;
+}
+
+/* Style the "Neueste Aktionen" box nicely */
+#content-related .module {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+#content-related .module h2,
+#content-related .module caption {
+    background: #e0f2fe !important;
+    color: #1e40af !important;
+    font-size: 0.85rem !important;
+    padding: 8px 12px !important;
+    border-bottom: 2px solid #1e40af !important;
+    margin: 0 !important;
+}
+
+/* List items inside Recent Actions */
+#content-related ul {
+    margin: 8px 0 0 0 !important;
+    padding: 0 12px 12px 12px !important;
+    list-style: none;
+}
+
+#content-related li {
+    margin: 4px 0 !important;
+    font-size: 0.9rem;
+}
+
+/* ------------------ Forms & Inputs ------------------ */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+textarea,
+select {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+}
+
+.form-row {
+    background: var(--surface);
+}
+
+.form-row:hover {
+    background: #f8fafc;
+}
+
+/* ------------------ Links ------------------ */
+a:link, a:visited {
+    color: var(--primary);
+}
+
+a:hover {
+    color: #1e3a8a;
+}
+
+/* ------------------ Theme Toggle (hide completely) ------------------ */
+.theme-toggle {
+    display: none !important;
+}
+
+/* ------------------ Selector Widgets (filter_horizontal e.g. Documents Tags) ------------------ */
+.selector {
+    background: var(--surface) !important;
+}
+
+.selector-available,
+.selector-chosen {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+}
+
+.selector h2,
+.selector-available h2,
+.selector-chosen h2 {
+    background: var(--surface-alt) !important;
+    color: var(--primary) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.selector select {
+    background: var(--surface) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-strong) !important;
+}
+
+.selector .selector-chooser li {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+}
+
+.selector .selector-chooseall,
+.selector .selector-clearall {
+    background: var(--surface-alt) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ------------------ Additional surfaces that can be dark ------------------ */
+#changelist-filter,
+.actions,
+#toolbar,
+.paginator,
+.form-row,
+#content-related,
+.content-related {
+    background: var(--surface) !important;
+}
+
+.form-row {
+    border-bottom: 1px solid var(--border) !important;
+}
+
+/* ------------------ Strong Light Theme Enforcement ------------------ */
+@media (prefers-color-scheme: dark),
+html[data-theme="dark"],
+body[data-theme="dark"] {
+    :root {
+        --body-bg: #f8fafc;
+        --surface: #ffffff;
+        --surface-alt: #f1f5f9;
+        --text-primary: #1e2937;
+        --text-secondary: #475569;
+        --border: #e2e8f0;
+    }
+
+    body,
+    #container,
+    #content,
+    .module,
+    table,
+    tr,
+    td,
+    th,
+    .form-row,
+    .selector,
+    .selector-available,
+    .selector-chosen,
+    input,
+    select,
+    textarea {
+        background-color: #ffffff !important;
+        color: #1e2937 !important;
+    }
+
+    .module h2,
+    .module caption {
+        background: #e0f2fe !important;
+        color: #1e40af !important;
+    }
+}
+
+/* === Required field validation errors - red highlight === */
+.form-row.errors input,
+.form-row.errors select,
+.form-row.errors textarea,
+.errors input,
+.errors select,
+.errors textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+}
+
+.form-row.errors label {
+    color: #dc2626 !important;
+    font-weight: 600;
+}
+
+/* === User Group Matrix (admin) === */
+#content:has(.user-group-matrix-page) {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.user-group-matrix-page {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.matrix-intro {
+    color: #475569;
+    margin: 0 0 1rem;
+}
+
+.matrix-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.matrix-filter-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+}
+
+.user-group-matrix-wrap {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.user-group-matrix {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    font-size: 0.82rem;
+}
+
+.user-group-matrix th,
+.user-group-matrix td {
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.user-group-matrix thead th {
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.matrix-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #fff;
+    text-align: left !important;
+    min-width: 160px;
+    max-width: 220px;
+    box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+}
+
+.matrix-user-header {
+    z-index: 4 !important;
+    background: #eff6ff !important;
+    font-weight: 700;
+}
+
+.matrix-group-header {
+    min-width: 44px;
+    max-width: 56px;
+    width: 48px;
+    height: 110px;
+    padding: 0.25rem 0.15rem !important;
+    vertical-align: bottom;
+}
+
+.matrix-group-header span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 100px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.matrix-user-cell a {
+    font-weight: 600;
+    color: #1e40af;
+    text-decoration: none;
+}
+
+.matrix-user-cell a:hover {
+    text-decoration: underline;
+}
+
+.matrix-inactive-badge,
+.matrix-superuser-badge {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.matrix-inactive-badge {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.matrix-superuser-badge {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.matrix-membership-cell {
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    padding: 0.35rem 0.2rem !important;
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.matrix-membership-cell.is-member {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.user-group-matrix tbody tr:hover td,
+.user-group-matrix tbody tr:hover th.matrix-sticky-col {
+    background-color: #f8fafc;
+}
+
+.user-group-matrix tbody tr:hover td.is-member {
+    background-color: #d1fae5;
+}
+

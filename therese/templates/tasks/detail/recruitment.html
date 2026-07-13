@@ -27,10 +27,6 @@
         <div class="form-section" style="margin-bottom:1.5rem;">
             <h3>Task Information</h3>
             <div class="aligned-field">
-                <label>Task Number</label>
-                <span class="form-readonly">{{ task.task_number|default:task.title }}</span>
-            </div>
-            <div class="aligned-field">
                 <label>Assigned to</label>
                 {% if can_set_assignee and can_edit_fields %}
                     {{ form.assignee|add_class:"form-control" }}

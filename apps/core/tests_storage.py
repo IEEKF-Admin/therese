@@ -51,7 +51,7 @@ class DatabaseStorageTests(TestCase):
             date_of_birth=date(1995, 5, 5),
             country_of_origin='Germany',
             place_of_birth='Hamburg',
-            email_professional='anna@example.com',
+            email_private='anna@example.com',
             street='Testweg',
             house_number='12',
             postal_code='20095',

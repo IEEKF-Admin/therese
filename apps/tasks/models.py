@@ -379,7 +379,7 @@ class PersonnelRecruitmentTask(Task):
     date_of_birth = models.DateField(verbose_name="Date of Birth")
     country_of_origin = models.CharField(max_length=100, verbose_name="Country of Origin")
     place_of_birth = models.CharField(max_length=100, verbose_name="Place of Birth")
-    email_professional = models.EmailField(verbose_name="Professional Email")
+    email_private = models.EmailField(verbose_name="Private Email")
     private_phone_number = models.CharField(
         max_length=30,
         blank=True,

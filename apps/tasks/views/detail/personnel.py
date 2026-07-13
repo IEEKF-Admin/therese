@@ -93,16 +93,17 @@ def _handle_recruitment_detail(request, task):
             new_index = RECRUITMENT_STATUS_ORDER.index(new_status)
         except ValueError:
             messages.error(request, "Invalid status value.")
-        elif new_index <= current_index:
-            messages.error(request, "Approvers may only move the status forward.")
         else:
-            task.status = new_status
-            if employee:
-                task.last_changed_by = employee
-            task.save(update_fields=['status', 'last_changed_by', 'last_status_change'])
-            _log_task_changes(task, employee, old_status, task, task.assignee_id)
-            messages.success(request, "Task updated successfully.")
-            return redirect('tasks:task_detail', pk=task.pk)
+            if new_index <= current_index:
+                messages.error(request, "Approvers may only move the status forward.")
+            else:
+                task.status = new_status
+                if employee:
+                    task.last_changed_by = employee
+                task.save(update_fields=['status', 'last_changed_by', 'last_status_change'])
+                _log_task_changes(task, employee, old_status, task, task.assignee_id)
+                messages.success(request, "Task updated successfully.")
+                return redirect('tasks:my_tasks')
     elif request.method == 'POST' and can_edit_fields:
         form = PersonnelRecruitmentTaskForm(
             request.POST,
@@ -127,7 +128,7 @@ def _handle_recruitment_detail(request, task):
             funding_formset.save()
             _log_task_changes(task, employee, old_status, saved, old_assignee_id)
             messages.success(request, "Task updated successfully.")
-            return redirect('tasks:task_detail', pk=task.pk)
+            return redirect('tasks:my_tasks')
         messages.error(request, "Please correct the errors below.")
     else:
         form = PersonnelRecruitmentTaskForm(

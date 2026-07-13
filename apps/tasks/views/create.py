@@ -15,11 +15,13 @@ Do not remove any existing requirements from this header without explicit instru
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView
 from django.contrib import messages
-from django.urls import reverse_lazy
+from django.http import HttpResponseRedirect
+from django.urls import reverse, reverse_lazy
 from django.shortcuts import render, redirect
 from django.forms.models import inlineformset_factory
+from django.utils import timezone
 
-from ..models import PurchaseOrderTask, PurchaseItem, StandardPurchaseItem, TaskComment
+from ..models import Task, PurchaseOrderTask, PurchaseItem, StandardPurchaseItem, TaskComment
 from ..forms import (
     PurchaseOrderTaskForm,
     PurchaseItemForm,
@@ -33,6 +35,11 @@ from ..forms import (
 from ..recruitment_form_helpers import (
     build_recruitment_template_context,
     funding_formset_kwargs_from_post,
+)
+from ..recruitment_upload_cache import (
+    clear_stashed_uploads,
+    get_stashed_uploads,
+    stash_recruitment_uploads,
 )
 # GroupNames removed - using has_perm now
 
@@ -54,8 +61,49 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     template_name = 'tasks/task_create.html'
     success_url = reverse_lazy('tasks:my_tasks')
 
+    def _get_task_type(self):
+        return self.request.POST.get('task_type') or self.request.GET.get('type')
+
+    def _assign_personnel_task_number(self, instance):
+        if instance.task_type not in (
+            'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+        ) or instance.task_number:
+            return instance
+
+        year = timezone.now().year
+        if instance.task_type == 'personnel_reallocation':
+            prefix = 'RA'
+        elif instance.task_type == 'personnel_contract_extension':
+            prefix = 'CE'
+        else:
+            prefix = 'REC'
+
+        existing_numbers = Task.objects.filter(
+            task_number__startswith=f'{prefix}-{year}-',
+        ).values_list('task_number', flat=True)
+
+        max_num = 0
+        for num_str in existing_numbers:
+            try:
+                num = int(num_str.split('-')[-1])
+                if num > max_num:
+                    max_num = num
+            except (IndexError, ValueError):
+                continue
+
+        new_task_number = f'{prefix}-{year}-{max_num + 1:04d}'
+        instance.task_number = new_task_number
+        instance.title = new_task_number
+        instance.save(update_fields=['task_number', 'title'])
+        return instance
+
+    def _redirect_after_create(self, instance, *, message):
+        self.object = instance
+        messages.success(self.request, message)
+        return HttpResponseRedirect(reverse('tasks:my_tasks'), status=303)
+
     def get_template_names(self):
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
         if task_type == 'generic_text':
             # Dedicated template only for General Requests
             return ['tasks/task_create_generic.html']
@@ -72,7 +120,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         if not hasattr(user, 'employee') or user.employee is None:
             return False
 
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
 
         if task_type == 'generic_text':
             return True
@@ -100,7 +148,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return False
 
     def get_form_class(self):
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
         mapping = {
             'purchase_order': PurchaseOrderTaskForm,
             'personnel_reallocation': PersonnelReallocationTaskForm,
@@ -112,7 +160,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
 
         # Formulare die user + is_creation brauchen
         if task_type in (
@@ -121,6 +169,9 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         ):
             kwargs['user'] = self.request.user
             kwargs['is_creation'] = True
+
+        if task_type == 'personnel_recruitment':
+            kwargs['stashed_uploads'] = get_stashed_uploads(self.request)
 
         # Support copying from an existing Purchase Order
         copy_from_pk = self.request.GET.get('copy_from')
@@ -148,7 +199,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
         context['task_type'] = task_type
 
         if task_type == 'purchase_order':
@@ -214,6 +265,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             context.update(build_recruitment_template_context())
 
         if task_type == 'personnel_recruitment':
+            context['stashed_uploads'] = get_stashed_uploads(self.request)
             if self.request.method == 'POST':
                 context['funding_formset'] = RecruitmentFundingFormSet(
                     self.request.POST,
@@ -225,8 +277,13 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 )
         return context
 
+    def post(self, request, *args, **kwargs):
+        if self._get_task_type() == 'personnel_recruitment':
+            stash_recruitment_uploads(request)
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
-        task_type = self.request.GET.get('type')
+        task_type = self._get_task_type()
 
         # Require confirmation checkbox for all task types
         if not self.request.POST.get('confirm_info'):
@@ -242,61 +299,38 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 instance = form.save()
                 formset.instance = instance
                 formset.save()
-                messages.success(self.request, "✅ Purchase Order created successfully.")
-                return redirect('tasks:my_tasks')
-            else:
-                messages.error(self.request, "Please correct the errors in the items.")
-                return self.render_to_response(self.get_context_data(form=form))
+                return self._redirect_after_create(
+                    instance,
+                    message='✅ Purchase Order created successfully.',
+                )
+            messages.error(self.request, "Please correct the errors in the items.")
+            return self.render_to_response(self.get_context_data(form=form))
 
         if task_type == 'personnel_recruitment':
             funding_formset = RecruitmentFundingFormSet(
                 self.request.POST,
                 **funding_formset_kwargs_from_post(self.request.POST, is_creation=True),
             )
-            if funding_formset.is_valid():
-                instance = form.save()
-                funding_formset.instance = instance
-                funding_formset.save()
-            else:
+            if not funding_formset.is_valid():
                 messages.error(self.request, "Please correct errors in the funding allocations.")
                 return self.render_to_response(self.get_context_data(form=form))
-        else:
+
             instance = form.save()
+            funding_formset.instance = instance
+            funding_formset.save()
+            clear_stashed_uploads(self.request)
+            instance = self._assign_personnel_task_number(instance)
+            return self._redirect_after_create(
+                instance,
+                message=f'{instance.get_task_type_display()} created successfully.',
+            )
 
-        if instance.task_type in [
-            'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
-        ] and not instance.task_number:
-            from django.utils import timezone
-            year = timezone.now().year
-
-            if instance.task_type == 'personnel_reallocation':
-                prefix = "RA"
-            elif instance.task_type == 'personnel_contract_extension':
-                prefix = "CE"
-            else:
-                prefix = "REC"
-
-            # NÃ¤chste laufende Nummer ermitteln
-            existing_numbers = Task.objects.filter(
-                task_number__startswith=f"{prefix}-{year}-"
-            ).values_list('task_number', flat=True)
-
-            max_num = 0
-            for num_str in existing_numbers:
-                try:
-                    num = int(num_str.split('-')[-1])
-                    if num > max_num:
-                        max_num = num
-                except (IndexError, ValueError):
-                    continue
-
-            new_task_number = f"{prefix}-{year}-{max_num + 1:04d}"
-            instance.task_number = new_task_number
-            instance.title = new_task_number  # FÃ¼r KompatibilitÃ¤t mit bestehender Anzeige
-            instance.save(update_fields=['task_number', 'title'])
-
-        messages.success(self.request, f"{instance.get_task_type_display()} created successfully.")
-        return redirect('tasks:my_tasks')
+        instance = form.save()
+        instance = self._assign_personnel_task_number(instance)
+        return self._redirect_after_create(
+            instance,
+            message=f'{instance.get_task_type_display()} created successfully.',
+        )
 
     def form_invalid(self, form):
         messages.error(self.request, "Please correct the errors below.")

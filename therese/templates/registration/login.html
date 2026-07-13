@@ -11,7 +11,7 @@
     }
 
     .login-module {
-        max-width: 420px;
+        max-width: 480px;
         margin: 80px auto;
         padding: 50px 40px;
         background: rgba(255, 255, 255, 0.98);
@@ -36,7 +36,8 @@
     
     .subtitle {
         color: #334155;
-        font-size: 1.1rem;
+        font-size: 0.95rem;
+        line-height: 1.45;
         margin-bottom: 32px;
     }
 
@@ -108,7 +109,7 @@
          class="login-logo">
 
     <h1>T.H.E.R.E.S.E.</h1>
-    <p class="subtitle">Task Hub for Efficient Resource Expenditure & Staff Evaluation</p>
+    <p class="subtitle therese-tagline">{% include "includes/therese_tagline.html" %}</p>
 
     <form method="post" action="{% url 'admin:login' %}">
         {% csrf_token %}

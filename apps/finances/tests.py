@@ -116,7 +116,6 @@ class WBSElementYearEstimateFormSetTests(TestCase):
             prefix = f'{prefix_base}-{index}'
             data[f'{prefix}-year'] = row.get('year', '')
             data[f'{prefix}-funding'] = row.get('funding', '')
-            data[f'{prefix}-personnel_estimate'] = row.get('personnel_estimate', '')
             data[f'{prefix}-consumables_estimate'] = row.get('consumables_estimate', '')
             data[f'{prefix}-travel_estimate'] = row.get('travel_estimate', '')
             data[f'{prefix}-animal_costs_estimate'] = row.get('animal_costs_estimate', '')
@@ -138,7 +137,7 @@ class WBSElementYearEstimateFormSetTests(TestCase):
     def test_unique_years_save_successfully(self):
         formset = WBSElementYearEstimateFormSet(
             self._formset_data([
-                {'year': '2026', 'funding': '1000.00', 'personnel_estimate': '500.00'},
+                {'year': '2026', 'funding': '1000.00'},
                 {'year': '2027', 'funding': '1500.00'},
             ]),
             instance=self.psp,
@@ -148,7 +147,6 @@ class WBSElementYearEstimateFormSetTests(TestCase):
         self.assertEqual(self.psp.year_estimates.count(), 2)
         estimate_2026 = WBSElementYearEstimate.objects.get(wbs_element=self.psp, year=2026)
         self.assertEqual(estimate_2026.funding, 1000.00)
-        self.assertEqual(estimate_2026.personnel_estimate, 500.00)
 
 
 class CostCenterFormTests(TestCase):
@@ -194,7 +192,6 @@ class CostCenterYearEstimateFormSetTests(TestCase):
             prefix = f'{prefix_base}-{index}'
             data[f'{prefix}-year'] = row.get('year', '')
             data[f'{prefix}-lomv'] = row.get('lomv', '')
-            data[f'{prefix}-personnel_estimate'] = row.get('personnel_estimate', '')
             data[f'{prefix}-consumables_estimate'] = row.get('consumables_estimate', '')
             data[f'{prefix}-travel_estimate'] = row.get('travel_estimate', '')
             data[f'{prefix}-animal_costs_estimate'] = row.get('animal_costs_estimate', '')
@@ -205,7 +202,7 @@ class CostCenterYearEstimateFormSetTests(TestCase):
     def test_unique_years_save_with_lomv(self):
         formset = CostCenterYearEstimateFormSet(
             self._formset_data([
-                {'year': '2026', 'lomv': '3000.00', 'personnel_estimate': '1200.00'},
+                {'year': '2026', 'lomv': '3000.00'},
                 {'year': '2027', 'lomv': '3500.00'},
             ]),
             instance=self.cost_center,
@@ -215,4 +212,3 @@ class CostCenterYearEstimateFormSetTests(TestCase):
         self.assertEqual(self.cost_center.year_estimates.count(), 2)
         estimate = self.cost_center.year_estimates.get(year=2026)
         self.assertEqual(estimate.lomv, 3000.00)
-        self.assertEqual(estimate.personnel_estimate, 1200.00)

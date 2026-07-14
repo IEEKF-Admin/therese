@@ -50,10 +50,6 @@
 </div>
 {% endblock %}
 
-{% block comment_field %}
-    <div class="readonly-comment">{{ task.comment|linebreaks|default:"— No comment" }}</div>
-{% endblock %}
-
 {% block action_buttons %}
     {# Reorder button - creates a new PO with the same items #}
     <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;copy_from={{ task.pk }}"

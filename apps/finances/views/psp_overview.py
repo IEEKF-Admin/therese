@@ -84,8 +84,9 @@ def psp_elements(request):
         user,
     )
 
-    start_month = request.GET.get('start_month', '')
-    end_month = request.GET.get('end_month', '')
+    current_year = date.today().year
+    start_month = request.GET.get('start_month', '') or f'{current_year}-01'
+    end_month = request.GET.get('end_month', '') or f'{current_year}-12'
 
     start_date = None
     end_date = None

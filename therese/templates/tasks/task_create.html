@@ -220,7 +220,7 @@
             <!-- Comment / Notes -->
             <div class="form-section">
                 <h3>Comment / Notes</h3>
-                {{ form.comment|add_class:"form-control" }}
+                {{ form.initial_message|add_class:"form-control" }}
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen (optional)</small>
             </div>
 
@@ -268,7 +268,7 @@
             <!-- Comment / Notes - full width -->
             <div class="form-section comment-full">
                 <h3>Comment / Notes</h3>
-                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                {{ form.initial_message|add_class:"form-control full-width-textarea" }}
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
             </div>
 
@@ -321,7 +321,7 @@
             <!-- Comment / Notes - full width -->
             <div class="form-section comment-full">
                 <h3>Comment / Notes</h3>
-                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                {{ form.initial_message|add_class:"form-control full-width-textarea" }}
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
             </div>
 
@@ -329,7 +329,7 @@
             {% include "tasks/recruitment/_form_body.html" with task=form.instance can_edit_fields=True is_creation=True %}
             <div class="form-section comment-full">
                 <h3>Comment / Notes</h3>
-                {{ form.comment|add_class:"form-control full-width-textarea" }}
+                {{ form.initial_message|add_class:"form-control full-width-textarea" }}
                 <small style="color:#64748b;">Kommentar / Notizen</small>
             </div>
 

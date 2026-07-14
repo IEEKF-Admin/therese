@@ -82,14 +82,11 @@
         </div>
 
         <!-- Description -->
-        <div class="form-section">
-            <h3>Description / Notes</h3>
-            {% if can_edit or can_edit_coordinator_steps %}
-                {{ form.comment|add_class:"form-control" }}
-            {% else %}
-                <div class="readonly-comment" style="min-height: 160px; white-space: pre-wrap;">{{ task.comment|linebreaks|default:"— No description provided" }}</div>
-            {% endif %}
-        </div>
+        {% if can_edit or can_edit_coordinator_steps %}
+        {% include "tasks/detail/_task_new_message_field.html" %}
+        {% endif %}
+
+        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit and not can_edit_coordinator_steps %}
 
         <!-- Meta info -->
         <div class="form-section" style="font-size: 0.9rem; color: #666;">

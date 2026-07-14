@@ -55,7 +55,7 @@ class PurchaseOrderQuoteFormTests(TestCase):
                 'supplier': 'Supplier GmbH',
                 'priority': 'medium',
                 'status': 'not_yet_processed',
-                'comment': '',
+
             },
             files={'quote_file': self.pdf},
             user=self.user,
@@ -127,7 +127,10 @@ class PurchaseOrderQuoteViewTests(TestCase):
         self.task.refresh_from_db()
         self.assertTrue(self.task.quote_file.name.endswith('.pdf'))
         self.assertTrue(
-            TaskComment.objects.filter(task=self.task, text='Quote file updated.').exists()
+            TaskComment.objects.filter(
+                task=self.task,
+                entry_type=TaskComment.ENTRY_EDITED,
+            ).exists()
         )
 
     def test_non_creator_cannot_replace_quote(self):

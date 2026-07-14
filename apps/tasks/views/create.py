@@ -21,7 +21,8 @@ from django.shortcuts import render, redirect
 
 from django.utils import timezone
 
-from ..models import Task, PurchaseOrderTask, PurchaseItem, StandardPurchaseItem, TaskComment
+from ..models import Task, PurchaseOrderTask, PurchaseItem, StandardPurchaseItem
+from ..task_protocol import extract_initial_message, record_task_creation
 from ..forms import (
     PurchaseOrderTaskForm,
     PurchaseItemFormSet,
@@ -93,6 +94,11 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def _redirect_after_create(self, instance, *, message):
         self.object = instance
+        record_task_creation(
+            instance,
+            self.request.user.employee,
+            initial_message=extract_initial_message(self.request),
+        )
         messages.success(self.request, message)
         return redirect_to_my_tasks()
 

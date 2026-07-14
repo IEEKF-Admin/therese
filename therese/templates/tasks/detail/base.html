@@ -83,40 +83,11 @@
             </table>
         </div>
 
-        <!-- Comment -->
-        <div class="form-section comment-section">
-            <h3>Comment / Notes</h3>
-            {% block comment_field %}{% endblock %}
-        </div>
+        {% if can_edit %}
+        {% include "tasks/detail/_task_new_message_field.html" %}
+        {% endif %}
 
-        <!-- Activity Log / Verlauf -->
-        <div class="form-section">
-            <h3>Activity Log (Verlauf)</h3>
-            <ul style="list-style: none; padding: 0; font-size: 0.9rem;">
-                <!-- Creation entry -->
-                <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
-                    <strong>{{ task.creator.get_full_name|default:task.creator }}</strong> on {{ task.created_at|date:"d.m.Y H:i" }}:
-                    {% if task.is_quote_order %}Order with Quote{% else %}{{ task.get_task_type_display }}{% endif %} created.
-                </li>
-                {% for comment in task.comments.all|slice:":5" %}
-                <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
-                    <strong>{{ comment.author.get_full_name|default:comment.author }}</strong> on {{ comment.created_at|date:"d.m.Y H:i" }}:
-                    {{ comment.text|truncatechars:100 }}
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        <style>
-            /* Make Comment/Notes field exactly as wide as the Order Items table above */
-            .comment-section textarea,
-            .comment-section .readonly-comment {
-                width: 100% !important;
-                min-width: 900px !important;
-                box-sizing: border-box;
-                display: block;
-            }
-        </style>
+        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit %}
 
         <!-- Buttons -->
         <div class="form-actions">

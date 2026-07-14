@@ -13,6 +13,7 @@ from apps.tasks.form_validation import (
     validate_positive_integer,
     validate_url_field,
 )
+from apps.tasks.forms.common import add_initial_message_field
 from apps.tasks.models import PURCHASE_STATUSES, PurchaseItem, PurchaseOrderTask
 from apps.tasks.utils import procurement_approver_employees
 from apps.tasks.workflow_config import creator_has_coordinator_fallback
@@ -33,10 +34,9 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         model = PurchaseOrderTask
         fields = [
             'supplier', 'wbs_element', 'priority', 'assignee', 'status',
-            'comment', 'at_beleg_nummer', 'quote_file',
+            'at_beleg_nummer', 'quote_file',
         ]
         widgets = {
-            'comment': forms.Textarea(attrs={'rows': 4}),
             'status': forms.RadioSelect(attrs={'class': 'status-radio'}),
             'quote_file': forms.ClearableFileInput(attrs={'accept': '.pdf,application/pdf'}),
         }
@@ -78,7 +78,7 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         if self.is_creation and self.quote_order_mode:
             for field_name in (
                 'supplier', 'wbs_element', 'priority', 'assignee',
-                'status', 'comment', 'at_beleg_nummer',
+                'status', 'at_beleg_nummer',
             ):
                 if field_name in self.fields:
                     self.fields[field_name].widget = forms.HiddenInput()
@@ -117,13 +117,16 @@ class PurchaseOrderTaskForm(forms.ModelForm):
         if self.is_creation and self.quote_order_mode:
             return
 
-        # --- Priority and comment (optional on creation) ---
+        # --- Priority (optional on creation) ---
         if 'priority' in self.fields:
             self.fields['priority'].required = False
             self.fields['priority'].widget.attrs.update({'class': 'form-control'})
 
-        if 'comment' in self.fields:
-            self.fields['comment'].required = False
+        if self.is_creation:
+            add_initial_message_field(
+                self,
+                placeholder='Optional message for coordinators…',
+            )
 
         # --- Assignee ---
         # Coordinator / creator-with-fallback: dropdown of procurement approvers.

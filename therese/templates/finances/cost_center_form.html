@@ -81,7 +81,6 @@
         <div class="year-estimate-header">
             <span>Year / period</span>
             <span>Lomv</span>
-            <span>Personal</span>
             <span>Consumables</span>
             <span>Travel</span>
             <span>Animal costs</span>
@@ -100,10 +99,6 @@
                 <div class="inline-field">
                     {% if estimate_form.lomv.errors %}{{ estimate_form.lomv|add_class:"error" }}{% else %}{{ estimate_form.lomv }}{% endif %}
                     {{ estimate_form.lomv.errors }}
-                </div>
-                <div class="inline-field">
-                    {% if estimate_form.personnel_estimate.errors %}{{ estimate_form.personnel_estimate|add_class:"error" }}{% else %}{{ estimate_form.personnel_estimate }}{% endif %}
-                    {{ estimate_form.personnel_estimate.errors }}
                 </div>
                 <div class="inline-field">
                     {% if estimate_form.consumables_estimate.errors %}{{ estimate_form.consumables_estimate|add_class:"error" }}{% else %}{{ estimate_form.consumables_estimate }}{% endif %}
@@ -131,7 +126,6 @@
                 {{ estimate_form.DELETE.as_hidden }}
                 <div class="inline-field">{{ estimate_form.year }}</div>
                 <div class="inline-field">{{ estimate_form.lomv }}</div>
-                <div class="inline-field">{{ estimate_form.personnel_estimate }}</div>
                 <div class="inline-field">{{ estimate_form.consumables_estimate }}</div>
                 <div class="inline-field">{{ estimate_form.travel_estimate }}</div>
                 <div class="inline-field">{{ estimate_form.animal_costs_estimate }}</div>

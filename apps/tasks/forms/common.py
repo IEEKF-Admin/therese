@@ -1,6 +1,19 @@
 """Shared personnel form helpers (assignee visibility, gender field)."""
 from django import forms
 
+
+def add_initial_message_field(form, *, required=False, rows=4, placeholder='', label='Message'):
+    """Optional or required initial chat message on task creation forms."""
+    form.fields['initial_message'] = forms.CharField(
+        required=required,
+        label=label,
+        widget=forms.Textarea(attrs={
+            'rows': rows,
+            'class': 'form-control full-width-textarea',
+            'placeholder': placeholder,
+        }),
+    )
+
 from apps.hr.models import Employee, Gender
 from apps.tasks.utils import personnel_approver_employees
 from apps.tasks.workflow_config import creator_has_coordinator_fallback

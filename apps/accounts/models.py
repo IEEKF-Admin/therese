@@ -44,6 +44,10 @@ class LoginPopupConfig(models.Model):
         ('any_contract_ending_soon', 'Any employee contract ending in X months'),
         ('new_task_assigned', 'New task assigned to the user'),
         ('task_status_changed', 'Status changed on a task created by the user'),
+        (
+            'task_comment_on_created_task',
+            'New message on a task created by the user (by someone else)',
+        ),
         ('login_after_datetime', 'Login after specific date/time'),
     ]
 
@@ -160,6 +164,10 @@ class LoginPopupAcknowledgement(models.Model):
     @classmethod
     def contract_reference(cls, contract):
         return f'contract:{contract.pk}'
+
+    @classmethod
+    def task_comment_reference(cls, task):
+        return f'task_comment:{task.pk}'
 
 
 # Prevent reverse accessor clashes

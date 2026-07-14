@@ -91,21 +91,28 @@ class TaskWorkflowConfigTests(TestCase):
 
     def test_generic_creator_fallback_allows_status_update(self):
         recipient = self._employee('E-3', 'Robin', 'Recipient')
+        from apps.tasks.models import TaskComment
+
         task = GenericTextTask.objects.create(
             creator=self.creator,
             creator_workgroup=self.workgroup,
             task_type='generic_text',
             title='Need supplies',
             status='seen',
-            comment='Please order paper.',
             recipient=recipient,
         )
         self.client.login(username='e-1', password='test')
         response = self.client.post(reverse('tasks:task_detail', args=[task.pk]), {
             'status': 'in_progress',
-            'comment': 'Updated by creator fallback.',
+            'new_message': 'Updated by creator fallback.',
         }, follow=True)
         self.assertEqual(response.status_code, 200)
         task.refresh_from_db()
         self.assertEqual(task.status, 'in_progress')
-        self.assertEqual(task.comment, 'Updated by creator fallback.')
+        self.assertTrue(
+            TaskComment.objects.filter(
+                task=task,
+                entry_type=TaskComment.ENTRY_USER_MESSAGE,
+                text='Updated by creator fallback.',
+            ).exists()
+        )

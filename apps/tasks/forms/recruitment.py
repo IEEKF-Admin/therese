@@ -8,6 +8,7 @@ from apps.finances.models import PayScale, WBSElement
 from apps.tasks.forms.common import (
     _configure_gender_field,
     _configure_personnel_assignee_field,
+    add_initial_message_field,
 )
 from apps.tasks.models import (
     LimitationReason,
@@ -176,10 +177,9 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'city', 'country', 'job', 'plan_position_number',
             'valid_from', 'valid_until', 'limitation_reason',
             'cv_file', 'latest_degree_certificate_file',
-            'assignee', 'status', 'comment',
+            'assignee', 'status',
         ]
         widgets = {
-            'comment': forms.Textarea(attrs={'rows': 6}),
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -216,6 +216,9 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 field.widget.attrs.setdefault('data-recruitment-field', field_name)
 
         _configure_gender_field(self, required=False)
+
+        if self.is_creation:
+            add_initial_message_field(self, rows=6)
 
         # --- Status ---
         # Creation: hidden, not_yet_processed. Detail: choices filtered by role;

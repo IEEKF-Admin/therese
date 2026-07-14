@@ -15,8 +15,8 @@ from ....recruitment_form_helpers import build_recruitment_template_context
 from ....utils import is_personnel_coordinator
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
+from ....task_protocol import extract_new_message, record_task_update
 from .common import (
-    log_task_changes,
     personnel_documents_context,
     save_personnel_coordinator_steps,
 )
@@ -61,12 +61,15 @@ def handle_standard_personnel_detail(request, task):
             is_creation=False,
         )
         if form.is_valid():
-            old_status = task.status
             saved = form.save(commit=False)
             if employee:
                 saved.last_changed_by = employee
             saved.save()
-            log_task_changes(task, employee, old_status, saved, task.assignee_id)
+            record_task_update(
+                saved,
+                employee,
+                new_message=extract_new_message(request),
+            )
             messages.success(request, "Task updated successfully.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")

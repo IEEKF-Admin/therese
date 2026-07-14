@@ -40,7 +40,6 @@ class TaskSaveRedirectTests(TestCase):
             creator=self.creator_employee,
             recipient=self.recipient_employee,
             status='seen',
-            comment='Initial',
         )
         self.client.force_login(self.recipient_user)
         response = self.client.post(
@@ -50,7 +49,7 @@ class TaskSaveRedirectTests(TestCase):
                 'recipient': self.recipient_employee.pk,
                 'priority': 'medium',
                 'status': 'in_progress',
-                'comment': 'Updated description',
+                'new_message': 'Updated description',
             },
         )
         self.assertRedirects(
@@ -70,7 +69,7 @@ class TaskSaveRedirectTests(TestCase):
                 'recipient': self.recipient_employee.pk,
                 'priority': 'medium',
                 'status': 'seen',
-                'comment': 'Please review this.',
+                'initial_message': 'Please review this.',
                 'confirm_info': 'on',
             },
         )

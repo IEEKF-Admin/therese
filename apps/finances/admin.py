@@ -20,7 +20,6 @@ class WBSElementYearEstimateInline(admin.TabularInline):
     fields = (
         'year',
         'funding',
-        'personnel_estimate',
         'consumables_estimate',
         'travel_estimate',
         'animal_costs_estimate',
@@ -33,7 +32,6 @@ class CostCenterYearEstimateInline(admin.TabularInline):
     fields = (
         'year',
         'lomv',
-        'personnel_estimate',
         'consumables_estimate',
         'travel_estimate',
         'animal_costs_estimate',

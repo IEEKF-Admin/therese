@@ -22,7 +22,8 @@ from ....utils import (
 )
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
-from .common import log_task_changes, personnel_documents_context
+from ....task_protocol import extract_new_message, record_task_update
+from .common import personnel_documents_context
 
 
 def handle_recruitment_detail(request, task):
@@ -42,9 +43,8 @@ def handle_recruitment_detail(request, task):
     # POST: approver assignee — status forward-only (no full field edit).
     if request.method == 'POST' and can_edit_status and not can_edit_fields:
         new_status = request.POST.get('status')
-        old_status = task.status
         try:
-            current_index = RECRUITMENT_STATUS_ORDER.index(old_status)
+            current_index = RECRUITMENT_STATUS_ORDER.index(task.status)
             new_index = RECRUITMENT_STATUS_ORDER.index(new_status)
         except ValueError:
             messages.error(request, "Invalid status value.")
@@ -56,7 +56,7 @@ def handle_recruitment_detail(request, task):
                 if employee:
                     task.last_changed_by = employee
                 task.save(update_fields=['status', 'last_changed_by', 'last_status_change'])
-                log_task_changes(task, employee, old_status, task, task.assignee_id)
+                record_task_update(task, employee, new_message=extract_new_message(request))
                 messages.success(request, "Task updated successfully.")
                 return redirect_to_my_tasks()
 
@@ -75,15 +75,17 @@ def handle_recruitment_detail(request, task):
             **funding_formset_kwargs_from_post(request.POST, is_creation=False),
         )
         if form.is_valid() and funding_formset.is_valid():
-            old_status = task.status
-            old_assignee_id = task.assignee_id
             saved = form.save(commit=False)
             if employee:
                 saved.last_changed_by = employee
             saved.save()
             funding_formset.instance = saved
             funding_formset.save()
-            log_task_changes(task, employee, old_status, saved, old_assignee_id)
+            record_task_update(
+                saved,
+                employee,
+                new_message=extract_new_message(request),
+            )
             messages.success(request, "Task updated successfully.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")

@@ -202,6 +202,29 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                         ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
                         break
 
+        elif config.trigger == 'task_comment_on_created_task' and employee:
+            if user.last_login:
+                from apps.tasks.models import TaskComment
+                from apps.tasks.task_protocol import ENTRY_USER_MESSAGE
+
+                task_pks = set(
+                    TaskComment.objects.filter(
+                        task__creator=employee,
+                        entry_type=ENTRY_USER_MESSAGE,
+                        created_at__gt=user.last_login,
+                    )
+                    .exclude(author=employee)
+                    .values_list('task_id', flat=True)
+                )
+                unacked_refs = [
+                    f'task_comment:{task_pk}'
+                    for task_pk in task_pks
+                    if f'task_comment:{task_pk}' not in acknowledged
+                ]
+                if unacked_refs:
+                    show = True
+                    ack_reference_keys = unacked_refs
+
         elif config.trigger == 'login_after_datetime' and config.trigger_datetime:
             if now > config.trigger_datetime and _should_show_global_trigger(user, config, acknowledged):
                 show = True

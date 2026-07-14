@@ -12,7 +12,8 @@ from django.http import FileResponse, Http404, HttpResponseBase
 from django.shortcuts import get_object_or_404, redirect
 
 from ..forms import PurchaseOrderQuoteReplaceForm
-from ..models import PurchaseOrderTask, TaskComment
+from ..models import PurchaseOrderTask
+from ..task_protocol import log_task_edited
 from ..utils import can_view_purchase_order
 from .detail.base import get_task_or_404
 from .redirects import redirect_to_my_tasks
@@ -58,11 +59,7 @@ def purchase_order_quote_replace(request, pk):
     form = PurchaseOrderQuoteReplaceForm(request.POST, request.FILES, instance=task)
     if form.is_valid():
         form.save()
-        TaskComment.objects.create(
-            task=task,
-            author=employee,
-            text='Quote file updated.',
-        )
+        log_task_edited(task, employee)
         messages.success(request, 'Quote file updated successfully.')
     else:
         for field, errors in form.errors.items():

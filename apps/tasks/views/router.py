@@ -41,6 +41,11 @@ def task_detail(request, pk):
     if isinstance(task, HttpResponseBase):
         return task
 
+    from ..task_protocol import try_handle_message_only_post
+    message_response = try_handle_message_only_post(request, task)
+    if message_response is not None:
+        return message_response
+
     # General requests use a dedicated detail flow (creator / recipient).
     if getattr(task, 'task_type', None) == 'generic_text':
         from .detail.generic import generic_task_detail

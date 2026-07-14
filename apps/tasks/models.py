@@ -91,7 +91,6 @@ class Task(BaseModel):
         default='medium'
     )
     due_date = models.DateField(null=True, blank=True)
-    comment = models.TextField(blank=True)
 
     archived_by = models.ManyToManyField(
         Employee, 
@@ -151,12 +150,42 @@ class Task(BaseModel):
 
 # = Comments & attachments =
 class TaskComment(BaseModel):
+    ENTRY_CREATED = 'created'
+    ENTRY_EDITED = 'edited'
+    ENTRY_USER_MESSAGE = 'user_message'
+    ENTRY_TYPE_CHOICES = [
+        (ENTRY_CREATED, 'Created'),
+        (ENTRY_EDITED, 'Edited'),
+        (ENTRY_USER_MESSAGE, 'User message'),
+    ]
+
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    text = models.TextField()
+    entry_type = models.CharField(
+        max_length=20,
+        choices=ENTRY_TYPE_CHOICES,
+        default=ENTRY_USER_MESSAGE,
+    )
+    text = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['created_at']
+
+    @property
+    def author_username(self):
+        if self.author and getattr(self.author, 'user', None):
+            return self.author.user.username
+        return 'unknown'
+
+    @property
+    def display_line(self):
+        timestamp = self.created_at.strftime('%d.%m.%Y %H:%M')
+        username = self.author_username
+        if self.entry_type == self.ENTRY_CREATED:
+            return f'{timestamp} {username} hat den Task erstellt'
+        if self.entry_type == self.ENTRY_EDITED:
+            return f'{timestamp} {username} hat den Task bearbeitet'
+        return f'{timestamp} {username}: {self.text}'
 
 
 class TaskAttachment(BaseModel):

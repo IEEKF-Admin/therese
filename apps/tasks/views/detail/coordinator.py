@@ -16,6 +16,7 @@ from django.shortcuts import render
 from django.contrib import messages
 
 from ...forms import PurchaseOrderTaskForm
+from ...task_protocol import extract_new_message, record_task_update
 from ...workflow_config import creator_has_coordinator_fallback
 from ..redirects import redirect_to_my_tasks
 
@@ -30,35 +31,15 @@ def coordinator_task_detail(request, task):
             is_creation=False,
         )
         if form.is_valid():
-            old_wbs = task.wbs_element_id if hasattr(task, 'wbs_element_id') else None
-            old_status = task.status
             saved_task = form.save(commit=False)
-            saved_task.last_changed_by = request.user.employee
-            saved_task.save()
-            # Log key changes for activity trail.
-            from ...models import TaskComment
             employee = request.user.employee
-            if old_wbs != saved_task.wbs_element_id and saved_task.wbs_element:
-                TaskComment.objects.create(
-                    task=saved_task,
-                    author=employee,
-                    text=f"WBS Element set to {saved_task.wbs_element}",
-                )
-            if old_status != saved_task.status:
-                TaskComment.objects.create(
-                    task=saved_task,
-                    author=employee,
-                    text=f"Status changed from '{old_status}' to '{saved_task.status}'",
-                )
-            if hasattr(task, 'assignee') and task.assignee != saved_task.assignee:
-                new_assignee = (
-                    saved_task.assignee.get_full_name() if saved_task.assignee else "unassigned"
-                )
-                TaskComment.objects.create(
-                    task=saved_task,
-                    author=employee,
-                    text=f"Assignee changed to {new_assignee}",
-                )
+            saved_task.last_changed_by = employee
+            saved_task.save()
+            record_task_update(
+                saved_task,
+                employee,
+                new_message=extract_new_message(request),
+            )
             messages.success(request, "Changes have been saved successfully.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")

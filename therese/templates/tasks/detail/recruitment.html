@@ -57,15 +57,11 @@
             {% endif %}
         </div>
 
-        <div class="form-section recruitment-full-block">
-            <h3>Comment / Notes</h3>
-            {% if can_edit_fields %}
-                {{ form.comment|add_class:"form-control" }}
-            {% else %}
-                <p>{{ task.comment|default:"—"|linebreaksbr }}</p>
-            {% endif %}
-            <small class="field-hint-de">Kommentar / Notizen</small>
-        </div>
+        {% if can_edit %}
+        {% include "tasks/detail/_task_new_message_field.html" %}
+        {% endif %}
+
+        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit %}
 
         {% if can_edit %}
         <div class="form-actions">

@@ -63,7 +63,7 @@ def configure_recruitment_job_field(form):
 
 def apply_recruitment_field_defaults(form, *, is_creation):
     optional_always = {
-        'prefix', 'comment', 'gender', 'private_phone_number',
+        'prefix', 'initial_message', 'gender', 'private_phone_number',
         'limitation_reason', 'plan_position_number',
     }
     for field_name, field in form.fields.items():

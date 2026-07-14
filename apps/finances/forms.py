@@ -132,7 +132,6 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         fields = [
             'year',
             'funding',
-            'personnel_estimate',
             'consumables_estimate',
             'travel_estimate',
             'animal_costs_estimate',
@@ -145,12 +144,6 @@ class WBSElementYearEstimateForm(forms.ModelForm):
                 'placeholder': 'YYYY',
             }),
             'funding': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'personnel_estimate': forms.NumberInput(attrs={
                 'class': 'form-control form-control-sm',
                 'step': '0.01',
                 'min': '0',
@@ -178,7 +171,6 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         labels = {
             'year': 'Year / period',
             'funding': 'Funding',
-            'personnel_estimate': 'Personal',
             'consumables_estimate': 'Consumables estimate',
             'travel_estimate': 'Travel estimate',
             'animal_costs_estimate': 'Animal costs estimate',
@@ -186,7 +178,6 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         help_texts = {
             'year': 'Calendar year for this estimate row.',
             'funding': 'Funding amount (EUR). Replaces former initial balance.',
-            'personnel_estimate': 'Estimated personnel costs (EUR).',
             'consumables_estimate': 'Estimated consumables (EUR).',
             'travel_estimate': 'Estimated travel costs (EUR).',
             'animal_costs_estimate': 'Estimated animal costs (EUR).',
@@ -200,7 +191,6 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         if year is None and not any(
             cleaned.get(f) for f in (
                 'funding',
-                'personnel_estimate',
                 'consumables_estimate',
                 'travel_estimate',
                 'animal_costs_estimate',
@@ -280,7 +270,6 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         fields = [
             'year',
             'lomv',
-            'personnel_estimate',
             'consumables_estimate',
             'travel_estimate',
             'animal_costs_estimate',
@@ -293,12 +282,6 @@ class CostCenterYearEstimateForm(forms.ModelForm):
                 'placeholder': 'YYYY',
             }),
             'lomv': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'personnel_estimate': forms.NumberInput(attrs={
                 'class': 'form-control form-control-sm',
                 'step': '0.01',
                 'min': '0',
@@ -326,7 +309,6 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         labels = {
             'year': 'Year / period',
             'lomv': 'Lomv',
-            'personnel_estimate': 'Personal',
             'consumables_estimate': 'Consumables estimate',
             'travel_estimate': 'Travel estimate',
             'animal_costs_estimate': 'Animal costs estimate',
@@ -334,7 +316,6 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         help_texts = {
             'year': 'Calendar year for this estimate row.',
             'lomv': 'Lomv amount (EUR). Replaces former initial balance.',
-            'personnel_estimate': 'Estimated personnel costs (EUR).',
             'consumables_estimate': 'Estimated consumables (EUR).',
             'travel_estimate': 'Estimated travel costs (EUR).',
             'animal_costs_estimate': 'Estimated animal costs (EUR).',
@@ -348,7 +329,6 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         if year is None and not any(
             cleaned.get(f) for f in (
                 'lomv',
-                'personnel_estimate',
                 'consumables_estimate',
                 'travel_estimate',
                 'animal_costs_estimate',

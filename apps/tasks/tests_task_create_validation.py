@@ -232,7 +232,7 @@ class GenericRequestValidationTests(TestCase):
             data={
                 'title': '',
                 'recipient': self.recipient.pk,
-                'comment': 'Need help with something.',
+                'initial_message': 'Need help with something.',
                 'status': 'seen',
             },
             user=self.user,
@@ -241,19 +241,19 @@ class GenericRequestValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('title', form.errors)
 
-    def test_comment_required_on_creation(self):
+    def test_initial_message_required_on_creation(self):
         form = GenericTextTaskForm(
             data={
                 'title': 'Office supplies',
                 'recipient': self.recipient.pk,
-                'comment': '',
+                'initial_message': '',
                 'status': 'seen',
             },
             user=self.user,
             is_creation=True,
         )
         self.assertFalse(form.is_valid())
-        self.assertIn('comment', form.errors)
+        self.assertIn('initial_message', form.errors)
 
     def test_valid_generic_request_accepted(self):
         form = GenericTextTaskForm(
@@ -261,7 +261,7 @@ class GenericRequestValidationTests(TestCase):
                 'title': 'Office supplies',
                 'recipient': self.recipient.pk,
                 'priority': 'medium',
-                'comment': 'Please order paper.',
+                'initial_message': 'Please order paper.',
                 'due_date': (date.today() + timedelta(days=7)).strftime('%d.%m.%Y'),
                 'status': 'seen',
             },

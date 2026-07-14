@@ -16,6 +16,7 @@ from django.shortcuts import render
 from django.contrib import messages
 
 from ...forms import PurchaseOrderTaskForm
+from ...task_protocol import extract_new_message, record_task_update
 from ...utils import is_procurement_approver
 from ..redirects import redirect_to_my_tasks
 
@@ -30,19 +31,15 @@ def fulfiller_task_detail(request, task):
             is_creation=False,
         )
         if form.is_valid():
-            old_status = task.status
-            saved_task = form.save(commit=False)
-            saved_task.last_changed_by = request.user.employee
-            saved_task.save()
-            # Log status change for activity trail.
-            from ...models import TaskComment
             employee = request.user.employee
-            if old_status != saved_task.status:
-                TaskComment.objects.create(
-                    task=saved_task,
-                    author=employee,
-                    text=f"Status changed from '{old_status}' to '{saved_task.status}'",
-                )
+            saved_task = form.save(commit=False)
+            saved_task.last_changed_by = employee
+            saved_task.save()
+            record_task_update(
+                saved_task,
+                employee,
+                new_message=extract_new_message(request),
+            )
             messages.success(request, "Status successfully updated.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")

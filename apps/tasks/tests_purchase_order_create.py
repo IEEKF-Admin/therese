@@ -24,13 +24,13 @@ class PurchaseOrderCreateFormTests(TestCase):
             user=self.user,
         )
 
-    def test_comment_not_required_on_creation(self):
+    def test_initial_message_optional_on_creation(self):
         form = PurchaseOrderTaskForm(
             data={
                 'supplier': 'Test Supplier GmbH',
                 'priority': 'medium',
                 'status': 'not_yet_processed',
-                'comment': '',
+                'initial_message': '',
             },
             user=self.user,
             is_creation=True,
@@ -49,7 +49,7 @@ class PurchaseOrderCreateFormTests(TestCase):
                 'supplier': 'Test Supplier GmbH',
                 'priority': 'medium',
                 'status': 'not_yet_processed',
-                'comment': '',
+                'initial_message': '',
             },
             user=self.user,
             is_creation=True,

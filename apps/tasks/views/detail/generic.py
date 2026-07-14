@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.contrib import messages
 
 from ...forms import GenericTextTaskForm
+from ...task_protocol import extract_new_message, record_task_update
 from ...workflow_config import creator_has_coordinator_fallback
 from ..redirects import redirect_to_my_tasks
 
@@ -26,21 +27,13 @@ def generic_task_detail(request, task):
     can_edit_coordinator_steps = coordinator_fallback
 
     if request.method == 'POST' and can_edit_coordinator_steps and not can_edit:
-        old_status = task.status
         new_status = request.POST.get('status')
         if new_status:
             task.status = new_status
-        task.comment = request.POST.get('comment', task.comment)
         if employee:
             task.last_changed_by = employee
         task.save()
-        from ...models import TaskComment
-        if old_status != task.status:
-            TaskComment.objects.create(
-                task=task,
-                author=employee,
-                text=f"Status changed from '{old_status}' to '{task.status}'"
-            )
+        record_task_update(task, employee, new_message=extract_new_message(request))
         messages.success(request, "General Request updated successfully.")
         return redirect_to_my_tasks()
 
@@ -52,18 +45,15 @@ def generic_task_detail(request, task):
             is_creation=False
         )
         if form.is_valid():
-            old_status = task.status
             saved_task = form.save(commit=False)
             if employee:
                 saved_task.last_changed_by = employee
             saved_task.save()
-            from ...models import TaskComment
-            if old_status != saved_task.status:
-                TaskComment.objects.create(
-                    task=saved_task,
-                    author=employee,
-                    text=f"Status changed from '{old_status}' to '{saved_task.status}'"
-                )
+            record_task_update(
+                saved_task,
+                employee,
+                new_message=extract_new_message(request),
+            )
             messages.success(request, "General Request updated successfully.")
             return redirect_to_my_tasks()
         else:

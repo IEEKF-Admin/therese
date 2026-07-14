@@ -131,14 +131,6 @@ class CostCenterYearEstimate(BaseModel):
         blank=True,
         verbose_name="Animal Costs Estimate",
     )
-    personnel_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Personal",
-    )
-
     class Meta:
         verbose_name = "Cost Center Year Estimate"
         verbose_name_plural = "Cost Center Year Estimates"
@@ -265,14 +257,6 @@ class WBSElementYearEstimate(BaseModel):
         blank=True,
         verbose_name="Animal Costs Estimate",
     )
-    personnel_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Personal",
-    )
-
     class Meta:
         verbose_name = "PSP Element Year Estimate"
         verbose_name_plural = "PSP Element Year Estimates"

@@ -1,0 +1,22 @@
+<div class="form-section task-timeline-section">
+    <h3>Verlauf</h3>
+    <ul class="task-timeline" style="list-style: none; padding: 0; font-size: 0.9rem;">
+        {% for entry in task.comments.all %}
+        <li style="margin-bottom: 6px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
+            {{ entry.display_line }}
+        </li>
+        {% empty %}
+        <li style="color: #64748b;">Noch keine Einträge.</li>
+        {% endfor %}
+    </ul>
+
+    {% if standalone_message_form %}
+    <form method="post" class="task-timeline-message-form" style="margin-top: 1rem;">
+        {% csrf_token %}
+        <input type="hidden" name="add_message_only" value="1">
+        <label for="new_message" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Nachricht hinzufügen</label>
+        <textarea name="new_message" id="new_message" rows="3" class="form-control" placeholder="Nachricht eingeben…"></textarea>
+        <button type="submit" class="btn-secondary btn-small" style="margin-top: 0.5rem;">Senden</button>
+    </form>
+    {% endif %}
+</div>

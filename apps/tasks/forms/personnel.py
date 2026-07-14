@@ -4,7 +4,7 @@ from django import forms
 from apps.finances.models import WBSElement
 from apps.hr.models import Employee
 from apps.tasks.form_validation import require_non_empty_text, validate_contract_dates
-from apps.tasks.forms.common import _configure_personnel_assignee_field
+from apps.tasks.forms.common import _configure_personnel_assignee_field, add_initial_message_field
 from apps.tasks.models import (
     PERSONNEL_STATUSES,
     PersonnelContractExtensionTask,
@@ -29,9 +29,8 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelReallocationTask
         fields = ['employee', 'target_wbs', 'valid_from', 'valid_until',
-                  'plan_position_number', 'assignee', 'status', 'comment']
+                  'plan_position_number', 'assignee', 'status']
         widgets = {
-            'comment': forms.Textarea(attrs={'rows': 6, 'placeholder': 'Add any additional notes or context for this reallocation...'}),
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -73,8 +72,12 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
                 if field_name == 'valid_from':
                     self.fields[field_name].required = True
 
-        if 'comment' in self.fields:
-            self.fields['comment'].widget.attrs.update({'class': 'form-control'})
+        if self.is_creation:
+            add_initial_message_field(
+                self,
+                rows=6,
+                placeholder='Add any additional notes or context for this reallocation...',
+            )
 
         # Employee dropdown (all employees)
         if 'employee' in self.fields:
@@ -114,9 +117,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelContractExtensionTask
         fields = ['employee', 'plan_position_number', 'valid_from', 'valid_until',
-                  'is_limited', 'limitation_reason', 'assignee', 'status', 'comment']
+                  'is_limited', 'limitation_reason', 'assignee', 'status']
         widgets = {
-            'comment': forms.Textarea(attrs={'rows': 6, 'placeholder': 'Add any additional notes or context for this contract extension...'}),
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -156,8 +158,12 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'valid_from' in self.fields:
             self.fields['valid_from'].widget.attrs.update({'class': 'form-control'})
 
-        if 'comment' in self.fields:
-            self.fields['comment'].widget.attrs.update({'class': 'form-control'})
+        if self.is_creation:
+            add_initial_message_field(
+                self,
+                rows=6,
+                placeholder='Add any additional notes or context for this contract extension...',
+            )
 
         if 'limitation_reason' in self.fields:
             self.fields['limitation_reason'].widget.attrs.update({'class': 'form-control'})
@@ -183,7 +189,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             if fname in self.fields:
                 self.fields[fname].widget.attrs.update({'class': 'form-control'})
 
-        for fname in ['valid_from', 'due_date', 'comment', 'limitation_reason']:
+        for fname in ['valid_from', 'due_date', 'limitation_reason']:
             if fname in self.fields:
                 self.fields[fname].widget.attrs.update({'class': 'form-control'})
 

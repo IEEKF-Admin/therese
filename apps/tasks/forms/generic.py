@@ -3,6 +3,7 @@ from django import forms
 
 from apps.hr.models import Employee
 from apps.tasks.form_validation import require_non_empty_text
+from apps.tasks.forms.common import add_initial_message_field
 from apps.tasks.models import GENERIC_STATUSES, GenericTextTask
 
 
@@ -18,13 +19,8 @@ class GenericTextTaskForm(forms.ModelForm):
     """
     class Meta:
         model = GenericTextTask
-        fields = ['title', 'recipient', 'priority', 'due_date', 'status', 'comment']
+        fields = ['title', 'recipient', 'priority', 'due_date', 'status']
         widgets = {
-            'comment': forms.Textarea(attrs={
-                'rows': 12,
-                'placeholder': 'Describe your request in detail...',
-                'style': 'min-height: 200px;'
-            }),
             'due_date': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -59,9 +55,6 @@ class GenericTextTaskForm(forms.ModelForm):
         if 'due_date' in self.fields:
             self.fields['due_date'].widget.attrs.update({'class': 'form-control'})
 
-        if 'comment' in self.fields:
-            self.fields['comment'].widget.attrs.update({'class': 'form-control'})
-
         if 'recipient' in self.fields:
             self.fields['recipient'].queryset = Employee.objects.order_by('last_name', 'first_name')
             self.fields['recipient'].empty_label = "— Please select a recipient —"
@@ -81,22 +74,30 @@ class GenericTextTaskForm(forms.ModelForm):
             if 'priority' in self.fields:
                 self.fields['priority'].required = False
                 self.fields['priority'].initial = 'medium'
+            add_initial_message_field(
+                self,
+                required=True,
+                rows=12,
+                placeholder='Describe your request in detail...',
+                label='Description',
+            )
+            self.fields['initial_message'].widget.attrs['style'] = 'min-height: 200px;'
 
     def clean(self):
         cleaned_data = super().clean()
-        # Creation requires title, recipient, and non-empty comment; priority defaults to medium.
+        # Creation requires title, recipient, and non-empty initial message.
         if self.is_creation:
             if not cleaned_data.get('priority'):
                 cleaned_data['priority'] = 'medium'
             require_non_empty_text(self, cleaned_data, 'title')
             require_non_empty_text(self, cleaned_data, 'recipient')
-            comment = cleaned_data.get('comment')
-            if isinstance(comment, str):
-                comment = comment.strip()
-                cleaned_data['comment'] = comment
-            if not comment:
+            message = cleaned_data.get('initial_message')
+            if isinstance(message, str):
+                message = message.strip()
+                cleaned_data['initial_message'] = message
+            if not message:
                 self.add_error(
-                    'comment',
+                    'initial_message',
                     'Please describe your request in the description field.',
                 )
         return cleaned_data

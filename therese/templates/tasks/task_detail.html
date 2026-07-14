@@ -100,16 +100,11 @@
             </table>
         </div>
 
-        <!-- Comment -->
-        <div class="form-section">
-            <h3>Comment / Notes</h3>
-            {% if can_edit %}
-                {{ form.comment|add_class:"form-control" }}
-            {% else %}
-                <div class="readonly-comment">{{ task.comment|linebreaks|default:"— No comment" }}</div>
-                {{ form.comment.as_hidden }}
-            {% endif %}
-        </div>
+        {% if can_edit %}
+        {% include "tasks/detail/_task_new_message_field.html" %}
+        {% endif %}
+
+        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit %}
 
         <!-- Buttons -->
         <div class="form-actions">

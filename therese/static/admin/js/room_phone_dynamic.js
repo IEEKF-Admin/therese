@@ -14,7 +14,7 @@ django.jQuery(function($) {
         }
     });
 
-    // Initial ausfÃ¼hren, falls bereits ein Room ausgewÃ¤hlt ist
+    // Run initially if a room is already selected
     if ($('#id_room').val()) {
         $('#id_room').trigger('change');
     }

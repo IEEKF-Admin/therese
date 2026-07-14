@@ -33,8 +33,12 @@
 
         {% if 'Purchase Orders - Create' in user_groups %}
         <a href="{% url 'tasks:task_create' %}?type=purchase_order"
-           class="{% if 'type=purchase_order' in request.get_full_path %}active{% endif %}">
+           class="{% if 'type=purchase_order' in request.get_full_path and 'variant=quote' not in request.get_full_path %}active{% endif %}">
             <i class="fas fa-shopping-cart"></i> New Purchase Order
+        </a>
+        <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;variant=quote"
+           class="{% if 'variant=quote' in request.get_full_path %}active{% endif %}">
+            <i class="fas fa-file-pdf"></i> Order with Quote
         </a>
         {% endif %}
 
@@ -128,6 +132,10 @@
         {% endif %}
 
         {% if 'Assisting Admins' in user_groups %}
+        <a href="{% url 'tasks:workflow_config_manage' %}"
+           class="{% if '/tasks/admin/workflow' in request.path %}active{% endif %}">
+            <i class="fas fa-project-diagram"></i> Task Workflow
+        </a>
         <a href="{% url 'tasks:recruitment_job_manage' %}"
            class="{% if '/tasks/admin/jobs' in request.path %}active{% endif %}">
             <i class="fas fa-briefcase"></i> Jobs

@@ -73,9 +73,7 @@ def reset_database():
         print("   → Superuser creation skipped (may already exist)")
 
 
-    # 6. Load TV-L data
-    print("6. Loading TV-L salary data...")
-    subprocess.run([str(venv_python), "load_tv_l.py"], check=True, cwd=base_dir)
+    # TV-L pay scale data is imported manually via Finances when needed (load_tv_l.py removed).
 
     print("\n=== Database reset completed successfully! ===")
     print("Start the server with: python manage.py runserver")

@@ -1,0 +1,32 @@
+{% if task.quote_file or task.is_quote_order %}
+<div class="form-section">
+    <h3>Quote</h3>
+
+    {% if task.quote_file %}
+    <p>
+        <a href="{% url 'tasks:purchase_order_quote_download' task.pk %}" class="btn-secondary">
+            Download Quote (PDF)
+        </a>
+    </p>
+    {% else %}
+    <p class="form-control-static">No quote file uploaded yet.</p>
+    {% endif %}
+
+    {% if is_creator %}
+    <form method="post"
+          action="{% url 'tasks:purchase_order_quote_replace' task.pk %}"
+          enctype="multipart/form-data"
+          style="margin-top: 1rem;">
+        {% csrf_token %}
+        <div class="aligned-field">
+            <label for="id_quote_file">{% if task.quote_file %}Replace Quote{% else %}Upload Quote{% endif %}</label>
+            <input type="file" name="quote_file" id="id_quote_file" accept=".pdf,application/pdf" class="form-control" required>
+            <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">PDF only</small>
+        </div>
+        <button type="submit" class="btn-secondary" style="margin-top: 0.75rem;">
+            {% if task.quote_file %}Replace Quote{% else %}Upload Quote{% endif %}
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}

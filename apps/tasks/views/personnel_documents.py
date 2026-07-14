@@ -3,7 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
-from django.shortcuts import redirect
+from .redirects import redirect_to_my_tasks
 
 from ..personnel_documents import (
     PERSONNEL_TASK_TYPES,
@@ -24,7 +24,7 @@ def _get_personnel_task(request, pk):
 
 def _deny_download(request):
     messages.error(request, 'Sie haben keine Berechtigung, diese Dokumente herunterzuladen.')
-    return redirect('tasks:my_tasks')
+    return redirect_to_my_tasks()
 
 
 @login_required

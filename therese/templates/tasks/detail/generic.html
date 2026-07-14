@@ -5,18 +5,20 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>ðŸ“ General Request</h1>
+    <h1>📝 General Request</h1>
     <div class="page-header-actions">
         <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
     </div>
 </div>
 
 <div class="card">
-    {% if not can_edit %}
+    {% if not can_edit and not can_edit_coordinator_steps %}
     <div class="alert alert-info">
-        <strong>ðŸ“– Read-Only Mode</strong><br>
+        <strong>Read-Only Mode</strong><br>
         You can view this request. Only the recipient can update the status.
     </div>
+    {% elif coordinator_fallback %}
+    <div class="alert alert-info">No coordinator is configured for your workgroup. You can update the status and description yourself.</div>
     {% endif %}
 
     <form method="post">
@@ -60,7 +62,7 @@
         <!-- Status -->
         <div class="form-section">
             <h3>Status</h3>
-            {% if can_edit %}
+            {% if can_edit or can_edit_coordinator_steps %}
             <div class="status-radios">
                 {% for value, label in form.status.field.choices %}
                     <label class="radio-label">
@@ -82,7 +84,7 @@
         <!-- Description -->
         <div class="form-section">
             <h3>Description / Notes</h3>
-            {% if can_edit %}
+            {% if can_edit or can_edit_coordinator_steps %}
                 {{ form.comment|add_class:"form-control" }}
             {% else %}
                 <div class="readonly-comment" style="min-height: 160px; white-space: pre-wrap;">{{ task.comment|linebreaks|default:"— No description provided" }}</div>
@@ -98,12 +100,12 @@
         </div>
 
         <div class="form-actions">
-            {% if can_edit %}
-                <button type="submit" class="btn-primary">ðŸ’¾ Save Changes</button>
+            {% if can_edit or can_edit_coordinator_steps %}
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
                 <a href="{% url 'tasks:task_delete' task.pk %}" 
                    class="btn-danger"
                    onclick="return confirm('Really delete this general request?')">
-                    ðŸ—‘ Delete Request
+                    🗑 Delete Request
                 </a>
             {% endif %}
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>

@@ -7,8 +7,13 @@
     
     <div class="aligned-field">
         <label>Supplier <span style="color:#ef4444;">*</span></label>
-        <div class="form-control-static">{{ task.supplier }}</div>
-        {{ form.supplier.as_hidden }}
+        {% if task.is_quote_order %}
+            {{ form.supplier|add_class:"form-control" }}
+            <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Lieferant (from quote)</small>
+        {% else %}
+            <div class="form-control-static">{{ task.supplier }}</div>
+            {{ form.supplier.as_hidden }}
+        {% endif %}
     </div>
     
     <div class="aligned-field">

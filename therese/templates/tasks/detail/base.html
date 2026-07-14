@@ -1,21 +1,28 @@
 ﻿{% extends "base.html" %}
 {% load widget_tweaks task_extras %}
 
-{% block title %}Purchase Order: {{ task.supplier }}{% endblock %}
+{% block title %}Purchase Order: {{ task.order_display_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Purchase Order: {{ task.supplier }}</h1>
+    <h1>{% if task.is_quote_order and not task.supplier %}Order with Quote{% else %}Purchase Order: {{ task.order_display_name }}{% endif %}</h1>
     <div class="page-header-actions">
         <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
     </div>
 </div>
 
 <div class="card">
+    {% if coordinator_fallback %}
+    <div class="alert alert-info">
+        No coordinator is configured for your workgroup. You can complete the coordination steps yourself.
+    </div>
+    {% endif %}
     <form method="post">
         {% csrf_token %}
 
         {% block order_info %}{% endblock %}
+
+        {% include "tasks/detail/_quote_section.html" %}
         
         {% block status_section %}{% endblock %}
 
@@ -89,7 +96,7 @@
                 <!-- Creation entry -->
                 <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">
                     <strong>{{ task.creator.get_full_name|default:task.creator }}</strong> on {{ task.created_at|date:"d.m.Y H:i" }}:
-                    {{ task.get_task_type_display }} created.
+                    {% if task.is_quote_order %}Order with Quote{% else %}{{ task.get_task_type_display }}{% endif %} created.
                 </li>
                 {% for comment in task.comments.all|slice:":5" %}
                 <li style="margin-bottom: 4px; border-left: 3px solid #e2e8f0; padding-left: 8px;">

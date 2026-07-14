@@ -29,8 +29,9 @@
 </style>
 
 <div class="card">
-    <form method="post">
+    <form method="post" action="{% url 'tasks:task_create' %}?type=generic_text">
         {% csrf_token %}
+        <input type="hidden" name="task_type" value="generic_text">
         {{ form.status }}
 
         <div class="form-section">
@@ -62,7 +63,7 @@
         </div>
 
         <div class="form-section">
-            <h3>Description / Notes</h3>
+            <h3>Description / Notes <span style="color:#ef4444;">*</span></h3>
             {{ form.comment|add_class:"form-control full-width-textarea" }}
             <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Beschreibung / Notizen</small>
         </div>

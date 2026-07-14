@@ -15,7 +15,7 @@
         {% for task in tasks %}
         <tr>
             <td>
-                <a href="{% url 'tasks:task_detail' task.pk %}">{{ task.supplier }}</a>
+                <a href="{% url 'tasks:task_detail' task.pk %}">{{ task.order_display_name }}</a>
             </td>
             <td><strong>{{ task.status|title }}</strong></td>
             <td>{{ task.priority|title }}</td>

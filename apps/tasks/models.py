@@ -69,7 +69,7 @@ class Task(BaseModel):
         max_length=20, 
         unique=True, 
         blank=True, 
-        null=True,           # Wichtig fÃ¼r bestehende DatensÃ¤tze bei der Migration
+        null=True,           # Required for existing rows during task_number migration
         editable=False, 
         verbose_name="Task Number"
     )
@@ -98,6 +98,15 @@ class Task(BaseModel):
         related_name='archived_tasks', 
         blank=True,
         verbose_name="Archived by users"
+    )
+    creator_workgroup = models.ForeignKey(
+        'hr.Workgroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_tasks',
+        verbose_name="Creator Workgroup",
+        help_text="Workgroup of the creator at task creation time.",
     )
 
     class Meta:
@@ -140,7 +149,7 @@ class Task(BaseModel):
         return self.status
 
 
-# = Kommentare & AnhÃ¤nge =
+# = Comments & attachments =
 class TaskComment(BaseModel):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -160,7 +169,18 @@ class TaskAttachment(BaseModel):
 # = Concrete Tasks =
 class PurchaseOrderTask(Task):
     """Bestellung"""
-    supplier = models.CharField(max_length=200, verbose_name="Supplier")
+    supplier = models.CharField(max_length=200, verbose_name="Supplier", blank=True, default='')
+    is_quote_order = models.BooleanField(
+        default=False,
+        verbose_name="Order with Quote",
+        help_text="Quote-only variant: creator uploads a PDF instead of line items.",
+    )
+    quote_file = models.FileField(
+        upload_to='purchase_orders/quotes/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        verbose_name="Quote",
+    )
     wbs_element = models.ForeignKey(
         WBSElement, 
         on_delete=models.PROTECT, 
@@ -191,8 +211,17 @@ class PurchaseOrderTask(Task):
     def total_price(self):
         return sum(item.total_price for item in self.items.all()) if self.items.exists() else 0
 
+    @property
+    def order_display_name(self):
+        """Human-readable label for lists and page headers."""
+        if self.is_quote_order and not (self.supplier or '').strip():
+            return "Order with Quote"
+        if (self.supplier or '').strip():
+            return self.supplier
+        return "Purchase Order"
+
     def __str__(self):
-        return f"Purchase Order {self.supplier} - {self.created_at.date()}"
+        return f"Purchase Order {self.order_display_name} - {self.created_at.date()}"
 
 
 class PurchaseItem(BaseModel):
@@ -457,6 +486,37 @@ class RecruitmentFundingAllocation(BaseModel):
 
     def __str__(self):
         return f"{self.wbs_element} ({self.weekly_hours_allocated}h/week)"
+
+
+class TaskWorkflowCoordinator(BaseModel):
+    """Coordinator assignment per workgroup and task type for workflow routing."""
+    workgroup = models.ForeignKey(
+        'hr.Workgroup',
+        on_delete=models.CASCADE,
+        related_name='task_workflow_coordinators',
+        verbose_name="Workgroup",
+    )
+    task_type = models.CharField(max_length=50, choices=Task.TASK_TYPES, verbose_name="Task Type")
+    coordinator = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='task_workflow_coordinator_assignments',
+        verbose_name="Coordinator",
+    )
+
+    class Meta:
+        verbose_name = "Task Workflow Coordinator"
+        verbose_name_plural = "Task Workflow Coordinators"
+        ordering = ['workgroup__short_name', 'task_type', 'coordinator__last_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['workgroup', 'task_type', 'coordinator'],
+                name='unique_task_workflow_coordinator',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.workgroup} / {self.get_task_type_display()} → {self.coordinator}"
 
 
 class GenericTextTask(Task):

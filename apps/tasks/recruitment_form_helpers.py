@@ -3,6 +3,11 @@
 from django import forms
 
 from apps.hr.document_utils import validate_personnel_document
+from apps.tasks.form_validation import (
+    parse_german_date,
+    require_non_empty_text,
+    validate_contract_dates,
+)
 from apps.tasks.recruitment_config import (
     FILE_FIELDS,
     RECRUITMENT_CONFIGURABLE_FIELDS,
@@ -79,6 +84,24 @@ def apply_recruitment_field_defaults(form, *, is_creation):
 
 def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files=None):
     job = cleaned_data.get('job')
+    if not job:
+        form.add_error('job', 'Please select a job.')
+
+    validate_contract_dates(
+        form,
+        cleaned_data,
+        require_start=True,
+        require_end=True,
+    )
+
+    text_fields = [
+        'first_name', 'last_name', 'country_of_origin', 'place_of_birth',
+        'email_private', 'street', 'house_number', 'postal_code', 'city', 'country',
+    ]
+    for field_name in text_fields:
+        if field_name in form.fields:
+            require_non_empty_text(form, cleaned_data, field_name)
+
     months = contract_duration_months(
         cleaned_data.get('valid_from'),
         cleaned_data.get('valid_until'),
@@ -139,15 +162,7 @@ def validate_funding_allocations_required(formset, job, cleaned_data, *, is_crea
 
 
 def parse_post_date(value):
-    if not value:
-        return None
-    from datetime import datetime
-    for fmt in ('%d.%m.%Y', '%Y-%m-%d'):
-        try:
-            return datetime.strptime(str(value).strip(), fmt).date()
-        except ValueError:
-            continue
-    return None
+    return parse_german_date(value)
 
 
 def build_recruitment_template_context():

@@ -1,12 +1,12 @@
 ﻿"""
 apps/accounts/permissions.py
 
-Zentrale Definition aller benutzerdefinierten Gruppen (Custom Groups) im System.
+Central definition of all custom groups in the system.
 
-Vorteile:
-- Einziger Ort, an dem Gruppennamen definiert sind
-- Verhindert Tippfehler bei String-Vergleichen
-- ErmÃ¶glicht automatische Erstellung nach Migrationen
+Benefits:
+- Single place where group names are defined
+- Prevents typos in string comparisons
+- Enables automatic creation after migrations
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -14,7 +14,7 @@ from django.db.models import Q
 
 
 class GroupNames:
-    """Neue, view- und funktionsspezifische Gruppen (Permission-basiert)."""
+    """View- and function-specific groups (permission-based)."""
 
     EMPLOYEES_VIEW = "Employees - View"
     EMPLOYEES_MANAGE = "Employees - Manage"
@@ -42,7 +42,7 @@ class GroupNames:
     ASSISTING_ADMINS = "Assisting Admins"
 
 
-# Alle Gruppen als Liste (nÃ¼tzlich fÃ¼r Iterationen)
+# All groups as a list (useful for iteration)
 NEW_GROUPS = [
     GroupNames.EMPLOYEES_VIEW,
     GroupNames.EMPLOYEES_MANAGE,
@@ -85,14 +85,14 @@ OLD_GROUPS = [
 
 def get_or_create_default_groups():
     """
-    Erstellt die neuen Gruppen und entfernt die alten, nutzlosen Gruppen.
-    Wird automatisch nach jeder Migration aufgerufen (post_migrate Signal).
-    Auf Produktion bei 'No migrations to apply' stattdessen ausführen:
+    Creates the new groups and removes the old, obsolete groups.
+    Called automatically after each migration (post_migrate signal).
+    On production when 'No migrations to apply', run instead:
         python manage.py ensure_groups
     """
     created_groups = []
 
-    # Neue Gruppen erstellen
+    # Create new groups
     for group_name in NEW_GROUPS:
         group, created = Group.objects.get_or_create(name=group_name)
         if created:
@@ -102,10 +102,10 @@ def get_or_create_default_groups():
     if created_groups:
         print(f"  [Groups] {len(created_groups)} new groups created.")
 
-    # Alte Gruppen entfernen (auch wenn User zugewiesen sind - sie verlieren die alte Gruppe)
-    # WICHTIG für Produktion: Der Block löscht die alten Gruppen.
-    # Wenn du die alten Gruppen (z.B. Assisting Admins) erstmal behalten willst,
-    # kommentiere den folgenden Block temporär aus.
+    # Remove old groups (even if users are assigned - they lose the old group)
+    # IMPORTANT for production: this block deletes the old groups.
+    # To keep old groups (e.g. Assisting Admins) temporarily,
+    # comment out the following block.
     deleted = []
     for name in OLD_GROUPS:
         try:
@@ -126,8 +126,8 @@ def get_or_create_default_groups():
     return created_groups
 
 
-# Optional: Hier kÃ¶nnten spÃ¤ter auch Default-Permissions pro Gruppe vergeben werden.
-# Beispiel:
+# Optional: default permissions per group could be assigned here later.
+# Example:
 # def assign_default_permissions():
 #     example_group = Group.objects.get(name=GroupNames.EMPLOYEES_MANAGE)
 #     pi_group.permissions.add(...)

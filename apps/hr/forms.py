@@ -1,22 +1,26 @@
-﻿"""
+"""
 apps/hr/forms.py
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
 Realized functionalities in this file:
-- EmployeeForm with full cascading dropdowns (Building → Room → PhoneNumber)
-- Dynamic queryset filtering for Room and PhoneNumber based on POST or instance
-- Proper ModelChoiceField handling for phone_number with forced choices on render
-- Inline form support for all related models
-- Extensive debugging output to console + timestamped log files
-- clean_room() and full clean() with cross-field validation
-- English-only user-facing strings and logs
+- EmployeeForm with cascading dropdowns (Building → Room → PhoneNumber)
+- Dynamic queryset filtering for Room and PhoneNumber based on POST data or instance
+- ModelChoiceField handling for phone_number with preserved choice for validation
+- Inline form support for related models (Contract, FundingAllocation, etc.)
+- clean_room() and clean() with cross-field validation
+
+Cascading dropdown logic:
+  Building → filters Room queryset by selected building
+  Room → filters PhoneNumber queryset by selected room
+  On edit, querysets and initial values are set from the instance's relations.
+  On POST (validation errors), querysets follow submitted building/room values.
+
 Constraints:
 - Must work for both CreateView and UpdateView
 - Must preserve all existing form fields and validation
 - Phone pre-filling on edit must work reliably
 """
 
-from pathlib import Path
-from datetime import datetime
 from django import forms
 from django.forms.models import inlineformset_factory
 
@@ -26,32 +30,6 @@ from .models import (
 )
 from .workgroup_groups import sync_auth_group_for_workgroup
 from apps.finances.models import PayScale
-
-
-def get_log_dir():
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-    return log_dir
-
-
-def log_form_init(form_name: str, data=None, instance=None, errors=None):
-    """Excessive debugging"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = get_log_dir() / f"{form_name}_{timestamp}.txt"
-    with open(log_path, "w", encoding="utf-8") as f:
-        f.write(f"THERESE - {form_name} DEBUG LOG\n")
-        f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write("="*80 + "\n\n")
-        if instance and instance.pk:
-            f.write(f"INSTANCE: {instance} (PK: {instance.pk})\n")
-            f.write(f" Building: {instance.room.building if instance.room else None}\n")
-            f.write(f" Room: {instance.room}\n")
-            f.write(f" Phone: {instance.phone_number}\n\n")
-        if data:
-            f.write("BOUND DATA (excerpt):\n")
-            for k, v in list(data.items())[:50]:
-                f.write(f" {k}: {v}\n")
-    print(f"📝 {form_name} debug log: {log_path.name}")
 
 
 class EmployeeForm(forms.ModelForm):
@@ -85,51 +63,34 @@ class EmployeeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         instance = getattr(self, 'instance', None)
 
-        print("\n" + "="*150)
-        print("🔥🔥🔥 EXTREM EXZESSIVES DEBUGGING - EmployeeForm.__init__ 🔥🔥🔥")
-        print(f"Is bound (POST): {self.is_bound}")
-        print(f"Has instance (Edit-Modus): {bool(instance and instance.pk)}")
-        print(f"Instance PK: {instance.pk if instance else None}")
-        print(f"Instance room: {instance.room if instance else None}")
-        print(f"Instance phone_number: {instance.phone_number if instance else None}")
-
-        log_form_init("EmployeeForm", data=self.data if self.is_bound else None, instance=instance)
-
-        # BUILDING
-        print("\n--- BUILDING FIELD ---")
+        # Building: all buildings; on edit, pre-select the employee's building
         building_field = self.fields['building']
         building_field.widget.attrs.update({'class': 'building-select form-control', 'id': 'id_building'})
-        print(f"Building queryset count: {building_field.queryset.count()}")
         if instance and instance.room and instance.room.building:
             building_field.initial = instance.room.building.pk
-            print(f"✅ Building initial SET to: {building_field.initial} ({instance.room.building.number} - {instance.room.building.name})")
-        else:
-            print("⚠️  No building initial set")
 
-        # ROOM
-        print("\n--- ROOM FIELD ---")
+        # Room: cascade from building — empty until a building is chosen (create),
+        # or filtered to the instance building with initial room on edit
         room_field = self.fields['room']
         room_field.empty_label = "— Select Building first —"
         room_field.widget.attrs.update({'class': 'room-select form-control', 'id': 'id_room'})
 
         if self.is_bound and self.data.get('building'):
+            # POST with validation errors: keep rooms for the submitted building
             room_field.queryset = Room.objects.filter(building_id=self.data['building']).order_by('room_number')
-            print(f"POST mode → Room queryset filtered by building_id={self.data['building']} → {room_field.queryset.count()} rooms")
         elif instance and instance.room:
+            # Edit mode: rooms for the employee's building, pre-select current room
             room_field.queryset = Room.objects.filter(building=instance.room.building).order_by('room_number')
             room_field.initial = instance.room.pk
-            print(f"✅ EDIT mode → Room queryset set for building {instance.room.building}")
-            print(f"✅ Room initial SET to: {room_field.initial} ({instance.room.room_number} - {instance.room.colloquial_name})")
         else:
+            # Create mode: no building selected yet
             room_field.queryset = Room.objects.none()
-            print("⚠️  Room queryset = empty")
 
-        # PHONE
-        print("\n--- PHONE FIELD ---")
+        # Phone: cascade from room — empty until a room is chosen
         phone_field = self.fields['phone_number']
         phone_field.widget.attrs.update({'class': 'phone-select form-control', 'id': 'id_phone_number'})
 
-        # Determine the phone value we want to preserve (POST or instance)
+        # Preserve phone from POST (re-render after error) or from instance (edit)
         phone_to_preserve = None
         if self.is_bound and self.data.get('phone_number'):
             phone_to_preserve = self.data.get('phone_number')
@@ -137,47 +98,39 @@ class EmployeeForm(forms.ModelForm):
             phone_to_preserve = instance.phone_number
 
         if self.is_bound and self.data.get('room'):
+            # POST: phones for the submitted room
             phone_field.queryset = PhoneNumber.objects.filter(room_id=self.data['room'])
-            print(f"POST mode → Phone queryset for room_id={self.data['room']} → {phone_field.queryset.count()} phones")
             if phone_to_preserve:
                 phone_field.initial = phone_to_preserve
-                print(f"POST mode → Phone initial set to: {phone_field.initial}")
         elif instance and instance.phone_number:
+            # Edit mode: include the employee's phone and pre-select it
             phone_field.queryset = PhoneNumber.objects.filter(phone_number=instance.phone_number)
             phone_field.initial = instance.phone_number
-            print(f"✅ EDIT mode → Phone queryset filtered for '{instance.phone_number}' → {phone_field.queryset.count()} phones")
-            print(f"✅ Phone initial SET to: '{phone_field.initial}'")
         else:
+            # Create mode: no room selected yet
             phone_field.queryset = PhoneNumber.objects.none()
-            print("⚠️  Phone queryset = empty")
 
-        # Ensure the preserved phone is always in the queryset (for validation when room filter excludes it)
+        # Ensure preserved phone stays in queryset when room filter would exclude it
         if phone_to_preserve and phone_field.queryset is not None:
             if not phone_field.queryset.filter(phone_number=phone_to_preserve).exists():
                 preserved_qs = PhoneNumber.objects.filter(phone_number=phone_to_preserve)
                 phone_field.queryset = (phone_field.queryset | preserved_qs).distinct()
-                print(f"  → Added preserved phone '{phone_to_preserve}' to queryset for validation")
 
-        print("\n=== FORM __INIT__ END - EXTREM EXZESSIVES DEBUGGING ===\n")
-
-        # Styling
+        # Apply form-control styling to all fields
         for field in self.fields.values():
             if 'form-control' not in field.widget.attrs.get('class', ''):
                 field.widget.attrs['class'] = 'form-control'
 
     def clean_room(self):
         room = self.cleaned_data.get('room')
-        print(f"DEBUG clean_room() → Final value: {room}")
         return room
 
     def clean(self):
         cleaned_data = super().clean()
-        print("=== FINAL CLEAN() IN MAIN FORM ===")
         room = cleaned_data.get('room')
         building = cleaned_data.get('building')
         if room and building and room.building != building:
             self.add_error('room', "Room does not belong to selected building")
-        print("=== END OF clean() ===\n")
         return cleaned_data
 
     def clean_phone_number(self):
@@ -211,7 +164,6 @@ class ContractForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print("ContractForm __init__ called for inline")
 
         # Only current (latest effective_as_of) PayScales
         current = PayScale.get_current()
@@ -335,4 +287,3 @@ class PhoneNumberForm(forms.ModelForm):
             'room': forms.Select(attrs={'class': 'form-control'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
-

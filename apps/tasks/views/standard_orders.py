@@ -6,6 +6,8 @@ All UI text in English.
 Restricted to Procurement Coordinator + Procurement Approver.
 """
 from django.shortcuts import render, redirect, get_object_or_404
+
+from .redirects import redirect_to_my_tasks
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
@@ -221,5 +223,5 @@ def save_standard_checkboxes(request, pk):
     else:
         messages.info(request, "No new standard items were added (duplicates or none selected).")
 
-    return redirect('tasks:task_detail', pk=pk)
+    return redirect_to_my_tasks()
 

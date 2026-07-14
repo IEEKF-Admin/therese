@@ -1,31 +1,37 @@
-﻿"""
+"""
 create_demo_users.py
-Erstellt Demo-Benutzer für THERESE-Präsentationen.
-Diese Benutzer müssen beim Login NICHT ihr Passwort ändern.
 
-Verwendung:
-    cd C:\Django\Therese
-    venv\Scripts\python.exe create_demo_users.py
+Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
+Features / Requirements:
+- Creates demo users for THERESE presentations
+- Sets password_changed=True so users are not forced to change password on first login
+- Idempotent: updates existing demo accounts to the expected state
+
+Usage:
+    cd C:\\Django\\therese
+    venv\\Scripts\\python.exe create_demo_users.py
+
+Do not remove any existing requirements from this header without explicit instruction.
 """
 
 import os
+
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings.base')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from apps.hr.models import Employee
 
 User = get_user_model()
 
-# = DEMO ACCOUNTS =
 DEMO_USERS = [
     {
         "username": "demo1",
         "password": "demo123",
         "first_name": "Anna",
-        "last_name": "Müller",
+        "last_name": "Muller",
         "email": "anna.mueller@example.com",
     },
     {
@@ -60,11 +66,12 @@ DEMO_USERS = [
     },
 ]
 
+
 def create_demo_users():
-    print("=== THERESE Demo-Benutzer erstellen ===\n")
+    print("=== THERESE demo users ===\n")
 
     created = 0
-    existing = 0
+    updated = 0
 
     for data in DEMO_USERS:
         user, was_created = User.objects.get_or_create(
@@ -73,20 +80,18 @@ def create_demo_users():
                 "first_name": data["first_name"],
                 "last_name": data["last_name"],
                 "email": data["email"],
-                "password_changed": True,   # ← WICHTIG: Kein Passwort-Änderungs-Zwang
+                "password_changed": True,
                 "is_staff": data.get("is_staff", False),
-
                 "is_superuser": data.get("is_superuser", False),
-            }
+            },
         )
 
         if was_created:
             user.set_password(data["password"])
             user.save()
             created += 1
-            print(f"[NEU]     : {data['username']:12} | Passwort: {data['password']:10} | {data['first_name']} {data['last_name']}")
+            print(f"[NEW]     {data['username']:12} password={data['password']:10} {data['first_name']} {data['last_name']}")
         else:
-            # Update existing user to be demo-ready
             user.password_changed = True
             user.first_name = data["first_name"]
             user.last_name = data["last_name"]
@@ -97,18 +102,12 @@ def create_demo_users():
                 user.is_superuser = True
             user.set_password(data["password"])
             user.save()
-            existing += 1
-            print(f"[UPDATE]  : {data['username']:12} | Passwort: {data['password']:10} | {data['first_name']} {data['last_name']}")
+            updated += 1
+            print(f"[UPDATE]  {data['username']:12} password={data['password']:10} {data['first_name']} {data['last_name']}")
 
-    print(f"\n=== Fertig ===")
-    print(f"Neu erstellt:   {created}")
-    print(f"Aktualisiert:   {existing}")
-    print(f"Gesamt Demo-Accounts: {len(DEMO_USERS)}")
-    print("\nAlle Benutzer können sich jetzt mit Passwort 'demo123' (bzw. 'admin123') einloggen,")
-print("ohne dass sie beim ersten Login ihr Passwort ändern müssen.\n")
+    print(f"\nDone: {created} created, {updated} updated ({len(DEMO_USERS)} demo accounts total).")
+    print("Users can log in without being forced to change their password on first login.\n")
 
 
 if __name__ == "__main__":
     create_demo_users()
-
-

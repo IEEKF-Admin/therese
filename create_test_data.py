@@ -1,37 +1,83 @@
-﻿"""
+"""
 create_test_data.py
 
 Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
+
+Features / Requirements:
+- Creates demo users, employees, contracts, funding allocations, and sample purchase orders
+- Assigns permission groups from apps.accounts.permissions.NEW_GROUPS
+- Idempotent where possible (get_or_create for users and employees)
+- Default password for all test users: test123
+
+Do not remove any existing requirements from this header without explicit instruction.
 """
 
 import os
-import django
-from datetime import date, timedelta
 import random
+from datetime import date, timedelta
+from decimal import Decimal
+
+import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therese.settings')
 django.setup()
 
 from django.contrib.auth.models import Group
+
 from apps.accounts.models import CustomUser
-from apps.hr.models import Employee, Building, Room, Contract, FundingAllocation, SalarySupplement
+from apps.accounts.permissions import NEW_GROUPS
 from apps.finances.models import CostCenter, WBSElement
-from apps.tasks.models import PurchaseOrderTask, PurchaseItem
+from apps.hr.models import Building, Contract, Employee, FundingAllocation, Room, SalarySupplement
+from apps.tasks.models import PurchaseItem, PurchaseOrderTask
+
+# Map demo role labels to permission group names (must exist in NEW_GROUPS).
+ROLE_GROUP_MAPPING = {
+    "PI": [
+        "Employees - View", "Employees - Manage", "Purchase Orders - Create",
+        "Personnel Tasks - Create", "PSP Elements - View", "Working Groups - Manage",
+    ],
+    "Procurement Requester": ["Purchase Orders - Create", "Standard Orders - View"],
+    "Procurement Coordinator": [
+        "Purchase Orders - Create", "Standard Orders - Manage",
+        "Procurement - Coordination Rights", "Employees - View",
+    ],
+    "Procurement Approver": ["Procurement - Approval Rights", "Standard Orders - View"],
+    "Personnel Approver": [
+        "Personnel - Approval Rights", "Employees - View", "Employees - Manage",
+    ],
+    "Personnel Coordinator": [
+        "Personnel - Coordination Rights", "Personnel Tasks - Create", "Employees - View",
+    ],
+    "Order Manager": ["Employees - View"],
+}
+
+USER_DATA = [
+    ("Dr. Elena", "Hartmann", "PI"),
+    ("Markus", "Berger", "Procurement Requester"),
+    ("Dr. Sophia", "Klein", "PI"),
+    ("Tobias", "Neumann", "Procurement Coordinator"),
+    ("Lena", "Fischer", "Procurement Requester"),
+    ("Dr. Julian", "Roth", "Order Manager"),
+    ("Anna", "Schreiber", "Personnel Approver"),
+    ("Michael", "Wagner", "Procurement Requester"),
+    ("Dr. Clara", "Becker", "PI"),
+    ("Paul", "Richter", "Procurement Coordinator"),
+]
 
 
 def create_test_data():
-    print("🚀 Erstelle umfangreiche Testdaten für THERESE...\n")
+    print("Creating THERESE test data...\n")
 
-    from apps.accounts.permissions import NEW_GROUPS, OLD_GROUPS
-
-    # Groups - only new permission groups
     groups = {name: Group.objects.get_or_create(name=name)[0] for name in NEW_GROUPS}
-    perm_groups = {name: Group.objects.get_or_create(name=name)[0] for name in NEW_PERMISSION_GROUPS}
 
-    # Basic structures
-    building, _ = Building.objects.get_or_create(number="A1", defaults={'name': 'Main Building'})
-    room, _ = Room.objects.get_or_create(building=building, room_number="3.12",
-                                         defaults={'colloquial_name': 'Lab 312'})
+    building, _ = Building.objects.get_or_create(
+        number="A1", defaults={'name': 'Main Building'},
+    )
+    room, _ = Room.objects.get_or_create(
+        building=building,
+        room_number="3.12",
+        defaults={'colloquial_name': 'Lab 312'},
+    )
     cc, _ = CostCenter.objects.get_or_create(cost_center="4711/2026")
 
     wbs_list = []
@@ -44,25 +90,10 @@ def create_test_data():
         wbs, _ = WBSElement.objects.get_or_create(wbs_code=code, defaults={'title': title})
         wbs_list.append(wbs)
 
-    # ====== USERS + EMPLOYEES ======
-    user_data = [
-        ("Dr. Elena", "Hartmann", "PI"),
-        ("Markus", "Berger", "Procurement Requester"),
-        ("Dr. Sophia", "Klein", "PI"),
-        ("Tobias", "Neumann", "Procurement Coordinator"),
-        ("Lena", "Fischer", "Procurement Requester"),
-        ("Dr. Julian", "Roth", "Order Manager"),
-        ("Anna", "Schreiber", "Personnel Approver"),
-        ("Michael", "Wagner", "Procurement Requester"),
-        ("Dr. Clara", "Becker", "PI"),
-        ("Paul", "Richter", "Procurement Coordinator"),
-    ]
-
     employees = []
-    for first, last, role in user_data:
+    for first, last, role in USER_DATA:
         username = f"{first.lower().replace(' ', '').replace('dr.', '')}{last.lower()[:3]}"
 
-        # User erstellen
         user, created = CustomUser.objects.get_or_create(
             username=username,
             defaults={
@@ -70,58 +101,41 @@ def create_test_data():
                 'last_name': last,
                 'email': f"{username}@example.com",
                 'password_changed': True,
-            }
+            },
         )
         if created:
             user.set_password("test123")
             user.save()
 
-        user.groups.add(groups[role])
+        for group_name in ROLE_GROUP_MAPPING.get(role, []):
+            if group_name in groups:
+                user.groups.add(groups[group_name])
 
-        # Assign new permission-based groups (using role names from test data for convenience)
-        new_group_mapping = {
-            "PI": ["Employees - View", "Employees - Manage", "Purchase Orders - Create", "Personnel Tasks - Create", "PSP Elements - View", "Working Groups - Manage"],
-            "Procurement Requester": ["Purchase Orders - Create", "Standard Orders - View"],
-            "Procurement Coordinator": ["Purchase Orders - Create", "Standard Orders - Manage", "Procurement - Coordination Rights", "Employees - View"],
-            "Procurement Approver": ["Procurement - Approval Rights", "Standard Orders - View"],
-            "Personnel Approver": ["Personnel - Approval Rights", "Employees - View", "Employees - Manage"],
-            "Personnel Coordinator": ["Personnel - Coordination Rights", "Personnel Tasks - Create", "Employees - View"],
-            "Order Manager": ["Employees - View"],
-        }
-        for gname in new_group_mapping.get(role, []):
-            if gname in perm_groups:
-                perm_groups[gname].user_set.add(user)
-
-        # Employee explizit mit User verknüpfen
-        employee, created = Employee.objects.get_or_create(
-            employee_number=f"EMP{random.randint(10000,99999)}",
+        employee, emp_created = Employee.objects.get_or_create(
+            employee_number=f"EMP{random.randint(10000, 99999)}",
             defaults={
                 'first_name': first,
                 'last_name': last,
-                'user': user,                    # WICHTIG: Verknüpfung
+                'user': user,
                 'room': room,
                 'email_professional': f"{username}@example.com",
                 'cost_center': cc,
-            }
+            },
         )
-        if created:
-            print(f"✓ Neu erstellt: {first} {last} → Employee + User")
-        else:
+        if not emp_created and employee.user_id != user.pk:
             employee.user = user
-            employee.save()
-            print(f"✓ Verknüpft: {first} {last} (Employee existierte bereits)")
+            employee.save(update_fields=['user'])
 
+        action = "created" if emp_created else "linked"
+        print(f"  {action}: {first} {last} (user={username})")
         employees.append(employee)
 
-    # ====== CONTRACTS & FUNDING ALLOCATIONS ======
     today = date.today()
-
     for emp in employees:
-        # Contracts (2–4 pro Person, inkl. abgelaufener)
         for i in range(random.randint(2, 4)):
             start = today - timedelta(days=random.randint(100, 1200))
             end = start + timedelta(days=random.randint(300, 730))
-            if i == 0:  # Aktueller Vertrag
+            if i == 0:
                 end = None if random.random() > 0.4 else end
 
             Contract.objects.create(
@@ -133,7 +147,6 @@ def create_test_data():
                 valid_until=end,
             )
 
-        # Funding Allocations
         for i in range(random.randint(2, 5)):
             start = today - timedelta(days=random.randint(30, 800))
             end = start + timedelta(days=random.randint(120, 600))
@@ -148,10 +161,36 @@ def create_test_data():
                 end_date=end,
             )
 
-    print("\nðŸŽ‰ Testdaten erfolgreich erstellt!")
-    print("Passwort für alle: test123")
+    requesters = [
+        emp for emp, (_, _, role) in zip(employees, USER_DATA)
+        if role == "Procurement Requester"
+    ]
+    sample_orders = [
+        ("Sigma-Aldrich", "Purchase Order Lab Chemicals"),
+        ("Fisher Scientific", "Purchase Order Consumables"),
+        ("VWR International", "Purchase Order Glassware"),
+    ]
+    for index, (supplier, title) in enumerate(sample_orders):
+        creator = requesters[index % len(requesters)]
+        po = PurchaseOrderTask.objects.create(
+            creator=creator,
+            task_type='purchase_order',
+            title=title,
+            supplier=supplier,
+            wbs_element=random.choice(wbs_list),
+            status='not_yet_processed',
+        )
+        PurchaseItem.objects.create(
+            purchase_task=po,
+            product_name=f"Test product {index + 1}",
+            unit_price=Decimal('49.99'),
+            quantity=random.randint(1, 5),
+        )
+    print(f"  created: {len(sample_orders)} sample purchase order(s)")
+
+    print("\nTest data created successfully.")
+    print("Password for all test users: test123")
 
 
 if __name__ == "__main__":
     create_test_data()
-

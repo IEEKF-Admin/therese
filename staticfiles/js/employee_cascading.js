@@ -5,21 +5,21 @@
 
     if (!buildingSelect || !roomSelect || !phoneSelect) return;
 
-    // Building â†’ Room
+    // Building -> Room
     buildingSelect.addEventListener('change', function() {
         const buildingId = this.value;
-        roomSelect.innerHTML = '<option value="">â€” Loading rooms... â€”</option>';
-        phoneSelect.innerHTML = '<option value="">â€” Select Room first â€”</option>';
+        roomSelect.innerHTML = '<option value="">— Loading rooms... —</option>';
+        phoneSelect.innerHTML = '<option value="">— Select Room first —</option>';
 
         if (!buildingId) {
-            roomSelect.innerHTML = '<option value="">â€” Select Building first â€”</option>';
+            roomSelect.innerHTML = '<option value="">— Select Building first —</option>';
             return;
         }
 
         fetch(`/hr/ajax/rooms-by-building/?building=${buildingId}`)
             .then(r => r.json())
             .then(data => {
-                roomSelect.innerHTML = '<option value="">â€” Select Room â€”</option>';
+                roomSelect.innerHTML = '<option value="">— Select Room —</option>';
                 data.forEach(room => {
                     const opt = document.createElement('option');
                     opt.value = room.id;
@@ -29,20 +29,20 @@
             });
     });
 
-    // Room â†’ Phone
+    // Room -> Phone
     roomSelect.addEventListener('change', function() {
         const roomId = this.value;
-        phoneSelect.innerHTML = '<option value="">â€” Loading phones... â€”</option>';
+        phoneSelect.innerHTML = '<option value="">— Loading phones... —</option>';
 
         if (!roomId) {
-            phoneSelect.innerHTML = '<option value="">â€” Select Room first â€”</option>';
+            phoneSelect.innerHTML = '<option value="">— Select Room first —</option>';
             return;
         }
 
         fetch(`/hr/ajax/phonenumbers-by-room/?room=${roomId}`)
             .then(r => r.json())
             .then(data => {
-                phoneSelect.innerHTML = '<option value="">â€” Select Phone â€”</option>';
+                phoneSelect.innerHTML = '<option value="">— Select Phone —</option>';
                 data.forEach(phone => {
                     const opt = document.createElement('option');
                     opt.value = phone.phone_number;

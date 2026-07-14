@@ -1,15 +1,15 @@
 ﻿// therese/static/admin/js/room_dynamic_filter.js
 django.jQuery(function($) {
     function filterRooms() {
-        var buildingId = $('#id_room').data('building') || $('#id_building').val(); // fallback falls nÃ¶tig
-        // FÃ¼rs Erste: Room wird spÃ¤ter dynamisch gefiltert â€“ hier Platzhalter
-        // Wir kÃ¶nnen das spÃ¤ter erweitern, wenn du mÃ¶chtest
+        var buildingId = $('#id_room').data('building') || $('#id_building').val(); // fallback if needed
+        // For now: room will be filtered dynamically later - placeholder
+        // Can be extended later if needed
     }
 
-    // VorlÃ¤ufig: Nur sicherstellen, dass keine + Icons erscheinen
+    // For now: ensure no + icons appear
     $('select').each(function() {
         if (this.id.includes('room') || this.id.includes('building')) {
-            // zusÃ¤tzliche Sicherheit
+            // additional safeguard
         }
     });
 });

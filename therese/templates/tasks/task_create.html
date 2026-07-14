@@ -5,6 +5,7 @@
 {% if task_type == 'personnel_reallocation' %}New Personnel Reallocation - THERESE
 {% elif task_type == 'personnel_contract_extension' %}New Personnel Contract Extension - THERESE
 {% elif task_type == 'personnel_recruitment' %}New Personnel Recruitment - THERESE
+{% elif po_variant == 'quote' %}Order with Quote - THERESE
 {% else %}New Purchase Order - THERESE{% endif %}
 {% endblock %}
 
@@ -16,6 +17,8 @@
         <h1>New Personnel Contract Extension</h1>
     {% elif task_type == 'personnel_recruitment' %}
         <h1>New Personnel Recruitment</h1>
+    {% elif po_variant == 'quote' %}
+        <h1>Order with Quote</h1>
     {% else %}
         <h1>New Purchase Order</h1>
     {% endif %}
@@ -71,13 +74,24 @@
     {% endif %}
 
     <form method="post"
-          action="{% url 'tasks:task_create' %}{% if task_type %}?type={{ task_type }}{% endif %}"
+          action="{% url 'tasks:task_create' %}{% if task_type %}?type={{ task_type }}{% if po_variant %}&amp;variant={{ po_variant }}{% endif %}{% endif %}"
           {% if task_type == 'purchase_order' or task_type == 'personnel_recruitment' %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         {% if task_type %}<input type="hidden" name="task_type" value="{{ task_type }}">{% endif %}
+        {% if po_variant %}<input type="hidden" name="po_variant" value="{{ po_variant }}">{% endif %}
         {{ form.status }}
 
-        {% if task_type == 'purchase_order' %}
+        {% if task_type == 'purchase_order' and po_variant == 'quote' %}
+            <div class="form-section">
+                <h3>Quote</h3>
+                <div class="aligned-field">
+                    <label>Quote <span style="color:#ef4444;">*</span></label>
+                    {{ form.quote_file }}
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Upload the supplier quote as a PDF (Angebot)</small>
+                </div>
+            </div>
+
+        {% elif task_type == 'purchase_order' %}
             <!-- === PURCHASE ORDER (existing advanced structure kept) === -->
             <!-- Supplier -->
             <div class="form-section">
@@ -210,6 +224,15 @@
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen (optional)</small>
             </div>
 
+            <div class="form-section">
+                <h3>Quote (optional)</h3>
+                <div class="aligned-field">
+                    <label>Quote</label>
+                    {{ form.quote_file }}
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">Optional supplier quote PDF (Angebot)</small>
+                </div>
+            </div>
+
         {% elif task_type == 'personnel_reallocation' %}
             <!-- === PERSONNEL REALLOCATION (no Assignment & Priority card at all) === -->
             <div class="form-section compact">
@@ -326,6 +349,8 @@
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Contract Extension</button>
             {% elif task_type == 'personnel_recruitment' %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Personnel Recruitment</button>
+            {% elif po_variant == 'quote' %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Order with Quote</button>
             {% else %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Purchase Order</button>
             {% endif %}
@@ -401,8 +426,12 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('items-container');
     const addBtn = document.getElementById('add-item');
-    const emptyTemplate = document.getElementById('item-empty-template').firstElementChild;
+    const emptyTemplateEl = document.getElementById('item-empty-template');
     const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+    if (!container || !addBtn || !emptyTemplateEl || !totalForms) {
+        return;
+    }
+    const emptyTemplate = emptyTemplateEl.firstElementChild;
 
     function updateFormIndices() {
         const items = container.querySelectorAll('.purchase-item');

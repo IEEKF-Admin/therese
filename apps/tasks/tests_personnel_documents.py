@@ -198,7 +198,7 @@ class PersonnelDocumentDownloadViewTests(TestCase):
         self.client.login(username='creator', password='test')
         url = reverse('tasks:personnel_task_document_download', args=[self.task.pk, 'cv'])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('tasks:my_tasks'))
 
     def test_coordinator_can_download_with_german_filename(self):

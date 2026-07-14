@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Workflow: {{ workgroup.short_name }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Workflow Coordinators: {{ workgroup.short_name }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:workflow_config_manage' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<p style="color:#64748b; margin-bottom:1.5rem;">
+    {{ workgroup.long_name }} · PI: {{ workgroup.pi.get_full_name }}<br>
+    Select employees with coordination rights for each task type. Leave empty to let creators handle coordination.
+</p>
+
+<form method="post">
+    {% csrf_token %}
+
+    <table class="table list-panel">
+        <thead>
+            <tr>
+                <th style="width:28%;">Task type</th>
+                <th>Coordinators</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in config_rows %}
+            <tr>
+                <td><strong>{{ row.label }}</strong></td>
+                <td>
+                    <select name="coordinators_{{ row.task_type }}" multiple size="6" class="form-control" style="min-height:8rem;">
+                        {% for employee in row.eligible %}
+                        <option value="{{ employee.pk }}"
+                            {% if employee.pk in row.selected_ids %}selected{% endif %}>
+                            {{ employee.get_full_name }}
+                        </option>
+                        {% empty %}
+                        <option disabled>No employees with coordination rights available</option>
+                        {% endfor %}
+                    </select>
+                    <small class="field-hint-de">Mehrfachauswahl mit Strg/Cmd</small>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="form-actions" style="margin-top:1.5rem;">
+        <button type="submit" class="btn-primary">Save configuration</button>
+        <a href="{% url 'tasks:workflow_config_manage' %}" class="btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}

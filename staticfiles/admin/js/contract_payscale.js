@@ -2,7 +2,7 @@
 console.log("=== contract_payscale.js LOADED (with salary auto-fill) ===");
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("âœ… DOM loaded - PayScale + Salary auto-fill active");
+    console.log("DOM loaded - PayScale + Salary auto-fill active");
 
     function loadExperienceLevels(payScaleSelect) {
         const group = payScaleSelect.value;
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.level;
-                    opt.textContent = `Level ${item.level} â€” ${item.salary} â‚¬`;
+                    opt.textContent = `Level ${item.level} - ${item.salary} EUR`;
                     levelSelect.appendChild(opt);
                 });
             });
@@ -38,11 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const match = data.find(item => String(item.level) === String(level));
                 if (match) {
-                    // Finde das Monthly Salary Feld im Hauptformular
+                    // Find the monthly salary field in the main form
                     const salaryInput = document.querySelector('input[name="monthly_salary"]');
                     if (salaryInput) {
                         salaryInput.value = match.salary;
-                        console.log(`[SALARY] âœ… Filled Monthly Salary with ${match.salary} â‚¬`);
+                        console.log(`[SALARY] Filled Monthly Salary with ${match.salary} EUR`);
                     } else {
                         console.warn("[SALARY] Could not find monthly_salary input");
                     }
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Experience Level â†’ Salary
+        // Experience Level -> Salary
         document.querySelectorAll('.experience-level').forEach(select => {
             if (!select.dataset.salaryListener) {
                 select.addEventListener('change', () => updateEmployeeSalary(select));

@@ -7,6 +7,7 @@ from django.contrib import messages
 
 from ..models import Task
 from ..utils import is_procurement_coordinator
+from .redirects import redirect_to_my_tasks
 
 
 @login_required
@@ -20,13 +21,13 @@ def task_delete(request, pk):
 
     if not can_delete:
         messages.error(request, "You are not allowed to delete this order.")
-        return redirect('task_detail', pk=task.pk)
+        return redirect('tasks:task_detail', pk=task.pk)
 
     if request.method == 'POST':
         supplier_name = getattr(task, 'supplier', task.title)
         task.delete()
         messages.success(request, f"Order '{supplier_name}' has been successfully deleted.")
-        return redirect('my_tasks')
+        return redirect_to_my_tasks()
 
     return render(request, 'tasks/task_confirm_delete.html', {'task': task})
 

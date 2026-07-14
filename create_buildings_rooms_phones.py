@@ -120,7 +120,7 @@ COLLOQUIAL_NAMES = [
 
 # = MAIN POPULATION FUNCTION =
 def create_buildings_rooms_phones():
-    print("ðŸš€ Starting population of Buildings, Rooms and PhoneNumbers for THERESE (UKBonn data)...\n")
+    print("Starting population of Buildings, Rooms and PhoneNumbers for THERESE (UKBonn data)...\n")
 
     buildings_created = 0
     rooms_created = 0
@@ -202,7 +202,7 @@ def create_buildings_rooms_phones():
         errors=errors,
     )
 
-    print("\nðŸŽ‰ Population completed successfully!")
+    print("\nPopulation completed successfully!")
     print(f"   Buildings:  {buildings_created}")
     print(f"   Rooms:      {rooms_created}")
     print(f"   Phones:     {phones_created}")

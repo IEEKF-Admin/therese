@@ -1,11 +1,15 @@
-﻿"""
+"""
 apps/tasks/views/detail/base.py
-Gemeinsame Hilfsfunktionen fÃ¼r alle Detail-Views
+
+Shared helpers for all task detail views.
+
+get_task_or_404() loads the concrete task subclass with appropriate
+select_related / prefetch_related and enforces type-specific visibility
+before the role-specific view runs.
 """
 
 from django.shortcuts import get_object_or_404
 from django.contrib import messages
-from django.shortcuts import redirect
 
 from ...models import (
     Task, PurchaseOrderTask, GenericTextTask,
@@ -13,10 +17,16 @@ from ...models import (
     PersonnelRecruitmentTask,
 )
 from ...utils import can_view_purchase_order
+from ..redirects import redirect_to_my_tasks
 
 
 def get_task_or_404(pk, user):
-    """LÃ¤dt die Aufgabe und prÃ¼ft grundlegende Sichtbarkeit"""
+    """
+    Load task by pk and apply basic visibility checks.
+
+    Returns the concrete model instance, or an HttpResponse redirect when
+    the user may not view the task (purchase order / generic text).
+    """
     base_task = get_object_or_404(Task, pk=pk)
 
     if base_task.task_type == 'purchase_order':
@@ -26,7 +36,7 @@ def get_task_or_404(pk, user):
 
         if not can_view_purchase_order(user, task):
             messages.error(user, "You don't have permission to view this task.")
-            return redirect('my_tasks')
+            return redirect_to_my_tasks()
         return task
 
     if base_task.task_type == 'generic_text':
@@ -34,10 +44,12 @@ def get_task_or_404(pk, user):
             'assignee', 'creator', 'recipient', 'last_changed_by'
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
         employee = getattr(user, 'employee', None)
-        if not (user.is_staff or 
-                (employee and (task.creator == employee or task.recipient == employee))):
+        if not (
+            user.is_staff
+            or (employee and (task.creator == employee or task.recipient == employee))
+        ):
             messages.error(user, "You don't have permission to view this task.")
-            return redirect('my_tasks')
+            return redirect_to_my_tasks()
         return task
 
     if base_task.task_type == 'personnel_reallocation':
@@ -62,4 +74,3 @@ def get_task_or_404(pk, user):
         return task
 
     return base_task
-

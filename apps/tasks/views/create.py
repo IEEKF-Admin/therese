@@ -5,9 +5,10 @@ Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
 
 Features / Requirements:
 - Task creation view with proper form handling and validation feedback
-- Support for Purchase Orders with inline items
+- Support for Purchase Orders with inline items and personnel recruitment funding formsets
+- Sets creator_workgroup at save time (fixed workgroup for workflow coordinator routing)
 - Clear error messages when form is invalid
-- Correct redirect after successful creation
+- Correct redirect to /tasks/ after successful creation (redirect_to_my_tasks)
 
 Do not remove any existing requirements from this header without explicit instruction.
 """
@@ -15,17 +16,15 @@ Do not remove any existing requirements from this header without explicit instru
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView
 from django.contrib import messages
-from django.http import HttpResponseRedirect
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 from django.shortcuts import render, redirect
-from django.forms.models import inlineformset_factory
+
 from django.utils import timezone
 
 from ..models import Task, PurchaseOrderTask, PurchaseItem, StandardPurchaseItem, TaskComment
 from ..forms import (
     PurchaseOrderTaskForm,
-    PurchaseItemForm,
-    BasePurchaseItemFormSet,
+    PurchaseItemFormSet,
     GenericTextTaskForm,
     PersonnelReallocationTaskForm,
     PersonnelContractExtensionTaskForm,
@@ -41,20 +40,9 @@ from ..recruitment_upload_cache import (
     get_stashed_uploads,
     stash_recruitment_uploads,
 )
+from ..workflow_config import resolve_creator_workgroup
+from .redirects import redirect_to_my_tasks
 # GroupNames removed - using has_perm now
-
-
-PurchaseItemFormSet = inlineformset_factory(
-    PurchaseOrderTask,
-    PurchaseItem,
-    form=PurchaseItemForm,
-    formset=BasePurchaseItemFormSet,
-    extra=1,
-    can_delete=True,
-    min_num=1,
-    validate_min=True,
-    fields=('product_name', 'product_description', 'link_to_product', 'order_number', 'unit_price', 'quantity')
-)
 
 
 class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -63,6 +51,12 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def _get_task_type(self):
         return self.request.POST.get('task_type') or self.request.GET.get('type')
+
+    def _is_quote_order_mode(self):
+        if self._get_task_type() != 'purchase_order':
+            return False
+        variant = self.request.POST.get('po_variant') or self.request.GET.get('variant')
+        return variant == 'quote'
 
     def _assign_personnel_task_number(self, instance):
         if instance.task_type not in (
@@ -100,7 +94,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def _redirect_after_create(self, instance, *, message):
         self.object = instance
         messages.success(self.request, message)
-        return HttpResponseRedirect(reverse('tasks:my_tasks'), status=303)
+        return redirect_to_my_tasks()
 
     def get_template_names(self):
         task_type = self._get_task_type()
@@ -170,6 +164,9 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             kwargs['user'] = self.request.user
             kwargs['is_creation'] = True
 
+        if task_type == 'purchase_order':
+            kwargs['quote_order_mode'] = self._is_quote_order_mode()
+
         if task_type == 'personnel_recruitment':
             kwargs['stashed_uploads'] = get_stashed_uploads(self.request)
 
@@ -201,8 +198,13 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context = super().get_context_data(**kwargs)
         task_type = self._get_task_type()
         context['task_type'] = task_type
+        context['po_variant'] = (
+            self.request.POST.get('po_variant')
+            or self.request.GET.get('variant')
+            or ''
+        )
 
-        if task_type == 'purchase_order':
+        if task_type == 'purchase_order' and not self._is_quote_order_mode():
             copy_from_pk = self.request.GET.get('copy_from')
             standard_item_ids = self.request.GET.get('standard_items')
 
@@ -291,9 +293,17 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             return self.render_to_response(self.get_context_data(form=form))
 
         form.instance.creator = self.request.user.employee
+        form.instance.creator_workgroup = resolve_creator_workgroup(self.request.user.employee)
         form.instance.task_type = task_type
 
         if task_type == 'purchase_order':
+            if self._is_quote_order_mode():
+                instance = form.save()
+                return self._redirect_after_create(
+                    instance,
+                    message='Order with Quote created successfully.',
+                )
+
             formset = self.get_context_data()['item_formset']
             if formset.is_valid():
                 instance = form.save()

@@ -80,7 +80,7 @@ Do not remove any existing requirements from this header without explicit instru
                     <tbody>
                         {% for task in po_assigned_to_me %}
                         <tr>
-                            <td><strong>{{ task.supplier }}</strong></td>
+                            <td><strong>{{ task.order_display_name }}</strong></td>
                             <td>
                                 <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
                                     Order #{{ task.pk }}
@@ -127,7 +127,7 @@ Do not remove any existing requirements from this header without explicit instru
                     <tbody>
                         {% for task in po_created_by_me %}
                         <tr>
-                            <td><strong>{{ task.supplier }}</strong></td>
+                            <td><strong>{{ task.order_display_name }}</strong></td>
                             <td>
                                 <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
                                     Order #{{ task.pk }}
@@ -176,7 +176,7 @@ Do not remove any existing requirements from this header without explicit instru
                 <tbody>
                     {% for task in po_all_visible %}
                     <tr>
-                        <td><strong>{{ task.supplier }}</strong></td>
+                        <td><strong>{{ task.order_display_name }}</strong></td>
                         <td>
                             <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
                                 Order #{{ task.pk }}

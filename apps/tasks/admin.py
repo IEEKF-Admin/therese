@@ -1,7 +1,7 @@
 ﻿"""
 apps/tasks/admin.py
 Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
-Admin configuration for Tasks (angepasst an Bestellung-WÃ¼nsche)
+Admin configuration for Tasks (purchase orders, personnel, recruitment, generic)
 """
 
 from django.contrib import admin
@@ -14,7 +14,7 @@ from .models import (
     PersonnelRecruitmentTask, RecruitmentFundingAllocation, RecruitmentJob,
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
-from .forms import PurchaseOrderTaskForm   # ← Diese Zeile hinzufügen!
+from .forms import PurchaseOrderTaskForm
 from apps.hr.models import Employee
 # GroupNames removed (old groups deleted)
 
@@ -45,14 +45,14 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
     form = PurchaseOrderTaskForm
     inlines = [PurchaseItemInline, TaskCommentInline, TaskAttachmentInline]
     
-    list_display = ['supplier', 'wbs_element', 'status', 'priority', 'assignee', 'created_at']
+    list_display = ['supplier', 'is_quote_order', 'wbs_element', 'status', 'priority', 'assignee', 'created_at']
     list_filter = ['status', 'priority', 'created_at']
     search_fields = ['supplier', 'wbs_element__wbs_code']
     readonly_fields = ['creator', 'last_status_change', 'last_changed_by']
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        # WBS Element nur fÃ¼r Order Manager sichtbar
+        # Hide WBS field unless user has change_wbs_on_purchase_order permission
         if not (request.user.is_superuser or request.user.has_perm('tasks.change_wbs_on_purchase_order')):
             form.base_fields['wbs_element'].widget = forms.HiddenInput()
             form.base_fields['wbs_element'].required = False

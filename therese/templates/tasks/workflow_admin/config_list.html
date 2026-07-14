@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Task Workflow Coordinators - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Task Workflow Coordinators</h1>
+    <p style="color:#64748b; margin-top:0.5rem;">
+        Assign coordinators per workgroup and task type. If no coordinator is configured,
+        the task creator can perform the coordination steps themselves.
+    </p>
+</div>
+
+<table class="table list-panel">
+    <thead>
+        <tr>
+            <th>Workgroup</th>
+            <th>PI</th>
+            <th>Configured task types</th>
+            <th>Coordinator assignments</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>
+                <strong>{{ row.workgroup.short_name }}</strong><br>
+                <span style="color:#64748b; font-size:0.9rem;">{{ row.workgroup.long_name }}</span>
+            </td>
+            <td>{{ row.workgroup.pi.get_full_name }}</td>
+            <td>{{ row.configured_types }} / {{ row.total_types }}</td>
+            <td>{{ row.assignment_count }}</td>
+            <td>
+                <a href="{% url 'tasks:workflow_config_update' row.workgroup.pk %}" class="action-icon edit" title="Configure">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No workgroups defined yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

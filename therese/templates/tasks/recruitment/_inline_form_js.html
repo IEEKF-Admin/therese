@@ -52,7 +52,12 @@
         });
 
         clone.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'hidden') return;
+            if (el.type === 'hidden') {
+                if (/-id$/.test(el.name) || /-recruitment_task$/.test(el.name)) {
+                    el.value = '';
+                }
+                return;
+            }
             if (el.type === 'checkbox' || el.type === 'radio') {
                 el.checked = false;
             } else {

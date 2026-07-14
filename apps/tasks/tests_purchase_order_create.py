@@ -6,7 +6,7 @@ from apps.accounts.models import CustomUser
 from apps.hr.models import Employee
 from apps.tasks.forms import PurchaseOrderTaskForm
 from apps.tasks.models import PurchaseOrderTask
-from apps.tasks.views.create import PurchaseItemFormSet
+from apps.tasks.forms import PurchaseItemFormSet
 
 
 class PurchaseOrderCreateFormTests(TestCase):

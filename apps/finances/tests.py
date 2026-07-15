@@ -320,6 +320,40 @@ class PSPManageAccessTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(WBSElement.objects.filter(pk=self.psp_group_a.pk).exists())
 
+    def test_delete_confirm_shows_blockers_for_protected_psp(self):
+        allocation_employee = Employee.objects.create(
+            employee_number='E-ALLOC2',
+            first_name='Alloc',
+            last_name='Two',
+        )
+        FundingAllocation.objects.create(
+            employee=allocation_employee,
+            wbs_element=self.psp_group_a,
+            weekly_hours_allocated='5.00',
+            start_date=date(2026, 1, 1),
+        )
+
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        response = client.get(f'/finances/psp/manage/{self.psp_group_a.pk}/delete/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'cannot be deleted yet')
+        self.assertContains(response, 'funding allocation')
+        self.assertContains(response, 'Cannot delete')
+
+    def test_delete_without_dependencies_shows_success_message(self):
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        response = client.post(
+            f'/finances/psp/manage/{self.psp_group_a.pk}/delete/',
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(WBSElement.objects.filter(pk=self.psp_group_a.pk).exists())
+        self.assertContains(response, 'was deleted')
+
 
 class CostCenterYearEstimateFormSetTests(TestCase):
     def setUp(self):

@@ -1411,6 +1411,29 @@ input.form-control:focus {
     color: #1e40af;
 }
 
+.alert-success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.alert-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.alert-error,
+.alert-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.page-messages .alert:last-child {
+    margin-bottom: 1.5rem;
+}
+
 .task-type-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

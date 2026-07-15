@@ -20,6 +20,52 @@ from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import WBSElement
 
 
+def _psp_delete_blocker_labels(wbs_element):
+    """Human-readable reasons why a PSP element cannot be deleted yet."""
+    from apps.hr.models import FundingAllocation
+    from apps.tasks.models import (
+        PersonnelReallocationTask,
+        PurchaseOrderTask,
+        RecruitmentFundingAllocation,
+    )
+
+    blockers = []
+    funding_count = FundingAllocation.objects.filter(wbs_element=wbs_element).count()
+    if funding_count:
+        blockers.append(f'{funding_count} funding allocation(s)')
+
+    purchase_count = PurchaseOrderTask.objects.filter(wbs_element=wbs_element).count()
+    if purchase_count:
+        blockers.append(f'{purchase_count} purchase order(s)')
+
+    reallocation_count = PersonnelReallocationTask.objects.filter(target_wbs=wbs_element).count()
+    if reallocation_count:
+        blockers.append(f'{reallocation_count} personnel reallocation task(s)')
+
+    recruitment_count = RecruitmentFundingAllocation.objects.filter(wbs_element=wbs_element).count()
+    if recruitment_count:
+        blockers.append(f'{recruitment_count} recruitment funding allocation(s)')
+
+    return blockers
+
+
+def _protected_error_message(code, protected_objects):
+    labels = sorted({
+        obj._meta.verbose_name_plural.capitalize()
+        for obj in protected_objects
+    })
+    if labels:
+        details = ', '.join(labels)
+        return (
+            f'PSP element "{code}" cannot be deleted because dependent data exists '
+            f'({details}).'
+        )
+    return (
+        f'PSP element "{code}" cannot be deleted because dependent data exists '
+        '(e.g. funding allocations or bookings).'
+    )
+
+
 def _user_is_institute_psp_admin(user):
     """Assisting Admins and superusers manage PSP elements institute-wide."""
     if user.is_superuser:
@@ -104,8 +150,10 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                 messages.error(
                     request,
                     f"{protected} PSP element(s) could not be deleted "
-                    "(e.g. because of Funding Allocations or bookings).",
+                    "because dependent data exists (e.g. funding allocations or bookings).",
                 )
+            if not deleted and not protected and ids:
+                messages.warning(request, "No selected PSP elements could be deleted.")
             return redirect('finances:psp_manage')
         return super().post(request, *args, **kwargs)
 
@@ -224,16 +272,28 @@ class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['delete_blockers'] = _psp_delete_blocker_labels(self.object)
+        context['can_delete'] = not context['delete_blockers']
+        return context
+
     def form_valid(self, form):
         code = self.object.wbs_code
+        blockers = _psp_delete_blocker_labels(self.object)
+        if blockers:
+            messages.error(
+                self.request,
+                f'PSP element "{code}" cannot be deleted: ' + '; '.join(blockers) + '.',
+            )
+            return redirect(self.success_url)
         try:
             response = super().form_valid(form)
             messages.success(self.request, f'PSP element "{code}" was deleted.')
             return response
-        except ProtectedError:
+        except ProtectedError as exc:
             messages.error(
                 self.request,
-                f'PSP element "{code}" cannot be deleted because dependent data exists '
-                '(e.g. Funding Allocations or bookings).',
+                _protected_error_message(code, exc.protected_objects),
             )
             return redirect(self.success_url)

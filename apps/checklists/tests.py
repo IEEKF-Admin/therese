@@ -168,4 +168,105 @@ class ChecklistManageUITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'New Template')
         self.assertNotContains(response, 'Admin bearbeiten')
+class ChecklistHtmlNodeTests(TestCase):
+    def setUp(self):
+        self.manager = _user("mgr-html")
+        group, _ = Group.objects.get_or_create(name="Checklists - Manage")
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename="manage_checklist", content_type=ct)
+        group.permissions.add(perm)
+        self.manager.groups.add(group)
+
+        self.subject_user = _user("subj-html")
+        self.subject = Employee.objects.create(
+            employee_number="CL-HTML-1",
+            first_name="Chris",
+            last_name="Html",
+            user=self.subject_user,
+        )
+
+        self.template = ChecklistTemplate.objects.create(
+            slug="html-test",
+            name_en="HTML Test",
+            name_de="HTML Test DE",
+        )
+        self.version = ChecklistTemplateVersion.objects.create(
+            template=self.template,
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.DRAFT,
+            created_by=self.manager,
+        )
+        self.section = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en="Intro",
+            label_de="Einleitung",
+            sort_order=0,
+        )
+
+    def test_add_html_node_via_manage_ui(self):
+        self.client.login(username="mgr-html", password="test")
+        url = reverse(
+            "checklists:manage_version_edit",
+            args=[self.template.pk, self.version.pk],
+        )
+        response = self.client.post(url, {
+            "action": "add_node",
+            "node_kind": ChecklistTemplateNode.NodeKind.HTML,
+            "parent": self.section.pk,
+            "sort_order": 1,
+            "label_en": "Note",
+            "label_de": "Hinweis",
+            "help_en": "<p>Please read this.</p>",
+            "help_de": "<p>Bitte lesen.</p>",
+            "field_type": "",
+            "choice_key": "",
+            "required_for_completion": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        node = self.version.nodes.get(node_kind=ChecklistTemplateNode.NodeKind.HTML)
+        self.assertIn("Please read", node.help_en)
+        self.assertEqual(node.field_type, "")
+
+    def test_html_node_renders_in_instance_fill(self):
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.HTML,
+            label_en="Info",
+            help_en="<strong>Important</strong>",
+            sort_order=1,
+        )
+        publish_version(self.version, self.manager)
+        instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+        self.client.login(username="subj-html", password="test")
+        response = self.client.get(reverse("checklists:instance_fill", args=[instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Important")
+
+    def test_html_node_excluded_from_progress(self):
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.HTML,
+            help_en="<p>Info</p>",
+            required_for_completion=True,
+            sort_order=1,
+        )
+        field = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en="Done",
+            required_for_completion=True,
+            sort_order=2,
+        )
+        publish_version(self.version, self.manager)
+        instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+        percent, fulfilled, total = compute_progress(instance)
+        self.assertEqual(total, 1)
+        self.assertEqual(fulfilled, 0)
+        self.assertEqual(percent, 0)
+        self.assertNotEqual(field.node_kind, ChecklistTemplateNode.NodeKind.HTML)
 

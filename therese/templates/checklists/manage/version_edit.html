@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ template.name_en }} {{ version.version_label }} — Edit - THERESE{% endblock %}
 
@@ -64,46 +65,63 @@
     </table>
 </div>
 
-<div class="page-section list-panel">
+<div class="page-section list-panel" data-checklist-node-form>
     <h2>Add node</h2>
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_node">
         <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
             <div class="form-group">
-                <label>Node kind</label>
-                {{ node_form.node_kind }}
+                <label for="{{ node_form.node_kind.id_for_label }}">Node kind</label>
+                <select name="{{ node_form.node_kind.html_name }}" id="{{ node_form.node_kind.id_for_label }}" class="form-select" data-node-kind-select>
+                    {% for value, label in node_form.node_kind.field.choices %}
+                    <option value="{{ value }}"{% if node_form.node_kind.value == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="form-group">
-                <label>Field type</label>
+            <div class="form-group" data-node-field-group="field_type">
+                <label for="{{ node_form.field_type.id_for_label }}">Field type</label>
                 {{ node_form.field_type }}
             </div>
             <div class="form-group">
-                <label>Parent</label>
+                <label for="{{ node_form.parent.id_for_label }}">Parent</label>
                 {{ node_form.parent }}
             </div>
             <div class="form-group">
-                <label>Sort order</label>
+                <label for="{{ node_form.sort_order.id_for_label }}">Sort order</label>
                 {{ node_form.sort_order }}
             </div>
-            <div class="form-group">
-                <label>Label (EN)</label>
+            <div class="form-group" data-node-field-group="label">
+                <label for="{{ node_form.label_en.id_for_label }}">Label (EN)</label>
                 {{ node_form.label_en }}
             </div>
-            <div class="form-group">
-                <label>Label (DE)</label>
+            <div class="form-group" data-node-field-group="label">
+                <label for="{{ node_form.label_de.id_for_label }}">Label (DE)</label>
                 {{ node_form.label_de }}
             </div>
-            <div class="form-group">
-                <label>Choice key</label>
+            <div class="form-group" data-node-field-group="choice_key">
+                <label for="{{ node_form.choice_key.id_for_label }}">Choice key</label>
                 {{ node_form.choice_key }}
             </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" data-node-field-group="content">
+            <label for="{{ node_form.help_en.id_for_label }}">Content (EN)</label>
+            {{ node_form.help_en }}
+        </div>
+        <div class="form-group" data-node-field-group="content">
+            <label for="{{ node_form.help_de.id_for_label }}">Content (DE)</label>
+            {{ node_form.help_de }}
+        </div>
+        <div class="form-group" data-node-field-group="required">
             <label>{{ node_form.required_for_completion }} Required for completion</label>
         </div>
         {% for error in node_form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
         <button type="submit" class="btn-primary">Add node</button>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/checklist_node_form.js' %}"></script>
+{% include "documents/includes/wysiwyg.html" %}
 {% endblock %}

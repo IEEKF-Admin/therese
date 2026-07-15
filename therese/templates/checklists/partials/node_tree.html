@@ -6,6 +6,14 @@
         <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
         {% include "checklists/partials/node_tree.html" with tree=children responses=responses can_edit=can_edit instance=instance %}
     </div>
+    {% elif node.node_kind == 'html' %}
+    <div class="checklist-html-block" style="margin-bottom:1rem; padding-left:0.5rem;">
+        {% if node.label_en %}
+        <h4 style="margin-bottom:0.5rem;">{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h4>
+        {% endif %}
+        {% if node.help_en %}<div class="checklist-html-content">{{ node.help_en|safe }}</div>{% endif %}
+        {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|safe }}</div>{% endif %}
+    </div>
     {% elif node.node_kind == 'field' %}
     {% with resp=responses|dictsort:node.pk %}{% endwith %}
     <div class="form-group checklist-field" style="margin-bottom:1rem; padding-left:0.5rem;">

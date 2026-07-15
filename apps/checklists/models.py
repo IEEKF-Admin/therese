@@ -110,6 +110,7 @@ class ChecklistTemplateNode(BaseModel):
         SECTION = 'section', 'Section'
         FIELD = 'field', 'Field'
         RADIO_OPTION = 'radio_option', 'Radio option'
+        HTML = 'html', 'HTML content'
 
     class FieldType(models.TextChoices):
         CHECKBOX = 'checkbox', 'Checkbox'

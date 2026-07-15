@@ -111,6 +111,25 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         )
         if version:
             self._set_parent_queryset()
+        self._apply_node_kind_field_state()
+
+    def _apply_node_kind_field_state(self):
+        node_kind = self.data.get('node_kind') or (
+            self.instance.node_kind if self.instance.pk else None
+        )
+        is_html = node_kind == ChecklistTemplateNode.NodeKind.HTML
+        if is_html:
+            self.fields['help_en'].label = 'Content (EN)'
+            self.fields['help_de'].label = 'Content (DE)'
+            self.fields['help_en'].widget = forms.Textarea(
+                attrs={'class': 'form-control wysiwyg-editor', 'rows': 12},
+            )
+            self.fields['help_de'].widget = forms.Textarea(
+                attrs={'class': 'form-control wysiwyg-editor', 'rows': 12},
+            )
+        elif node_kind == ChecklistTemplateNode.NodeKind.FIELD:
+            self.fields['help_en'].label = 'Help (EN)'
+            self.fields['help_de'].label = 'Help (DE)'
 
     def _set_parent_queryset(self):
         node_kind = self.data.get('node_kind') or (
@@ -124,7 +143,10 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
                 node_kind=ChecklistTemplateNode.NodeKind.FIELD,
                 field_type=ChecklistTemplateNode.FieldType.RADIO_GROUP,
             )
-        elif node_kind == ChecklistTemplateNode.NodeKind.FIELD:
+        elif node_kind in (
+            ChecklistTemplateNode.NodeKind.FIELD,
+            ChecklistTemplateNode.NodeKind.HTML,
+        ):
             qs = qs.filter(node_kind=ChecklistTemplateNode.NodeKind.SECTION)
         else:
             qs = qs.filter(node_kind=ChecklistTemplateNode.NodeKind.SECTION)
@@ -145,12 +167,23 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             if parent and parent.node_kind != ChecklistTemplateNode.NodeKind.SECTION:
                 raise ValidationError('Fields must be placed under a section.')
         elif node_kind == ChecklistTemplateNode.NodeKind.RADIO_OPTION:
+            cleaned['field_type'] = ''
             if not parent:
                 raise ValidationError('Radio options must belong to a radio group field.')
             if parent.field_type != ChecklistTemplateNode.FieldType.RADIO_GROUP:
                 raise ValidationError('Radio options must belong to a radio group field.')
             if not (cleaned.get('choice_key') or '').strip():
                 raise ValidationError('Choice key is required for radio options.')
+        elif node_kind == ChecklistTemplateNode.NodeKind.HTML:
+            cleaned['field_type'] = ''
+            cleaned['required_for_completion'] = False
+            cleaned['allow_not_applicable'] = False
+            if not (cleaned.get('help_en') or '').strip() and not (cleaned.get('help_de') or '').strip():
+                raise ValidationError('Content (EN or DE) is required for HTML nodes.')
+            if parent and parent.node_kind != ChecklistTemplateNode.NodeKind.SECTION:
+                raise ValidationError('HTML blocks must be placed under a section.')
+        elif node_kind == ChecklistTemplateNode.NodeKind.SECTION:
+            cleaned['field_type'] = ''
 
         if parent and self.version and parent.version_id != self.version.pk:
             raise ValidationError('Parent node must belong to this version.')

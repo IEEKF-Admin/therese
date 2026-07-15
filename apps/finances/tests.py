@@ -1,9 +1,12 @@
 from datetime import date
 from io import BytesIO
 
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 
+from apps.accounts.models import CustomUser
 from apps.finances.forms import (
     CostCenterForm,
     CostCenterYearEstimateFormSet,
@@ -11,6 +14,8 @@ from apps.finances.forms import (
     WBSElementYearEstimateFormSet,
 )
 from apps.finances.models import CostCenter, WBSElement, WBSElementYearEstimate
+from apps.finances.views.psp_crud import PSPUpdateView
+from apps.hr.models import Employee, Workgroup
 
 
 class WBSElementFormTests(TestCase):
@@ -174,6 +179,76 @@ class CostCenterFormTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         cc = form.save()
         self.assertTrue(cc.third_party_funding_commitment.name.endswith('.png'))
+
+
+class PSPUpdateViewTests(TestCase):
+    def setUp(self):
+        self.cost_center = CostCenter.objects.create(cost_center='4711/2031')
+        self.pi = Employee.objects.create(
+            employee_number='E-PSP-PI',
+            first_name='Pat',
+            last_name='Principal',
+        )
+        self.workgroup_a = Workgroup.objects.create(
+            short_name='Lab-A',
+            long_name='Lab A',
+            pi=self.pi,
+        )
+        self.workgroup_b = Workgroup.objects.create(
+            short_name='Lab-B',
+            long_name='Lab B',
+            pi=self.pi,
+        )
+        self.user = CustomUser.objects.create_user('psp-manager', password='test')
+        self.user.password_changed = True
+        self.user.save(update_fields=['password_changed'])
+        self.employee = Employee.objects.create(
+            employee_number='E-PSP-MGR',
+            first_name='Manager',
+            last_name='User',
+            user=self.user,
+        )
+        self.workgroup_a.members.add(self.employee)
+        manage_perm = Permission.objects.get(
+            codename='manage_psp_element',
+            content_type=ContentType.objects.get(app_label='finances', model='wbselement'),
+        )
+        self.user.user_permissions.add(manage_perm)
+        self.psp_other_group = WBSElement.objects.create(
+            wbs_code='WBS-OTHER-1',
+            title='Other group PSP',
+            cost_center=self.cost_center,
+            work_group=self.workgroup_b,
+        )
+
+    def test_get_form_is_not_bound_and_loads_instance_values(self):
+        factory = RequestFactory()
+        request = factory.get(f'/finances/psp/manage/{self.psp_other_group.pk}/edit/')
+        request.user = self.user
+
+        view = PSPUpdateView()
+        view.setup(request, pk=self.psp_other_group.pk)
+        view.object = view.get_object()
+        form = view.get_form()
+
+        self.assertFalse(form.is_bound)
+        self.assertEqual(form['wbs_code'].value(), 'WBS-OTHER-1')
+        self.assertEqual(form['title'].value(), 'Other group PSP')
+        self.assertEqual(form['work_group'].value(), self.workgroup_b.pk)
+
+    def test_manager_can_open_psp_from_other_workgroup(self):
+        factory = RequestFactory()
+        request = factory.get(f'/finances/psp/manage/{self.psp_other_group.pk}/edit/')
+        request.user = self.user
+
+        response = PSPUpdateView.as_view()(request, pk=self.psp_other_group.pk)
+        response.render()
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('WBS-OTHER-1', content)
+        self.assertIn('Other group PSP', content)
+        self.assertNotIn('Dieses Feld ist zwingend erforderlich.', content)
 
 
 class CostCenterYearEstimateFormSetTests(TestCase):

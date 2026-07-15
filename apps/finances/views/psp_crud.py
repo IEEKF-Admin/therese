@@ -12,9 +12,28 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import DeleteView
 
-from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
+from apps.hr.models import Workgroup
+from apps.hr.workgroup_access import filter_by_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import WBSElement
+
+
+def _psp_manage_queryset(queryset, user):
+    """Assisting admins with manage_psp_element may manage all PSP elements."""
+    if user.has_perm('finances.manage_psp_element'):
+        return queryset
+    return filter_by_user_workgroups(queryset, user)
+
+
+def _psp_workgroup_queryset(user, instance=None):
+    """Work group choices for the PSP editor."""
+    if user.has_perm('finances.manage_psp_element'):
+        queryset = Workgroup.objects.all()
+    else:
+        queryset = filter_by_user_workgroups(Workgroup.objects.all(), user)
+    if instance and instance.work_group_id:
+        queryset = queryset | Workgroup.objects.filter(pk=instance.work_group_id)
+    return queryset.distinct().order_by('short_name')
 
 
 class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -26,7 +45,7 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         queryset = WBSElement.objects.select_related(
             'work_group', 'responsible_person', 'cost_center',
         )
-        return filter_by_user_workgroups(queryset, self.request.user)
+        return _psp_manage_queryset(queryset, self.request.user)
 
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
@@ -42,7 +61,7 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             protected = 0
             for pk in ids:
                 try:
-                    obj = filter_by_user_workgroups(
+                    obj = _psp_manage_queryset(
                         WBSElement.objects.filter(pk=pk),
                         request.user,
                     ).get()
@@ -75,12 +94,13 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['files'] = self.request.FILES
+        if self.request.method == 'POST':
+            kwargs['files'] = self.request.FILES
         return kwargs
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['work_group'].queryset = get_user_workgroups(self.request.user)
+        form.fields['work_group'].queryset = _psp_workgroup_queryset(self.request.user)
         return form
 
     def get_context_data(self, **kwargs):
@@ -112,19 +132,23 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy('finances:psp_manage')
 
     def get_queryset(self):
-        return filter_by_user_workgroups(WBSElement.objects.all(), self.request.user)
+        return _psp_manage_queryset(WBSElement.objects.all(), self.request.user)
 
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['files'] = self.request.FILES
+        if self.request.method == 'POST':
+            kwargs['files'] = self.request.FILES
         return kwargs
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['work_group'].queryset = get_user_workgroups(self.request.user)
+        form.fields['work_group'].queryset = _psp_workgroup_queryset(
+            self.request.user,
+            instance=getattr(form, 'instance', None),
+        )
         return form
 
     def get_context_data(self, **kwargs):
@@ -157,7 +181,7 @@ class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     success_url = reverse_lazy('finances:psp_manage')
 
     def get_queryset(self):
-        return filter_by_user_workgroups(WBSElement.objects.all(), self.request.user)
+        return _psp_manage_queryset(WBSElement.objects.all(), self.request.user)
 
     def test_func(self):
         return self.request.user.has_perm('finances.manage_psp_element')

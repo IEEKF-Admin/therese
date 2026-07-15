@@ -297,6 +297,30 @@ class ChecklistPreviewTests(TestCase):
         self.assertContains(response, 'Acknowledge')
         self.assertContains(response, 'disabled')
 
+
+    def test_version_edit_parent_choices_include_radio_group(self):
+        radio_field = ChecklistTemplateNode.objects.create(
+            version=self.draft,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.RADIO_GROUP,
+            label_en='Pick one',
+            sort_order=2,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=self.draft,
+            parent=radio_field,
+            node_kind=ChecklistTemplateNode.NodeKind.RADIO_OPTION,
+            choice_key='a',
+            label_en='Option A',
+            sort_order=0,
+        )
+        url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])
+        response = self.client.get(url)
+        self.assertContains(response, 'CHECKLIST_PARENT_CHOICES')
+        self.assertContains(response, 'Pick one')
+        self.assertContains(response, 'radio_option')
+
     def test_preview_button_on_version_edit(self):
         url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])
         self.assertContains(self.client.get(url), 'Preview')

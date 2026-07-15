@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -144,6 +146,27 @@ def _get_draft_version(template, version_pk):
     return version
 
 
+def _parent_choices_json(version):
+    nodes = version.nodes.order_by('sort_order', 'pk')
+    sections = [
+        {'id': n.pk, 'label': n.label_en or f'Section {n.pk}'}
+        for n in nodes
+        if n.node_kind == ChecklistTemplateNode.NodeKind.SECTION
+    ]
+    radio_groups = [
+        {'id': n.pk, 'label': n.label_en or f'Radio group {n.pk}'}
+        for n in nodes
+        if n.node_kind == ChecklistTemplateNode.NodeKind.FIELD
+        and n.field_type == ChecklistTemplateNode.FieldType.RADIO_GROUP
+    ]
+    return {
+        'section': sections,
+        'field': sections,
+        'html': sections,
+        'radio_option': radio_groups,
+    }
+
+
 def _preview_progress(version):
     total = version.nodes.filter(
         node_kind=ChecklistTemplateNode.NodeKind.FIELD,
@@ -269,6 +292,7 @@ def manage_version_edit(request, pk, vid):
         'nodes': nodes,
         'version_form': version_form,
         'node_form': node_form,
+        'parent_choices_json': json.dumps(_parent_choices_json(version)),
     })
 
 
@@ -316,6 +340,7 @@ def manage_node_edit(request, pk, vid, node_pk):
         'version': version,
         'node': node,
         'form': form,
+        'parent_choices_json': json.dumps(_parent_choices_json(version)),
         'title': f'Edit node — {node.label_en or node.choice_key}',
     })
 

@@ -115,6 +115,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>window.CHECKLIST_PARENT_CHOICES = {{ parent_choices_json|safe }};</script>
 <script src="{% static 'js/checklist_node_form.js' %}"></script>
 {% if node.node_kind == 'html' %}
 {% include "documents/includes/wysiwyg.html" %}

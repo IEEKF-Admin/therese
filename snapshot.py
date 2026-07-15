@@ -56,6 +56,19 @@ def create_project_snapshot():
         'Thumbs.db', '*.bak', '*.tmp', '*.pem', '*.key',
     }
 
+    def should_ignore_file(file):
+        if file in ignore_files:
+            return True
+        for pattern in ignore_files:
+            if '*' not in pattern:
+                continue
+            prefix, suffix = pattern.split('*', 1)
+            if prefix and file.startswith(prefix):
+                return True
+            if suffix and file.endswith(suffix):
+                return True
+        return False
+
     collected_files = []
 
     print(f"Creating snapshot for project: {project_name}")
@@ -81,9 +94,7 @@ def create_project_snapshot():
                 if file.startswith('.env') or file.endswith('.env'):
                     continue
                 if any(file.endswith(ext) for ext in relevant_extensions):
-                    if file in ignore_files:
-                        continue
-                    if any(file.startswith(p.replace('*', '')) for p in ignore_files if '*' in p):
+                    if should_ignore_file(file):
                         continue
 
                     file_path = os.path.join(root, file)

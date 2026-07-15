@@ -60,8 +60,8 @@ def configure_recruitment_payscale_fields(form):
 
     form.fields['pay_scale_group'] = forms.ChoiceField(
         choices=pay_scale_choices,
-        required=True,
-        label='Pay Scale Group',
+        required=False,
+        label='Entgeltstufe',
         widget=forms.Select(attrs={
             'class': 'form-control',
             'data-recruitment-payscale-group': 'true',
@@ -69,8 +69,8 @@ def configure_recruitment_payscale_fields(form):
     )
     form.fields['experience_level'] = forms.ChoiceField(
         choices=level_choices,
-        required=True,
-        label='Experience Level',
+        required=False,
+        label='Erfahrungsstufe',
         widget=forms.Select(attrs={
             'class': 'form-control',
             'data-recruitment-experience-level': 'true',
@@ -111,7 +111,8 @@ def configure_recruitment_job_field(form):
 def apply_recruitment_field_defaults(form, *, is_creation):
     optional_always = {
         'prefix', 'initial_message', 'gender', 'private_phone_number',
-        'limitation_reason', 'plan_position_number',
+        'limitation_reason', 'plan_position_number', 'working_as',
+        'pay_scale_group', 'experience_level', 'monthly_salary',
     }
     for field_name, field in form.fields.items():
         if field_name in optional_always:

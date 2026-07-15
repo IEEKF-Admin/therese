@@ -1142,26 +1142,6 @@ a.btn-secondary:hover {
     margin-bottom: 2rem;
 }
 
-.recruitment-payscale-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    align-items: end;
-}
-
-.recruitment-payscale-field label {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-weight: 500;
-    color: #374151;
-}
-
-.recruitment-payscale-field .form-control,
-.recruitment-payscale-field select {
-    width: 100%;
-}
-
 .document-editor-section {
     margin-bottom: 2rem;
 }
@@ -1477,10 +1457,6 @@ input.form-control:focus {
     .recruitment-two-col,
     .employee-two-col,
     .psp-two-col {
-        grid-template-columns: 1fr;
-    }
-
-    .recruitment-payscale-row {
         grid-template-columns: 1fr;
     }
 }

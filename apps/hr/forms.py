@@ -196,6 +196,26 @@ class ContractForm(forms.ModelForm):
             if 'form-control' not in field.widget.attrs.get('class', ''):
                 field.widget.attrs['class'] = 'form-control'
 
+    def clean_experience_level(self):
+        value = self.cleaned_data.get('experience_level')
+        if value in (None, ''):
+            return None
+        return int(value)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        pay_scale_group = cleaned_data.get('pay_scale_group')
+        experience_level = cleaned_data.get('experience_level')
+        has_group = bool(pay_scale_group)
+        has_level = experience_level is not None
+        if has_group != has_level:
+            message = 'Please select both pay scale group and experience level, or leave both empty.'
+            if not has_group:
+                self.add_error('pay_scale_group', message)
+            if not has_level:
+                self.add_error('experience_level', message)
+        return cleaned_data
+
 
 class FundingAllocationForm(forms.ModelForm):
     class Meta:

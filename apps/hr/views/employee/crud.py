@@ -28,6 +28,7 @@ from .common import (
     finalize_recruitment_task,
     get_recruitment_task,
     recruitment_contract_initial,
+    recruitment_employee_finance_initial,
     recruitment_employee_initial,
     save_employee_with_formsets,
 )
@@ -128,6 +129,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         task = get_recruitment_task(self.request)
         if task:
             initial.update(recruitment_employee_initial(task))
+            initial.update(recruitment_employee_finance_initial(task))
         return initial
 
     def get_context_data(self, **kwargs):

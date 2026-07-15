@@ -178,15 +178,18 @@ class LimitationReasonTemplateTests(TestCase):
         self.assertFalse(form.fields['plan_position_number'].required)
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_payscale_fields_visible_and_required_on_create(self):
+    def test_payscale_fields_visible_and_optional_on_create(self):
         form = PersonnelRecruitmentTaskForm(
             user=CustomUser.objects.create_user('creator4', password='test'),
             is_creation=True,
         )
+        self.assertIn('working_as', form.fields)
         self.assertIn('pay_scale_group', form.fields)
         self.assertIn('experience_level', form.fields)
-        self.assertTrue(form.fields['pay_scale_group'].required)
-        self.assertTrue(form.fields['experience_level'].required)
+        self.assertIn('monthly_salary', form.fields)
+        self.assertFalse(form.fields['pay_scale_group'].required)
+        self.assertFalse(form.fields['experience_level'].required)
+        self.assertFalse(form.fields['monthly_salary'].required)
         self.assertEqual(
             form.fields['pay_scale_group'].widget.attrs.get('data-recruitment-payscale-group'),
             'true',
@@ -195,6 +198,73 @@ class LimitationReasonTemplateTests(TestCase):
             form.fields['experience_level'].widget.attrs.get('data-recruitment-experience-level'),
             'true',
         )
+
+    def test_partial_payscale_selection_is_rejected(self):
+        form = PersonnelRecruitmentTaskForm(
+            data={
+                'job': self.job.pk,
+                'first_name': 'Anna',
+                'last_name': 'Muster',
+                'gender': 'F',
+                'date_of_birth': '01.01.1995',
+                'country_of_origin': 'Germany',
+                'place_of_birth': 'Bonn',
+                'email_private': 'anna@example.com',
+                'street': 'Main Street',
+                'house_number': '1',
+                'postal_code': '53111',
+                'city': 'Bonn',
+                'country': 'Germany',
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'pay_scale_group': 'E13',
+                'experience_level': '',
+                'status': 'not_yet_processed',
+            },
+            user=CustomUser.objects.create_user('creator5', password='test'),
+            is_creation=True,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('experience_level', form.errors)
+
+    def test_manual_monthly_salary_without_payscale(self):
+        files = {
+            'cv_file': SimpleUploadedFile('cv.pdf', b'%PDF cv', content_type='application/pdf'),
+            'latest_degree_certificate_file': SimpleUploadedFile(
+                'degree.pdf', b'%PDF degree', content_type='application/pdf',
+            ),
+        }
+        form = PersonnelRecruitmentTaskForm(
+            data={
+                'job': self.job.pk,
+                'working_as': 'Research Assistant',
+                'first_name': 'Anna',
+                'last_name': 'Muster',
+                'gender': 'F',
+                'date_of_birth': '01.01.1995',
+                'country_of_origin': 'Germany',
+                'place_of_birth': 'Bonn',
+                'email_private': 'anna@example.com',
+                'street': 'Main Street',
+                'house_number': '1',
+                'postal_code': '53111',
+                'city': 'Bonn',
+                'country': 'Germany',
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'monthly_salary': '3200.00',
+                'status': 'not_yet_processed',
+            },
+            files=files,
+            user=CustomUser.objects.create_user('creator6', password='test'),
+            is_creation=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        self.assertEqual(saved.working_as, 'Research Assistant')
+        self.assertEqual(saved.monthly_salary, 3200.00)
+        self.assertEqual(saved.pay_scale_group, '')
+        self.assertIsNone(saved.experience_level)
 
     def test_task_estimated_salary_uses_task_payscale(self):
         from apps.tasks.models import PersonnelRecruitmentTask

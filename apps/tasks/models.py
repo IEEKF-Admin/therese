@@ -454,6 +454,11 @@ class PersonnelRecruitmentTask(Task):
         related_name='recruitment_tasks',
         verbose_name="Job",
     )
+    working_as = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Working As",
+    )
     plan_position_number = models.CharField(
         max_length=50,
         blank=True,
@@ -468,6 +473,13 @@ class PersonnelRecruitmentTask(Task):
         null=True,
         blank=True,
         verbose_name="Experience Level",
+    )
+    monthly_salary = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Monthly Salary (€)",
     )
     valid_from = models.DateField(verbose_name="Contract Start Date")
     valid_until = models.DateField(verbose_name="Contract End Date")
@@ -502,7 +514,7 @@ class PersonnelRecruitmentTask(Task):
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
 
-            return (
+            salary = (
                 PayScale.get_current()
                 .filter(
                     pay_scale_group=self.pay_scale_group,
@@ -511,6 +523,10 @@ class PersonnelRecruitmentTask(Task):
                 .values_list('monthly_salary', flat=True)
                 .first()
             )
+            if salary is not None:
+                return salary
+        if self.monthly_salary is not None:
+            return self.monthly_salary
         if self.job_id:
             return self.job.get_estimated_monthly_salary()
         return None

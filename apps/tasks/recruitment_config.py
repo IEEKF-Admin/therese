@@ -62,8 +62,10 @@ RECRUITMENT_CONFIGURABLE_FIELDS = [
     ('email_private', 'Private Email', 'Private E-Mail'),
     ('private_phone_number', 'Private Phone', 'Private Telefonnummer'),
     ('job', 'Job', 'Job'),
-    ('pay_scale_group', 'Pay Scale Group', 'Entgeltgruppe'),
+    ('working_as', 'Working As', 'Tätigkeit'),
+    ('pay_scale_group', 'Pay Scale Group', 'Entgeltstufe'),
     ('experience_level', 'Experience Level', 'Erfahrungsstufe'),
+    ('monthly_salary', 'Monthly Salary', 'Monatsgehalt'),
     ('plan_position_number', 'Plan Position Number', 'Planstellen-Nummer'),
     ('valid_from', 'Contract Start Date', 'Vertragsbeginn'),
     ('valid_until', 'Contract End Date', 'Vertragsende'),
@@ -79,6 +81,10 @@ DEFAULT_OPTIONAL_FIELDS = {
     'private_phone_number',
     'plan_position_number',
     'limitation_reason',
+    'working_as',
+    'pay_scale_group',
+    'experience_level',
+    'monthly_salary',
 }
 
 FILE_FIELDS = {'cv_file', 'latest_degree_certificate_file'}

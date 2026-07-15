@@ -94,6 +94,13 @@ def recruitment_contract_initial(task):
     return contract_data
 
 
+def recruitment_employee_finance_initial(task):
+    salary = task.get_estimated_monthly_salary()
+    if salary is None:
+        return {}
+    return {'monthly_salary': salary}
+
+
 def finalize_recruitment_task(request, employee):
     task = get_recruitment_task(request)
     if not task or not can_create_employee_from_recruitment(request.user, task):

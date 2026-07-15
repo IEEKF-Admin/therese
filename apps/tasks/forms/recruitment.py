@@ -175,8 +175,9 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'country_of_origin', 'place_of_birth', 'email_private',
             'private_phone_number', 'street', 'house_number', 'postal_code',
-            'city', 'country', 'job', 'pay_scale_group', 'experience_level',
-            'plan_position_number', 'valid_from', 'valid_until', 'limitation_reason',
+            'city', 'country', 'job', 'working_as', 'pay_scale_group',
+            'experience_level', 'monthly_salary', 'plan_position_number',
+            'valid_from', 'valid_until', 'limitation_reason',
             'cv_file', 'latest_degree_certificate_file',
             'assignee', 'status',
         ]
@@ -212,7 +213,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         apply_recruitment_field_defaults(self, is_creation=self.is_creation)
 
         for field_name, field in self.fields.items():
-            if field_name not in ('status', 'gender', 'job', 'pay_scale_group', 'experience_level'):
+            if field_name not in ('status', 'gender', 'job', 'pay_scale_group', 'experience_level', 'monthly_salary'):
                 field.widget.attrs.setdefault('class', 'form-control')
             if field_name not in ('status', 'assignee', 'job'):
                 field.widget.attrs.setdefault('data-recruitment-field', field_name)
@@ -270,16 +271,54 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         # --- Assignee (coordinator / creator-fallback only) ---
         _configure_personnel_assignee_field(self)
 
+        if 'monthly_salary' in self.fields:
+            self.fields['monthly_salary'].widget.attrs.update({
+                'data-recruitment-monthly-salary': 'true',
+                'step': '0.01',
+                'min': '0',
+            })
+
     def clean_experience_level(self):
         value = self.cleaned_data.get('experience_level')
         if value in (None, ''):
             return None
         return int(value)
 
+    def clean_monthly_salary(self):
+        value = self.cleaned_data.get('monthly_salary')
+        if value in (None, ''):
+            return None
+        return value
+
     def clean(self):
         cleaned_data = super().clean()
         apply_stashed_uploads(cleaned_data, self.stashed_uploads)
         strip_limitation_reason_template(cleaned_data)
+        pay_scale_group = cleaned_data.get('pay_scale_group')
+        experience_level = cleaned_data.get('experience_level')
+        has_group = bool(pay_scale_group)
+        has_level = experience_level is not None
+        if has_group != has_level:
+            message = 'Please select both Entgeltstufe and Erfahrungsstufe, or leave both empty.'
+            if not has_group:
+                self.add_error('pay_scale_group', message)
+            if not has_level:
+                self.add_error('experience_level', message)
+        elif has_group and has_level:
+            salary = (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=pay_scale_group,
+                    experience_level=experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+            if salary is not None:
+                cleaned_data['monthly_salary'] = salary
+        elif not cleaned_data.get('monthly_salary'):
+            cleaned_data['pay_scale_group'] = ''
+            cleaned_data['experience_level'] = None
         # Job, contract dates, uploads, and funding rules validated dynamically.
         validate_recruitment_dynamic_rules(
             self,

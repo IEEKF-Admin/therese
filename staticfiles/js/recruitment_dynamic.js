@@ -173,18 +173,14 @@
         }
     }
 
-    function formatEstimatedSalary(value) {
-        if (value === null || value === undefined || value === '') {
-            return '—';
-        }
-        const num = parseFloat(value);
-        if (isNaN(num)) {
-            return '—';
-        }
-        return num.toLocaleString('de-DE', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }) + ' €';
+    function getMonthlySalaryInput() {
+        return document.querySelector('[data-recruitment-monthly-salary]');
+    }
+
+    function payscaleSelectionComplete(selects) {
+        const group = selects.group ? selects.group.value : '';
+        const level = selects.level ? selects.level.value : '';
+        return Boolean(group && level);
     }
 
     function getPayscaleSelects() {
@@ -255,43 +251,27 @@
         }
     }
 
-    function updateEstimatedSalary(config) {
-        const el = document.getElementById('estimated-salary-value');
-        if (!el) {
-            return;
-        }
+    function syncMonthlySalaryField(config) {
+        const salaryInput = getMonthlySalaryInput();
         const selects = getPayscaleSelects();
-        const group = selects.group ? selects.group.value : '';
-        const level = selects.level ? selects.level.value : '';
-        const directSalary = lookupSalary(config, group, level);
-        if (directSalary !== null) {
-            el.textContent = formatEstimatedSalary(directSalary);
+        if (!salaryInput || !selects.group || !selects.level) {
             return;
         }
-        const jobId = getSelectedJobId();
-        if (!jobId || !config.jobPayscale) {
-            el.textContent = '—';
+        if (payscaleSelectionComplete(selects)) {
+            const salary = lookupSalary(
+                config,
+                selects.group.value,
+                selects.level.value,
+            );
+            if (salary !== null) {
+                salaryInput.value = salary;
+            }
+            salaryInput.readOnly = true;
+            salaryInput.classList.add('form-readonly');
             return;
         }
-        const jobData = config.jobPayscale[jobId];
-        if (!jobData) {
-            el.textContent = '—';
-            return;
-        }
-        const fallbackSalary = lookupSalary(
-            config,
-            jobData.pay_scale_group,
-            jobData.experience_level,
-        );
-        if (fallbackSalary !== null) {
-            el.textContent = formatEstimatedSalary(fallbackSalary);
-            return;
-        }
-        if (jobData.estimated_salary) {
-            el.textContent = formatEstimatedSalary(jobData.estimated_salary);
-            return;
-        }
-        el.textContent = '—';
+        salaryInput.readOnly = false;
+        salaryInput.classList.remove('form-readonly');
     }
 
     function initPayscaleFields(config) {
@@ -304,10 +284,10 @@
         }
         selects.group.addEventListener('change', function() {
             rebuildExperienceLevelOptions(config, selects.group.value, '');
-            updateEstimatedSalary(config);
+            syncMonthlySalaryField(config);
         });
         selects.level.addEventListener('change', function() {
-            updateEstimatedSalary(config);
+            syncMonthlySalaryField(config);
         });
     }
 
@@ -322,7 +302,7 @@
                 rebuildLimitationTemplateOptions(config);
             }
             applyJobPayscaleDefaults(config);
-            updateEstimatedSalary(config);
+            syncMonthlySalaryField(config);
         }
 
         initPayscaleFields(config);
@@ -332,7 +312,7 @@
                 refresh();
             }
             if (event.target.matches('[data-recruitment-payscale-group], [data-recruitment-experience-level]')) {
-                updateEstimatedSalary(config);
+                syncMonthlySalaryField(config);
             }
             if (event.target.matches('[data-contract-date], [name="valid_from"], [name="valid_until"]')) {
                 if (config.enableJobRules) {

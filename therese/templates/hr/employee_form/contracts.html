@@ -52,13 +52,31 @@
     const container = document.getElementById('contract-container');
     if (!container || !PAYSCALE_DATA) return;
 
+    function syncEmployeeMonthlySalary(groupSelect, levelSelect) {
+        const salaryField = document.getElementById('id_monthly_salary');
+        if (!salaryField || !groupSelect || !levelSelect) return;
+
+        const group = groupSelect.value;
+        const level = parseInt(levelSelect.value, 10);
+        if (group && !isNaN(level) && PAYSCALE_DATA[group]) {
+            const match = PAYSCALE_DATA[group].find(i => i.experience_level === level);
+            if (match) {
+                salaryField.value = match.monthly_salary;
+                salaryField.readOnly = true;
+                salaryField.classList.add('form-readonly');
+                return;
+            }
+        }
+        salaryField.readOnly = false;
+        salaryField.classList.remove('form-readonly');
+    }
+
     function attachPayscaleListeners(row) {
         const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
         const levelSelect = row.querySelector('select[name$="experience_level"]');
 
         if (!groupSelect || !levelSelect) return;
 
-        // PayScale Group → filter Experience Levels (only current)
         groupSelect.addEventListener('change', function() {
             const group = this.value;
             levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
@@ -71,21 +89,11 @@
                     levelSelect.appendChild(opt);
                 });
             }
+            syncEmployeeMonthlySalary(groupSelect, levelSelect);
         });
 
-        // Experience Level → auto-fill Employee's Monthly Salary
         levelSelect.addEventListener('change', function() {
-            const group = groupSelect.value;
-            const level = parseInt(this.value, 10);
-            if (!group || !level || !PAYSCALE_DATA[group]) return;
-
-            const match = PAYSCALE_DATA[group].find(i => i.experience_level === level);
-            if (match) {
-                const salaryField = document.getElementById('id_monthly_salary');
-                if (salaryField) {
-                    salaryField.value = match.monthly_salary;
-                }
-            }
+            syncEmployeeMonthlySalary(groupSelect, levelSelect);
         });
     }
 
@@ -113,10 +121,11 @@
                 // Restore previously selected level (important for edit mode)
                 if (originalLevel) {
                     levelSelect.value = originalLevel;
-                    // Trigger salary autofill
-                    levelSelect.dispatchEvent(new Event('change'));
                 }
+                syncEmployeeMonthlySalary(groupSelect, levelSelect);
             }
+        } else {
+            syncEmployeeMonthlySalary(groupSelect, levelSelect);
         }
     });
 

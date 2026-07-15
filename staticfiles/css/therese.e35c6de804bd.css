@@ -1142,26 +1142,6 @@ a.btn-secondary:hover {
     margin-bottom: 2rem;
 }
 
-.recruitment-payscale-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    align-items: end;
-}
-
-.recruitment-payscale-field label {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-weight: 500;
-    color: #374151;
-}
-
-.recruitment-payscale-field .form-control,
-.recruitment-payscale-field select {
-    width: 100%;
-}
-
 .document-editor-section {
     margin-bottom: 2rem;
 }
@@ -1479,10 +1459,6 @@ input.form-control:focus {
     .psp-two-col {
         grid-template-columns: 1fr;
     }
-
-    .recruitment-payscale-row {
-        grid-template-columns: 1fr;
-    }
 }
 
 .form-field {
@@ -1615,78 +1591,3 @@ input[type="month"].form-control {
 
 .checklist-html-content { margin-bottom: 0.75rem; }
 .checklist-html-content p:last-child { margin-bottom: 0; }
-
-/* Checklist forms */
-.checklist-preview-banner {
-    border-left: 4px solid #c9a227;
-    background: #fffbea;
-}
-
-.checklist-section.card {
-    padding: 1.25rem 1.4rem;
-    margin-bottom: 1.25rem;
-}
-
-.checklist-section-title {
-    font-size: 1rem;
-    margin: 0 0 1rem;
-    color: #374151;
-    border-bottom: 1px solid #f3f4f6;
-    padding-bottom: 0.5rem;
-}
-
-.checklist-section .aligned-field {
-    display: block;
-    margin-bottom: 1rem;
-}
-
-.checklist-section .aligned-field label,
-.checklist-section .checklist-radio-group legend {
-    display: block;
-    width: auto;
-    text-align: left;
-    padding-right: 0;
-    margin-bottom: 0.35rem;
-    font-weight: 500;
-    color: #374151;
-}
-
-.checklist-section .form-control,
-.checklist-section select,
-.checklist-section textarea {
-    width: 100%;
-}
-
-.checklist-html-title {
-    font-size: 0.95rem;
-    margin: 0 0 0.5rem;
-    color: #374151;
-}
-
-.checklist-html-block {
-    margin-bottom: 0.75rem;
-}
-
-.checklist-fill-form .form-actions {
-    margin-top: 0.5rem;
-}
-
-.checklist-radio-group {
-    border: none;
-    margin: 0;
-    padding: 0;
-}
-
-.checklist-radio-group legend {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.checklist-radio-option {
-    margin: 0.35rem 0;
-}
-
-.checklist-field + .checklist-field,
-.checklist-html-block + .aligned-field {
-    margin-top: 0.25rem;
-}

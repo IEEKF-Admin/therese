@@ -23,19 +23,22 @@ def create_project_snapshot():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
     output_file = f"{timestamp}-{project_name}.txt"
 
-    relevant_extensions = {'.py', '.html', '.js', '.css', '.txt', '.md', '.env', '.json', '.yaml', '.yml'}
+    relevant_extensions = {'.py', '.html', '.js', '.css', '.txt', '.md', '.json'}
 
     ignore_dirs = {
         'venv', '.git', '__pycache__', 'migrations', 'media', 'staticfiles',
         'node_modules', '.vscode', '.idea', 'static', 'logs', 'backup',
-        'temp', 'cache', 'env', 'ENV', 'dist', 'build'
+        'temp', 'cache', 'env', 'ENV', 'dist', 'build', 'certs',
     }
 
     ignore_files = {
-        '.DS_Store', 'db.sqlite3', '*.pyc', '*.pyo', '*.log', '*.sqlite3',
-        'snapshot.py', '*therese.txt', '*.png', '*.jpg', '*.jpeg', '*.gif',
+        '.DS_Store', 'db.sqlite3', '.env', 'DEMO_ANLEITUNG.txt',
+        '*.pyc', '*.pyo', '*.log', '*.sqlite3',
+        'snapshot.py', 'snapshot_linux.py', '*therese.txt',
+        'EmployeeForm_*.txt', 'employee_form_init_*.txt',
+        '*.png', '*.jpg', '*.jpeg', '*.gif',
         '*.min.js', '*.min.css', '*.woff', '*.woff2', '*.ttf', '*.eot',
-        'Thumbs.db', '*.bak', '*.tmp'
+        'Thumbs.db', '*.bak', '*.tmp', '*.pem', '*.key',
     }
 
     collected_files = []
@@ -58,6 +61,8 @@ def create_project_snapshot():
             dirs[:] = [d for d in dirs if d not in ignore_dirs]
 
             for file in files:
+                if file.startswith('.env') or file.endswith('.env'):
+                    continue
                 if any(file.endswith(ext) for ext in relevant_extensions):
                     if any(file == ign or (ign.startswith('*') and file.endswith(ign[1:])) for ign in ignore_files):
                         continue

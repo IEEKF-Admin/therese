@@ -37,24 +37,23 @@ def create_project_snapshot():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
     output_file = f"{timestamp}-{project_name}.txt"
 
-    relevant_extensions = {'.py', '.html', '.txt', '.md', '.env', '.json', '.yaml', '.yml', '.css', '.js'}
-
-    # === OPTIMIERTE IGNORE-LISTE (stark reduziert) ===
-    relevant_extensions = {'.py', '.html', '.js', '.css', '.txt', '.md', '.env', '.json'}
+    relevant_extensions = {'.py', '.html', '.js', '.css', '.txt', '.md', '.json'}
 
     ignore_dirs = {
-        'venv', '.git', '__pycache__', 'migrations', 'media', 'staticfiles', 
-        'node_modules', '.vscode', '.idea', 'static', 'logs', 'backup', 
-        'temp', 'cache', 'env', 'ENV'
+        'venv', '.git', '__pycache__', 'migrations', 'media', 'staticfiles',
+        'node_modules', '.vscode', '.idea', 'static', 'logs', 'backup',
+        'temp', 'cache', 'env', 'ENV', 'certs',
     }
-    
+
     ignore_files = {
-        '.DS_Store', 'db.sqlite3', '*.pyc', '*.pyo', '*.log', '*.sqlite3', 
-        'snapshot.py', 
-        '*therese.txt',           # Ignoriert alle Snapshot-Dateien!
+        '.DS_Store', 'db.sqlite3', '.env', 'DEMO_ANLEITUNG.txt',
+        '*.pyc', '*.pyo', '*.log', '*.sqlite3',
+        'snapshot.py', 'snapshot_linux.py',
+        '*therese.txt',
+        'EmployeeForm_*.txt', 'employee_form_init_*.txt',
         '*.png', '*.jpg', '*.jpeg', '*.gif', '*.ico',
         '*.min.js', '*.min.css', '*.woff', '*.woff2', '*.ttf', '*.eot',
-        'Thumbs.db', '*.bak', '*.tmp'
+        'Thumbs.db', '*.bak', '*.tmp', '*.pem', '*.key',
     }
 
     collected_files = []
@@ -79,8 +78,12 @@ def create_project_snapshot():
             dirs[:] = [d for d in dirs if d not in ignore_dirs]
 
             for file in files:
+                if file.startswith('.env') or file.endswith('.env'):
+                    continue
                 if any(file.endswith(ext) for ext in relevant_extensions):
-                    if file in ignore_files or any(file.startswith(p.replace('*', '')) for p in ignore_files if '*' in p):
+                    if file in ignore_files:
+                        continue
+                    if any(file.startswith(p.replace('*', '')) for p in ignore_files if '*' in p):
                         continue
 
                     file_path = os.path.join(root, file)

@@ -6,6 +6,11 @@ __pycache__/
 
 # Logs - niemals committen!
 logs/
+logs/**
+EmployeeForm_*.txt
+employee_form_init_*.txt
+import_*_20*.txt
+populate_*_20*.txt
 *.log
 
 # Virtuelle Umgebung
@@ -60,8 +65,10 @@ db.sqlite3.bak*
 
 # Generierte Laufzeit-Dateien (nicht versionieren)
 current_*.txt
-* snapshot*.txt
+*snapshot*.txt
+*-*-therese.txt
 2026-*.txt
+DEMO_ANLEITUNG.txt
 FETCH_HEAD
 
 

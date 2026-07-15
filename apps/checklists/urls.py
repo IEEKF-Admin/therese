@@ -12,6 +12,7 @@ urlpatterns = [
     path('manage/templates/<int:pk>/edit/', views.manage_template_edit, name='manage_template_edit'),
     path('manage/templates/<int:pk>/', views.manage_template_detail, name='manage_template_detail'),
     path('manage/templates/<int:pk>/versions/<int:vid>/edit/', views.manage_version_edit, name='manage_version_edit'),
+    path('manage/templates/<int:pk>/versions/<int:vid>/preview/', views.manage_version_preview, name='manage_version_preview'),
     path('manage/templates/<int:pk>/versions/<int:vid>/nodes/<int:node_pk>/edit/', views.manage_node_edit, name='manage_node_edit'),
     path('manage/templates/<int:pk>/versions/<int:vid>/nodes/<int:node_pk>/delete/', views.manage_node_delete, name='manage_node_delete'),
     path('manage/assign/', views.manage_assign, name='manage_assign'),

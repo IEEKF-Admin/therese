@@ -144,6 +144,16 @@ def _get_draft_version(template, version_pk):
     return version
 
 
+def _preview_progress(version):
+    total = version.nodes.filter(
+        node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+        required_for_completion=True,
+    ).count()
+    if total == 0:
+        return 100, 0, 0
+    return 0, 0, total
+
+
 def _node_indent_label(node):
     prefix = '— ' * (1 if node.parent_id else 0)
     if node.parent and node.parent.parent_id:
@@ -259,6 +269,29 @@ def manage_version_edit(request, pk, vid):
         'nodes': nodes,
         'version_form': version_form,
         'node_form': node_form,
+    })
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_version_preview(request, pk, vid):
+    template = get_object_or_404(ChecklistTemplate, pk=pk)
+    version = _get_draft_version(template, vid)
+    nodes = list(
+        version.nodes.prefetch_related('editable_by_employees', 'children').order_by('sort_order', 'pk')
+    )
+    tree = build_node_tree(nodes)
+    percent, fulfilled, total = _preview_progress(version)
+    return render(request, 'checklists/manage/version_preview.html', {
+        'template': template,
+        'version': version,
+        'tree': tree,
+        'responses': {},
+        'can_edit': True,
+        'preview_mode': True,
+        'progress_percent': percent,
+        'progress_fulfilled': fulfilled,
+        'progress_total': total,
     })
 
 

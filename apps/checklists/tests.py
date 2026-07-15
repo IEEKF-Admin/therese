@@ -270,3 +270,34 @@ class ChecklistHtmlNodeTests(TestCase):
         self.assertEqual(percent, 0)
         self.assertNotEqual(field.node_kind, ChecklistTemplateNode.NodeKind.HTML)
 
+class ChecklistPreviewTests(TestCase):
+    def setUp(self):
+        self.manager = _user('mgr-prev')
+        group, _ = Group.objects.get_or_create(name='Checklists - Manage')
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename='manage_checklist', content_type=ct)
+        group.permissions.add(perm)
+        self.manager.groups.add(group)
+        self.client.login(username='mgr-prev', password='test')
+        self.template = ChecklistTemplate.objects.create(slug='preview-test', name_en='Preview Test', name_de='Vorschau Test')
+        self.draft = ChecklistTemplateVersion.objects.create(template=self.template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT, created_by=self.manager)
+        self.section = ChecklistTemplateNode.objects.create(version=self.draft, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='Steps', sort_order=0)
+        ChecklistTemplateNode.objects.create(version=self.draft, parent=self.section, node_kind=ChecklistTemplateNode.NodeKind.FIELD, field_type=ChecklistTemplateNode.FieldType.CHECKBOX, label_en='Acknowledge', required_for_completion=True, sort_order=1)
+
+    def test_preview_requires_draft(self):
+        published = ChecklistTemplateVersion.objects.create(template=self.template, version_number=2, status=ChecklistTemplateVersion.Status.PUBLISHED)
+        url = reverse('checklists:manage_version_preview', args=[self.template.pk, published.pk])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_preview_renders_checklist_layout(self):
+        url = reverse('checklists:manage_version_preview', args=[self.template.pk, self.draft.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Preview')
+        self.assertContains(response, 'Acknowledge')
+        self.assertContains(response, 'disabled')
+
+    def test_preview_button_on_version_edit(self):
+        url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])
+        self.assertContains(self.client.get(url), 'Preview')
+

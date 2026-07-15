@@ -9,7 +9,7 @@
         <small class="field-hint-de">{{ template.name_de }}</small>
     </h1>
     <div class="page-header-actions">
-        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
+        <a href="{% url 'checklists:manage_version_preview' template.pk version.pk %}" class="btn-secondary" target="_blank" rel="noopener">Preview</a>`n        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
     </div>
 </div>
 

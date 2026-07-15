@@ -4,7 +4,7 @@
     {% if node.node_kind == 'section' %}
     <div class="page-section checklist-section" style="margin-bottom:1.25rem;">
         <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
-        {% include "checklists/partials/node_tree.html" with tree=children responses=responses can_edit=can_edit instance=instance %}
+        {% include "checklists/partials/node_tree.html" with tree=children responses=responses can_edit=can_edit instance=instance preview_mode=preview_mode %}
     </div>
     {% elif node.node_kind == 'html' %}
     <div class="checklist-html-block" style="margin-bottom:1rem; padding-left:0.5rem;">
@@ -30,7 +30,7 @@
             <label style="display:block; margin:0.25rem 0;">
                 {% if can_edit %}
                 <input type="radio" name="field_{{ node.pk }}" value="{{ opt.choice_key }}"
-                    {% if responses|get_response_choice:node.pk == opt.choice_key %}checked{% endif %}>
+                    {% if responses|get_response_choice:node.pk == opt.choice_key %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
                 {% elif responses|get_response_choice:node.pk == opt.choice_key %}●
                 {% endif %}
                 {{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>
@@ -48,28 +48,28 @@
 
         {% if node.field_type == 'checkbox' %}
             {% if can_edit %}
-            <label><input type="checkbox" name="field_{{ node.pk }}" {% if responses|get_response_bool:node.pk %}checked{% endif %}> Done / Erledigt</label>
+            <label><input type="checkbox" name="field_{{ node.pk }}" {% if responses|get_response_bool:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}> Done / Erledigt</label>
             {% else %}
             <span>{% if responses|get_response_bool:node.pk %}✓{% else %}—{% endif %}</span>
             {% endif %}
         {% elif node.field_type == 'textarea' %}
             {% if can_edit %}
-            <textarea name="field_{{ node.pk }}" class="form-control" rows="3">{{ responses|get_response_text:node.pk }}</textarea>
+            <textarea name="field_{{ node.pk }}" class="form-control" rows="3"{% if preview_mode %} disabled{% endif %}>{{ responses|get_response_text:node.pk }}</textarea>
             {% else %}
             <p>{{ responses|get_response_text:node.pk|default:"—" }}</p>
             {% endif %}
         {% elif node.field_type == 'file' %}
             {% with file_resp=responses|get_response_obj:node.pk %}
-            {% if file_resp and file_resp.file %}
+            {% if file_resp and file_resp.file and instance %}
             <p><a href="{% url 'checklists:instance_file_download' instance.pk file_resp.pk %}">{{ file_resp.original_filename|default:"Download" }}</a></p>
             {% endif %}
             {% endwith %}
             {% if can_edit %}
-            <input type="file" name="field_{{ node.pk }}_file" class="form-control">
+            <input type="file" name="field_{{ node.pk }}_file" class="form-control"{% if preview_mode %} disabled{% endif %}>
             {% endif %}
         {% else %}
             {% if can_edit %}
-            <input type="text" name="field_{{ node.pk }}" class="form-control" value="{{ responses|get_response_text:node.pk }}">
+            <input type="text" name="field_{{ node.pk }}" class="form-control" value="{{ responses|get_response_text:node.pk }}"{% if preview_mode %} disabled{% endif %}>
             {% else %}
             <p>{{ responses|get_response_text:node.pk|default:"—" }}</p>
             {% endif %}
@@ -78,7 +78,7 @@
         {% if node.allow_not_applicable %}
             {% if can_edit %}
             <label style="display:block;margin-top:0.35rem;">
-                <input type="checkbox" name="field_{{ node.pk }}_na" value="1" {% if responses|get_response_na:node.pk %}checked{% endif %}>
+                <input type="checkbox" name="field_{{ node.pk }}_na" value="1" {% if responses|get_response_na:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
                 N/A — Not applicable / Nicht zutreffend
             </label>
             {% elif responses|get_response_na:node.pk %}<em>N/A</em>{% endif %}

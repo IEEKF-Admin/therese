@@ -31,6 +31,7 @@
             <td>
                 {% if v.status == 'draft' %}
                 <a href="{% url 'checklists:manage_version_edit' template.pk v.pk %}" class="btn-primary btn-sm">Edit nodes</a>
+                <a href="{% url 'checklists:manage_version_preview' template.pk v.pk %}" class="btn-secondary btn-sm" target="_blank" rel="noopener">Preview</a>
                 <form method="post" style="display:inline;">{% csrf_token %}
                     <input type="hidden" name="version_id" value="{{ v.pk }}">
                     <input type="hidden" name="action" value="publish">

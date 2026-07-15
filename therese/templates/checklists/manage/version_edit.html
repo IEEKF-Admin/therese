@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static widget_tweaks %}
 
 {% block title %}{{ template.name_en }} {{ version.version_label }} — Edit - THERESE{% endblock %}
 
@@ -9,69 +9,79 @@
         <small class="field-hint-de">{{ template.name_de }}</small>
     </h1>
     <div class="page-header-actions">
-        <a href="{% url 'checklists:manage_version_preview' template.pk version.pk %}" class="btn-secondary" target="_blank" rel="noopener">Preview</a>`n        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
+        <a href="{% url 'checklists:manage_version_preview' template.pk version.pk %}" class="btn-secondary" target="_blank" rel="noopener">Preview</a>
+        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
     </div>
 </div>
 
-<div class="page-section list-panel" style="margin-bottom:1.5rem;">
-    <h2>Version settings</h2>
-    <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_version">
-        <div class="form-group">
-            <label for="{{ version_form.completion_mode.id_for_label }}">Completion mode</label>
-            {{ version_form.completion_mode }}
+<div class="two-col-layout">
+    <div class="left-col">
+        <div class="form-section">
+            <h3>Version settings</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_version">
+                <div class="aligned-field">
+                    <label for="{{ version_form.completion_mode.id_for_label }}">Completion mode</label>
+                    {{ version_form.completion_mode }}
+                    {{ version_form.completion_mode.errors }}
+                </div>
+                <div class="aligned-field">
+                    <label for="{{ version_form.anchor_node.id_for_label }}">Anchor field</label>
+                    {{ version_form.anchor_node }}
+                    {{ version_form.anchor_node.errors }}
+                </div>
+                {{ version_form.non_field_errors }}
+                <div class="form-actions">
+                    <button type="submit" class="btn-secondary">Save settings</button>
+                </div>
+            </form>
         </div>
-        <div class="form-group">
-            <label for="{{ version_form.anchor_node.id_for_label }}">Anchor field</label>
-            {{ version_form.anchor_node }}
+    </div>
+    <div class="right-col">
+        <div class="form-section list-panel">
+            <h3>Nodes</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Kind</th>
+                        <th>Label EN / DE</th>
+                        <th>Parent</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for node in nodes %}
+                    <tr>
+                        <td>{{ node.sort_order }}</td>
+                        <td>{{ node.get_node_kind_display }}{% if node.field_type %} ({{ node.get_field_type_display }}){% endif %}</td>
+                        <td>{{ node.label_en }}{% if node.label_de %} <small class="field-hint-de">{{ node.label_de }}</small>{% endif %}{% if node.choice_key %} <code>{{ node.choice_key }}</code>{% endif %}</td>
+                        <td>{% if node.parent %}{{ node.parent.label_en|default:node.parent.choice_key }}{% else %}—{% endif %}</td>
+                        <td>
+                            <a href="{% url 'checklists:manage_node_edit' template.pk version.pk node.pk %}">Edit</a>
+                            <form method="post" action="{% url 'checklists:manage_node_delete' template.pk version.pk node.pk %}" style="display:inline;" onsubmit="return confirm('Delete this node and its children?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-link text-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">No nodes yet. Add a section below.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% for error in version_form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
-        <button type="submit" class="btn-secondary">Save settings</button>
-    </form>
+    </div>
 </div>
 
-<div class="page-section" style="margin-bottom:1.5rem;">
-    <h2>Nodes</h2>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Order</th>
-                <th>Kind</th>
-                <th>Label EN / DE</th>
-                <th>Parent</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for node in nodes %}
-            <tr>
-                <td>{{ node.sort_order }}</td>
-                <td>{{ node.get_node_kind_display }}{% if node.field_type %} ({{ node.get_field_type_display }}){% endif %}</td>
-                <td>{{ node.label_en }}{% if node.label_de %} <small class="field-hint-de">{{ node.label_de }}</small>{% endif %}{% if node.choice_key %} <code>{{ node.choice_key }}</code>{% endif %}</td>
-                <td>{% if node.parent %}{{ node.parent.label_en|default:node.parent.choice_key }}{% else %}—{% endif %}</td>
-                <td>
-                    <a href="{% url 'checklists:manage_node_edit' template.pk version.pk node.pk %}">Edit</a>
-                    <form method="post" action="{% url 'checklists:manage_node_delete' template.pk version.pk node.pk %}" style="display:inline;" onsubmit="return confirm('Delete this node and its children?');">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-link text-danger">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">No nodes yet. Add a section below.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<div class="page-section list-panel" data-checklist-node-form>
-    <h2>Add node</h2>
+<div class="form-section" data-checklist-node-form>
+    <h3>Add node</h3>
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_node">
-        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-            <div class="form-group">
+        <div class="psp-two-col">
+            <div class="aligned-field">
                 <label for="{{ node_form.node_kind.id_for_label }}">Node kind</label>
                 <select name="{{ node_form.node_kind.html_name }}" id="{{ node_form.node_kind.id_for_label }}" class="form-select" data-node-kind-select>
                     {% for value, label in node_form.node_kind.field.choices %}
@@ -79,44 +89,49 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group" data-node-field-group="field_type">
+            <div class="aligned-field" data-node-field-group="field_type">
                 <label for="{{ node_form.field_type.id_for_label }}">Field type</label>
                 {{ node_form.field_type }}
             </div>
-            <div class="form-group">
+            <div class="aligned-field">
                 <label for="{{ node_form.parent.id_for_label }}">Parent</label>
                 {{ node_form.parent }}
             </div>
-            <div class="form-group">
+            <div class="aligned-field">
                 <label for="{{ node_form.sort_order.id_for_label }}">Sort order</label>
                 {{ node_form.sort_order }}
             </div>
-            <div class="form-group" data-node-field-group="label">
+            <div class="aligned-field" data-node-field-group="label">
                 <label for="{{ node_form.label_en.id_for_label }}">Label (EN)</label>
                 {{ node_form.label_en }}
             </div>
-            <div class="form-group" data-node-field-group="label">
+            <div class="aligned-field" data-node-field-group="label">
                 <label for="{{ node_form.label_de.id_for_label }}">Label (DE)</label>
                 {{ node_form.label_de }}
             </div>
-            <div class="form-group" data-node-field-group="choice_key">
+            <div class="aligned-field" data-node-field-group="choice_key">
                 <label for="{{ node_form.choice_key.id_for_label }}">Choice key</label>
                 {{ node_form.choice_key }}
             </div>
         </div>
-        <div class="form-group" data-node-field-group="content">
+        <div class="aligned-field" data-node-field-group="content">
             <label for="{{ node_form.help_en.id_for_label }}">Content (EN)</label>
             {{ node_form.help_en }}
         </div>
-        <div class="form-group" data-node-field-group="content">
+        <div class="aligned-field" data-node-field-group="content">
             <label for="{{ node_form.help_de.id_for_label }}">Content (DE)</label>
             {{ node_form.help_de }}
         </div>
-        <div class="form-group" data-node-field-group="required">
-            <label>{{ node_form.required_for_completion }} Required for completion</label>
+        <div class="aligned-field" data-node-field-group="required">
+            <div class="form-check-row">
+                {{ node_form.required_for_completion }}
+                <label for="{{ node_form.required_for_completion.id_for_label }}">Required for completion</label>
+            </div>
         </div>
-        {% for error in node_form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
-        <button type="submit" class="btn-primary">Add node</button>
+        {{ node_form.non_field_errors }}
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Add node</button>
+        </div>
     </form>
 </div>
 {% endblock %}

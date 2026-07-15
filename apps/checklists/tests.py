@@ -249,6 +249,23 @@ class ChecklistHtmlNodeTests(TestCase):
         self.assertIn("Please read", node.help_en)
         self.assertEqual(node.field_type, "")
 
+    def test_instance_fill_uses_standard_layout(self):
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Confirm',
+            sort_order=1,
+        )
+        publish_version(self.version, self.manager)
+        instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+        self.client.login(username='subj-html', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'aligned-field')
+        self.assertContains(response, 'form-actions')
+
     def test_html_node_renders_in_instance_fill(self):
         ChecklistTemplateNode.objects.create(
             version=self.version,
@@ -341,6 +358,14 @@ class ChecklistPreviewTests(TestCase):
         self.assertContains(response, 'CHECKLIST_PARENT_CHOICES')
         self.assertContains(response, 'Pick one')
         self.assertContains(response, 'radio_option')
+
+
+    def test_manage_forms_use_standard_layout(self):
+        url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])
+        response = self.client.get(url)
+        self.assertContains(response, 'aligned-field')
+        self.assertContains(response, 'form-actions')
+        self.assertContains(response, 'form-section')
 
     def test_preview_button_on_version_edit(self):
         url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])

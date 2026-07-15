@@ -1,32 +1,36 @@
 {% extends "base.html" %}
 {% load checklist_tags %}
 
-{% block title %}Preview — {{ template.name_en }} {{ version.version_label }} - THERESE{% endblock %}
+{% block title %}Preview &mdash; {{ template.name_en }} {{ version.version_label }} - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
         <h1>{{ template.name_en }} <small class="field-hint-de">{{ template.name_de }}</small></h1>
-        <p class="page-subtitle">{{ version.version_label }} — Preview</p>
+        <p class="page-subtitle">{{ version.version_label }} &mdash; Preview</p>
     </div>
     <div class="page-header-actions">
-        <a href="{% url 'checklists:manage_version_edit' template.pk version.pk %}" class="btn-secondary">← Back to editor</a>
+        <a href="{% url 'checklists:manage_version_edit' template.pk version.pk %}" class="btn-secondary">&larr; Back to editor</a>
     </div>
 </div>
 
-<div class="list-panel" style="margin-bottom:1rem; border-left:4px solid #c9a227; background:#fffbea;">
-    <strong>Preview</strong> — This is how the checklist will look for employees. Changes here are not saved.
-    <span class="field-hint-de">Vorschau — So sieht die Checkliste für Mitarbeiter aus. Änderungen werden nicht gespeichert.</span>
+<div class="form-section checklist-preview-banner">
+    <strong>Preview</strong> &mdash; This is how the checklist will look for employees. Changes here are not saved.
+    <span class="field-hint-de">Vorschau &mdash; So sieht die Checkliste f&uuml;r Mitarbeiter aus. &Auml;nderungen werden nicht gespeichert.</span>
 </div>
 
 {% if template.description_en %}
 <p>{{ template.description_en }}<br><span class="field-hint-de">{{ template.description_de }}</span></p>
 {% endif %}
 
-<div class="list-panel" style="margin-bottom:1rem;">
+<div class="form-section">
     <strong>Progress:</strong> {{ progress_percent }}%
     ({{ progress_fulfilled }}/{{ progress_total }} required fields)
 </div>
 
-{% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit preview_mode=preview_mode %}
+<div class="card">
+    <div class="form-section">
+        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit preview_mode=preview_mode %}
+    </div>
+</div>
 {% endblock %}

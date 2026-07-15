@@ -2,45 +2,50 @@
 {% for item in tree %}
     {% with node=item.node children=item.children %}
     {% if node.node_kind == 'section' %}
-    <div class="page-section checklist-section" style="margin-bottom:1.25rem;">
+    <div class="form-section checklist-section">
         <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
         {% include "checklists/partials/node_tree.html" with tree=children responses=responses can_edit=can_edit instance=instance preview_mode=preview_mode %}
     </div>
     {% elif node.node_kind == 'html' %}
-    <div class="checklist-html-block" style="margin-bottom:1rem; padding-left:0.5rem;">
+    <div class="form-section checklist-html-block">
         {% if node.label_en %}
-        <h4 style="margin-bottom:0.5rem;">{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h4>
+        <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
         {% endif %}
         {% if node.help_en %}<div class="checklist-html-content">{{ node.help_en|safe }}</div>{% endif %}
         {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|safe }}</div>{% endif %}
     </div>
     {% elif node.node_kind == 'field' %}
-    {% with resp=responses|dictsort:node.pk %}{% endwith %}
-    <div class="form-group checklist-field" style="margin-bottom:1rem; padding-left:0.5rem;">
+    <div class="aligned-field checklist-field">
         {% if node.field_type == 'radio_group' %}
-        <fieldset>
+        <fieldset class="checklist-radio-group">
             <legend>
-                <strong>{{ node.label_en }}</strong>
+                {{ node.label_en }}
                 <small class="field-hint-de">{{ node.label_de }}</small>
                 {% if node.required_for_completion %}<span class="read-ack-badge">Required / Pflicht</span>{% endif %}
             </legend>
             {% if node.help_en %}<p class="field-hint">{{ node.help_en }}<br><span class="field-hint-de">{{ node.help_de }}</span></p>{% endif %}
             {% for opt_item in children %}
             {% with opt=opt_item.node %}
-            <label style="display:block; margin:0.25rem 0;">
+            <div class="form-check-row checklist-radio-option">
                 {% if can_edit %}
-                <input type="radio" name="field_{{ node.pk }}" value="{{ opt.choice_key }}"
+                <input type="radio" name="field_{{ node.pk }}" id="field_{{ node.pk }}_{{ opt.pk }}" value="{{ opt.choice_key }}"
                     {% if responses|get_response_choice:node.pk == opt.choice_key %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
-                {% elif responses|get_response_choice:node.pk == opt.choice_key %}●
+                <label for="field_{{ node.pk }}_{{ opt.pk }}">
+                    {% if opt.label_en %}{{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>{% else %}<span>{{ opt.choice_key }}</span>{% endif %}
+                </label>
+                {% else %}
+                <span class="checklist-radio-readonly">
+                    {% if responses|get_response_choice:node.pk == opt.choice_key %}&#9679;{% else %}&#9675;{% endif %}
+                    {% if opt.label_en %}{{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>{% else %}<span>{{ opt.choice_key }}</span>{% endif %}
+                </span>
                 {% endif %}
-                {% if opt.label_en %}{{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>{% else %}<span>{{ opt.choice_key }}</span>{% endif %}
-            </label>
+            </div>
             {% endwith %}
             {% endfor %}
         </fieldset>
         {% else %}
-        <label>
-            <strong>{{ node.label_en }}</strong>
+        <label for="field_{{ node.pk }}">
+            {{ node.label_en }}
             <small class="field-hint-de">{{ node.label_de }}</small>
             {% if node.required_for_completion %}<span class="read-ack-badge">Required / Pflicht</span>{% endif %}
         </label>
@@ -48,15 +53,18 @@
 
         {% if node.field_type == 'checkbox' %}
             {% if can_edit %}
-            <label><input type="checkbox" name="field_{{ node.pk }}" {% if responses|get_response_bool:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}> Done / Erledigt</label>
+            <div class="form-check-row">
+                <input type="checkbox" name="field_{{ node.pk }}" id="field_{{ node.pk }}" {% if responses|get_response_bool:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
+                <label for="field_{{ node.pk }}">Done / Erledigt</label>
+            </div>
             {% else %}
-            <span>{% if responses|get_response_bool:node.pk %}✓{% else %}—{% endif %}</span>
+            <p>{% if responses|get_response_bool:node.pk %}&#10003;{% else %}&mdash;{% endif %}</p>
             {% endif %}
         {% elif node.field_type == 'textarea' %}
             {% if can_edit %}
-            <textarea name="field_{{ node.pk }}" class="form-control" rows="3"{% if preview_mode %} disabled{% endif %}>{{ responses|get_response_text:node.pk }}</textarea>
+            <textarea name="field_{{ node.pk }}" id="field_{{ node.pk }}" class="form-control" rows="3"{% if preview_mode %} disabled{% endif %}>{{ responses|get_response_text:node.pk }}</textarea>
             {% else %}
-            <p>{{ responses|get_response_text:node.pk|default:"—" }}</p>
+            <p>{{ responses|get_response_text:node.pk|default:"&mdash;" }}</p>
             {% endif %}
         {% elif node.field_type == 'file' %}
             {% with file_resp=responses|get_response_obj:node.pk %}
@@ -65,23 +73,23 @@
             {% endif %}
             {% endwith %}
             {% if can_edit %}
-            <input type="file" name="field_{{ node.pk }}_file" class="form-control"{% if preview_mode %} disabled{% endif %}>
+            <input type="file" name="field_{{ node.pk }}_file" id="field_{{ node.pk }}_file" class="form-control"{% if preview_mode %} disabled{% endif %}>
             {% endif %}
         {% else %}
             {% if can_edit %}
-            <input type="text" name="field_{{ node.pk }}" class="form-control" value="{{ responses|get_response_text:node.pk }}"{% if preview_mode %} disabled{% endif %}>
+            <input type="text" name="field_{{ node.pk }}" id="field_{{ node.pk }}" class="form-control" value="{{ responses|get_response_text:node.pk }}"{% if preview_mode %} disabled{% endif %}>
             {% else %}
-            <p>{{ responses|get_response_text:node.pk|default:"—" }}</p>
+            <p>{{ responses|get_response_text:node.pk|default:"&mdash;" }}</p>
             {% endif %}
         {% endif %}
 
         {% if node.allow_not_applicable %}
             {% if can_edit %}
-            <label style="display:block;margin-top:0.35rem;">
-                <input type="checkbox" name="field_{{ node.pk }}_na" value="1" {% if responses|get_response_na:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
-                N/A — Not applicable / Nicht zutreffend
-            </label>
-            {% elif responses|get_response_na:node.pk %}<em>N/A</em>{% endif %}
+            <div class="form-check-row">
+                <input type="checkbox" name="field_{{ node.pk }}_na" id="field_{{ node.pk }}_na" value="1" {% if responses|get_response_na:node.pk %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
+                <label for="field_{{ node.pk }}_na">N/A &mdash; Not applicable / Nicht zutreffend</label>
+            </div>
+            {% elif responses|get_response_na:node.pk %}<p><em>N/A</em></p>{% endif %}
         {% endif %}
         {% endif %}
     </div>

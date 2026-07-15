@@ -8,18 +8,18 @@
     <div>
         <h1>{{ template.name_en }} <small class="field-hint-de">{{ template.name_de }}</small></h1>
         <p class="page-subtitle">
-            {{ version.version_label }} — {{ instance.subject.get_full_name }}
-            — {{ instance.get_status_display }}
+            {{ version.version_label }} &mdash; {{ instance.subject.get_full_name }}
+            &mdash; {{ instance.get_status_display }}
         </p>
     </div>
     <div class="page-header-actions">
         {% if not can_edit %}
-        <a href="{% url 'checklists:my_list' %}" class="btn-secondary">← Back / Zurück</a>
+        <a href="{% url 'checklists:my_list' %}" class="btn-secondary">&larr; Back</a>
         {% endif %}
         {% if can_complete %}
         <form method="post" action="{% url 'checklists:instance_complete' instance.pk %}" style="display:inline;">
             {% csrf_token %}
-            <button type="submit" class="btn-primary">Mark complete / Als abgeschlossen markieren</button>
+            <button type="submit" class="btn-primary">Mark complete</button>
         </form>
         {% endif %}
     </div>
@@ -29,20 +29,24 @@
 <p>{{ template.description_en }}<br><span class="field-hint-de">{{ template.description_de }}</span></p>
 {% endif %}
 
-<div class="list-panel" style="margin-bottom:1rem;">
-    <strong>Progress / Fortschritt:</strong> {{ progress_percent }}%
-    ({{ progress_fulfilled }}/{{ progress_total }} required fields / Pflichtfelder)
+<div class="form-section">
+    <strong>Progress:</strong> {{ progress_percent }}%
+    ({{ progress_fulfilled }}/{{ progress_total }} required fields)
 </div>
 
-{% if can_edit %}
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-{% endif %}
-
-{% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
-
-{% if can_edit %}
-    <button type="submit" class="btn-primary" style="margin-top:1rem;">Save / Speichern</button>
-</form>
-{% endif %}
+<div class="card">
+    {% if can_edit %}
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save</button>
+        </div>
+    </form>
+    {% else %}
+    <div class="form-section">
+        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

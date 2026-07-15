@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Assign Checklists / Checklisten zuweisen - THERESE{% endblock %}
+{% block title %}Assign Checklists - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -10,25 +10,33 @@
     </div>
 </div>
 
-<form method="post" class="list-panel">
-    {% csrf_token %}
-    <div class="form-group">
-        <label>Published version / Veröffentlichte Version</label>
-        <select name="template_version" class="form-select" required>
-            <option value="">— Select / Auswählen —</option>
-            {% for v in published_versions %}
-            <option value="{{ v.pk }}">{{ v.template.name_en }} ({{ v.version_label }})</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Employees / Mitarbeiter (multi-select)</label>
-        <select name="employees" class="form-select" multiple size="12" required>
-            {% for e in employees %}
-            <option value="{{ e.pk }}">{{ e.get_full_name }} ({{ e.employee_number }})</option>
-            {% endfor %}
-        </select>
-    </div>
-    <button type="submit" class="btn-primary">Assign / Zuweisen</button>
-</form>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-section">
+            <h3>Assignment</h3>
+            <div class="aligned-field">
+                <label for="template_version">Published version</label>
+                <select name="template_version" id="template_version" class="form-select" required>
+                    <option value="">— Select —</option>
+                    {% for v in published_versions %}
+                    <option value="{{ v.pk }}">{{ v.template.name_en }} ({{ v.version_label }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="aligned-field">
+                <label for="employees">Employees</label>
+                <select name="employees" id="employees" class="form-select" multiple size="12" required>
+                    {% for e in employees %}
+                    <option value="{{ e.pk }}">{{ e.get_full_name }} ({{ e.employee_number }})</option>
+                    {% endfor %}
+                </select>
+                <small class="field-hint-de">Mehrfachauswahl mit Strg/Cmd.</small>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Assign</button>
+        </div>
+    </form>
+</div>
 {% endblock %}

@@ -1,0 +1,6 @@
+{% load widget_tweaks %}
+<div class="aligned-field"{% if field_group %} data-node-field-group="{{ field_group }}"{% endif %}>
+    <label for="{{ field.id_for_label }}">{% if label %}{{ label }}{% else %}{{ field.label }}{% endif %}</label>
+    {% if widget_class %}{{ field|add_class:widget_class }}{% else %}{{ field }}{% endif %}
+    {{ field.errors }}
+</div>

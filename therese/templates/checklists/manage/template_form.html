@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load widget_tweaks %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
@@ -14,19 +15,24 @@
     </div>
 </div>
 
-<form method="post" class="list-panel">
-    {% csrf_token %}
-    {% for field in form %}
-    <div class="form-group">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        {% if field.help_text %}<p class="field-hint">{{ field.help_text }}</p>{% endif %}
-        {% for error in field.errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
-    </div>
-    {% endfor %}
-    {% if form.non_field_errors %}
-    {% for error in form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
-    {% endif %}
-    <button type="submit" class="btn-primary">{{ submit_label }}</button>
-</form>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-section">
+            <h3>Template details</h3>
+            {% for field in form %}
+            <div class="aligned-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field|add_class:"form-control" }}
+                {% if field.help_text %}<small class="field-hint-de">{{ field.help_text }}</small>{% endif %}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+            {{ form.non_field_errors }}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">{{ submit_label }}</button>
+        </div>
+    </form>
+</div>
 {% endblock %}

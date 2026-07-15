@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static widget_tweaks %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
@@ -11,106 +11,119 @@
     </div>
 </div>
 
-<div class="list-panel" data-checklist-node-form>
-<form method="post">
-    {% csrf_token %}
-
-    <div class="form-group">
-        <label for="{{ form.node_kind.id_for_label }}">Node kind</label>
-        <select name="{{ form.node_kind.html_name }}" id="{{ form.node_kind.id_for_label }}" class="form-select" data-node-kind-select>
-            {% for value, label in form.node_kind.field.choices %}
-            <option value="{{ value }}"{% if form.node_kind.value == value %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div class="form-group" data-node-field-group="field_type">
-        <label for="{{ form.field_type.id_for_label }}">Field type</label>
-        {{ form.field_type }}
-    </div>
-
-    <div class="form-group">
-        <label for="{{ form.parent.id_for_label }}">Parent</label>
-        {{ form.parent }}
-    </div>
-    <div class="form-group">
-        <label for="{{ form.sort_order.id_for_label }}">Sort order</label>
-        {{ form.sort_order }}
-    </div>
-
-    <div class="form-group" data-node-field-group="label">
-        <label for="{{ form.label_en.id_for_label }}">Label (EN)</label>
-        {{ form.label_en }}
-    </div>
-    <div class="form-group" data-node-field-group="label">
-        <label for="{{ form.label_de.id_for_label }}">Label (DE)</label>
-        {{ form.label_de }}
-    </div>
-
-    <div class="form-group" data-node-field-group="choice_key">
-        <label for="{{ form.choice_key.id_for_label }}">Choice key</label>
-        {{ form.choice_key }}
-    </div>
-
-    {% if node.node_kind == 'html' %}
-    <div class="form-group">
-        <label for="{{ form.help_en.id_for_label }}">Content (EN)</label>
-        {{ form.help_en }}
-    </div>
-    <div class="form-group">
-        <label for="{{ form.help_de.id_for_label }}">Content (DE)</label>
-        {{ form.help_de }}
-    </div>
-    {% elif node.node_kind == 'field' %}
-    <div class="form-group" data-node-field-group="field_help">
-        <label for="{{ form.help_en.id_for_label }}">Help (EN)</label>
-        {{ form.help_en }}
-    </div>
-    <div class="form-group" data-node-field-group="field_help">
-        <label for="{{ form.help_de.id_for_label }}">Help (DE)</label>
-        {{ form.help_de }}
-    </div>
-    {% endif %}
-
-    <div class="form-group" data-node-field-group="required">
-        <label>{{ form.required_for_completion }} Required for completion</label>
-    </div>
-    <div class="form-group" data-node-field-group="field_advanced">
-        <label>{{ form.allow_not_applicable }} Allow N/A</label>
-    </div>
-    <div class="form-group" data-node-field-group="field_advanced">
-        <label>{{ form.editable_by_subject }} Editable by subject</label>
-    </div>
-    <div class="form-group" data-node-field-group="field_advanced">
-        <label>{{ form.editable_by_coordinators }} Editable by coordinators</label>
-    </div>
-    <div class="form-group" data-node-field-group="field_advanced">
-        <label for="{{ form.editable_by_employees.id_for_label }}">Editable by employees</label>
-        {{ form.editable_by_employees }}
-    </div>
-    <div class="form-group" data-node-field-group="visible_subject">
-        <label>{{ form.visible_to_subject }} Visible to subject</label>
-    </div>
-    <div class="form-group" data-node-field-group="field_file">
-        <label for="{{ form.file_target.id_for_label }}">File target</label>
-        {{ form.file_target }}
-    </div>
-    <div class="form-group" data-node-field-group="field_file">
-        <label for="{{ form.employee_document_type.id_for_label }}">Employee document type</label>
-        {{ form.employee_document_type }}
-    </div>
-    <div class="form-group" data-node-field-group="field_file">
-        <label for="{{ form.storage_label_en.id_for_label }}">Storage label (EN)</label>
-        {{ form.storage_label_en }}
-    </div>
-    <div class="form-group" data-node-field-group="field_file">
-        <label for="{{ form.storage_label_de.id_for_label }}">Storage label (DE)</label>
-        {{ form.storage_label_de }}
-    </div>
-
-    {% for error in form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
-    <button type="submit" class="btn-primary">Save node</button>
-</form>
+<div class="card" data-checklist-node-form>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-section">
+            <h3>Node settings</h3>
+            <div class="aligned-field">
+                <label for="{{ form.node_kind.id_for_label }}">Node kind</label>
+                <select name="{{ form.node_kind.html_name }}" id="{{ form.node_kind.id_for_label }}" class="form-select" data-node-kind-select>
+                    {% for value, label in form.node_kind.field.choices %}
+                    <option value="{{ value }}"{% if form.node_kind.value == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_type">
+                <label for="{{ form.field_type.id_for_label }}">Field type</label>
+                {{ form.field_type }}
+            </div>
+            <div class="aligned-field">
+                <label for="{{ form.parent.id_for_label }}">Parent</label>
+                {{ form.parent }}
+            </div>
+            <div class="aligned-field">
+                <label for="{{ form.sort_order.id_for_label }}">Sort order</label>
+                {{ form.sort_order }}
+            </div>
+            <div class="aligned-field" data-node-field-group="label">
+                <label for="{{ form.label_en.id_for_label }}">Label (EN)</label>
+                {{ form.label_en }}
+            </div>
+            <div class="aligned-field" data-node-field-group="label">
+                <label for="{{ form.label_de.id_for_label }}">Label (DE)</label>
+                {{ form.label_de }}
+            </div>
+            <div class="aligned-field" data-node-field-group="choice_key">
+                <label for="{{ form.choice_key.id_for_label }}">Choice key</label>
+                {{ form.choice_key }}
+            </div>
+            {% if node.node_kind == 'html' %}
+            <div class="aligned-field">
+                <label for="{{ form.help_en.id_for_label }}">Content (EN)</label>
+                {{ form.help_en }}
+            </div>
+            <div class="aligned-field">
+                <label for="{{ form.help_de.id_for_label }}">Content (DE)</label>
+                {{ form.help_de }}
+            </div>
+            {% elif node.node_kind == 'field' %}
+            <div class="aligned-field" data-node-field-group="field_help">
+                <label for="{{ form.help_en.id_for_label }}">Help (EN)</label>
+                {{ form.help_en }}
+            </div>
+            <div class="aligned-field" data-node-field-group="field_help">
+                <label for="{{ form.help_de.id_for_label }}">Help (DE)</label>
+                {{ form.help_de }}
+            </div>
+            {% endif %}
+            <div class="aligned-field" data-node-field-group="required">
+                <div class="form-check-row">
+                    {{ form.required_for_completion }}
+                    <label for="{{ form.required_for_completion.id_for_label }}">Required for completion</label>
+                </div>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_advanced">
+                <div class="form-check-row">
+                    {{ form.allow_not_applicable }}
+                    <label for="{{ form.allow_not_applicable.id_for_label }}">Allow N/A</label>
+                </div>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_advanced">
+                <div class="form-check-row">
+                    {{ form.editable_by_subject }}
+                    <label for="{{ form.editable_by_subject.id_for_label }}">Editable by subject</label>
+                </div>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_advanced">
+                <div class="form-check-row">
+                    {{ form.editable_by_coordinators }}
+                    <label for="{{ form.editable_by_coordinators.id_for_label }}">Editable by coordinators</label>
+                </div>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_advanced">
+                <label for="{{ form.editable_by_employees.id_for_label }}">Editable by employees</label>
+                {{ form.editable_by_employees }}
+            </div>
+            <div class="aligned-field" data-node-field-group="visible_subject">
+                <div class="form-check-row">
+                    {{ form.visible_to_subject }}
+                    <label for="{{ form.visible_to_subject.id_for_label }}">Visible to subject</label>
+                </div>
+            </div>
+            <div class="aligned-field" data-node-field-group="field_file">
+                <label for="{{ form.file_target.id_for_label }}">File target</label>
+                {{ form.file_target }}
+            </div>
+            <div class="aligned-field" data-node-field-group="field_file">
+                <label for="{{ form.employee_document_type.id_for_label }}">Employee document type</label>
+                {{ form.employee_document_type }}
+            </div>
+            <div class="aligned-field" data-node-field-group="field_file">
+                <label for="{{ form.storage_label_en.id_for_label }}">Storage label (EN)</label>
+                {{ form.storage_label_en }}
+            </div>
+            <div class="aligned-field" data-node-field-group="field_file">
+                <label for="{{ form.storage_label_de.id_for_label }}">Storage label (DE)</label>
+                {{ form.storage_label_de }}
+            </div>
+            {{ form.non_field_errors }}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save node</button>
+            <a href="{% url 'checklists:manage_version_edit' template.pk version.pk %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
 {% endblock %}
 

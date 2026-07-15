@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name_en }} {{ version.version_label }} — Edit - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ template.name_en }} <small>{{ version.version_label }}</small>
+        <small class="field-hint-de">{{ template.name_de }}</small>
+    </h1>
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
+    </div>
+</div>
+
+<div class="page-section list-panel" style="margin-bottom:1.5rem;">
+    <h2>Version settings</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_version">
+        <div class="form-group">
+            <label for="{{ version_form.completion_mode.id_for_label }}">Completion mode</label>
+            {{ version_form.completion_mode }}
+        </div>
+        <div class="form-group">
+            <label for="{{ version_form.anchor_node.id_for_label }}">Anchor field</label>
+            {{ version_form.anchor_node }}
+        </div>
+        {% for error in version_form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+        <button type="submit" class="btn-secondary">Save settings</button>
+    </form>
+</div>
+
+<div class="page-section" style="margin-bottom:1.5rem;">
+    <h2>Nodes</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Kind</th>
+                <th>Label EN / DE</th>
+                <th>Parent</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for node in nodes %}
+            <tr>
+                <td>{{ node.sort_order }}</td>
+                <td>{{ node.get_node_kind_display }}{% if node.field_type %} ({{ node.get_field_type_display }}){% endif %}</td>
+                <td>{{ node.label_en }}{% if node.label_de %} <small class="field-hint-de">{{ node.label_de }}</small>{% endif %}{% if node.choice_key %} <code>{{ node.choice_key }}</code>{% endif %}</td>
+                <td>{% if node.parent %}{{ node.parent.label_en|default:node.parent.choice_key }}{% else %}—{% endif %}</td>
+                <td>
+                    <a href="{% url 'checklists:manage_node_edit' template.pk version.pk node.pk %}">Edit</a>
+                    <form method="post" action="{% url 'checklists:manage_node_delete' template.pk version.pk node.pk %}" style="display:inline;" onsubmit="return confirm('Delete this node and its children?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-link text-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No nodes yet. Add a section below.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="page-section list-panel">
+    <h2>Add node</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_node">
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div class="form-group">
+                <label>Node kind</label>
+                {{ node_form.node_kind }}
+            </div>
+            <div class="form-group">
+                <label>Field type</label>
+                {{ node_form.field_type }}
+            </div>
+            <div class="form-group">
+                <label>Parent</label>
+                {{ node_form.parent }}
+            </div>
+            <div class="form-group">
+                <label>Sort order</label>
+                {{ node_form.sort_order }}
+            </div>
+            <div class="form-group">
+                <label>Label (EN)</label>
+                {{ node_form.label_en }}
+            </div>
+            <div class="form-group">
+                <label>Label (DE)</label>
+                {{ node_form.label_de }}
+            </div>
+            <div class="form-group">
+                <label>Choice key</label>
+                {{ node_form.choice_key }}
+            </div>
+        </div>
+        <div class="form-group">
+            <label>{{ node_form.required_for_completion }} Required for completion</label>
+        </div>
+        {% for error in node_form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+        <button type="submit" class="btn-primary">Add node</button>
+    </form>
+</div>
+{% endblock %}

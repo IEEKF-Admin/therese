@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        {% if template %}
+        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
+        {% else %}
+        <a href="{% url 'checklists:manage_template_list' %}" class="btn-secondary">← Templates</a>
+        {% endif %}
+    </div>
+</div>
+
+<form method="post" class="list-panel">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="field-hint">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+    {% if form.non_field_errors %}
+    {% for error in form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+    {% endif %}
+    <button type="submit" class="btn-primary">{{ submit_label }}</button>
+</form>
+{% endblock %}

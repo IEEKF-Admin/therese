@@ -32,7 +32,7 @@
         <a href="{% url 'checklists:my_list' %}"
            class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
             <i class="fas fa-clipboard-check"></i>
-            <span>My Checklists / Meine Checklisten</span>
+            <span>My Checklists</span>
             {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklist assignments"></span>{% endif %}
         </a>
         {% endif %}
@@ -92,13 +92,13 @@
         {% if 'Checklists - Workgroup Progress' in user_groups %}
         <a href="{% url 'checklists:progress_workgroup' %}"
            class="{% if '/checklists/progress/workgroup' in request.path %}active{% endif %}">
-            <i class="fas fa-th"></i> Checklist Progress (WG) / Checklisten-Fortschritt (AG)
+            <i class="fas fa-th"></i> Workgroup Checklist Progress
         </a>
         {% endif %}
         {% if 'Checklists - Institute Progress' in user_groups %}
         <a href="{% url 'checklists:progress_institute' %}"
            class="{% if '/checklists/progress/institute' in request.path %}active{% endif %}">
-            <i class="fas fa-th-large"></i> Checklist Progress (Institute) / Checklisten-Fortschritt (Institut)
+            <i class="fas fa-th-large"></i> Institute Checklist Progress
         </a>
         {% endif %}
         {% endif %}
@@ -145,7 +145,7 @@
         {% if 'Checklists - Manage' in user_groups %}
         <a href="{% url 'checklists:manage_template_list' %}"
            class="{% if '/checklists/manage' in request.path %}active{% endif %}">
-            <i class="fas fa-clipboard-list"></i> Checklists / Checklisten
+            <i class="fas fa-clipboard-list"></i> Manage Checklists
         </a>
         {% endif %}
 

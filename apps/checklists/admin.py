@@ -11,6 +11,26 @@ from apps.checklists.models import (
 from therese.admin import therese_admin
 
 
+class ManageChecklistPermissionMixin:
+    def _can_manage(self, request):
+        return request.user.is_superuser or request.user.has_perm('checklists.manage_checklist')
+
+    def has_module_permission(self, request):
+        return self._can_manage(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._can_manage(request)
+
+    def has_add_permission(self, request):
+        return self._can_manage(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._can_manage(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
 class ChecklistTemplateNodeInline(admin.TabularInline):
     model = ChecklistTemplateNode
     extra = 0
@@ -30,7 +50,7 @@ class ChecklistTemplateVersionInline(admin.TabularInline):
 
 
 @admin.register(ChecklistTemplate, site=therese_admin)
-class ChecklistTemplateAdmin(admin.ModelAdmin):
+class ChecklistTemplateAdmin(ManageChecklistPermissionMixin, admin.ModelAdmin):
     list_display = ('slug', 'name_en', 'name_de')
     search_fields = ('slug', 'name_en', 'name_de')
     prepopulated_fields = {'slug': ('name_en',)}
@@ -38,14 +58,14 @@ class ChecklistTemplateAdmin(admin.ModelAdmin):
 
 
 @admin.register(ChecklistTemplateVersion, site=therese_admin)
-class ChecklistTemplateVersionAdmin(admin.ModelAdmin):
+class ChecklistTemplateVersionAdmin(ManageChecklistPermissionMixin, admin.ModelAdmin):
     list_display = ('template', 'version_number', 'status', 'completion_mode', 'published_at')
     list_filter = ('status', 'completion_mode')
     inlines = [ChecklistTemplateNodeInline]
 
 
 @admin.register(ChecklistInstance, site=therese_admin)
-class ChecklistInstanceAdmin(admin.ModelAdmin):
+class ChecklistInstanceAdmin(ManageChecklistPermissionMixin, admin.ModelAdmin):
     list_display = ('subject', 'template_version', 'status', 'assigned_at', 'completed_at')
     list_filter = ('status',)
     raw_id_fields = ('subject', 'template_version', 'assigned_by', 'completed_by')

@@ -6,6 +6,7 @@
 <div class="page-header">
     <h1>{{ template.name_en }} <small class="field-hint-de">{{ template.name_de }}</small></h1>
     <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_template_edit' template.pk %}" class="btn-secondary">Edit template</a>
         <a href="{% url 'checklists:manage_template_list' %}" class="btn-secondary">← Templates</a>
     </div>
 </div>
@@ -29,16 +30,17 @@
             <td>{% if v.published_at %}{{ v.published_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
             <td>
                 {% if v.status == 'draft' %}
+                <a href="{% url 'checklists:manage_version_edit' template.pk v.pk %}" class="btn-primary btn-sm">Edit nodes</a>
                 <form method="post" style="display:inline;">{% csrf_token %}
                     <input type="hidden" name="version_id" value="{{ v.pk }}">
                     <input type="hidden" name="action" value="publish">
-                    <button type="submit" class="btn-primary btn-sm">Publish / Veröffentlichen</button>
+                    <button type="submit" class="btn-secondary btn-sm">Publish</button>
                 </form>
                 {% endif %}
                 <form method="post" style="display:inline;">{% csrf_token %}
                     <input type="hidden" name="version_id" value="{{ v.pk }}">
                     <input type="hidden" name="action" value="new_version">
-                    <button type="submit" class="btn-secondary btn-sm">New version / Neue Version</button>
+                    <button type="submit" class="btn-secondary btn-sm">New version</button>
                 </form>
             </td>
         </tr>

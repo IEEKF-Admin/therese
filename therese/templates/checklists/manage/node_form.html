@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_version_edit' template.pk version.pk %}" class="btn-secondary">← Node editor</a>
+    </div>
+</div>
+
+<form method="post" class="list-panel">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.field.widget.input_type == 'checkbox' and field.name != 'parent' %}
+        <label>{{ field }} {{ field.label }}</label>
+        {% else %}
+        {{ field }}
+        {% endif %}
+        {% for error in field.errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+    {% for error in form.non_field_errors %}<p class="text-danger">{{ error }}</p>{% endfor %}
+    <button type="submit" class="btn-primary">Save node</button>
+</form>
+{% endblock %}

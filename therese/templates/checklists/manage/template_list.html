@@ -1,16 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Checklists / Checklisten verwalten - THERESE{% endblock %}
+{% block title %}Manage Checklists - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>Checklist Templates <small class="field-hint-de">Checklisten-Vorlagen</small></h1>
     <div class="page-header-actions">
-        <a href="{% url 'checklists:manage_assign' %}" class="btn-primary">Assign / Zuweisen</a>
+        <a href="{% url 'checklists:manage_template_create' %}" class="btn-primary">New Template</a>
+        <a href="{% url 'checklists:manage_assign' %}" class="btn-secondary">Assign</a>
     </div>
 </div>
-
-<p class="field-hint-de">Vorlagen und Versionen im Admin bearbeiten (Knoten-Inlines).</p>
 
 <table class="table">
     <thead>
@@ -27,10 +26,14 @@
             <td>{{ t.slug }}</td>
             <td>{{ t.name_en }} <small class="field-hint-de">{{ t.name_de }}</small></td>
             <td>{{ t.versions.count }}</td>
-            <td><a href="{% url 'checklists:manage_template_detail' t.pk %}">Versions / Versionen</a></td>
+            <td>
+                <a href="{% url 'checklists:manage_template_detail' t.pk %}">Versions</a>
+                ·
+                <a href="{% url 'checklists:manage_template_edit' t.pk %}">Edit</a>
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4">No templates yet. / Noch keine Vorlagen.</td></tr>
+        <tr><td colspan="4">No templates yet. <span class="field-hint-de">Noch keine Vorlagen.</span></td></tr>
         {% endfor %}
     </tbody>
 </table>

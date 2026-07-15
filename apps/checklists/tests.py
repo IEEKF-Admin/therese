@@ -124,3 +124,48 @@ class ChecklistViewTests(TestCase):
         self.client.login(username='viewer', password='test')
         response = self.client.get(reverse('checklists:manage_template_list'))
         self.assertEqual(response.status_code, 200)
+
+class ChecklistManageUITests(TestCase):
+    def setUp(self):
+        self.manager = _user('mgr-ui')
+        group, _ = Group.objects.get_or_create(name='Checklists - Manage')
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename='manage_checklist', content_type=ct)
+        group.permissions.add(perm)
+        self.manager.groups.add(group)
+        self.client.login(username='mgr-ui', password='test')
+
+    def test_manage_template_create(self):
+        url = reverse('checklists:manage_template_create')
+        response = self.client.post(url, {
+            'slug': 'welcome',
+            'name_en': 'Welcome',
+            'name_de': 'Willkommen',
+            'description_en': '',
+            'description_de': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        template = ChecklistTemplate.objects.get(slug='welcome')
+        version = template.versions.get(version_number=1)
+        self.assertEqual(version.status, ChecklistTemplateVersion.Status.DRAFT)
+        self.assertIn(f'/versions/{version.pk}/edit/', response.url)
+
+    def test_manage_version_edit_draft_only(self):
+        template = ChecklistTemplate.objects.create(slug='t1', name_en='T1', name_de='T1')
+        draft = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        published = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=2, status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+        ok = self.client.get(reverse('checklists:manage_version_edit', args=[template.pk, draft.pk]))
+        self.assertEqual(ok.status_code, 200)
+        blocked = self.client.get(reverse('checklists:manage_version_edit', args=[template.pk, published.pk]))
+        self.assertEqual(blocked.status_code, 404)
+
+    def test_manage_template_list_has_new_button(self):
+        response = self.client.get(reverse('checklists:manage_template_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'New Template')
+        self.assertNotContains(response, 'Admin bearbeiten')
+

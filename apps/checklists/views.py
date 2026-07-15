@@ -3,6 +3,12 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+
+from apps.checklists.forms import (
+    ChecklistTemplateForm,
+    ChecklistTemplateNodeForm,
+    ChecklistTemplateVersionForm,
+)
 from django.views.decorators.http import require_POST
 
 from apps.checklists.access import (
@@ -129,6 +135,24 @@ def manage_template_list(request):
     return render(request, 'checklists/manage/template_list.html', {'templates': templates})
 
 
+
+
+def _get_draft_version(template, version_pk):
+    version = get_object_or_404(template.versions, pk=version_pk)
+    if version.status != ChecklistTemplateVersion.Status.DRAFT:
+        raise Http404('Only draft versions can be edited.')
+    return version
+
+
+def _node_indent_label(node):
+    prefix = '— ' * (1 if node.parent_id else 0)
+    if node.parent and node.parent.parent_id:
+        prefix = '— ' * 2
+    kind = node.get_node_kind_display()
+    label = node.label_en or node.choice_key or kind
+    return f'{prefix}{kind}: {label}'
+
+
 @login_required
 @permission_required('checklists.manage_checklist', raise_exception=True)
 def manage_template_detail(request, pk):
@@ -156,6 +180,123 @@ def manage_template_detail(request, pk):
         'template': template,
         'versions': versions,
     })
+
+
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_template_create(request):
+    if request.method == 'POST':
+        form = ChecklistTemplateForm(request.POST)
+        if form.is_valid():
+            template = form.save()
+            version = ChecklistTemplateVersion.objects.create(
+                template=template,
+                version_number=1,
+                status=ChecklistTemplateVersion.Status.DRAFT,
+                created_by=request.user,
+            )
+            messages.success(request, f'Template "{template.name_en}" created with draft v1.')
+            return redirect('checklists:manage_version_edit', pk=template.pk, vid=version.pk)
+    else:
+        form = ChecklistTemplateForm()
+    return render(request, 'checklists/manage/template_form.html', {
+        'form': form,
+        'title': 'New Checklist Template',
+        'submit_label': 'Create template',
+    })
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_template_edit(request, pk):
+    template = get_object_or_404(ChecklistTemplate, pk=pk)
+    if request.method == 'POST':
+        form = ChecklistTemplateForm(request.POST, instance=template)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Template saved.')
+            return redirect('checklists:manage_template_detail', pk=pk)
+    else:
+        form = ChecklistTemplateForm(instance=template)
+    return render(request, 'checklists/manage/template_form.html', {
+        'form': form,
+        'template': template,
+        'title': f'Edit {template.name_en}',
+        'submit_label': 'Save template',
+    })
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_version_edit(request, pk, vid):
+    template = get_object_or_404(ChecklistTemplate, pk=pk)
+    version = _get_draft_version(template, vid)
+    nodes = list(version.nodes.select_related('parent').order_by('sort_order', 'pk'))
+
+    version_form = ChecklistTemplateVersionForm(instance=version, version=version)
+    node_form = ChecklistTemplateNodeForm(version=version)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'save_version':
+            version_form = ChecklistTemplateVersionForm(request.POST, instance=version, version=version)
+            if version_form.is_valid():
+                version_form.save()
+                messages.success(request, 'Version settings saved.')
+                return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
+        elif action == 'add_node':
+            node_form = ChecklistTemplateNodeForm(request.POST, version=version)
+            if node_form.is_valid():
+                node_form.save()
+                messages.success(request, 'Node added.')
+                return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
+
+    return render(request, 'checklists/manage/version_edit.html', {
+        'template': template,
+        'version': version,
+        'nodes': nodes,
+        'version_form': version_form,
+        'node_form': node_form,
+    })
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_node_edit(request, pk, vid, node_pk):
+    template = get_object_or_404(ChecklistTemplate, pk=pk)
+    version = _get_draft_version(template, vid)
+    node = get_object_or_404(version.nodes, pk=node_pk)
+
+    if request.method == 'POST':
+        form = ChecklistTemplateNodeForm(request.POST, instance=node, version=version)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Node saved.')
+            return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
+    else:
+        form = ChecklistTemplateNodeForm(instance=node, version=version)
+
+    return render(request, 'checklists/manage/node_form.html', {
+        'template': template,
+        'version': version,
+        'node': node,
+        'form': form,
+        'title': f'Edit node — {node.label_en or node.choice_key}',
+    })
+
+
+@login_required
+@require_POST
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_node_delete(request, pk, vid, node_pk):
+    template = get_object_or_404(ChecklistTemplate, pk=pk)
+    version = _get_draft_version(template, vid)
+    node = get_object_or_404(version.nodes, pk=node_pk)
+    node.delete()
+    messages.success(request, 'Node deleted.')
+    return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
 
 
 @login_required

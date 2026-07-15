@@ -38,12 +38,16 @@ terminals/
 # Umgebungsdateien & Secrets
 .env
 .env.*
+!.env.example
 *.env
+!*.env.example
 
 # Lokale Settings Dateien (nicht committen)
 local_settings.py
+therese/settings/local.py
 settings/local.py
-**/local*.py
+**/local.py
+!therese/settings/local.py.example
 **/*secret*.py
 **/*password*.py
 **/*credentials*.py

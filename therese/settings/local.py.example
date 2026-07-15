@@ -1,0 +1,25 @@
+"""
+Optional local Django settings — machine-specific overrides.
+
+Copy to local.py (same folder). local.py is gitignored and never overwritten by git pull.
+
+Used by:
+  - therese.settings        (development: loaded after base + dev)
+  - therese.settings.base   (production: loaded at end of base.py)
+
+Uncomment and adjust only what you need.
+"""
+
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_HOST = 'smtp.example.org'
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = ''
+# EMAIL_HOST_PASSWORD = ''
+# EMAIL_USE_TLS = True
+# DEFAULT_FROM_EMAIL = 'therese@example.org'
+
+# LOGGING = { ... }  # custom log paths, levels
+
+# INSTALLED_APPS += ['debug_toolbar']
+# MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+# INTERNAL_IPS = ['127.0.0.1']

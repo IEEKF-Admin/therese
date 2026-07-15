@@ -86,13 +86,23 @@ if ! "$PYTHON" -m pip install -r requirements.txt; then
 fi
 echo "[OK] Python-Pakete installiert"
 
-# --- .env ---
+# --- .env (Vorlage: .env.example — wird bei git pull nie überschrieben) ---
 if [ -f .env ]; then
     echo "[OK] .env vorhanden"
 else
-    echo "[..] Erstelle .env aus Vorlage ..."
+    echo "[..] Erstelle .env aus .env.example ..."
     "$PYTHON" create_env_template.py
     echo "[OK] .env erstellt — bitte bei Produktion SECRET_KEY und DB_* prüfen"
+fi
+
+# --- Optionale Django-Local-Settings (Vorlage: therese/settings/local.py.example) ---
+LOCAL_SETTINGS="therese/settings/local.py"
+LOCAL_EXAMPLE="therese/settings/local.py.example"
+if [ -f "$LOCAL_SETTINGS" ]; then
+    echo "[OK] $LOCAL_SETTINGS vorhanden"
+elif [ -f "$LOCAL_EXAMPLE" ]; then
+    echo "[..] Hinweis: Für maschinenspezifische Django-Settings optional:"
+    echo "       cp $LOCAL_EXAMPLE $LOCAL_SETTINGS"
 fi
 
 set -a

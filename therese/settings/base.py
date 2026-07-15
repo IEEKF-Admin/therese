@@ -193,3 +193,9 @@ if not DEBUG:
 # Wenn hinter einem Reverse-Proxy (Nginx etc.) der TLS terminiert:
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Optional machine-specific overrides (copy local.py.example → local.py; file is gitignored).
+try:
+    from .local import *  # noqa: F403
+except ImportError:
+    pass
+

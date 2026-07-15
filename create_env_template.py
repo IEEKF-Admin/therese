@@ -1,27 +1,36 @@
-"""Create a default .env file for fresh THERESE installs."""
+"""Create .env from .env.example for fresh THERESE installs (never overwrites existing .env)."""
 from pathlib import Path
 
-try:
-    from django.core.management.utils import get_random_secret_key
-    secret_key = get_random_secret_key()
-except Exception:
-    import secrets
-    secret_key = secrets.token_urlsafe(50)
+ROOT = Path(__file__).resolve().parent
+EXAMPLE = ROOT / '.env.example'
+TARGET = ROOT / '.env'
 
-content = f"""# THERESE - Umgebungsvariablen (bitte anpassen)
-DEBUG=True
-SECRET_KEY={secret_key}
 
-# SQLite (Entwicklung): DB_HOST leer lassen
-# MariaDB/MySQL (Produktion):
-# DB_HOST=localhost
-# DB_NAME=therese
-# DB_USER=therese
-# DB_PASSWORD=geheim
-# DB_PORT=3306
+def generate_secret_key() -> str:
+    try:
+        from django.core.management.utils import get_random_secret_key
+        return get_random_secret_key()
+    except Exception:
+        import secrets
+        return secrets.token_urlsafe(50)
 
-ALLOWED_HOSTS=localhost,127.0.0.1
-"""
 
-Path('.env').write_text(content, encoding='utf-8')
-print('.env created')
+def main() -> None:
+    if TARGET.exists():
+        print('.env already exists — not overwritten.')
+        return
+
+    if not EXAMPLE.exists():
+        raise SystemExit('Missing .env.example — cannot create .env')
+
+    content = EXAMPLE.read_text(encoding='utf-8')
+    placeholder = 'change-me-generate-your-own'
+    if placeholder in content:
+        content = content.replace(placeholder, generate_secret_key(), 1)
+
+    TARGET.write_text(content, encoding='utf-8')
+    print('.env created from .env.example — please review ALLOWED_HOSTS and DB_* for your environment.')
+
+
+if __name__ == '__main__':
+    main()

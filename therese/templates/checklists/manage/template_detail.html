@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name_en }} — Versions - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ template.name_en }} <small class="field-hint-de">{{ template.name_de }}</small></h1>
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_template_list' %}" class="btn-secondary">← Templates</a>
+    </div>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Completion mode</th>
+            <th>Published</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in versions %}
+        <tr>
+            <td>{{ v.version_label }}</td>
+            <td>{{ v.get_status_display }}</td>
+            <td>{{ v.get_completion_mode_display }}</td>
+            <td>{% if v.published_at %}{{ v.published_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+            <td>
+                {% if v.status == 'draft' %}
+                <form method="post" style="display:inline;">{% csrf_token %}
+                    <input type="hidden" name="version_id" value="{{ v.pk }}">
+                    <input type="hidden" name="action" value="publish">
+                    <button type="submit" class="btn-primary btn-sm">Publish / Veröffentlichen</button>
+                </form>
+                {% endif %}
+                <form method="post" style="display:inline;">{% csrf_token %}
+                    <input type="hidden" name="version_id" value="{{ v.pk }}">
+                    <input type="hidden" name="action" value="new_version">
+                    <button type="submit" class="btn-secondary btn-sm">New version / Neue Version</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

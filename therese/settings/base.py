@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.hr',
     'apps.tasks',
     'apps.documents',
+    'apps.checklists',
     'widget_tweaks',
 ]
 

@@ -49,6 +49,7 @@ class LoginPopupConfig(models.Model):
             'New message on a task created by the user (by someone else)',
         ),
         ('login_after_datetime', 'Login after specific date/time'),
+        ('checklist_assigned', 'New checklist assigned to the user'),
     ]
 
     REACTION_CHOICES = [
@@ -64,6 +65,7 @@ class LoginPopupConfig(models.Model):
         ('psp_elements', 'PSP Elements'),
         ('workgroup_list', 'Working Groups'),
         ('location_management', 'Manage Locations'),
+        ('my_checklists', 'My Checklists'),
     ]
 
     AUDIENCE_MATCH_CHOICES = [

@@ -50,3 +50,5 @@ therese_admin.register(Group, GroupAdmin)
 therese_admin.register(Permission)
 from apps.accounts.models import LoginPopupConfig
 therese_admin.register(LoginPopupConfig)
+
+import apps.checklists.admin  # noqa: F401

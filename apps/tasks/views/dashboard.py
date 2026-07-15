@@ -154,6 +154,10 @@ def my_tasks(request):
         evaluate_document_publish_popups,
         persist_document_publish_popup_acks,
     )
+    from apps.checklists.popups import (
+        evaluate_checklist_assigned_popups,
+        persist_checklist_popup_acks,
+    )
 
     employee = getattr(request.user, 'employee', None)
     popup_results = evaluate_login_popups(
@@ -163,11 +167,13 @@ def my_tasks(request):
         my_created=my_created,
     )
     doc_popup_results = evaluate_document_publish_popups(request.user)
-    all_popup_results = popup_results + doc_popup_results
+    checklist_popup_results = evaluate_checklist_assigned_popups(request.user, employee=employee)
+    all_popup_results = popup_results + doc_popup_results + checklist_popup_results
 
     if all_popup_results:
         persist_popup_acknowledgements(request.user, popup_results)
         persist_document_publish_popup_acks(request.user, doc_popup_results)
+        persist_checklist_popup_acks(request.user, checklist_popup_results)
         popups = [
             {'text': p['text'], 'link': p.get('link', ''), 'url': p.get('url', '')}
             for p in all_popup_results

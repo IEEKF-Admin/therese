@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Checklists / Checklisten zuweisen - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Assign Checklist <small class="field-hint-de">Checkliste zuweisen</small></h1>
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_template_list' %}" class="btn-secondary">← Templates</a>
+    </div>
+</div>
+
+<form method="post" class="list-panel">
+    {% csrf_token %}
+    <div class="form-group">
+        <label>Published version / Veröffentlichte Version</label>
+        <select name="template_version" class="form-select" required>
+            <option value="">— Select / Auswählen —</option>
+            {% for v in published_versions %}
+            <option value="{{ v.pk }}">{{ v.template.name_en }} ({{ v.version_label }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Employees / Mitarbeiter (multi-select)</label>
+        <select name="employees" class="form-select" multiple size="12" required>
+            {% for e in employees %}
+            <option value="{{ e.pk }}">{{ e.get_full_name }} ({{ e.employee_number }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn-primary">Assign / Zuweisen</button>
+</form>
+{% endblock %}

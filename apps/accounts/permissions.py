@@ -41,6 +41,10 @@ class GroupNames:
     DOCUMENTS_MANAGE = "Documents & SOPs - Manage"
     ASSISTING_ADMINS = "Assisting Admins"
 
+    CHECKLISTS_MANAGE = "Checklists - Manage"
+    CHECKLISTS_WORKGROUP_PROGRESS = "Checklists - Workgroup Progress"
+    CHECKLISTS_INSTITUTE_PROGRESS = "Checklists - Institute Progress"
+
 
 # All groups as a list (useful for iteration)
 NEW_GROUPS = [
@@ -64,6 +68,9 @@ NEW_GROUPS = [
     GroupNames.DOCUMENTS_VIEW,
     GroupNames.DOCUMENTS_MANAGE,
     GroupNames.ASSISTING_ADMINS,
+    GroupNames.CHECKLISTS_MANAGE,
+    GroupNames.CHECKLISTS_WORKGROUP_PROGRESS,
+    GroupNames.CHECKLISTS_INSTITUTE_PROGRESS,
 ]
 
 OLD_GROUPS = [
@@ -169,6 +176,7 @@ def assign_permissions_to_groups():
     from apps.finances.models import CostCenter, WBSElement, PayScale
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
     from apps.documents.models import Document
+    from apps.checklists.models import ChecklistTemplate
 
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
@@ -253,6 +261,15 @@ def assign_permissions_to_groups():
     manage_doc = get_perm("manage_document", Document)
     safe_add("Documents & SOPs - View", view_doc)
     safe_add("Documents & SOPs - Manage", view_doc, manage_doc)
+
+    # Checklists
+    view_cl = get_perm('view_checklist', ChecklistTemplate)
+    manage_cl = get_perm('manage_checklist', ChecklistTemplate)
+    wg_cl = get_perm('view_workgroup_progress', ChecklistTemplate)
+    inst_cl = get_perm('view_institute_progress', ChecklistTemplate)
+    safe_add("Checklists - Manage", manage_cl, view_cl)
+    safe_add("Checklists - Workgroup Progress", view_cl, wg_cl)
+    safe_add("Checklists - Institute Progress", view_cl, inst_cl)
 
     # Assisting Admins gets the key management permissions for broad access
     safe_add(

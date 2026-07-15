@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Institute Progress / Instituts-Fortschritt - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Institute Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt Institut</small></h1>
+</div>
+
+<div class="user-group-matrix-wrap" style="overflow-x:auto;">
+<table class="table" style="min-width:max-content;">
+    <thead>
+        <tr>
+            <th>Employee / Mitarbeiter</th>
+            {% for t in templates %}
+            <th title="{{ t.name_en }}">{{ t.name_en|truncatechars:20 }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <th scope="row">{{ row.employee.get_full_name }}</th>
+            {% for cell in row.cells %}
+            <td style="text-align:center;">
+                {% if cell.instance %}
+                <a href="{% url 'checklists:instance_view' cell.instance.pk %}">{{ cell.percent }}%</a>
+                {% else %}—{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

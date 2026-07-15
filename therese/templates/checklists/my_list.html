@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}My Checklists / Meine Checklisten - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Checklists <small class="field-hint-de">Meine Checklisten</small></h1>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Checklist / Checkliste</th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Assigned / Zugewiesen</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for instance in instances %}
+        <tr>
+            <td>
+                <strong>{{ instance.template_version.template.name_en }}</strong>
+                <small class="field-hint-de">{{ instance.template_version.template.name_de }}</small>
+            </td>
+            <td>{{ instance.template_version.version_label }}</td>
+            <td>{{ instance.get_status_display }}</td>
+            <td>{{ instance.assigned_at|date:"d.m.Y H:i" }}</td>
+            <td>
+                <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -230,6 +230,24 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                 show = True
                 ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
 
+        elif config.trigger == 'checklist_assigned' and employee:
+            from apps.checklists.models import ChecklistInstance
+
+            qs = ChecklistInstance.objects.filter(
+                subject=employee,
+                status__in=ChecklistInstance.ACTIVE_STATUSES,
+            ).select_related('template_version', 'template_version__template')
+            if user.last_login:
+                qs = qs.filter(assigned_at__gt=user.last_login)
+            unacked_refs = [
+                f'checklist:{inst.pk}'
+                for inst in qs.order_by('-assigned_at')
+                if f'checklist:{inst.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
         if show:
             popups.append({
                 'text': render_popup_text(config.text, user, employee, contract=contract_for_text),

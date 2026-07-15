@@ -1,6 +1,10 @@
-﻿"""
+"""
 therese/context_processors.py
 """
+from apps.checklists.access import (
+    checklists_menu_needs_attention,
+    user_has_active_checklists,
+)
 from apps.documents.sidebar_notifications import documents_menu_needs_attention
 
 
@@ -12,11 +16,13 @@ def user_groups(request):
             'user_groups': list(request.user.groups.values_list('name', flat=True)),
             'has_employee': has_employee,
             'documents_menu_needs_attention': documents_menu_needs_attention(request.user),
+            'user_has_active_checklists': user_has_active_checklists(request.user),
+            'checklists_menu_needs_attention': checklists_menu_needs_attention(request.user),
         }
     return {
         'user_groups': [],
         'has_employee': False,
         'documents_menu_needs_attention': False,
+        'user_has_active_checklists': False,
+        'checklists_menu_needs_attention': False,
     }
-
-

@@ -20,6 +20,7 @@ urlpatterns = [
     path('hr/', include('apps.hr.urls')),
     path('finances/', include('apps.finances.urls')),
     path('documents/', include('apps.documents.urls')),
+    path('checklists/', include('apps.checklists.urls')),
 
     # Uploaded files served from database (login required)
     path('media/', include('apps.core.urls', namespace='core')),

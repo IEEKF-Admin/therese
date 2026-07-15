@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Checklists / Checklisten verwalten - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Checklist Templates <small class="field-hint-de">Checklisten-Vorlagen</small></h1>
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:manage_assign' %}" class="btn-primary">Assign / Zuweisen</a>
+    </div>
+</div>
+
+<p class="field-hint-de">Vorlagen und Versionen im Admin bearbeiten (Knoten-Inlines).</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Slug</th>
+            <th>Name EN / DE</th>
+            <th>Versions</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in templates %}
+        <tr>
+            <td>{{ t.slug }}</td>
+            <td>{{ t.name_en }} <small class="field-hint-de">{{ t.name_de }}</small></td>
+            <td>{{ t.versions.count }}</td>
+            <td><a href="{% url 'checklists:manage_template_detail' t.pk %}">Versions / Versionen</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No templates yet. / Noch keine Vorlagen.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

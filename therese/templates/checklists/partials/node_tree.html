@@ -33,7 +33,7 @@
                     {% if responses|get_response_choice:node.pk == opt.choice_key %}checked{% endif %}{% if preview_mode %} disabled{% endif %}>
                 {% elif responses|get_response_choice:node.pk == opt.choice_key %}●
                 {% endif %}
-                {{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>
+                {% if opt.label_en %}{{ opt.label_en }} <small class="field-hint-de">{{ opt.label_de }}</small>{% else %}<span>{{ opt.choice_key }}</span>{% endif %}
             </label>
             {% endwith %}
             {% endfor %}

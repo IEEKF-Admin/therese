@@ -2,7 +2,7 @@
     const FIELD_GROUPS = {
         field_type: ['field'],
         choice_key: ['radio_option'],
-        label: ['section', 'field', 'html'],
+        label: ['section', 'field', 'html', 'radio_option'],
         content: ['html'],
         field_help: ['field'],
         required: ['field'],

@@ -169,6 +169,27 @@ class ChecklistManageUITests(TestCase):
         self.assertContains(response, 'New Template')
         self.assertNotContains(response, 'Admin bearbeiten')
 class ChecklistHtmlNodeTests(TestCase):
+    def test_radio_option_displays_choice_key_fallback(self):
+        radio_field = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.RADIO_GROUP,
+            label_en='Choose',
+            sort_order=0,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=radio_field,
+            node_kind=ChecklistTemplateNode.NodeKind.RADIO_OPTION,
+            choice_key='option_a',
+            sort_order=0,
+        )
+        publish_version(self.version, self.manager)
+        instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+        self.client.login(username='subj-html', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[instance.pk]))
+        self.assertContains(response, 'option_a')
+
     def setUp(self):
         self.manager = _user("mgr-html")
         group, _ = Group.objects.get_or_create(name="Checklists - Manage")

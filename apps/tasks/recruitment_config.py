@@ -62,6 +62,8 @@ RECRUITMENT_CONFIGURABLE_FIELDS = [
     ('email_private', 'Private Email', 'Private E-Mail'),
     ('private_phone_number', 'Private Phone', 'Private Telefonnummer'),
     ('job', 'Job', 'Job'),
+    ('pay_scale_group', 'Pay Scale Group', 'Entgeltgruppe'),
+    ('experience_level', 'Experience Level', 'Erfahrungsstufe'),
     ('plan_position_number', 'Plan Position Number', 'Planstellen-Nummer'),
     ('valid_from', 'Contract Start Date', 'Vertragsbeginn'),
     ('valid_until', 'Contract End Date', 'Vertragsende'),

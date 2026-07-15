@@ -83,11 +83,14 @@ def recruitment_contract_initial(task):
     }
     if task.plan_position_number:
         contract_data['job_number'] = task.plan_position_number
-    if task.job:
-        if task.job.pay_scale_group:
-            contract_data['pay_scale_group'] = task.job.pay_scale_group
-        if task.job.experience_level is not None:
-            contract_data['experience_level'] = str(task.job.experience_level)
+    if task.pay_scale_group:
+        contract_data['pay_scale_group'] = task.pay_scale_group
+    elif task.job and task.job.pay_scale_group:
+        contract_data['pay_scale_group'] = task.job.pay_scale_group
+    if task.experience_level is not None:
+        contract_data['experience_level'] = str(task.experience_level)
+    elif task.job and task.job.experience_level is not None:
+        contract_data['experience_level'] = str(task.job.experience_level)
     return contract_data
 
 

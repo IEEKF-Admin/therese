@@ -7,6 +7,7 @@ from django.test import RequestFactory, TestCase, override_settings
 
 from apps.accounts.models import CustomUser
 from apps.hr.models import Employee
+from apps.finances.models import PayScale
 from apps.tasks.forms import PersonnelRecruitmentTaskForm
 from apps.tasks.models import LimitationReason, RecruitmentJob, Task
 from apps.tasks.recruitment_upload_cache import (
@@ -19,7 +20,17 @@ from apps.tasks.recruitment_upload_cache import (
 @override_settings(MEDIA_ROOT='/tmp/therese_test_media')
 class LimitationReasonTemplateTests(TestCase):
     def setUp(self):
-        self.job = RecruitmentJob.objects.create(name='Scientist')
+        PayScale.objects.create(
+            pay_scale_group='E13',
+            experience_level=3,
+            monthly_salary='4500.00',
+            effective_as_of=date(2026, 1, 1),
+        )
+        self.job = RecruitmentJob.objects.create(
+            name='Scientist',
+            pay_scale_group='E13',
+            experience_level=3,
+        )
         LimitationReason.objects.create(
             title='Template A',
             text='Reason text A',
@@ -44,6 +55,8 @@ class LimitationReasonTemplateTests(TestCase):
                 'country': 'Germany',
                 'valid_from': '01.01.2026',
                 'valid_until': '31.12.2026',
+                'pay_scale_group': 'E13',
+                'experience_level': '3',
                 'limitation_reason': 'Custom reason only',
                 'limitation_reason_template': '999',
                 'status': 'not_yet_processed',
@@ -77,6 +90,8 @@ class LimitationReasonTemplateTests(TestCase):
                 'country': 'Germany',
                 'valid_from': '01.01.2026',
                 'valid_until': '31.12.2026',
+                'pay_scale_group': 'E13',
+                'experience_level': '3',
                 'limitation_reason': 'Project funding ends',
                 'status': 'not_yet_processed',
             },
@@ -87,6 +102,8 @@ class LimitationReasonTemplateTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
         self.assertEqual(saved.limitation_reason, 'Project funding ends')
+        self.assertEqual(saved.pay_scale_group, 'E13')
+        self.assertEqual(saved.experience_level, 3)
 
     def test_plan_position_number_visible_and_job_configurable_on_create(self):
         form = PersonnelRecruitmentTaskForm(
@@ -149,6 +166,8 @@ class LimitationReasonTemplateTests(TestCase):
                 'country': 'Germany',
                 'valid_from': '01.01.2026',
                 'valid_until': '31.12.2026',
+                'pay_scale_group': 'E13',
+                'experience_level': '3',
                 'limitation_reason': 'Existing reason',
                 'plan_position_number': '',
                 'status': task.status,
@@ -158,6 +177,57 @@ class LimitationReasonTemplateTests(TestCase):
         )
         self.assertFalse(form.fields['plan_position_number'].required)
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_payscale_fields_visible_and_required_on_create(self):
+        form = PersonnelRecruitmentTaskForm(
+            user=CustomUser.objects.create_user('creator4', password='test'),
+            is_creation=True,
+        )
+        self.assertIn('pay_scale_group', form.fields)
+        self.assertIn('experience_level', form.fields)
+        self.assertTrue(form.fields['pay_scale_group'].required)
+        self.assertTrue(form.fields['experience_level'].required)
+        self.assertEqual(
+            form.fields['pay_scale_group'].widget.attrs.get('data-recruitment-payscale-group'),
+            'true',
+        )
+        self.assertEqual(
+            form.fields['experience_level'].widget.attrs.get('data-recruitment-experience-level'),
+            'true',
+        )
+
+    def test_task_estimated_salary_uses_task_payscale(self):
+        from apps.tasks.models import PersonnelRecruitmentTask
+
+        task = PersonnelRecruitmentTask.objects.create(
+            task_type='personnel_recruitment',
+            creator=Employee.objects.create(
+                employee_number='E-SAL-1',
+                first_name='Creator',
+                last_name='User',
+            ),
+            first_name='Anna',
+            last_name='Muster',
+            gender='F',
+            date_of_birth=date(1995, 5, 5),
+            country_of_origin='Germany',
+            place_of_birth='Hamburg',
+            email_private='anna@example.com',
+            street='Testweg',
+            house_number='12',
+            postal_code='20095',
+            city='Hamburg',
+            job=self.job,
+            pay_scale_group='E13',
+            experience_level=3,
+            valid_from=date(2026, 1, 1),
+            valid_until=date(2026, 12, 31),
+            cv_file=SimpleUploadedFile('cv.pdf', b'%PDF cv', content_type='application/pdf'),
+            latest_degree_certificate_file=SimpleUploadedFile(
+                'degree.pdf', b'%PDF degree', content_type='application/pdf',
+            ),
+        )
+        self.assertEqual(task.get_estimated_monthly_salary(), 4500.00)
 
 
 @override_settings(MEDIA_ROOT='/tmp/therese_test_media')

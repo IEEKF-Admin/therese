@@ -22,6 +22,7 @@ from apps.tasks.recruitment_form_helpers import (
     add_limitation_reason_template_field,
     apply_recruitment_field_defaults,
     configure_recruitment_job_field,
+    configure_recruitment_payscale_fields,
     strip_limitation_reason_template,
     validate_recruitment_dynamic_rules,
 )
@@ -174,8 +175,8 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'country_of_origin', 'place_of_birth', 'email_private',
             'private_phone_number', 'street', 'house_number', 'postal_code',
-            'city', 'country', 'job', 'plan_position_number',
-            'valid_from', 'valid_until', 'limitation_reason',
+            'city', 'country', 'job', 'pay_scale_group', 'experience_level',
+            'plan_position_number', 'valid_from', 'valid_until', 'limitation_reason',
             'cv_file', 'latest_degree_certificate_file',
             'assignee', 'status',
         ]
@@ -207,10 +208,11 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
 
         # Job field and defaults depend on creation vs detail and selected job.
         configure_recruitment_job_field(self)
+        configure_recruitment_payscale_fields(self)
         apply_recruitment_field_defaults(self, is_creation=self.is_creation)
 
         for field_name, field in self.fields.items():
-            if field_name not in ('status', 'gender', 'job'):
+            if field_name not in ('status', 'gender', 'job', 'pay_scale_group', 'experience_level'):
                 field.widget.attrs.setdefault('class', 'form-control')
             if field_name not in ('status', 'assignee', 'job'):
                 field.widget.attrs.setdefault('data-recruitment-field', field_name)
@@ -267,6 +269,12 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
 
         # --- Assignee (coordinator / creator-fallback only) ---
         _configure_personnel_assignee_field(self)
+
+    def clean_experience_level(self):
+        value = self.cleaned_data.get('experience_level')
+        if value in (None, ''):
+            return None
+        return int(value)
 
     def clean(self):
         cleaned_data = super().clean()

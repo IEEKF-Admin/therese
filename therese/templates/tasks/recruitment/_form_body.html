@@ -13,10 +13,20 @@
         {% if can_edit_fields|default:True %}{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.plan_position_number|default:"—" }}</span>{% endif %}
         <small class="field-hint-de">Planstellen-Nummer</small>
     </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="job">
-        <label>Estimated Salary</label>
+    <div class="aligned-field recruitment-field" data-recruitment-field="pay_scale_group">
+        <label>{{ form.pay_scale_group.label }} <span class="required-marker" data-required-for="pay_scale_group" style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group }}{% endif %}{% else %}<span class="form-readonly">{{ task.pay_scale_group|default:task.job.pay_scale_group|default:"—" }}</span>{% endif %}
+        <small class="field-hint-de">Entgeltgruppe</small>
+    </div>
+    <div class="aligned-field recruitment-field" data-recruitment-field="experience_level">
+        <label>{{ form.experience_level.label }} <span class="required-marker" data-required-for="experience_level" style="color:#ef4444;">*</span></label>
+        {% if can_edit_fields|default:True %}{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level }}{% endif %}{% else %}<span class="form-readonly">{{ task.experience_level|default:task.job.experience_level|default:"—" }}</span>{% endif %}
+        <small class="field-hint-de">Erfahrungsstufe</small>
+    </div>
+    <div class="aligned-field recruitment-field">
+        <label>Estimated Monthly Salary</label>
         <span id="estimated-salary-value" class="form-readonly">—</span>
-        <small class="field-hint-de">Geschätztes Gehalt (TV-L)</small>
+        <small class="field-hint-de">Geschätztes Monatsgehalt (TV-L)</small>
     </div>
 </div>
 

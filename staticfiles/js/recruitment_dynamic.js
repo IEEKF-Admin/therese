@@ -187,9 +187,85 @@
         }) + ' €';
     }
 
+    function getPayscaleSelects() {
+        return {
+            group: document.querySelector('[data-recruitment-payscale-group]'),
+            level: document.querySelector('[data-recruitment-experience-level]'),
+        };
+    }
+
+    function rebuildExperienceLevelOptions(config, group, selectedLevel) {
+        const levelSelect = getPayscaleSelects().level;
+        if (!levelSelect) {
+            return;
+        }
+        const currentValue = selectedLevel !== undefined && selectedLevel !== null
+            ? String(selectedLevel)
+            : levelSelect.value;
+        levelSelect.innerHTML = '<option value="">— Select experience level —</option>';
+        if (group && config.payscaleData && config.payscaleData[group]) {
+            config.payscaleData[group].forEach(function(item) {
+                const opt = document.createElement('option');
+                opt.value = String(item.experience_level);
+                opt.textContent = String(item.experience_level);
+                levelSelect.appendChild(opt);
+            });
+        }
+        if (currentValue) {
+            levelSelect.value = currentValue;
+        }
+    }
+
+    function lookupSalary(config, group, level) {
+        if (!group || level === null || level === undefined || level === '' || !config.payscaleData) {
+            return null;
+        }
+        const parsedLevel = parseInt(level, 10);
+        if (isNaN(parsedLevel)) {
+            return null;
+        }
+        const groupEntries = config.payscaleData[group];
+        if (!groupEntries) {
+            return null;
+        }
+        const match = groupEntries.find(function(item) {
+            return item.experience_level === parsedLevel;
+        });
+        return match ? match.monthly_salary : null;
+    }
+
+    function applyJobPayscaleDefaults(config) {
+        const selects = getPayscaleSelects();
+        const jobId = getSelectedJobId();
+        if (!selects.group || !selects.level || !jobId || !config.jobPayscale) {
+            return;
+        }
+        const jobData = config.jobPayscale[jobId];
+        if (!jobData) {
+            return;
+        }
+        if (!selects.group.value && jobData.pay_scale_group) {
+            selects.group.value = jobData.pay_scale_group;
+        }
+        const group = selects.group.value;
+        const preferredLevel = selects.level.value || jobData.experience_level;
+        rebuildExperienceLevelOptions(config, group, preferredLevel);
+        if (!selects.level.value && jobData.experience_level !== null && jobData.experience_level !== undefined) {
+            selects.level.value = String(jobData.experience_level);
+        }
+    }
+
     function updateEstimatedSalary(config) {
         const el = document.getElementById('estimated-salary-value');
         if (!el) {
+            return;
+        }
+        const selects = getPayscaleSelects();
+        const group = selects.group ? selects.group.value : '';
+        const level = selects.level ? selects.level.value : '';
+        const directSalary = lookupSalary(config, group, level);
+        if (directSalary !== null) {
+            el.textContent = formatEstimatedSalary(directSalary);
             return;
         }
         const jobId = getSelectedJobId();
@@ -202,28 +278,37 @@
             el.textContent = '—';
             return;
         }
-        if (
-            config.payscaleData
-            && jobData.pay_scale_group
-            && jobData.experience_level !== null
-            && jobData.experience_level !== undefined
-        ) {
-            const groupEntries = config.payscaleData[jobData.pay_scale_group];
-            if (groupEntries) {
-                const match = groupEntries.find(function(item) {
-                    return item.experience_level === jobData.experience_level;
-                });
-                if (match) {
-                    el.textContent = formatEstimatedSalary(match.monthly_salary);
-                    return;
-                }
-            }
+        const fallbackSalary = lookupSalary(
+            config,
+            jobData.pay_scale_group,
+            jobData.experience_level,
+        );
+        if (fallbackSalary !== null) {
+            el.textContent = formatEstimatedSalary(fallbackSalary);
+            return;
         }
         if (jobData.estimated_salary) {
             el.textContent = formatEstimatedSalary(jobData.estimated_salary);
             return;
         }
         el.textContent = '—';
+    }
+
+    function initPayscaleFields(config) {
+        const selects = getPayscaleSelects();
+        if (!selects.group || !selects.level) {
+            return;
+        }
+        if (selects.group.value) {
+            rebuildExperienceLevelOptions(config, selects.group.value, selects.level.value);
+        }
+        selects.group.addEventListener('change', function() {
+            rebuildExperienceLevelOptions(config, selects.group.value, '');
+            updateEstimatedSalary(config);
+        });
+        selects.level.addEventListener('change', function() {
+            updateEstimatedSalary(config);
+        });
     }
 
     window.initRecruitmentDynamicForm = function(config) {
@@ -236,12 +321,18 @@
             if (config.enableLimitationTemplates) {
                 rebuildLimitationTemplateOptions(config);
             }
+            applyJobPayscaleDefaults(config);
             updateEstimatedSalary(config);
         }
+
+        initPayscaleFields(config);
 
         document.addEventListener('change', function(event) {
             if (event.target.matches('[data-recruitment-job]')) {
                 refresh();
+            }
+            if (event.target.matches('[data-recruitment-payscale-group], [data-recruitment-experience-level]')) {
+                updateEstimatedSalary(config);
             }
             if (event.target.matches('[data-contract-date], [name="valid_from"], [name="valid_until"]')) {
                 if (config.enableJobRules) {

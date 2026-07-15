@@ -459,6 +459,16 @@ class PersonnelRecruitmentTask(Task):
         blank=True,
         verbose_name="Plan Position Number",
     )
+    pay_scale_group = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Pay Scale Group",
+    )
+    experience_level = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Experience Level",
+    )
     valid_from = models.DateField(verbose_name="Contract Start Date")
     valid_until = models.DateField(verbose_name="Contract End Date")
     limitation_reason = models.TextField(blank=True, verbose_name="Limitation Reason")
@@ -487,6 +497,23 @@ class PersonnelRecruitmentTask(Task):
 
     class Meta:
         verbose_name = "Personnel Recruitment Task"
+
+    def get_estimated_monthly_salary(self):
+        if self.pay_scale_group and self.experience_level is not None:
+            from apps.finances.models import PayScale
+
+            return (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=self.pay_scale_group,
+                    experience_level=self.experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+        if self.job_id:
+            return self.job.get_estimated_monthly_salary()
+        return None
 
 
 class RecruitmentFundingAllocation(BaseModel):

@@ -46,6 +46,53 @@ def strip_limitation_reason_template(cleaned_data):
     return cleaned_data
 
 
+def configure_recruitment_payscale_fields(form):
+    from apps.finances.models import PayScale
+
+    current = PayScale.get_current()
+    groups = (
+        current.values_list('pay_scale_group', flat=True)
+        .distinct()
+        .order_by('pay_scale_group')
+    )
+    pay_scale_choices = [('', '— Select pay scale group —')] + [(g, g) for g in groups]
+    level_choices = [('', '— Select group first —')] + [(str(i), str(i)) for i in range(1, 7)]
+
+    form.fields['pay_scale_group'] = forms.ChoiceField(
+        choices=pay_scale_choices,
+        required=True,
+        label='Pay Scale Group',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'data-recruitment-payscale-group': 'true',
+        }),
+    )
+    form.fields['experience_level'] = forms.ChoiceField(
+        choices=level_choices,
+        required=True,
+        label='Experience Level',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'data-recruitment-experience-level': 'true',
+        }),
+    )
+
+    instance = form.instance
+    if form.data.get('pay_scale_group'):
+        form.fields['pay_scale_group'].initial = form.data.get('pay_scale_group')
+    elif instance and instance.pay_scale_group:
+        form.fields['pay_scale_group'].initial = instance.pay_scale_group
+    elif instance and getattr(instance, 'job_id', None) and instance.job.pay_scale_group:
+        form.fields['pay_scale_group'].initial = instance.job.pay_scale_group
+
+    if form.data.get('experience_level'):
+        form.fields['experience_level'].initial = form.data.get('experience_level')
+    elif instance and instance.experience_level is not None:
+        form.fields['experience_level'].initial = str(instance.experience_level)
+    elif instance and getattr(instance, 'job_id', None) and instance.job.experience_level is not None:
+        form.fields['experience_level'].initial = str(instance.job.experience_level)
+
+
 def configure_recruitment_job_field(form):
     from apps.tasks.models import RecruitmentJob
 

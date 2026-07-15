@@ -1,12 +1,14 @@
 from datetime import date
 from io import BytesIO
 
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import RequestFactory, TestCase
+from django.http import Http404
+from django.test import Client, RequestFactory, TestCase
 
 from apps.accounts.models import CustomUser
+from apps.accounts.permissions import GroupNames, assign_permissions_to_groups
 from apps.finances.forms import (
     CostCenterForm,
     CostCenterYearEstimateFormSet,
@@ -14,8 +16,8 @@ from apps.finances.forms import (
     WBSElementYearEstimateFormSet,
 )
 from apps.finances.models import CostCenter, WBSElement, WBSElementYearEstimate
-from apps.finances.views.psp_crud import PSPUpdateView
-from apps.hr.models import Employee, Workgroup
+from apps.finances.views.psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
+from apps.hr.models import Employee, FundingAllocation, Workgroup
 
 
 class WBSElementFormTests(TestCase):
@@ -181,7 +183,11 @@ class CostCenterFormTests(TestCase):
         self.assertTrue(cc.third_party_funding_commitment.name.endswith('.png'))
 
 
-class PSPUpdateViewTests(TestCase):
+class PSPManageAccessTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        assign_permissions_to_groups()
+
     def setUp(self):
         self.cost_center = CostCenter.objects.create(cost_center='4711/2031')
         self.pi = Employee.objects.create(
@@ -199,56 +205,120 @@ class PSPUpdateViewTests(TestCase):
             long_name='Lab B',
             pi=self.pi,
         )
-        self.user = CustomUser.objects.create_user('psp-manager', password='test')
-        self.user.password_changed = True
-        self.user.save(update_fields=['password_changed'])
-        self.employee = Employee.objects.create(
-            employee_number='E-PSP-MGR',
-            first_name='Manager',
-            last_name='User',
-            user=self.user,
+        self.psp_group_a = WBSElement.objects.create(
+            wbs_code='WBS-A-1',
+            title='Group A PSP',
+            cost_center=self.cost_center,
+            work_group=self.workgroup_a,
         )
-        self.workgroup_a.members.add(self.employee)
-        manage_perm = Permission.objects.get(
-            codename='manage_psp_element',
-            content_type=ContentType.objects.get(app_label='finances', model='wbselement'),
-        )
-        self.user.user_permissions.add(manage_perm)
-        self.psp_other_group = WBSElement.objects.create(
-            wbs_code='WBS-OTHER-1',
-            title='Other group PSP',
+        self.psp_group_b = WBSElement.objects.create(
+            wbs_code='WBS-B-1',
+            title='Group B PSP',
             cost_center=self.cost_center,
             work_group=self.workgroup_b,
         )
 
-    def test_get_form_is_not_bound_and_loads_instance_values(self):
+        self.group_manager = CustomUser.objects.create_user('psp-group-manager', password='test')
+        self.group_manager.password_changed = True
+        self.group_manager.save(update_fields=['password_changed'])
+        self.group_manager.groups.add(Group.objects.get(name=GroupNames.PSP_ELEMENTS_MANAGE))
+        self.group_employee = Employee.objects.create(
+            employee_number='E-PSP-MGR',
+            first_name='Manager',
+            last_name='User',
+            user=self.group_manager,
+        )
+        self.workgroup_a.members.add(self.group_employee)
+
+        self.assisting_admin = CustomUser.objects.create_user('psp-assisting-admin', password='test')
+        self.assisting_admin.password_changed = True
+        self.assisting_admin.save(update_fields=['password_changed'])
+        self.assisting_admin.groups.add(Group.objects.get(name=GroupNames.ASSISTING_ADMINS))
+
+    def test_group_manager_only_sees_own_workgroup_psp_elements(self):
         factory = RequestFactory()
-        request = factory.get(f'/finances/psp/manage/{self.psp_other_group.pk}/edit/')
-        request.user = self.user
+        request = factory.get('/finances/psp/manage/')
+        request.user = self.group_manager
+
+        view = PSPListView()
+        view.request = request
+        queryset = view.get_queryset()
+
+        self.assertEqual(list(queryset), [self.psp_group_a])
+
+    def test_group_manager_cannot_edit_other_workgroup_psp(self):
+        factory = RequestFactory()
+        request = factory.get(f'/finances/psp/manage/{self.psp_group_b.pk}/edit/')
+        request.user = self.group_manager
 
         view = PSPUpdateView()
-        view.setup(request, pk=self.psp_other_group.pk)
+        view.setup(request, pk=self.psp_group_b.pk)
+        with self.assertRaises(Http404):
+            view.get_object()
+
+    def test_group_manager_edit_form_loads_own_psp_values(self):
+        factory = RequestFactory()
+        request = factory.get(f'/finances/psp/manage/{self.psp_group_a.pk}/edit/')
+        request.user = self.group_manager
+
+        view = PSPUpdateView()
+        view.setup(request, pk=self.psp_group_a.pk)
         view.object = view.get_object()
         form = view.get_form()
 
         self.assertFalse(form.is_bound)
-        self.assertEqual(form['wbs_code'].value(), 'WBS-OTHER-1')
-        self.assertEqual(form['title'].value(), 'Other group PSP')
-        self.assertEqual(form['work_group'].value(), self.workgroup_b.pk)
+        self.assertEqual(form['wbs_code'].value(), 'WBS-A-1')
+        self.assertEqual(form['title'].value(), 'Group A PSP')
+        self.assertEqual(form['work_group'].value(), self.workgroup_a.pk)
 
-    def test_manager_can_open_psp_from_other_workgroup(self):
+    def test_group_manager_create_hides_work_group_and_prefills_value(self):
         factory = RequestFactory()
-        request = factory.get(f'/finances/psp/manage/{self.psp_other_group.pk}/edit/')
-        request.user = self.user
+        request = factory.get('/finances/psp/manage/new/')
+        request.user = self.group_manager
 
-        response = PSPUpdateView.as_view()(request, pk=self.psp_other_group.pk)
+        view = PSPCreateView()
+        view.setup(request)
+        view.object = None
+        form = view.get_form()
+        context = view.get_context_data()
+
+        self.assertTrue(context['hide_work_group_field'])
+        self.assertEqual(form.fields['work_group'].widget.__class__.__name__, 'HiddenInput')
+        self.assertEqual(form['work_group'].value(), self.workgroup_a.pk)
+
+    def test_assisting_admin_can_edit_other_workgroup_psp(self):
+        factory = RequestFactory()
+        request = factory.get(f'/finances/psp/manage/{self.psp_group_b.pk}/edit/')
+        request.user = self.assisting_admin
+
+        response = PSPUpdateView.as_view()(request, pk=self.psp_group_b.pk)
         response.render()
         content = response.content.decode()
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('WBS-OTHER-1', content)
-        self.assertIn('Other group PSP', content)
-        self.assertNotIn('Dieses Feld ist zwingend erforderlich.', content)
+        self.assertIn('WBS-B-1', content)
+        self.assertIn('Group B PSP', content)
+        self.assertIn('Work group', content)
+
+    def test_delete_protected_psp_returns_redirect_not_server_error(self):
+        allocation_employee = Employee.objects.create(
+            employee_number='E-ALLOC',
+            first_name='Alloc',
+            last_name='User',
+        )
+        FundingAllocation.objects.create(
+            employee=allocation_employee,
+            wbs_element=self.psp_group_a,
+            weekly_hours_allocated='10.00',
+            start_date=date(2026, 1, 1),
+        )
+
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        response = client.post(f'/finances/psp/manage/{self.psp_group_a.pk}/delete/')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(WBSElement.objects.filter(pk=self.psp_group_a.pk).exists())
 
 
 class CostCenterYearEstimateFormSetTests(TestCase):

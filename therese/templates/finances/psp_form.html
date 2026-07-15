@@ -44,12 +44,17 @@
                     {% if form.title.help_text %}<span class="helptext">{{ form.title.help_text }}</span>{% endif %}
                     {{ form.title.errors }}
                 </div>
+                {% if hide_work_group_field %}
+                {{ form.work_group }}
+                {{ form.work_group.errors }}
+                {% else %}
                 <div class="form-field">
                     <label for="{{ form.work_group.id_for_label }}">{{ form.work_group.label }}</label>
                     {% if form.work_group.errors %}{{ form.work_group|add_class:"form-select error" }}{% else %}{{ form.work_group }}{% endif %}
                     {% if form.work_group.help_text %}<span class="helptext">{{ form.work_group.help_text }}</span>{% endif %}
                     {{ form.work_group.errors }}
                 </div>
+                {% endif %}
                 <div class="form-field">
                     <label for="{{ form.responsible_person.id_for_label }}">{{ form.responsible_person.label }}</label>
                     {% if form.responsible_person.errors %}{{ form.responsible_person|add_class:"form-select error" }}{% else %}{{ form.responsible_person }}{% endif %}

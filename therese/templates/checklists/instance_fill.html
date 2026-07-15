@@ -34,19 +34,15 @@
     ({{ progress_fulfilled }}/{{ progress_total }} required fields)
 </div>
 
-<div class="card">
-    {% if can_edit %}
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">Save</button>
-        </div>
-    </form>
-    {% else %}
-    <div class="form-section">
-        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
+{% if can_edit %}
+<form method="post" enctype="multipart/form-data" class="checklist-fill-form">
+    {% csrf_token %}
+    {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save</button>
     </div>
-    {% endif %}
-</div>
+</form>
+{% else %}
+{% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit instance=instance %}
+{% endif %}
 {% endblock %}

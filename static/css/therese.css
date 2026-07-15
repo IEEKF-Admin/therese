@@ -1598,8 +1598,53 @@ input[type="month"].form-control {
     background: #fffbea;
 }
 
-.checklist-section h3 {
+.checklist-section.card {
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.25rem;
+}
+
+.checklist-section-title {
+    font-size: 1rem;
+    margin: 0 0 1rem;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 0.5rem;
+}
+
+.checklist-section .aligned-field {
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.checklist-section .aligned-field label,
+.checklist-section .checklist-radio-group legend {
+    display: block;
+    width: auto;
+    text-align: left;
+    padding-right: 0;
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.checklist-section .form-control,
+.checklist-section select,
+.checklist-section textarea {
+    width: 100%;
+}
+
+.checklist-html-title {
+    font-size: 0.95rem;
+    margin: 0 0 0.5rem;
+    color: #374151;
+}
+
+.checklist-html-block {
     margin-bottom: 0.75rem;
+}
+
+.checklist-fill-form .form-actions {
+    margin-top: 0.5rem;
 }
 
 .checklist-radio-group {
@@ -1618,7 +1663,6 @@ input[type="month"].form-control {
 }
 
 .checklist-field + .checklist-field,
-.checklist-section + .checklist-section,
 .checklist-html-block + .aligned-field {
     margin-top: 0.25rem;
 }

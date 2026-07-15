@@ -265,6 +265,42 @@ class ChecklistHtmlNodeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'aligned-field')
         self.assertContains(response, 'form-actions')
+        self.assertContains(response, 'card checklist-section')
+        self.assertContains(response, 'checklist-section-title')
+
+    def test_section_groups_heading_and_fields_in_one_card(self):
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.HTML,
+            label_en='Instructions',
+            help_en='<p>Read this first</p>',
+            sort_order=1,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Confirm',
+            sort_order=2,
+        )
+        publish_version(self.version, self.manager)
+        instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+        self.client.login(username='subj-html', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'card checklist-section', count=1)
+        self.assertNotContains(response, 'form-section checklist-section')
+        self.assertNotContains(response, 'form-section checklist-html-block')
+        content = response.content.decode()
+        section_pos = content.index('card checklist-section')
+        title_pos = content.index('checklist-section-title', section_pos)
+        html_pos = content.index('checklist-html-block', title_pos)
+        field_pos = content.index('aligned-field', html_pos)
+        self.assertLess(title_pos, html_pos)
+        self.assertLess(html_pos, field_pos)
+        self.assertIn('Confirm', content[field_pos:field_pos + 500])
 
     def test_html_node_renders_in_instance_fill(self):
         ChecklistTemplateNode.objects.create(

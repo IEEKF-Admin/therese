@@ -2,14 +2,14 @@
 {% for item in tree %}
     {% with node=item.node children=item.children %}
     {% if node.node_kind == 'section' %}
-    <div class="form-section checklist-section">
-        <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
+    <div class="card checklist-section">
+        <h3 class="checklist-section-title">{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
         {% include "checklists/partials/node_tree.html" with tree=children responses=responses can_edit=can_edit instance=instance preview_mode=preview_mode %}
     </div>
     {% elif node.node_kind == 'html' %}
-    <div class="form-section checklist-html-block">
+    <div class="checklist-html-block">
         {% if node.label_en %}
-        <h3>{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h3>
+        <h4 class="checklist-html-title">{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h4>
         {% endif %}
         {% if node.help_en %}<div class="checklist-html-content">{{ node.help_en|safe }}</div>{% endif %}
         {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|safe }}</div>{% endif %}

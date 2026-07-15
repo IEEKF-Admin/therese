@@ -28,9 +28,5 @@
     ({{ progress_fulfilled }}/{{ progress_total }} required fields)
 </div>
 
-<div class="card">
-    <div class="form-section">
-        {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit preview_mode=preview_mode %}
-    </div>
-</div>
+{% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit preview_mode=preview_mode %}
 {% endblock %}

@@ -543,7 +543,17 @@ class RecruitmentFundingAllocation(BaseModel):
     wbs_element = models.ForeignKey(
         WBSElement,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         verbose_name="WBS Element",
+    )
+    cost_center = models.ForeignKey(
+        'finances.CostCenter',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='recruitment_funding_allocations',
+        verbose_name="Cost Center",
     )
     weekly_hours_allocated = models.DecimalField(
         max_digits=5,
@@ -555,9 +565,24 @@ class RecruitmentFundingAllocation(BaseModel):
         verbose_name = "Recruitment Funding Allocation"
         verbose_name_plural = "Recruitment Funding Allocations"
         ordering = ['id']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(wbs_element__isnull=False, cost_center__isnull=True)
+                    | models.Q(wbs_element__isnull=True, cost_center__isnull=False)
+                ),
+                name='recruitment_funding_allocation_one_target',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.wbs_element} ({self.weekly_hours_allocated}h/week)"
+        from apps.finances.funding_sources import funding_target_display
+        return f"{funding_target_display(self)} ({self.weekly_hours_allocated}h/week)"
+
+    @property
+    def funding_target_label(self):
+        from apps.finances.funding_sources import funding_target_display
+        return funding_target_display(self)
 
 
 class TaskWorkflowCoordinator(BaseModel):

@@ -203,7 +203,7 @@ def validate_funding_allocations_required(formset, job, cleaned_data, *, is_crea
         item_form for item_form in formset.forms
         if item_form.cleaned_data
         and not item_form.cleaned_data.get('DELETE', False)
-        and item_form.cleaned_data.get('wbs_element')
+        and item_form.cleaned_data.get('funding_source')
     ]
     if not active_forms:
         raise forms.ValidationError('At least one funding allocation is required.')

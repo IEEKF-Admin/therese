@@ -12,7 +12,7 @@ from apps.core.models import BaseModel
 from apps.accounts.models import CustomUser
 
 # Finance models - nur das, was wirklich benötigt wird
-from apps.finances.models import WBSElement   # ← Dieser Import bleibt
+from apps.finances.models import CostCenter, WBSElement
 
 
 class Gender(models.TextChoices):
@@ -313,7 +313,17 @@ class FundingAllocation(BaseModel):
     wbs_element = models.ForeignKey(
         WBSElement,
         on_delete=models.PROTECT,
-        verbose_name="WBS Element"
+        null=True,
+        blank=True,
+        verbose_name="WBS Element",
+    )
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='funding_allocations',
+        verbose_name="Cost Center",
     )
     
     weekly_hours_allocated = models.DecimalField(
@@ -335,9 +345,24 @@ class FundingAllocation(BaseModel):
         verbose_name = "Funding Allocation"
         verbose_name_plural = "Funding Allocations"
         ordering = ['-start_date']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(wbs_element__isnull=False, cost_center__isnull=True)
+                    | models.Q(wbs_element__isnull=True, cost_center__isnull=False)
+                ),
+                name='funding_allocation_one_target',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.employee} → {self.wbs_element} ({self.weekly_hours_allocated} hours)"
+        from apps.finances.funding_sources import funding_target_display
+        return f"{self.employee} → {funding_target_display(self)} ({self.weekly_hours_allocated} hours)"
+
+    @property
+    def funding_target_label(self):
+        from apps.finances.funding_sources import funding_target_display
+        return funding_target_display(self)
 
 
 class SalarySupplement(BaseModel):

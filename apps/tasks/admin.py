@@ -14,7 +14,7 @@ from .models import (
     PersonnelRecruitmentTask, RecruitmentFundingAllocation, RecruitmentJob,
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
-from .forms import PurchaseOrderTaskForm
+from .forms import PurchaseOrderTaskForm, RecruitmentFundingAllocationForm
 from apps.hr.models import Employee
 # GroupNames removed (old groups deleted)
 
@@ -75,6 +75,7 @@ class PersonnelContractExtensionTaskAdmin(admin.ModelAdmin):
 
 class RecruitmentFundingInline(admin.TabularInline):
     model = RecruitmentFundingAllocation
+    form = RecruitmentFundingAllocationForm
     extra = 1
 
 

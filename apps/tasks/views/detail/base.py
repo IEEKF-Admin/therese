@@ -69,7 +69,8 @@ def get_task_or_404(pk, user):
             'job',
             'assignee', 'creator', 'created_employee', 'last_changed_by',
         ).prefetch_related(
-            'comments', 'comments__author', 'funding_allocations__wbs_element',
+            'comments', 'comments__author',
+            'funding_allocations__wbs_element', 'funding_allocations__cost_center',
         ).get(pk=pk)
         return task
 

@@ -12,7 +12,8 @@ from .models import (
     FundingAllocation, SalarySupplement, Workgroup,
     EmployeeDocumentVersion,
 )
-from apps.finances.models import PayScale, WBSElement
+from apps.finances.models import PayScale
+from .forms import FundingAllocationForm
 
 
 # = Inlines =
@@ -31,15 +32,8 @@ class ContractInline(admin.TabularInline):
 
 class FundingAllocationInline(admin.TabularInline):
     model = FundingAllocation
+    form = FundingAllocationForm
     extra = 1
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-        wbs_field = formset.form.base_fields.get('wbs_element')
-        if wbs_field:
-            wbs_field.label = 'PSP - Element'
-            wbs_field.queryset = WBSElement.objects.active().order_by('wbs_code')
-        return formset
 
 
 class SalarySupplementInline(admin.TabularInline):

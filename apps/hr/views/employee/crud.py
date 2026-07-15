@@ -145,9 +145,10 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             funding_initial = []
             if task:
                 contract_initial = [recruitment_contract_initial(task)]
+                from apps.finances.funding_sources import funding_source_value_for_instance
                 funding_initial = [
                     {
-                        'wbs_element': allocation.wbs_element_id,
+                        'funding_source': funding_source_value_for_instance(allocation),
                         'weekly_hours_allocated': allocation.weekly_hours_allocated,
                         'start_date': task.valid_from,
                         'end_date': task.valid_until,

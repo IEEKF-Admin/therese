@@ -4,7 +4,8 @@ from decimal import Decimal
 from django import forms
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
-from apps.finances.models import PayScale, WBSElement
+from apps.finances.funding_sources import FundingSourceFormMixin
+from apps.finances.models import PayScale
 from apps.tasks.forms.common import (
     _configure_gender_field,
     _configure_personnel_assignee_field,
@@ -38,7 +39,7 @@ from apps.tasks.workflow_config import creator_has_coordinator_fallback
 # ---------------------------------------------------------------------------
 # Recruitment funding allocations (inline formset)
 # ---------------------------------------------------------------------------
-class RecruitmentFundingAllocationForm(forms.ModelForm):
+class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
     """
     One WBS + weekly-hours row for recruitment funding.
 
@@ -49,7 +50,7 @@ class RecruitmentFundingAllocationForm(forms.ModelForm):
 
     class Meta:
         model = RecruitmentFundingAllocation
-        fields = ['wbs_element', 'weekly_hours_allocated']
+        fields = ['weekly_hours_allocated']
         widgets = {
             'weekly_hours_allocated': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -60,9 +61,6 @@ class RecruitmentFundingAllocationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['wbs_element'].queryset = WBSElement.objects.active().order_by('wbs_code')
-        self.fields['wbs_element'].empty_label = '— Select WBS —'
-        self.fields['wbs_element'].widget.attrs.update({'class': 'form-control'})
         self.empty_permitted = True
         # INTERNAL_FIELDS must not block empty placeholder rows in the formset.
         for field_name, field in self.fields.items():
@@ -84,9 +82,9 @@ class RecruitmentFundingAllocationForm(forms.ModelForm):
             return True
         if not self.is_bound:
             return not (self.instance and self.instance.pk)
-        wbs = self.data.get(self.add_prefix('wbs_element'), '').strip()
+        source = self.data.get(self.add_prefix('funding_source'), '').strip()
         hours = self.data.get(self.add_prefix('weekly_hours_allocated'), '').strip()
-        return not wbs and not hours
+        return not source and not hours
 
     def full_clean(self):
         # Blank extra rows skip validation (same pattern as PurchaseItemForm).
@@ -103,8 +101,8 @@ class RecruitmentFundingAllocationForm(forms.ModelForm):
             if cleaned_data is not None:
                 cleaned_data['DELETE'] = True
             return cleaned_data
-        if not cleaned_data.get('wbs_element'):
-            self.add_error('wbs_element', 'WBS Element is required.')
+        if not cleaned_data.get('funding_source'):
+            self.add_error('funding_source', 'PSP element or cost center is required.')
         hours = cleaned_data.get('weekly_hours_allocated')
         if hours in (None, ''):
             self.add_error('weekly_hours_allocated', 'Weekly working hours are required.')

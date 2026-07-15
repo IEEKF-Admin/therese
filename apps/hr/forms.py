@@ -29,6 +29,7 @@ from .models import (
     FundingAllocation, SalarySupplement, Workgroup
 )
 from .workgroup_groups import sync_auth_group_for_workgroup
+from apps.finances.funding_sources import FundingSourceFormMixin
 from apps.finances.models import PayScale
 
 
@@ -217,10 +218,10 @@ class ContractForm(forms.ModelForm):
         return cleaned_data
 
 
-class FundingAllocationForm(forms.ModelForm):
+class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
     class Meta:
         model = FundingAllocation
-        fields = ['wbs_element', 'weekly_hours_allocated', 'start_date', 'end_date', 'comments']
+        fields = ['weekly_hours_allocated', 'start_date', 'end_date', 'comments']
         widgets = {
             'start_date': forms.DateInput(attrs={
                 'type': 'text',
@@ -234,13 +235,6 @@ class FundingAllocationForm(forms.ModelForm):
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from apps.finances.models import WBSElement
-        self.fields['wbs_element'].queryset = WBSElement.objects.active().order_by('wbs_code')
-        self.fields['wbs_element'].empty_label = '— Select PSP element —'
-
 
 # = FORMSETS =
 ContractFormSet = inlineformset_factory(Employee, Contract, form=ContractForm, extra=1, can_delete=True, min_num=1)

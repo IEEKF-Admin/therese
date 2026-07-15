@@ -120,22 +120,40 @@ def _recruitment_documents(task):
         task=task,
     )
 
-    seen_wbs_ids = set()
-    for allocation in task.funding_allocations.select_related('wbs_element').all():
-        wbs = allocation.wbs_element
-        if wbs.pk in seen_wbs_ids:
-            continue
-        seen_wbs_ids.add(wbs.pk)
-        category = f'Drittmittelzusage {wbs.wbs_code}'
-        _add_file_document(
-            documents,
-            key=f'psp_{wbs.pk}',
-            label=category,
-            file_field=wbs.third_party_funding_commitment,
-            prefix=prefix,
-            last_name=last_name,
-            task=task,
-        )
+    seen_source_keys = set()
+    for allocation in task.funding_allocations.select_related('wbs_element', 'cost_center').all():
+        if allocation.wbs_element_id:
+            source_key = f'wbs:{allocation.wbs_element_id}'
+            if source_key in seen_source_keys:
+                continue
+            seen_source_keys.add(source_key)
+            wbs = allocation.wbs_element
+            category = f'Drittmittelzusage {wbs.wbs_code}'
+            _add_file_document(
+                documents,
+                key=f'psp_{wbs.pk}',
+                label=category,
+                file_field=wbs.third_party_funding_commitment,
+                prefix=prefix,
+                last_name=last_name,
+                task=task,
+            )
+        elif allocation.cost_center_id:
+            source_key = f'cc:{allocation.cost_center_id}'
+            if source_key in seen_source_keys:
+                continue
+            seen_source_keys.add(source_key)
+            cost_center = allocation.cost_center
+            category = f'Drittmittelzusage {cost_center.cost_center}'
+            _add_file_document(
+                documents,
+                key=f'cc_{cost_center.pk}',
+                label=category,
+                file_field=cost_center.third_party_funding_commitment,
+                prefix=prefix,
+                last_name=last_name,
+                task=task,
+            )
 
     return documents
 

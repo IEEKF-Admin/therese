@@ -57,7 +57,7 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
 
         context['current_fundings'] = emp.allocations.filter(
             Q(end_date__isnull=True) | Q(end_date__gte=today)
-        ).select_related('wbs_element').order_by('-start_date')
+        ).select_related('wbs_element', 'cost_center').order_by('-start_date')
 
         if self.request.POST:
             workgroup_formset = WorkgroupFormSet(self.request.POST, instance=self.object)

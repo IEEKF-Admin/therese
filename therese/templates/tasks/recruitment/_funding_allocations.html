@@ -2,7 +2,7 @@
 <div class="form-section full-width recruitment-full-block recruitment-field" data-recruitment-field="funding_allocations">
     <h3>Funding Allocations</h3>
     <p style="color:#64748b; font-size:0.9rem; margin-top:-0.5rem; margin-bottom:1rem;">
-        PSP-Element und Wochenarbeitszeit gehören zusammen. Sie können mehrere Kombinationen erfassen.
+        PSP-Element oder Cost Center und Wochenarbeitszeit gehören zusammen. Sie können mehrere Kombinationen erfassen.
     </p>
 
     {% if can_edit_fields|default:True %}
@@ -13,9 +13,9 @@
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
                 <div class="inline-field">
-                    <label>PSP - Element <span style="color:#ef4444;">*</span></label>
-                    {% if fform.wbs_element.errors %}{{ fform.wbs_element|add_class:"form-control error" }}{% else %}{{ fform.wbs_element|add_class:"form-control" }}{% endif %}
-                    <small class="field-hint-de">WBS-Element</small>
+                    <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
+                    {% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}
+                    <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
                 <div class="inline-field">
                     <label>Weekly Working Hours <span style="color:#ef4444;">*</span></label>
@@ -35,9 +35,9 @@
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
                 <div class="inline-field">
-                    <label>PSP - Element <span style="color:#ef4444;">*</span></label>
-                    {{ fform.wbs_element|add_class:"form-control" }}
-                    <small class="field-hint-de">WBS-Element</small>
+                    <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
+                    {{ fform.funding_source|add_class:"form-control" }}
+                    <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
                 <div class="inline-field">
                     <label>Weekly Working Hours <span style="color:#ef4444;">*</span></label>
@@ -61,14 +61,14 @@
         <table class="table" style="width:100%;">
             <thead>
                 <tr>
-                    <th>PSP - Element</th>
+                    <th>PSP / Cost Center</th>
                     <th>Weekly Working Hours</th>
                 </tr>
             </thead>
             <tbody>
                 {% for allocation in task.funding_allocations.all %}
                 <tr>
-                    <td>{{ allocation.wbs_element }}</td>
+                    <td>{{ allocation.funding_target_label }}</td>
                     <td>{{ allocation.weekly_hours_allocated }}</td>
                 </tr>
                 {% endfor %}

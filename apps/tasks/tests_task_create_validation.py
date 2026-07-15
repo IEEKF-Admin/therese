@@ -167,7 +167,7 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-INITIAL_FORMS': '0',
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
-            'funding_allocations-0-wbs_element': str(self.wbs.pk),
+            'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
             'funding_allocations-0-weekly_hours_allocated': '20',
         }
         data.update(overrides)
@@ -192,10 +192,10 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-INITIAL_FORMS': '0',
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
-            'funding_allocations-0-wbs_element': str(self.wbs.pk),
+            'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
             'funding_allocations-0-weekly_hours_allocated': '20',
             'funding_allocations-1-id': '0',
-            'funding_allocations-1-wbs_element': '',
+            'funding_allocations-1-funding_source': '',
             'funding_allocations-1-weekly_hours_allocated': '',
         }
         formset = RecruitmentFundingFormSet(data, is_creation=True)
@@ -208,9 +208,9 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-INITIAL_FORMS': '0',
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
-            'funding_allocations-0-wbs_element': str(self.wbs.pk),
+            'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
             'funding_allocations-0-weekly_hours_allocated': '20',
-            'funding_allocations-1-wbs_element': str(self.wbs.pk),
+            'funding_allocations-1-funding_source': f'wbs:{self.wbs.pk}',
             'funding_allocations-1-weekly_hours_allocated': '10',
         }
         formset = RecruitmentFundingFormSet(data, is_creation=True)

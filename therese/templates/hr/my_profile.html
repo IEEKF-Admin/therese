@@ -89,7 +89,7 @@
     <table class="table">
         <thead>
             <tr>
-                <th>WBS / PSP Element</th>
+                <th>PSP / Cost Center</th>
                 <th>Hours/Week</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
@@ -98,7 +98,7 @@
         <tbody>
         {% for f in current_fundings %}
             <tr>
-                <td>{{ f.wbs_element }}</td>
+                <td>{{ f.funding_target_label }}</td>
                 <td>{{ f.weekly_hours_allocated }}</td>
                 <td>{{ f.start_date }}</td>
                 <td>{{ f.end_date|default:"open" }}</td>

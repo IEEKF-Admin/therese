@@ -70,6 +70,9 @@
                     <li>
                         <strong>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}:</strong>
                         {{ error }}
+                        {% if "TOTAL_FORMS" in error or "ManagementForm" in error or "Management-Formular" in error %}
+                            <br><em>Technischer Formularfehler (versteckte Zählerfelder). Bitte Seite neu laden und erneut speichern. Falls es bleibt: Admin-Inline für diesen Bereich prüfen.</em>
+                        {% endif %}
                     </li>
                 {% endfor %}
                 {% for inline_form in inline_admin_formset.formset %}

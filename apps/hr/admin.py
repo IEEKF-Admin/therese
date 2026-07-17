@@ -5,6 +5,8 @@ Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
 
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
 from therese.admin import therese_admin
 
@@ -76,16 +78,6 @@ class WorkgroupMembershipInline(admin.TabularInline):
     autocomplete_fields = ['workgroup']
 
 
-class EmployeeDocumentVersionInline(admin.TabularInline):
-    model = EmployeeDocumentVersion
-    fk_name = 'employee'
-    extra = 0
-    fields = ('document_type', 'file', 'original_filename', 'uploaded_by', 'created_at')
-    readonly_fields = ('original_filename', 'created_at')
-    autocomplete_fields = ('uploaded_by',)
-    show_change_link = True
-
-
 # = Employee Admin =
 
 
@@ -111,7 +103,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         'user__username',
     )
     autocomplete_fields = ('user', 'room', 'job', 'cost_center')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'document_versions_display')
 
     fieldsets = (
         (
@@ -172,10 +164,21 @@ class EmployeeAdmin(admin.ModelAdmin):
             },
         ),
         (
+            'Document versions',
+            {
+                'description': (
+                    'Versioned documents are managed in the HR employee form or under '
+                    'Employee Document Versions. They are listed here read-only so the '
+                    'employee save form is not blocked by file formset management fields.'
+                ),
+                'fields': ('document_versions_display',),
+            },
+        ),
+        (
             'Legacy files',
             {
                 'classes': ('collapse',),
-                'description': 'Prefer versioned documents below when possible.',
+                'description': 'Prefer versioned documents when possible.',
                 'fields': ('scan_of_contract', 'profile_picture'),
             },
         ),
@@ -188,18 +191,63 @@ class EmployeeAdmin(admin.ModelAdmin):
         ),
     )
 
+    # No EmployeeDocumentVersion TabularInline: file formsets + empty management
+    # forms are brittle in admin and produced "missing TOTAL_FORMS" save errors.
     inlines = [
         ContractInline,
         FundingAllocationInline,
         SalarySupplementInline,
         WorkgroupMembershipInline,
-        EmployeeDocumentVersionInline,
     ]
 
     def get_full_name(self, obj):
         return obj.get_full_name()
 
     get_full_name.short_description = 'Name'
+
+    @admin.display(description='Document versions')
+    def document_versions_display(self, obj):
+        if not obj or not obj.pk:
+            return 'Save the employee first, then upload documents in the HR form.'
+
+        versions = list(
+            obj.document_versions.select_related('uploaded_by').order_by('-created_at')[:40]
+        )
+        changelist_url = reverse('admin:hr_employeedocumentversion_changelist')
+        add_url = reverse('admin:hr_employeedocumentversion_add')
+
+        if not versions:
+            return format_html(
+                '<p>No document versions yet. '
+                '<a href="{}?employee__id__exact={}">Open document list</a> · '
+                '<a href="{}">Add document version</a></p>',
+                changelist_url,
+                obj.pk,
+                add_url,
+            )
+
+        rows = format_html_join(
+            '',
+            '<li><a href="{}">{}</a> — {} <span style="color:#64748b;">({})</span></li>',
+            (
+                (
+                    reverse('admin:hr_employeedocumentversion_change', args=[v.pk]),
+                    v.get_document_type_display(),
+                    v.original_filename,
+                    v.created_at.strftime('%d.%m.%Y %H:%M') if v.created_at else '—',
+                )
+                for v in versions
+            ),
+        )
+        return format_html(
+            '<ul style="margin:0 0 0.5rem 1.1rem;">{}</ul>'
+            '<p><a href="{}?employee__id__exact={}">All versions</a> · '
+            '<a href="{}">Add document version</a></p>',
+            rows,
+            changelist_url,
+            obj.pk,
+            add_url,
+        )
 
 
 @admin.register(Workgroup, site=therese_admin)

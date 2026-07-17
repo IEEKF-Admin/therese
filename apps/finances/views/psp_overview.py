@@ -19,13 +19,13 @@ from django.urls import reverse
 from apps.hr.models import FundingAllocation
 from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
 from apps.tasks.models import PurchaseOrderTask
-from ..models import PayScale, WBSElement
+from ..models import WBSElement
 
 
 def calculate_funding_cost(allocation, period_start, period_end):
     """
     Calculate total salary cost for a FundingAllocation over the given period,
-    respecting monthly structure, contracts and PayScale.
+    using the contract monthly salary and allocated hours.
     """
     if not period_start:
         period_start = allocation.start_date
@@ -39,26 +39,18 @@ def calculate_funding_cost(allocation, period_start, period_end):
     if overlap_start > overlap_end:
         return 0
 
-    contract = allocation.employee.contracts.filter(
-        Q(valid_until__isnull=True) | Q(valid_until__gte=overlap_start),
-        valid_from__lte=overlap_start,
-    ).order_by('-valid_from').first()
+    contract = allocation.employee.get_contract_as_of(overlap_start)
 
     if not contract or not contract.weekly_hours:
         return 0
 
-    payscale = PayScale.objects.filter(
-        pay_scale_group=contract.pay_scale_group,
-        experience_level=contract.experience_level,
-        effective_as_of__lte=overlap_start,
-    ).order_by('-effective_as_of').first()
-
-    if not payscale:
+    # Monthly salary always comes from the contract field (payscale or manual).
+    full_monthly = contract.get_monthly_salary()
+    if full_monthly is None:
         return 0
 
-    full_monthly = payscale.monthly_salary
     hours_ratio = Decimal(allocation.weekly_hours_allocated) / Decimal(contract.weekly_hours)
-    prorated_monthly = full_monthly * hours_ratio
+    prorated_monthly = Decimal(full_monthly) * hours_ratio
 
     months = (overlap_end.year - overlap_start.year) * 12 + (overlap_end.month - overlap_start.month) + 1
 

@@ -11,7 +11,11 @@ from .views.employee import (
     BuildingDeleteView, RoomDeleteView, PhoneNumberDeleteView,
 )
 from .views.ajax import ajax_rooms_by_building, ajax_phonenumbers_by_room
-from .views.documents import employee_document_download, employee_document_delete
+from .views.documents import (
+    employee_document_download,
+    employee_document_view,
+    employee_document_delete,
+)
 from apps.finances import views as finance_views
 
 app_name = 'hr'
@@ -22,6 +26,7 @@ urlpatterns = [
     path('employees/new/', EmployeeCreateView.as_view(), name='employee_create'),
     path('employees/<int:pk>/edit/', EmployeeUpdateView.as_view(), name='employee_update'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/download/', employee_document_download, name='employee_document_download'),
+    path('employees/<int:employee_pk>/documents/<int:version_pk>/view/', employee_document_view, name='employee_document_view'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/delete/', employee_document_delete, name='employee_document_delete'),
     path('my-profile/', MyProfileView.as_view(), name='my_profile'),
     

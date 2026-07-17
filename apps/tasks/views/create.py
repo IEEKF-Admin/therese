@@ -111,13 +111,30 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         # all use the single existing task_create.html with conditional sections.
         return [self.template_name]
 
+    def _user_employee(self):
+        """Safe reverse OneToOne lookup (missing profile must not raise)."""
+        user = self.request.user
+        if not user.is_authenticated:
+            return None
+        return getattr(user, 'employee', None)
+
+    def _can_create_personnel_task(self, user):
+        """Match sidebar: permission or Personnel Tasks - Create group."""
+        if user.is_superuser or user.has_perm('tasks.create_personnel_task'):
+            return True
+        from apps.accounts.permissions import GroupNames
+        return user.groups.filter(name=GroupNames.PERSONNEL_TASKS_CREATE).exists()
+
     def test_func(self):
         user = self.request.user
         if not user.is_authenticated:
             return False
 
-        # All task creation requires a proper employee profile
-        if not hasattr(user, 'employee') or user.employee is None:
+        if user.is_superuser:
+            return True
+
+        # Task creation requires a linked employee profile (creator / workgroup).
+        if self._user_employee() is None:
             return False
 
         task_type = self._get_task_type()
@@ -143,9 +160,40 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             return False
 
         if task_type in ('personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment'):
-            return user.has_perm('tasks.create_personnel_task')
+            return self._can_create_personnel_task(user)
 
         return False
+
+    def handle_no_permission(self):
+        """
+        Authenticated users must not see a bare 403 page for recruitment etc.
+        Django's AccessMixin raises PermissionDenied for logged-in users by default.
+        """
+        user = self.request.user
+        if user.is_authenticated:
+            if self._user_employee() is None:
+                messages.error(
+                    self.request,
+                    "Your account is not linked to an employee profile. "
+                    "Task creation is only available for users with an employee record.",
+                )
+            elif self._get_task_type() in (
+                'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+            ) and not self._can_create_personnel_task(user):
+                messages.error(
+                    self.request,
+                    "You do not have permission to create personnel tasks. "
+                    "You need the group “Personnel Tasks - Create”.",
+                )
+            else:
+                messages.error(
+                    self.request,
+                    "You do not have permission to create this type of task.",
+                )
+            return redirect('tasks:my_tasks')
+        return super().handle_no_permission()
+
+
 
     def get_form_class(self):
         task_type = self._get_task_type()

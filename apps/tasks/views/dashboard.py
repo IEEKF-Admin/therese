@@ -148,7 +148,6 @@ def my_tasks(request):
         'page_title': page_title,
     }
 
-    import json
     from apps.accounts.login_popups import evaluate_login_popups, persist_popup_acknowledgements
     from apps.documents.popups import (
         evaluate_document_publish_popups,
@@ -179,6 +178,5 @@ def my_tasks(request):
             for p in all_popup_results
         ]
         context['login_popups'] = popups
-        context['login_popups_json'] = json.dumps(popups)
 
     return render(request, 'tasks/my_tasks.html', context)

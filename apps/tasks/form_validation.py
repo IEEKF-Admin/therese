@@ -43,14 +43,18 @@ def validate_pdf_upload(form, uploaded_file, field_name, *, required=False):
         if required:
             form.add_error(field_name, 'This field is required.')
         return
-    if not uploaded_file.name.lower().endswith('.pdf'):
-        form.add_error(field_name, 'Only PDF files are allowed.')
-        return
-    header = uploaded_file.read(4)
-    if hasattr(uploaded_file, 'seek'):
-        uploaded_file.seek(0)
-    if header != b'%PDF':
-        form.add_error(field_name, 'Invalid PDF file.')
+    from apps.core.upload_validation import MAX_QUOTE_UPLOAD_BYTES, PDF_EXT, validate_upload
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_upload(
+            uploaded_file,
+            allowed_extensions=PDF_EXT,
+            max_bytes=MAX_QUOTE_UPLOAD_BYTES,
+            require_magic=True,
+        )
+    except ValidationError as exc:
+        form.add_error(field_name, exc.messages[0] if exc.messages else str(exc))
 
 
 def require_non_empty_text(form, cleaned_data, field_name, *, message=None):

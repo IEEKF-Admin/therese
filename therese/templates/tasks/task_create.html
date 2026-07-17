@@ -364,16 +364,25 @@
 {% if task_type == 'personnel_recruitment' %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+{{ recruitment_job_rules_json|json_script:"therese-job-rules" }}
+{{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}
+{{ recruitment_field_keys_json|json_script:"therese-field-keys" }}
+{{ recruitment_job_payscale_json|json_script:"therese-job-payscale" }}
+{{ recruitment_payscale_data_json|json_script:"therese-payscale-data" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function parseJsonScript(id) {
+        var el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : null;
+    }
     initRecruitmentDynamicForm({
         enableJobRules: true,
         enableLimitationTemplates: true,
-        jobRules: {{ recruitment_job_rules_json|safe }},
-        limitationReasons: {{ limitation_reasons_json|safe }},
-        allFieldKeys: {{ recruitment_field_keys_json|safe }},
-        jobPayscale: {{ recruitment_job_payscale_json|safe }},
-        payscaleData: {{ recruitment_payscale_data_json|safe }},
+        jobRules: parseJsonScript('therese-job-rules'),
+        limitationReasons: parseJsonScript('therese-limitation-reasons'),
+        allFieldKeys: parseJsonScript('therese-field-keys'),
+        jobPayscale: parseJsonScript('therese-job-payscale'),
+        payscaleData: parseJsonScript('therese-payscale-data'),
         defaultRequired: {
             cv_file: true,
             latest_degree_certificate_file: true,
@@ -384,12 +393,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% elif task_type == 'personnel_contract_extension' %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+{{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('therese-limitation-reasons');
     initRecruitmentDynamicForm({
         enableJobRules: false,
         enableLimitationTemplates: true,
-        limitationReasons: {{ limitation_reasons_json|safe }},
+        limitationReasons: el ? JSON.parse(el.textContent) : null,
     });
 });
 </script>

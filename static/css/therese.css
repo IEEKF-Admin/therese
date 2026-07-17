@@ -100,6 +100,40 @@ body {
     color: var(--primary);
 }
 
+.action-icon-danger:hover {
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+.doc-current-badge,
+.doc-old-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+}
+
+.doc-current-badge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.doc-old-badge {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.form-readonly,
+input.form-readonly,
+input[readonly].form-control {
+    background: #f8fafc;
+    color: #475569;
+    cursor: default;
+}
+
 .action-icon.delete {
     color: #dc2626;
 }
@@ -175,13 +209,19 @@ body {
     margin-top: 0.35rem;
 }
 
-/* Sidebar - slimmer */
+/* Sidebar - single column, full height of main area (no nested double box) */
 .sidebar {
     width: 240px;
-    background: white;
+    flex-shrink: 0;
+    background: var(--card);
     border-right: 1px solid var(--border);
-    padding: 2rem 1rem;
+    padding: 1.25rem 1rem 2rem;
     min-height: calc(100vh - 73px);
+    align-self: stretch;
+}
+
+.sidebar-nav > a:first-child {
+    margin-top: 0;
 }
 
 .sidebar-nav a {
@@ -271,8 +311,10 @@ body {
 /* Main Content */
 .main-container {
     display: flex;
+    align-items: stretch;
     max-width: 1600px;
     margin: 0 auto;
+    min-height: calc(100vh - 73px);
 }
 
 .content {

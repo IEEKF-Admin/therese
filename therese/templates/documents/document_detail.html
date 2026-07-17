@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sanitize_tags %}
 
 {% block title %}{{ document.title }} - THERESE{% endblock %}
 
@@ -34,7 +35,7 @@
     {% endif %}
 
     <div class="document-content" style="line-height:1.6;">
-        {{ version.content_html|safe }}
+        {{ version.content_html|sanitize_html }}
     </div>
 
     {% if version.attachments.exists %}

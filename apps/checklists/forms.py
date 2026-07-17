@@ -7,6 +7,7 @@ from apps.checklists.models import (
     ChecklistTemplateNode,
     ChecklistTemplateVersion,
 )
+from apps.core.html_sanitize import sanitize_html
 from apps.hr.models import Employee
 
 
@@ -187,6 +188,12 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
 
         if parent and self.version and parent.version_id != self.version.pk:
             raise ValidationError('Parent node must belong to this version.')
+
+        # HTML nodes store rich content in help_*; field help may contain markup too.
+        if cleaned.get('help_en') is not None:
+            cleaned['help_en'] = sanitize_html(cleaned.get('help_en'))
+        if cleaned.get('help_de') is not None:
+            cleaned['help_de'] = sanitize_html(cleaned.get('help_de'))
         return cleaned
 
     def save(self, commit=True):

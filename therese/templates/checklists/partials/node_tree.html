@@ -1,4 +1,4 @@
-{% load checklist_tags %}
+{% load checklist_tags sanitize_tags %}
 {% for item in tree %}
     {% with node=item.node children=item.children %}
     {% if node.node_kind == 'section' %}
@@ -11,8 +11,8 @@
         {% if node.label_en %}
         <h4 class="checklist-html-title">{{ node.label_en }} <small class="field-hint-de">{{ node.label_de }}</small></h4>
         {% endif %}
-        {% if node.help_en %}<div class="checklist-html-content">{{ node.help_en|safe }}</div>{% endif %}
-        {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|safe }}</div>{% endif %}
+        {% if node.help_en %}<div class="checklist-html-content">{{ node.help_en|sanitize_html }}</div>{% endif %}
+        {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|sanitize_html }}</div>{% endif %}
     </div>
     {% elif node.node_kind == 'field' %}
     <div class="aligned-field checklist-field">

@@ -190,6 +190,32 @@ class Employee(BaseModel):
         prefix = f"{self.prefix} " if self.prefix else ""
         return f"{prefix}{self.first_name} {self.last_name}".strip()
 
+    def get_contract_as_of(self, as_of=None):
+        """Return the contract valid on as_of (defaults to today)."""
+        from django.utils import timezone
+        from django.db.models import Q
+
+        if as_of is None:
+            as_of = timezone.now().date()
+        return (
+            self.contracts.filter(
+                Q(valid_until__isnull=True) | Q(valid_until__gte=as_of),
+                valid_from__lte=as_of,
+            )
+            .order_by('-valid_from')
+            .first()
+        )
+
+    def get_monthly_salary(self, as_of=None):
+        """
+        Monthly salary for cost calculations and displays.
+        Always taken from the relevant contract (never Employee.monthly_salary).
+        """
+        contract = self.get_contract_as_of(as_of)
+        if contract is None:
+            return None
+        return contract.get_monthly_salary()
+
 
 class Contract(BaseModel):
     """Employment contract version for an employee"""
@@ -210,7 +236,23 @@ class Contract(BaseModel):
         blank=True,
         verbose_name="Experience Level",
     )
-    job_number = models.CharField(max_length=50, blank=True, verbose_name="Job Number")
+    job_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Job Number",
+    )
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
+    )
+    monthly_salary = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Monthly Salary",
+    )
 
     weekly_hours = models.DecimalField(
         max_digits=5,
@@ -238,10 +280,41 @@ class Contract(BaseModel):
             raise ValidationError({
                 'valid_until': 'End date cannot be before start date.'
             })
+        # When both payscale fields are set, store the TV-L monthly salary.
+        if self.pay_scale_group and self.experience_level is not None:
+            from apps.finances.models import PayScale
+            salary = (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=self.pay_scale_group,
+                    experience_level=self.experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+            if salary is not None:
+                self.monthly_salary = salary
 
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def get_monthly_salary(self):
+        """Resolved monthly salary for this contract (stored value, with payscale fallback)."""
+        if self.monthly_salary is not None:
+            return self.monthly_salary
+        if self.pay_scale_group and self.experience_level is not None:
+            from apps.finances.models import PayScale
+            return (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=self.pay_scale_group,
+                    experience_level=self.experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+        return None
 
     def __str__(self):
         return f"Contract for {self.employee} from {self.valid_from} ({self.weekly_hours} hours)"

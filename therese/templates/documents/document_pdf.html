@@ -1,3 +1,4 @@
+{% load sanitize_tags %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -15,6 +16,6 @@
         {{ version.document.category.breadcrumb }} · {{ version.version_label }}
         {% if version.published_at %}· {{ version.published_at|date:"d.m.Y" }}{% endif %}
     </div>
-    {{ version.content_html|safe }}
+    {{ version.content_html|sanitize_html }}
 </body>
 </html>

@@ -177,22 +177,29 @@ def can_edit_wbs_element(user):
     return is_procurement_coordinator(user)
 
 
-def can_view_recruitment_task(user, task):
+def can_view_personnel_task(user, task):
     """
-    Recruitment task visibility.
+    Visibility for recruitment / reallocation / contract extension tasks.
 
     Coordinators and superusers see all; creators see own; approvers see when assignee.
     """
-    employee = getattr(user, 'employee', None)
-    if not employee:
+    if not user or not user.is_authenticated:
         return False
     if user.is_superuser or is_personnel_coordinator(user):
         return True
-    if task.creator == employee:
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return False
+    if task.creator_id == employee.pk:
         return True
-    if is_personnel_approver(user) and task.assignee == employee:
+    if is_personnel_approver(user) and task.assignee_id == employee.pk:
         return True
     return False
+
+
+def can_view_recruitment_task(user, task):
+    """Recruitment task visibility (alias of can_view_personnel_task)."""
+    return can_view_personnel_task(user, task)
 
 
 def can_edit_recruitment_fields(user, task):

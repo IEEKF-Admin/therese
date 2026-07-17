@@ -1,16 +1,27 @@
-﻿"""
-therese/settings/__init__.py
+"""
+Settings package entrypoint.
 
-Temporarily simplified settings to avoid split_settings import error.
-We will switch back to split_settings later if needed.
+- Development (default): loads base + dev
+- Production: set DJANGO_ENV=prod or ENVIRONMENT=production → base + prod
+- Optional: local.py (gitignored) for machine-specific overrides
 """
 
-from .base import *
-from .dev import *
+import os
 
-# Optional local overrides (see local.py.example; local.py is gitignored).
+from .base import *  # noqa: F401,F403
+
+_env = (
+    os.getenv('DJANGO_ENV')
+    or os.getenv('ENVIRONMENT')
+    or 'dev'
+).strip().lower()
+
+if _env in ('prod', 'production'):
+    from .prod import *  # noqa: F401,F403
+else:
+    from .dev import *  # noqa: F401,F403
+
 try:
-    from .local import *  # noqa: F403
+    from .local import *  # noqa: F401,F403
 except ImportError:
     pass
-

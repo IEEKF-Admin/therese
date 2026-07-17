@@ -72,21 +72,48 @@ class StoredFileServeViewTests(TestCase):
         self.user = CustomUser.objects.create_user('fileuser', password='test')
         self.user.password_changed = True
         self.user.save(update_fields=['password_changed'])
-        task_ct = ContentType.objects.get_for_model(Task)
-        perm = Permission.objects.get(codename='view_all_personnel_tasks', content_type=task_ct)
-        self.user.user_permissions.add(perm)
 
+        self.superuser = CustomUser.objects.create_superuser(
+            'filesuper', password='test', email='super@example.com',
+        )
+        self.superuser.password_changed = True
+        self.superuser.save(update_fields=['password_changed'])
+
+        # Unknown prefix path — must be denied for non-superusers (deny-by-default).
         upload = SimpleUploadedFile('serve.pdf', b'%PDF served', content_type='application/pdf')
-        self.storage_path = ThereseFileService.save('tests/serve.pdf', upload)
+        self.unknown_path = ThereseFileService.save('tests/serve.pdf', upload)
+
+        # Document path under allowlisted prefix; superuser always allowed.
+        doc_upload = SimpleUploadedFile('policy.pdf', b'%PDF policy', content_type='application/pdf')
+        self.document_path = ThereseFileService.save('documents/policy.pdf', doc_upload)
 
     def test_requires_login(self):
-        url = reverse('core:stored_file', kwargs={'file_path': self.storage_path})
+        url = reverse('core:stored_file', kwargs={'file_path': self.unknown_path})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
 
-    def test_authenticated_user_can_download(self):
+    def test_authenticated_user_denied_unknown_prefix(self):
+        """Logged-in users must not download arbitrary media paths."""
         self.client.login(username='fileuser', password='test')
-        url = reverse('core:stored_file', kwargs={'file_path': self.storage_path})
+        url = reverse('core:stored_file', kwargs={'file_path': self.unknown_path})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_superuser_can_download_document_path(self):
+        self.client.login(username='filesuper', password='test')
+        url = reverse('core:stored_file', kwargs={'file_path': self.document_path})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'%PDF served')
+        self.assertEqual(response.content, b'%PDF policy')
+
+    def test_regular_user_denied_document_without_attachment_link(self):
+        """Document-prefix files without a linked attachment are manager-only."""
+        task_ct = ContentType.objects.get_for_model(Task)
+        # Even with unrelated perms, unlinked document paths stay closed.
+        perm = Permission.objects.get(codename='view_all_personnel_tasks', content_type=task_ct)
+        self.user.user_permissions.add(perm)
+
+        self.client.login(username='fileuser', password='test')
+        url = reverse('core:stored_file', kwargs={'file_path': self.document_path})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)

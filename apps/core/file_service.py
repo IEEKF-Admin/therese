@@ -3,10 +3,22 @@ Central API for reading and serving files stored in the database.
 Application code can use this without caring about the active database engine.
 """
 
+import mimetypes
+
 from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404, HttpResponse
 
+from .http_utils import content_disposition
 from .models import StoredFile
+
+# Safe inline types only (never HTML/SVG).
+_INLINE_CONTENT_TYPES = frozenset({
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+})
 
 
 class ThereseFileService:
@@ -38,19 +50,30 @@ class ThereseFileService:
             raise Http404('File not found.') from exc
 
     @staticmethod
-    def as_response(name, *, filename=None, as_attachment=None):
+    def as_response(name, *, filename=None, as_attachment=None, allow_inline=False):
         stored = ThereseFileService.get_stored_file(name)
         content = bytes(stored.content)
-        content_type = stored.content_type or 'application/octet-stream'
         display_name = filename or stored.original_filename or name.rsplit('/', 1)[-1]
 
-        if as_attachment is None:
-            as_attachment = not content_type.startswith('image/')
+        guessed, _ = mimetypes.guess_type(display_name)
+        content_type = stored.content_type or guessed or 'application/octet-stream'
+        # Never trust client-supplied HTML/SVG types for inline display.
+        if content_type in ('text/html', 'image/svg+xml', 'application/xhtml+xml'):
+            content_type = 'application/octet-stream'
+            allow_inline = False
 
-        disposition = 'attachment' if as_attachment else 'inline'
+        if as_attachment is None:
+            if allow_inline and content_type in _INLINE_CONTENT_TYPES:
+                as_attachment = False
+            else:
+                as_attachment = True
+
         response = HttpResponse(content, content_type=content_type)
-        response['Content-Disposition'] = f'{disposition}; filename="{display_name}"'
+        response['Content-Disposition'] = content_disposition(
+            display_name, as_attachment=as_attachment,
+        )
         response['Content-Length'] = len(content)
+        response['X-Content-Type-Options'] = 'nosniff'
         return response
 
     @staticmethod

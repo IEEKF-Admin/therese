@@ -137,7 +137,13 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>window.CHECKLIST_PARENT_CHOICES = {{ parent_choices_json|safe }};</script>
+{{ parent_choices_json|json_script:"therese-parent-choices" }}
+<script>
+(function () {
+  var el = document.getElementById('therese-parent-choices');
+  window.CHECKLIST_PARENT_CHOICES = el ? JSON.parse(el.textContent) : {};
+})();
+</script>
 <script src="{% static 'js/checklist_node_form.js' %}"></script>
 {% include "documents/includes/wysiwyg.html" %}
 {% endblock %}

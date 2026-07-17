@@ -1,19 +1,16 @@
-﻿"""
-therese/settings/dev.py
+"""
+Development settings. Default when DJANGO_ENV is not 'prod'.
 """
 
-from .base import *
+from .base import *  # noqa: F401,F403
 
 DEBUG = True
 
-# In der Entwicklung werden schnellere Passwort-Hasher verwendet.
-# Die Datenbank-Konfiguration kommt aus base.py (MariaDB, wenn DB_HOST gesetzt).
+# Fast hasher for local development only (never use in production).
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
 
-# = AUTH REDIRECTS =
-LOGIN_REDIRECT_URL = '/tasks/'           # ← nach Login immer zum Dashboard
-LOGOUT_REDIRECT_URL = '/tasks/'          # ← nach Logout ebenfalls zum Dashboard
-LOGIN_URL = '/accounts/login/'           # ← korrekter Login-Pfad
-
+LOGIN_REDIRECT_URL = '/tasks/'
+LOGOUT_REDIRECT_URL = '/tasks/'
+LOGIN_URL = '/accounts/login/'

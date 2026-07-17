@@ -16,16 +16,21 @@ from ...models import (
     PersonnelReallocationTask, PersonnelContractExtensionTask,
     PersonnelRecruitmentTask,
 )
-from ...utils import can_view_purchase_order
+from ...utils import can_view_personnel_task, can_view_purchase_order
 from ..redirects import redirect_to_my_tasks
 
 
-def get_task_or_404(pk, user):
+def _deny_view(request):
+    messages.error(request, "You don't have permission to view this task.")
+    return redirect_to_my_tasks()
+
+
+def get_task_or_404(pk, user, request=None):
     """
     Load task by pk and apply basic visibility checks.
 
     Returns the concrete model instance, or an HttpResponse redirect when
-    the user may not view the task (purchase order / generic text).
+    the user may not view the task.
     """
     base_task = get_object_or_404(Task, pk=pk)
 
@@ -35,8 +40,7 @@ def get_task_or_404(pk, user):
         ).prefetch_related('items', 'comments', 'comments__author').get(pk=pk)
 
         if not can_view_purchase_order(user, task):
-            messages.error(user, "You don't have permission to view this task.")
-            return redirect_to_my_tasks()
+            return _deny_view(request or user)
         return task
 
     if base_task.task_type == 'generic_text':
@@ -45,23 +49,26 @@ def get_task_or_404(pk, user):
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
         employee = getattr(user, 'employee', None)
         if not (
-            user.is_staff
+            user.is_superuser
             or (employee and (task.creator == employee or task.recipient == employee))
         ):
-            messages.error(user, "You don't have permission to view this task.")
-            return redirect_to_my_tasks()
+            return _deny_view(request or user)
         return task
 
     if base_task.task_type == 'personnel_reallocation':
         task = PersonnelReallocationTask.objects.select_related(
             'assignee', 'creator', 'employee', 'target_wbs', 'last_changed_by'
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
+        if not can_view_personnel_task(user, task):
+            return _deny_view(request or user)
         return task
 
     if base_task.task_type == 'personnel_contract_extension':
         task = PersonnelContractExtensionTask.objects.select_related(
             'assignee', 'creator', 'employee', 'last_changed_by'
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
+        if not can_view_personnel_task(user, task):
+            return _deny_view(request or user)
         return task
 
     if base_task.task_type == 'personnel_recruitment':
@@ -72,6 +79,8 @@ def get_task_or_404(pk, user):
             'comments', 'comments__author',
             'funding_allocations__wbs_element', 'funding_allocations__cost_center',
         ).get(pk=pk)
+        if not can_view_personnel_task(user, task):
+            return _deny_view(request or user)
         return task
 
     return base_task

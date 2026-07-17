@@ -5,22 +5,45 @@
         <small style="color:#64748b; font-weight:400; display:block;">{{ block.label_de }}</small>
     </label>
 
-    {% if object.pk and block.versions %}
+    {% if object.pk and block.version_rows %}
     <ul class="document-version-list" style="list-style:none; padding:0; margin:0 0 0.5rem 0;">
-        {% for version in block.versions %}
-        <li style="display:flex; align-items:center; gap:0.75rem; padding:0.35rem 0; border-bottom:1px solid #f1f5f9;">
-            <span style="flex:1;">
-                {{ version.original_filename }}
-                <small style="color:#64748b; display:block;">{{ version.created_at|date:"Y-m-d H:i" }}</small>
+        {% for row in block.version_rows %}
+        {% with version=row.version %}
+        <li class="document-version-item{% if row.is_current %} is-current{% endif %}"
+            style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid #f1f5f9;">
+            <span style="flex:1; min-width:0;">
+                {% if row.is_current %}
+                <span class="doc-current-badge" title="Current version">Current</span>
+                {% else %}
+                <span class="doc-old-badge" title="Previous version">v{{ forloop.revcounter }}</span>
+                {% endif %}
+                <span style="word-break:break-word;">{{ version.original_filename }}</span>
+                <small style="color:#64748b; display:block;">{{ version.created_at|date:"d.m.Y H:i" }}</small>
             </span>
-            <a href="{% url 'hr:employee_document_download' object.pk version.pk %}" class="btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.85rem;">Download</a>
-            {% if block.can_delete_any or request.user.employee and version.uploaded_by_id == request.user.employee.id %}
-            <a href="{% url 'hr:employee_document_delete' object.pk version.pk %}?next={{ request.path }}"
-               class="btn-secondary"
-               style="padding:0.25rem 0.6rem; font-size:0.85rem; color:#b91c1c;"
-               onclick="return confirm('Delete this document version?');">Delete</a>
-            {% endif %}
+            <span class="document-version-actions" style="display:inline-flex; gap:0.25rem; flex-shrink:0;">
+                <a href="{% url 'hr:employee_document_view' object.pk version.pk %}"
+                   class="action-icon"
+                   target="_blank"
+                   rel="noopener"
+                   title="View in browser">
+                    <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'hr:employee_document_download' object.pk version.pk %}"
+                   class="action-icon"
+                   title="Download">
+                    <i class="fas fa-download"></i>
+                </a>
+                {% if block.can_delete_any or request.user.employee and version.uploaded_by_id == request.user.employee.id %}
+                <a href="{% url 'hr:employee_document_delete' object.pk version.pk %}?next={{ request.path }}"
+                   class="action-icon action-icon-danger"
+                   title="Delete this version"
+                   onclick="return confirm('Delete this document version? Older versions remain if any.');">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+                {% endif %}
+            </span>
         </li>
+        {% endwith %}
         {% endfor %}
     </ul>
     {% elif object.pk %}
@@ -29,7 +52,7 @@
 
     {% if can_upload_documents %}
     <input type="file" name="{{ block.upload_field }}" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
-    <small style="color:#64748b;">PDF or image, max. 10 MB</small>
+    <small style="color:#64748b;">PDF or image, max. 10 MB. New uploads keep previous versions.</small>
     {% endif %}
 </div>
 {% endfor %}

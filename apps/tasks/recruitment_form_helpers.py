@@ -214,8 +214,6 @@ def parse_post_date(value):
 
 
 def build_recruitment_template_context():
-    import json
-
     from apps.finances.models import PayScale
     from apps.tasks.models import RecruitmentJob
     from apps.tasks.recruitment_config import (
@@ -245,12 +243,13 @@ def build_recruitment_template_context():
             'monthly_salary': str(ps.monthly_salary),
         })
 
+    # Python objects for template json_script (not pre-serialized strings).
     return {
-        'recruitment_job_rules_json': json.dumps(serialize_all_job_rules()),
-        'limitation_reasons_json': json.dumps(serialize_limitation_reasons()),
-        'recruitment_field_keys_json': json.dumps(field_keys),
-        'recruitment_job_payscale_json': json.dumps(job_payscale),
-        'recruitment_payscale_data_json': json.dumps(payscale_data),
+        'recruitment_job_rules_json': serialize_all_job_rules(),
+        'limitation_reasons_json': serialize_limitation_reasons(),
+        'recruitment_field_keys_json': field_keys,
+        'recruitment_job_payscale_json': job_payscale,
+        'recruitment_payscale_data_json': payscale_data,
     }
 
 

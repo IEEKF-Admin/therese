@@ -60,6 +60,9 @@
             <tr>
                 <th>Pay Scale Group</th>
                 <th>Experience Level</th>
+                <th>Monthly Salary</th>
+                <th>Job Number</th>
+                <th>Plan Position</th>
                 <th>Weekly Hours</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
@@ -68,8 +71,11 @@
         <tbody>
         {% for c in current_contracts %}
             <tr>
-                <td>{{ c.pay_scale_group }}</td>
-                <td>{{ c.experience_level }}</td>
+                <td>{{ c.pay_scale_group|default:"—" }}</td>
+                <td>{{ c.experience_level|default:"—" }}</td>
+                <td>{% if c.get_monthly_salary %}{{ c.get_monthly_salary }} €{% else %}—{% endif %}</td>
+                <td>{{ c.job_number|default:"—" }}</td>
+                <td>{{ c.plan_position_number|default:"—" }}</td>
                 <td>{{ c.weekly_hours }}</td>
                 <td>{{ c.valid_from }}</td>
                 <td>{{ c.valid_until|default:"open" }}</td>

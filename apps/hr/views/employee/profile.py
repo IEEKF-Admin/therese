@@ -13,7 +13,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView
 
-from ...forms import EmployeeForm
+from ...forms import EmployeeProfileForm
 from ...models import Employee
 from ...document_utils import process_document_uploads
 from ..employee_form_helpers import WorkgroupFormSet
@@ -23,7 +23,7 @@ from .common import employee_document_context
 class MyProfileView(LoginRequiredMixin, UpdateView):
     """Self-service view for employees to edit their own data (with restrictions)."""
     model = Employee
-    form_class = EmployeeForm
+    form_class = EmployeeProfileForm
     template_name = 'hr/my_profile.html'
     success_url = reverse_lazy('hr:my_profile')
 
@@ -39,12 +39,6 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
             messages.error(request, "No employee profile found for your account.")
             return redirect('tasks:my_tasks')
         return super().dispatch(request, *args, **kwargs)
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        for field_name in ('monthly_salary', 'cost_center', 'scan_of_contract', 'profile_picture'):
-            form.fields.pop(field_name, None)
-        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

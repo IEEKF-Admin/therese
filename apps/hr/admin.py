@@ -26,7 +26,10 @@ class PhoneNumberInline(admin.TabularInline):
 class ContractInline(admin.TabularInline):
     model = Contract
     extra = 1
-    fields = ['job_number', 'pay_scale_group', 'experience_level', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
+    fields = [
+        'job_number', 'plan_position_number', 'pay_scale_group', 'experience_level',
+        'monthly_salary', 'weekly_hours', 'valid_from', 'valid_until', 'comments',
+    ]
     readonly_fields = []
 
 

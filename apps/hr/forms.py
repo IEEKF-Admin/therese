@@ -33,6 +33,23 @@ from apps.finances.funding_sources import FundingSourceFormMixin
 from apps.finances.models import PayScale
 
 
+# Explicit fields only — never bind `user` via mass assignment.
+EMPLOYEE_MANAGE_FIELDS = [
+    'employee_number', 'prefix', 'first_name', 'last_name', 'gender',
+    'date_of_birth', 'country_of_origin', 'place_of_birth',
+    'email_professional', 'email_private', 'google_account', 'private_phone_number',
+    'room', 'phone_number', 'street', 'house_number', 'postal_code', 'city', 'country',
+    'website', 'job',
+    # monthly_salary / cost_center / scan_of_contract / profile_picture intentionally omitted
+]
+
+EMPLOYEE_PROFILE_FIELDS = [
+    'email_professional', 'email_private', 'google_account', 'private_phone_number',
+    'room', 'phone_number', 'street', 'house_number', 'postal_code', 'city', 'country',
+    'website',
+]
+
+
 class EmployeeForm(forms.ModelForm):
     building = forms.ModelChoiceField(
         queryset=Building.objects.all().order_by('number'),
@@ -50,7 +67,7 @@ class EmployeeForm(forms.ModelForm):
 
     class Meta:
         model = Employee
-        fields = '__all__'
+        fields = EMPLOYEE_MANAGE_FIELDS
         widgets = {
             'date_of_birth': forms.DateInput(attrs={
                 'type': 'text',
@@ -144,11 +161,22 @@ class EmployeeForm(forms.ModelForm):
         return str(phone) if phone else ''
 
 
+class EmployeeProfileForm(EmployeeForm):
+    """Self-service profile: restricted field set, no user/number rebinding."""
+
+    class Meta(EmployeeForm.Meta):
+        fields = EMPLOYEE_PROFILE_FIELDS
+
+
 # = INLINE FORMS =
 class ContractForm(forms.ModelForm):
     class Meta:
         model = Contract
-        fields = ['pay_scale_group', 'experience_level', 'job_number', 'weekly_hours', 'valid_from', 'valid_until', 'comments']
+        fields = [
+            'pay_scale_group', 'experience_level', 'monthly_salary',
+            'job_number', 'plan_position_number',
+            'weekly_hours', 'valid_from', 'valid_until', 'comments',
+        ]
         widgets = {
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
@@ -161,6 +189,11 @@ class ContractForm(forms.ModelForm):
                 'placeholder': 'TT.MM.JJJJ'
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'monthly_salary': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -192,6 +225,28 @@ class ContractForm(forms.ModelForm):
             widget=forms.Select(attrs={'class': 'form-control'})
         )
 
+        self.fields['job_number'].label = 'Job Number'
+        self.fields['plan_position_number'].label = 'Plan Position Number'
+        self.fields['monthly_salary'].label = 'Monthly Salary'
+        self.fields['monthly_salary'].required = False
+        self.fields['monthly_salary'].widget.attrs.update({
+            'class': 'form-control contract-monthly-salary',
+            'step': '0.01',
+            'min': '0',
+            'data-contract-monthly-salary': 'true',
+        })
+
+        # When payscale is set, show TV-L salary as read-only (enforced again in clean).
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk and instance.pay_scale_group and instance.experience_level is not None:
+            salary = instance.get_monthly_salary()
+            if salary is not None:
+                self.fields['monthly_salary'].initial = salary
+            self.fields['monthly_salary'].widget.attrs['readonly'] = True
+            self.fields['monthly_salary'].widget.attrs['class'] = (
+                self.fields['monthly_salary'].widget.attrs.get('class', '') + ' form-readonly'
+            ).strip()
+
         # Re-apply form-control to any remaining fields
         for field in self.fields.values():
             if 'form-control' not in field.widget.attrs.get('class', ''):
@@ -202,6 +257,12 @@ class ContractForm(forms.ModelForm):
         if value in (None, ''):
             return None
         return int(value)
+
+    def clean_monthly_salary(self):
+        value = self.cleaned_data.get('monthly_salary')
+        if value in (None, ''):
+            return None
+        return value
 
     def clean(self):
         cleaned_data = super().clean()
@@ -215,6 +276,18 @@ class ContractForm(forms.ModelForm):
                 self.add_error('pay_scale_group', message)
             if not has_level:
                 self.add_error('experience_level', message)
+        elif has_group and has_level:
+            salary = (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=pay_scale_group,
+                    experience_level=experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+            if salary is not None:
+                cleaned_data['monthly_salary'] = salary
         return cleaned_data
 
 
@@ -237,9 +310,18 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         }
 
 # = FORMSETS =
-ContractFormSet = inlineformset_factory(Employee, Contract, form=ContractForm, extra=1, can_delete=True, min_num=1)
-FundingFormSet = inlineformset_factory(Employee, FundingAllocation, form=FundingAllocationForm, extra=1, can_delete=True, min_num=1)
-SalaryFormSet = inlineformset_factory(Employee, SalarySupplement, fields='__all__', extra=0, can_delete=True)
+# extra=0 / min_num=0: no empty inline rows on open; user adds rows explicitly.
+ContractFormSet = inlineformset_factory(
+    Employee, Contract, form=ContractForm, extra=0, can_delete=True, min_num=0,
+)
+FundingFormSet = inlineformset_factory(
+    Employee, FundingAllocation, form=FundingAllocationForm, extra=0, can_delete=True, min_num=0,
+)
+SalaryFormSet = inlineformset_factory(
+    Employee, SalarySupplement,
+    fields=['percentage', 'comment'],
+    extra=0, can_delete=True,
+)
 WorkgroupFormSet = inlineformset_factory(Employee, Workgroup.members.through, fields=('workgroup',), extra=0, can_delete=True)
 
 

@@ -106,12 +106,14 @@
 
 {% block extra_js %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
+{{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('therese-limitation-reasons');
     initRecruitmentDynamicForm({
         enableJobRules: false,
         enableLimitationTemplates: true,
-        limitationReasons: {{ limitation_reasons_json|safe }},
+        limitationReasons: el ? JSON.parse(el.textContent) : null,
     });
 });
 </script>

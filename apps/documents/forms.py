@@ -2,6 +2,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from apps.accounts.models import CustomUser
+from apps.core.html_sanitize import sanitize_html
+from apps.core.upload_validation import DOC_ATTACHMENT_EXT, MAX_DEFAULT_UPLOAD_BYTES, validate_upload
 
 from .category_utils import build_category_tree_rows, get_descendant_ids
 from .models import Document, DocumentAttachment, DocumentCategory, DocumentVersion
@@ -99,6 +101,9 @@ class DocumentVersionDraftForm(forms.ModelForm):
             'change_summary': 'Change summary',
         }
 
+    def clean_content_html(self):
+        return sanitize_html(self.cleaned_data.get('content_html'))
+
 
 class DocumentMetaForm(forms.ModelForm):
     class Meta:
@@ -154,6 +159,17 @@ class DocumentAttachmentForm(forms.ModelForm):
             'label': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'file': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
         }
+
+    def clean_file(self):
+        uploaded = self.cleaned_data.get('file')
+        if uploaded and hasattr(uploaded, 'read'):
+            validate_upload(
+                uploaded,
+                allowed_extensions=DOC_ATTACHMENT_EXT,
+                max_bytes=MAX_DEFAULT_UPLOAD_BYTES,
+                require_magic=False,  # Office docs lack simple magic in all cases
+            )
+        return uploaded
 
 
 DocumentAttachmentFormSet = forms.inlineformset_factory(

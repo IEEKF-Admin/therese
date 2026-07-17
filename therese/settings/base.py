@@ -15,7 +15,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# Overridden by dev.py / prod.py; env can still force DEBUG for diagnostics.
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+# Upload / request limits (DoS mitigation)
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('DATA_UPLOAD_MAX_MEMORY_SIZE', 26 * 1024 * 1024))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('FILE_UPLOAD_MAX_MEMORY_SIZE', 26 * 1024 * 1024))
+DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.getenv('DATA_UPLOAD_MAX_NUMBER_FIELDS', 2000))
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # ALLOWED_HOSTS should be set via .env (recommended for production)
 # Use exact hostnames/IPs. For IP ranges (e.g. 172.26.70.*) a custom patch is needed.
@@ -193,9 +204,4 @@ if not DEBUG:
 # Wenn hinter einem Reverse-Proxy (Nginx etc.) der TLS terminiert:
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Optional machine-specific overrides (copy local.py.example → local.py; file is gitignored).
-try:
-    from .local import *  # noqa: F403
-except ImportError:
-    pass
 

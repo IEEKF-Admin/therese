@@ -1,7 +1,5 @@
 """Administration views for recruitment jobs and limitation reasons."""
 
-import json
-
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import redirect
@@ -31,7 +29,7 @@ def _job_form_payscale_context():
             'experience_level': ps.experience_level,
             'monthly_salary': str(ps.monthly_salary),
         })
-    return {'recruitment_payscale_data_json': json.dumps(payscale_data)}
+    return {'recruitment_payscale_data_json': payscale_data}
 
 
 def user_is_assisting_admin(user):

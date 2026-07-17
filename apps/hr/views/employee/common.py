@@ -82,7 +82,7 @@ def recruitment_contract_initial(task):
         'valid_until': task.valid_until,
     }
     if task.plan_position_number:
-        contract_data['job_number'] = task.plan_position_number
+        contract_data['plan_position_number'] = task.plan_position_number
     if task.pay_scale_group:
         contract_data['pay_scale_group'] = task.pay_scale_group
     elif task.job and task.job.pay_scale_group:
@@ -91,14 +91,10 @@ def recruitment_contract_initial(task):
         contract_data['experience_level'] = str(task.experience_level)
     elif task.job and task.job.experience_level is not None:
         contract_data['experience_level'] = str(task.job.experience_level)
-    return contract_data
-
-
-def recruitment_employee_finance_initial(task):
     salary = task.get_estimated_monthly_salary()
-    if salary is None:
-        return {}
-    return {'monthly_salary': salary}
+    if salary is not None:
+        contract_data['monthly_salary'] = salary
+    return contract_data
 
 
 def finalize_recruitment_task(request, employee):
@@ -113,8 +109,8 @@ def finalize_recruitment_task(request, employee):
 
 
 def current_payscales_json():
+    """Return current payscale map for template json_script (Python dict)."""
     from apps.finances.models import PayScale
-    import json
 
     current = PayScale.get_current()
     payscale_data = {}
@@ -126,4 +122,4 @@ def current_payscales_json():
             'experience_level': ps.experience_level,
             'monthly_salary': str(ps.monthly_salary),
         })
-    return json.dumps(payscale_data)
+    return payscale_data

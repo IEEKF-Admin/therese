@@ -236,9 +236,11 @@ Do not remove any existing requirements from this header without explicit instru
 
 {% block extra_js %}
 {% if login_popups %}
+{{ login_popups|json_script:"therese-login-popups" }}
 <script>
 (function() {
-  var popups = {{ login_popups_json|default:'[]'|safe }};
+  var el = document.getElementById('therese-login-popups');
+  var popups = el ? JSON.parse(el.textContent) : [];
   var popupLinks = {
     'my_profile': "{% url 'hr:my_profile' %}",
     'my_tasks': "{% url 'tasks:my_tasks' %}",

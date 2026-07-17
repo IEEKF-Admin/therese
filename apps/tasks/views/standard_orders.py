@@ -160,16 +160,24 @@ def standard_order_select(request):
     return render(request, 'tasks/standard_orders/select_for_po.html', context)
 
 
+@login_required
 def standard_item_thumbnail(request, pk):
-    """Serve the thumbnail (or original image) from the database."""
+    """Serve the thumbnail (or original image) from the database (authenticated only)."""
     item = get_object_or_404(StandardPurchaseItem, pk=pk)
     from django.http import HttpResponse
 
     if item.thumbnail:
-        return HttpResponse(item.thumbnail, content_type='image/jpeg')
+        response = HttpResponse(item.thumbnail, content_type='image/jpeg')
     elif item.image:
-        return HttpResponse(item.image, content_type=item.image_content_type or 'image/jpeg')
-    return HttpResponse(status=404)
+        response = HttpResponse(
+            item.image,
+            content_type=item.image_content_type or 'image/jpeg',
+        )
+    else:
+        return HttpResponse(status=404)
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'private, max-age=3600'
+    return response
 
 
 @login_required

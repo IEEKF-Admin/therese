@@ -7,16 +7,24 @@ from django.core.files.base import ContentFile
 
 from .models import Employee, EmployeeDocumentType, EmployeeDocumentVersion
 
-MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
-ALLOWED_DOCUMENT_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'}
+from apps.core.upload_validation import (
+    IMAGE_EXT,
+    MAX_DEFAULT_UPLOAD_BYTES,
+    PDF_EXT,
+    validate_upload,
+)
+
+MAX_DOCUMENT_SIZE_BYTES = MAX_DEFAULT_UPLOAD_BYTES
+ALLOWED_DOCUMENT_EXTENSIONS = PDF_EXT | IMAGE_EXT
 
 
 def validate_personnel_document(uploaded_file):
-    if uploaded_file.size > MAX_DOCUMENT_SIZE_BYTES:
-        raise ValidationError('File must be 10 MB or smaller.')
-    ext = os.path.splitext(uploaded_file.name)[1].lower()
-    if ext not in ALLOWED_DOCUMENT_EXTENSIONS:
-        raise ValidationError('Allowed file types: PDF and images (JPG, PNG, GIF, WebP).')
+    validate_upload(
+        uploaded_file,
+        allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS,
+        max_bytes=MAX_DOCUMENT_SIZE_BYTES,
+        require_magic=True,
+    )
 
 
 DOCUMENT_TYPE_DEFINITIONS = [
@@ -64,24 +72,58 @@ def get_document_versions_by_type(employee):
 
 def get_document_blocks_for_template(employee):
     grouped = get_document_versions_by_type(employee)
-    return [
-        {
+    blocks = []
+    for definition in DOCUMENT_TYPE_DEFINITIONS:
+        versions = list(grouped.get(definition['type'], []))
+        # Ordering is newest first; first entry is the current/relevant document.
+        version_rows = [
+            {
+                'version': version,
+                'is_current': index == 0,
+            }
+            for index, version in enumerate(versions)
+        ]
+        blocks.append({
             **definition,
-            'versions': grouped.get(definition['type'], []),
-        }
-        for definition in DOCUMENT_TYPE_DEFINITIONS
-    ]
+            'versions': versions,
+            'version_rows': version_rows,
+        })
+    return blocks
+
+
+def _sync_current_employee_file(employee, document_type, stored_file):
+    """
+    Keep legacy Employee FileFields pointing at the latest version (current doc).
+    Older versions remain in EmployeeDocumentVersion and are never deleted on upload.
+    """
+    if not stored_file:
+        return
+    if document_type == EmployeeDocumentType.SCAN_OF_CONTRACT:
+        field_name = 'scan_of_contract'
+    elif document_type == EmployeeDocumentType.PROFILE_PICTURE:
+        field_name = 'profile_picture'
+    else:
+        return
+    # Point at the same stored path as the version file (no re-upload / overwrite of history).
+    setattr(employee, field_name, stored_file.name)
+    employee.save(update_fields=[field_name, 'updated_at'])
 
 
 def create_document_version(employee, document_type, uploaded_file, uploaded_by=None):
+    """
+    Always create a new version. Previous versions stay available;
+    the newest is the current/relevant document.
+    """
     validate_personnel_document(uploaded_file)
-    return EmployeeDocumentVersion.objects.create(
+    version = EmployeeDocumentVersion.objects.create(
         employee=employee,
         document_type=document_type,
         file=uploaded_file,
         original_filename=uploaded_file.name,
         uploaded_by=uploaded_by,
     )
+    _sync_current_employee_file(employee, document_type, version.file)
+    return version
 
 
 def process_document_uploads(request, employee, uploaded_by=None):
@@ -117,6 +159,7 @@ def copy_file_to_document_version(employee, document_type, source_field, uploade
         uploaded_by=uploaded_by,
     )
     version.file.save(version.original_filename, ContentFile(content), save=True)
+    _sync_current_employee_file(employee, document_type, version.file)
     return version
 
 

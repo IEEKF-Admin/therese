@@ -30,14 +30,26 @@ class PersonnelTaskDocument:
         return ThereseFileService.open(self.file_name, 'rb')
 
 
-def can_download_personnel_documents(user):
-    """Only Personnel Coordination or Approval rights (not creator/assignee alone)."""
+def can_download_personnel_documents(user, task=None):
+    """
+    Only Personnel Coordination or Approval rights (not creator alone).
+
+    When *task* is provided, the user must also be allowed to view that task
+    (least privilege: approvers only for assigned tasks).
+    """
     if not user or not user.is_authenticated:
         return False
-    return (
-        user.has_perm('tasks.view_all_personnel_tasks')
+    has_role = (
+        user.is_superuser
+        or user.has_perm('tasks.view_all_personnel_tasks')
         or user.has_perm('tasks.approve_personnel_task')
     )
+    if not has_role:
+        return False
+    if task is None:
+        return True
+    from apps.tasks.utils import can_view_personnel_task
+    return can_view_personnel_task(user, task)
 
 
 def _sanitize_filename_part(value):

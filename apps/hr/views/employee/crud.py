@@ -20,6 +20,8 @@ from ..employee_form_helpers import (
     FundingFormSet,
     SalaryFormSet,
     WorkgroupFormSet,
+    make_contract_formset,
+    make_funding_formset,
 )
 from apps.tasks.utils import can_create_employee_from_recruitment
 from .common import (
@@ -28,7 +30,6 @@ from .common import (
     finalize_recruitment_task,
     get_recruitment_task,
     recruitment_contract_initial,
-    recruitment_employee_finance_initial,
     recruitment_employee_initial,
     save_employee_with_formsets,
 )
@@ -90,6 +91,9 @@ def employee_list(request):
     }
 
     if request.method == 'POST' and request.POST.get('action') == 'delete_selected':
+        if not (request.user.is_superuser or request.user.has_perm('hr.manage_employee')):
+            messages.error(request, "You do not have permission to delete employees.")
+            return redirect('hr:employee_list')
         ids = request.POST.getlist('selected_ids')
         deleted = 0
         for eid in ids:
@@ -118,24 +122,18 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         task = get_recruitment_task(self.request)
         return task is not None and can_create_employee_from_recruitment(user, task)
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        for field_name in ('scan_of_contract', 'profile_picture'):
-            form.fields.pop(field_name, None)
-        return form
-
     def get_initial(self):
         initial = super().get_initial()
         task = get_recruitment_task(self.request)
         if task:
             initial.update(recruitment_employee_initial(task))
-            initial.update(recruitment_employee_finance_initial(task))
         return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         task = get_recruitment_task(self.request)
         if self.request.POST:
+            # TOTAL_FORMS on POST drives how many forms bind.
             context['contract_formset'] = ContractFormSet(self.request.POST)
             context['funding_formset'] = FundingFormSet(self.request.POST)
             context['salary_formset'] = SalaryFormSet(self.request.POST)
@@ -155,8 +153,10 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                     }
                     for allocation in task.funding_allocations.all()
                 ]
-            context['contract_formset'] = ContractFormSet(initial=contract_initial)
-            context['funding_formset'] = FundingFormSet(initial=funding_initial)
+            ContractFS = make_contract_formset(extra=len(contract_initial))
+            FundingFS = make_funding_formset(extra=len(funding_initial))
+            context['contract_formset'] = ContractFS(initial=contract_initial)
+            context['funding_formset'] = FundingFS(initial=funding_initial)
             context['salary_formset'] = SalaryFormSet()
             context['workgroup_formset'] = WorkgroupFormSet()
         context['from_recruitment_task'] = task
@@ -195,12 +195,6 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         user = self.request.user
         return user.is_superuser or user.has_perm('hr.manage_employee')
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        for field_name in ('scan_of_contract', 'profile_picture'):
-            form.fields.pop(field_name, None)
-        return form
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.POST:
@@ -209,6 +203,7 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             context['salary_formset'] = SalaryFormSet(self.request.POST, instance=self.object)
             context['workgroup_formset'] = WorkgroupFormSet(self.request.POST, instance=self.object)
         else:
+            # extra=0: only existing contracts / allocations, no blank rows.
             context['contract_formset'] = ContractFormSet(instance=self.object)
             context['funding_formset'] = FundingFormSet(instance=self.object)
             context['salary_formset'] = SalaryFormSet(instance=self.object)

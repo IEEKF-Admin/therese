@@ -1,15 +1,17 @@
-﻿{% load widget_tweaks %}
+{% load widget_tweaks %}
 <div class="form-section full-width">
     <h3>Contracts</h3>
     {{ contract_formset.management_form }}
     <div id="contract-container">
         {% for form in contract_formset %}
         <div class="inline-form-row contract-row">
-            {{ form.id }}           <!-- WICHTIG: Hidden ID -->
-            {{ form.DELETE.as_hidden }}   <!-- Hidden for JS remove handler; no visible checkbox -->
+            {{ form.id }}
+            {{ form.DELETE.as_hidden }}
             <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Monthly Salary</label>{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Plan Position Number</label>{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
             <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
@@ -21,19 +23,21 @@
         {% endfor %}
     </div>
 
-    <!-- Hidden empty template for "Add another" (required for extra=0 cases and correct form submission) -->
+    <!-- Hidden empty template for "Add another" (required for extra=0) -->
     <div id="contract-empty-template" class="empty-form-template" style="display:none;">
         {% with form=contract_formset.empty_form %}
         <div class="inline-form-row contract-row">
             {{ form.id }}
             {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
-            <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
-            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
+            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Monthly Salary</label>{{ form.monthly_salary|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Plan Position Number</label>{{ form.plan_position_number|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
+            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
+            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>
@@ -41,19 +45,27 @@
         {% endwith %}
     </div>
 
-    <button type="button" onclick="addInlineRow('contract-container', '.contract-row', 'contract_set')" class="btn-secondary">+ Add another Contract</button>
+    <button type="button" onclick="addInlineRow('contract-container', '.contract-row', 'contracts')" class="btn-secondary">+ Add another Contract</button>
 </div>
 
-{# Current PayScale data for cascading + salary auto-fill (only latest effective_as_of) #}
+{# Current PayScale data for cascading + salary auto-fill on each contract row #}
+{{ current_payscales_json|json_script:"therese-payscale-data" }}
 <script>
 (function() {
-    const PAYSCALE_DATA = {{ current_payscales_json|default:'{}'|safe }};
+    var el = document.getElementById('therese-payscale-data');
+    const PAYSCALE_DATA = el ? JSON.parse(el.textContent) : {};
 
     const container = document.getElementById('contract-container');
     if (!container || !PAYSCALE_DATA) return;
 
-    function syncEmployeeMonthlySalary(groupSelect, levelSelect) {
-        const salaryField = document.getElementById('id_monthly_salary');
+    function getSalaryField(row) {
+        return row.querySelector('input[data-contract-monthly-salary], input[name$="-monthly_salary"]');
+    }
+
+    function syncContractMonthlySalary(row) {
+        const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
+        const levelSelect = row.querySelector('select[name$="experience_level"]');
+        const salaryField = getSalaryField(row);
         if (!salaryField || !groupSelect || !levelSelect) return;
 
         const group = groupSelect.value;
@@ -89,25 +101,23 @@
                     levelSelect.appendChild(opt);
                 });
             }
-            syncEmployeeMonthlySalary(groupSelect, levelSelect);
+            syncContractMonthlySalary(row);
         });
 
         levelSelect.addEventListener('change', function() {
-            syncEmployeeMonthlySalary(groupSelect, levelSelect);
+            syncContractMonthlySalary(row);
         });
     }
 
-    // Attach to all existing contract rows
     container.querySelectorAll('.contract-row').forEach(attachPayscaleListeners);
 
-    // Initialize pre-filled values (important for edit mode)
     container.querySelectorAll('.contract-row').forEach(row => {
         const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
         const levelSelect = row.querySelector('select[name$="experience_level"]');
 
         if (groupSelect && groupSelect.value) {
             const group = groupSelect.value;
-            const originalLevel = levelSelect.value;   // capture before we overwrite options
+            const originalLevel = levelSelect.value;
 
             if (PAYSCALE_DATA[group]) {
                 levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
@@ -118,18 +128,14 @@
                     levelSelect.appendChild(opt);
                 });
 
-                // Restore previously selected level (important for edit mode)
                 if (originalLevel) {
                     levelSelect.value = originalLevel;
                 }
-                syncEmployeeMonthlySalary(groupSelect, levelSelect);
             }
-        } else {
-            syncEmployeeMonthlySalary(groupSelect, levelSelect);
         }
+        syncContractMonthlySalary(row);
     });
 
-    // Watch for new rows added dynamically by addInlineRow
     const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
@@ -137,6 +143,7 @@
                     node.classList &&
                     (node.classList.contains('contract-row') || node.classList.contains('inline-form-row'))) {
                     attachPayscaleListeners(node);
+                    syncContractMonthlySalary(node);
                 }
             });
         });
@@ -144,5 +151,3 @@
     observer.observe(container, { childList: true, subtree: true });
 })();
 </script>
-
-

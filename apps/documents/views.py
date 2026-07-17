@@ -159,6 +159,8 @@ def document_pdf(request, pk, version_pk):
 @login_required
 @permission_required('documents.view_document', raise_exception=True)
 def document_ack_confirm(request, pk):
+    if request.method != 'POST':
+        return redirect('documents:detail', pk=pk)
     document = _get_readable_document(request.user, pk)
     if not document.requires_read_acknowledgement:
         return redirect('documents:detail', pk=pk)
@@ -175,6 +177,8 @@ def document_ack_confirm(request, pk):
 @login_required
 @permission_required('documents.view_document', raise_exception=True)
 def document_ack_decline(request, pk):
+    if request.method != 'POST':
+        return redirect('documents:detail', pk=pk)
     document = _get_readable_document(request.user, pk)
     if not document.requires_read_acknowledgement:
         return redirect('documents:detail', pk=pk)
@@ -191,6 +195,8 @@ def document_ack_decline(request, pk):
 @login_required
 @permission_required('documents.view_document', raise_exception=True)
 def document_ack_reconsider(request, pk):
+    if request.method != 'POST':
+        return redirect('documents:detail', pk=pk)
     document = _get_readable_document(request.user, pk)
     version = document.current_published_version
     ack = DocumentReadAcknowledgement.objects.filter(version=version, user=request.user).first()

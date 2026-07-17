@@ -1,194 +1,191 @@
 {% load static %}
 
-<div class="sidebar">
-    <div class="sidebar-header">
-        <h2>THERESE</h2>
-        <p class="therese-tagline">{% include "includes/therese_tagline.html" %}</p>
-    </div>
+<nav class="sidebar-nav">
+    <a href="{% url 'tasks:my_tasks' %}"
+       class="{% if '/tasks/' in request.path and '/tasks/create' not in request.path and '/tasks/standard-orders' not in request.path %}active{% endif %}">
+        <i class="fas fa-tasks"></i> My Tasks
+    </a>
 
-    <div class="sidebar-nav">
-        <a href="{% url 'tasks:my_tasks' %}"
-           class="{% if '/tasks/' in request.path and '/tasks/create' not in request.path and '/tasks/standard-orders' not in request.path %}active{% endif %}">
-            <i class="fas fa-tasks"></i> My Tasks
-        </a>
+    {% if has_employee %}
+    <a href="{% url 'hr:my_profile' %}"
+       class="{% if 'my-profile' in request.path %}active{% endif %}">
+        <i class="fas fa-user-edit"></i> My Profile
+    </a>
+    {% endif %}
 
-        {% if has_employee %}
-        <a href="{% url 'hr:my_profile' %}"
-           class="{% if 'my-profile' in request.path %}active{% endif %}">
-            <i class="fas fa-user-edit"></i> My Profile
-        </a>
-        {% endif %}
+    {% if 'Documents & SOPs - View' in user_groups or 'Documents & SOPs - Manage' in user_groups %}
+    <a href="{% url 'documents:list' %}"
+       class="sidebar-link-with-badge {% if '/documents/' in request.path and '/documents/manage' not in request.path %}active{% endif %}">
+        <i class="fas fa-book-open"></i>
+        <span>Documents &amp; SOPs</span>
+        {% if documents_menu_needs_attention %}<span class="menu-notification-dot" title="New or updated documents"></span>{% endif %}
+    </a>
+    {% endif %}
 
-        {% if 'Documents & SOPs - View' in user_groups or 'Documents & SOPs - Manage' in user_groups %}
-        <a href="{% url 'documents:list' %}"
-           class="sidebar-link-with-badge {% if '/documents/' in request.path and '/documents/manage' not in request.path %}active{% endif %}">
-            <i class="fas fa-book-open"></i>
-            <span>Documents &amp; SOPs</span>
-            {% if documents_menu_needs_attention %}<span class="menu-notification-dot" title="New or updated documents"></span>{% endif %}
-        </a>
-        {% endif %}
+    {% if user_has_active_checklists %}
+    <a href="{% url 'checklists:my_list' %}"
+       class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
+        <i class="fas fa-clipboard-check"></i>
+        <span>My Checklists</span>
+        {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklist assignments"></span>{% endif %}
+    </a>
+    {% endif %}
 
-        {% if user_has_active_checklists %}
-        <a href="{% url 'checklists:my_list' %}"
-           class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
-            <i class="fas fa-clipboard-check"></i>
-            <span>My Checklists</span>
-            {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklist assignments"></span>{% endif %}
-        </a>
-        {% endif %}
+    {% if 'Purchase Orders - Create' in user_groups or 'Standard Orders - Manage' in user_groups or 'Standard Orders - View' in user_groups %}
+    <div class="sidebar-heading">Ordering</div>
 
-        {% if 'Purchase Orders - Create' in user_groups or 'Standard Orders - Manage' in user_groups or 'Standard Orders - View' in user_groups %}
-        <div class="sidebar-heading">Ordering</div>
+    {% if 'Purchase Orders - Create' in user_groups %}
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order"
+       class="{% if 'type=purchase_order' in request.get_full_path and 'variant=quote' not in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-shopping-cart"></i> New Purchase Order
+    </a>
+    <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;variant=quote"
+       class="{% if 'variant=quote' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-file-pdf"></i> Order with Quote
+    </a>
+    {% endif %}
 
-        {% if 'Purchase Orders - Create' in user_groups %}
-        <a href="{% url 'tasks:task_create' %}?type=purchase_order"
-           class="{% if 'type=purchase_order' in request.get_full_path and 'variant=quote' not in request.get_full_path %}active{% endif %}">
-            <i class="fas fa-shopping-cart"></i> New Purchase Order
-        </a>
-        <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;variant=quote"
-           class="{% if 'variant=quote' in request.get_full_path %}active{% endif %}">
-            <i class="fas fa-file-pdf"></i> Order with Quote
-        </a>
-        {% endif %}
+    {% if 'Standard Orders - Manage' in user_groups %}
+    <a href="{% url 'tasks:standard_orders_list' %}"
+       class="{% if '/tasks/standard-orders' in request.path and '/select' not in request.path %}active{% endif %}">
+        <i class="fas fa-book"></i> Standard Orders
+    </a>
+    {% elif 'Standard Orders - View' in user_groups or 'Purchase Orders - Create' in user_groups %}
+    <a href="{% url 'tasks:standard_order_select' %}"
+       class="{% if 'standard_order_select' in request.path %}active{% endif %}">
+        <i class="fas fa-book"></i> Standard Orders
+    </a>
+    {% endif %}
+    {% endif %}
 
-        {% if 'Standard Orders - Manage' in user_groups %}
-        <a href="{% url 'tasks:standard_orders_list' %}"
-           class="{% if '/tasks/standard-orders' in request.path and '/select' not in request.path %}active{% endif %}">
-            <i class="fas fa-book"></i> Standard Orders
-        </a>
-        {% elif 'Standard Orders - View' in user_groups or 'Purchase Orders - Create' in user_groups %}
-        <a href="{% url 'tasks:standard_order_select' %}"
-           class="{% if 'standard_order_select' in request.path %}active{% endif %}">
-            <i class="fas fa-book"></i> Standard Orders
-        </a>
-        {% endif %}
-        {% endif %}
+    {% if 'Personnel Tasks - Create' in user_groups or 'Employees - View' in user_groups or 'Employees - Manage' in user_groups or user.is_superuser %}
+    <div class="sidebar-heading">Personnel Management</div>
 
-        {% if 'Personnel Tasks - Create' in user_groups or 'Employees - View' in user_groups or 'Employees - Manage' in user_groups %}
-        <div class="sidebar-heading">Personnel Management</div>
+    {% if 'Employees - View' in user_groups or 'Employees - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'hr:employee_list' %}"
+       class="{% if '/hr/employees' in request.path or request.path == '/hr/' %}active{% endif %}">
+        <i class="fas fa-users"></i> Employees
+    </a>
+    {% endif %}
 
-        {% if 'Personnel Tasks - Create' in user_groups %}
-        <a href="{% url 'tasks:task_create' %}?type=personnel_recruitment"
-           class="{% if 'type=personnel_recruitment' in request.get_full_path %}active{% endif %}">
-            <i class="fas fa-user-plus"></i> Recruitment
-        </a>
-        <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation"
-           class="{% if 'type=personnel_reallocation' in request.get_full_path %}active{% endif %}">
-            <i class="fas fa-exchange-alt"></i> Reallocation
-        </a>
-        <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension"
-           class="{% if 'type=personnel_contract_extension' in request.get_full_path %}active{% endif %}">
-            <i class="fas fa-file-contract"></i> Extension
-        </a>
-        {% endif %}
+    {% if 'Personnel Tasks - Create' in user_groups or user.is_superuser %}
+    <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension"
+       class="{% if 'type=personnel_contract_extension' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-file-contract"></i> Extension
+    </a>
+    {% endif %}
 
-        {% if 'Employees - View' in user_groups or 'Employees - Manage' in user_groups %}
-        <a href="{% url 'hr:employee_list' %}"
-           class="{% if '/hr/employees' in request.path or request.path == '/hr/' %}active{% endif %}">
-            <i class="fas fa-users"></i> Employees
-        </a>
-        {% endif %}
+    {% if 'Checklists - Institute Progress' in user_groups %}
+    <a href="{% url 'checklists:progress_institute' %}"
+       class="{% if '/checklists/progress/institute' in request.path %}active{% endif %}">
+        <i class="fas fa-th-large"></i> Institute Checklist Progress
+    </a>
+    {% endif %}
 
-        {% if 'Checklists - Workgroup Progress' in user_groups %}
-        <a href="{% url 'checklists:progress_workgroup' %}"
-           class="{% if '/checklists/progress/workgroup' in request.path %}active{% endif %}">
-            <i class="fas fa-th"></i> Workgroup Checklist Progress
-        </a>
-        {% endif %}
-        {% if 'Checklists - Institute Progress' in user_groups %}
-        <a href="{% url 'checklists:progress_institute' %}"
-           class="{% if '/checklists/progress/institute' in request.path %}active{% endif %}">
-            <i class="fas fa-th-large"></i> Institute Checklist Progress
-        </a>
-        {% endif %}
-        {% endif %}
+    {% if 'Personnel Tasks - Create' in user_groups or user.is_superuser %}
+    <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation"
+       class="{% if 'type=personnel_reallocation' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-exchange-alt"></i> Reallocation
+    </a>
+    <a href="{% url 'tasks:task_create' %}?type=personnel_recruitment"
+       class="{% if 'type=personnel_recruitment' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-user-plus"></i> Recruitment
+    </a>
+    {% endif %}
 
-        {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups %}
-        <div class="sidebar-heading">Knowledge</div>
-        <a href="{% url 'finances:psp_elements' %}"
-           class="{% if 'psp-elements' in request.path %}active{% endif %}">
-            <i class="fas fa-project-diagram"></i> PSP Elements
-        </a>
-        {% endif %}
+    {% if 'Checklists - Workgroup Progress' in user_groups %}
+    <a href="{% url 'checklists:progress_workgroup' %}"
+       class="{% if '/checklists/progress/workgroup' in request.path %}active{% endif %}">
+        <i class="fas fa-th"></i> Workgroup Checklist Progress
+    </a>
+    {% endif %}
+    {% endif %}
 
-        {% if 'PSP Elements - Manage' in user_groups or 'Cost Centers - Manage' in user_groups or 'Locations - Manage' in user_groups or 'Working Groups - Manage' in user_groups or 'Documents & SOPs - Manage' in user_groups or 'Checklists - Manage' in user_groups or 'Assisting Admins' in user_groups %}
-        <div class="sidebar-heading">Administration</div>
+    {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups or user.is_superuser %}
+    <div class="sidebar-heading">Knowledge</div>
+    <a href="{% url 'finances:psp_elements' %}"
+       class="{% if 'psp-elements' in request.path %}active{% endif %}">
+        <i class="fas fa-project-diagram"></i> PSP Elements
+    </a>
+    {% endif %}
 
-        {% if 'PSP Elements - Manage' in user_groups %}
-        <a href="{% url 'finances:psp_manage' %}"
-           class="{% if 'psp/manage' in request.path %}active{% endif %}">
-            <i class="fas fa-project-diagram"></i> PSP Elements
-        </a>
-        {% endif %}
+    {% if 'PSP Elements - Manage' in user_groups or 'Cost Centers - Manage' in user_groups or 'Locations - Manage' in user_groups or 'Working Groups - Manage' in user_groups or 'Documents & SOPs - Manage' in user_groups or 'Checklists - Manage' in user_groups or 'Assisting Admins' in user_groups or user.is_superuser %}
+    <div class="sidebar-heading">Administration</div>
 
-        {% if 'Cost Centers - Manage' in user_groups %}
-        <a href="{% url 'finances:cost_center_manage' %}"
-           class="{% if 'cost-centers/manage' in request.path %}active{% endif %}">
-            <i class="fas fa-coins"></i> Cost Centers
-        </a>
-        {% endif %}
+    {% if 'Locations - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'hr:location_management' %}"
+       class="{% if 'location' in request.path %}active{% endif %}">
+        <i class="fas fa-building"></i> Buildings / Rooms / Phones
+    </a>
+    {% endif %}
 
-        {% if 'Locations - Manage' in user_groups %}
-        <a href="{% url 'hr:location_management' %}"
-           class="{% if 'location' in request.path %}active{% endif %}">
-            <i class="fas fa-building"></i> Buildings / Rooms / Phones
-        </a>
-        {% endif %}
+    {% if 'Cost Centers - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:cost_center_manage' %}"
+       class="{% if 'cost-centers/manage' in request.path %}active{% endif %}">
+        <i class="fas fa-coins"></i> Cost Centers
+    </a>
+    {% endif %}
 
-        {% if 'Working Groups - Manage' in user_groups %}
-        <a href="{% url 'hr:workgroup_list' %}"
-           class="{% if 'workgroup' in request.path %}active{% endif %}">
-            <i class="fas fa-users-cog"></i> Working Groups
-        </a>
-        {% endif %}
+    {% if 'Documents & SOPs - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'documents:manage_categories' %}"
+       class="{% if '/documents/manage/categories' in request.path %}active{% endif %}">
+        <i class="fas fa-folder-tree"></i> Document Categories
+    </a>
+    <a href="{% url 'documents:manage_list' %}"
+       class="{% if '/documents/manage/' in request.path and '/documents/manage/categories' not in request.path %}active{% endif %}">
+        <i class="fas fa-file-alt"></i> Documents &amp; SOPs
+    </a>
+    {% endif %}
 
-        {% if 'Checklists - Manage' in user_groups %}
-        <a href="{% url 'checklists:manage_template_list' %}"
-           class="{% if '/checklists/manage' in request.path %}active{% endif %}">
-            <i class="fas fa-clipboard-list"></i> Manage Checklists
-        </a>
-        {% endif %}
+    {% if 'Assisting Admins' in user_groups or user.is_superuser %}
+    <a href="{% url 'tasks:recruitment_job_manage' %}"
+       class="{% if '/tasks/admin/jobs' in request.path %}active{% endif %}">
+        <i class="fas fa-briefcase"></i> Jobs
+    </a>
+    <a href="{% url 'tasks:limitation_reason_manage' %}"
+       class="{% if '/tasks/admin/limitation-reasons' in request.path %}active{% endif %}">
+        <i class="fas fa-file-signature"></i> Limitation Reasons
+    </a>
+    <a href="{% url 'accounts:login_popup_settings' %}"
+       class="{% if 'login-popup-settings' in request.path %}active{% endif %}">
+        <i class="fas fa-cog"></i> Login Popup Settings
+    </a>
+    {% endif %}
 
-        {% if 'Documents & SOPs - Manage' in user_groups %}
-        <a href="{% url 'documents:manage_list' %}"
-           class="{% if '/documents/manage/' in request.path and '/documents/manage/categories' not in request.path %}active{% endif %}">
-            <i class="fas fa-file-alt"></i> Documents &amp; SOPs
-        </a>
-        <a href="{% url 'documents:manage_categories' %}"
-           class="{% if '/documents/manage/categories' in request.path %}active{% endif %}">
-            <i class="fas fa-folder-tree"></i> Document Categories
-        </a>
-        {% endif %}
+    {% if 'Checklists - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'checklists:manage_template_list' %}"
+       class="{% if '/checklists/manage' in request.path %}active{% endif %}">
+        <i class="fas fa-clipboard-list"></i> Manage Checklists
+    </a>
+    {% endif %}
 
-        {% if 'Assisting Admins' in user_groups %}
-        <a href="{% url 'tasks:workflow_config_manage' %}"
-           class="{% if '/tasks/admin/workflow' in request.path %}active{% endif %}">
-            <i class="fas fa-project-diagram"></i> Task Workflow
-        </a>
-        <a href="{% url 'tasks:recruitment_job_manage' %}"
-           class="{% if '/tasks/admin/jobs' in request.path %}active{% endif %}">
-            <i class="fas fa-briefcase"></i> Jobs
-        </a>
-        <a href="{% url 'tasks:limitation_reason_manage' %}"
-           class="{% if '/tasks/admin/limitation-reasons' in request.path %}active{% endif %}">
-            <i class="fas fa-file-signature"></i> Limitation Reasons
-        </a>
-        {% endif %}
+    {% if 'PSP Elements - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:psp_manage' %}"
+       class="{% if 'psp/manage' in request.path %}active{% endif %}">
+        <i class="fas fa-project-diagram"></i> PSP Elements
+    </a>
+    {% endif %}
 
-        {% if 'Assisting Admins' in user_groups %}
-        <a href="{% url 'accounts:login_popup_settings' %}"
-           class="{% if 'login-popup-settings' in request.path %}active{% endif %}">
-            <i class="fas fa-cog"></i> Login Popup Settings
-        </a>
-        {% endif %}
-        {% endif %}
+    {% if 'Assisting Admins' in user_groups or user.is_superuser %}
+    <a href="{% url 'tasks:workflow_config_manage' %}"
+       class="{% if '/tasks/admin/workflow' in request.path %}active{% endif %}">
+        <i class="fas fa-project-diagram"></i> Task Workflow
+    </a>
+    {% endif %}
 
-        {% if 'Pay Scales - Import' in user_groups %}
-        <div class="sidebar-heading">Data Import</div>
-        <a href="{% url 'finances:import_pay_scales' %}"
-           class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
-            <i class="fas fa-table"></i> Pay Scales / TV-L
-        </a>
-        {% endif %}
-    </div>
-</div>
+    {% if 'Working Groups - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'hr:workgroup_list' %}"
+       class="{% if 'workgroup' in request.path %}active{% endif %}">
+        <i class="fas fa-users-cog"></i> Working Groups
+    </a>
+    {% endif %}
+    {% endif %}
+
+    {% if 'Pay Scales - Import' in user_groups or user.is_superuser %}
+    <div class="sidebar-heading">Data Import</div>
+    <a href="{% url 'finances:import_pay_scales' %}"
+       class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
+        <i class="fas fa-table"></i> Pay Scales / TV-L
+    </a>
+    {% endif %}
+</nav>

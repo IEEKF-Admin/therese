@@ -98,9 +98,11 @@
     <button type="submit" class="btn-primary" style="margin-top: 1.5rem;">Save</button>
 </form>
 
+{{ recruitment_payscale_data_json|json_script:"therese-recruitment-payscale" }}
 <script>
 (function() {
-    const PAYSCALE_DATA = {{ recruitment_payscale_data_json|safe }};
+    var el = document.getElementById('therese-recruitment-payscale');
+    const PAYSCALE_DATA = el ? JSON.parse(el.textContent) : {};
 
     function updateJobExperienceLevels() {
         const groupSelect = document.getElementById('job-pay-scale-group');

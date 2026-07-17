@@ -1,5 +1,3 @@
-import json
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -292,7 +290,7 @@ def manage_version_edit(request, pk, vid):
         'nodes': nodes,
         'version_form': version_form,
         'node_form': node_form,
-        'parent_choices_json': json.dumps(_parent_choices_json(version)),
+        'parent_choices_json': _parent_choices_json(version),
     })
 
 
@@ -340,7 +338,7 @@ def manage_node_edit(request, pk, vid, node_pk):
         'version': version,
         'node': node,
         'form': form,
-        'parent_choices_json': json.dumps(_parent_choices_json(version)),
+        'parent_choices_json': _parent_choices_json(version),
         'title': f'Edit node — {node.label_en or node.choice_key}',
     })
 

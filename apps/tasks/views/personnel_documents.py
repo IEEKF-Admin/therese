@@ -16,7 +16,10 @@ from .detail.base import get_task_or_404
 
 
 def _get_personnel_task(request, pk):
-    task = get_task_or_404(pk, request.user)
+    task = get_task_or_404(pk, request.user, request=request)
+    from django.http import HttpResponseBase
+    if isinstance(task, HttpResponseBase):
+        return task
     if getattr(task, 'task_type', None) not in PERSONNEL_TASK_TYPES:
         raise Http404('Not a personnel task.')
     return task
@@ -29,10 +32,13 @@ def _deny_download(request):
 
 @login_required
 def personnel_task_document_download(request, pk, doc_key):
-    if not can_download_personnel_documents(request.user):
+    task = _get_personnel_task(request, pk)
+    from django.http import HttpResponseBase
+    if isinstance(task, HttpResponseBase):
+        return task
+    if not can_download_personnel_documents(request.user, task):
         return _deny_download(request)
 
-    task = _get_personnel_task(request, pk)
     document = get_personnel_document_by_key(task, doc_key)
     if document is None:
         raise Http404('Document not found.')
@@ -46,10 +52,13 @@ def personnel_task_document_download(request, pk, doc_key):
 
 @login_required
 def personnel_task_documents_zip(request, pk):
-    if not can_download_personnel_documents(request.user):
+    task = _get_personnel_task(request, pk)
+    from django.http import HttpResponseBase
+    if isinstance(task, HttpResponseBase):
+        return task
+    if not can_download_personnel_documents(request.user, task):
         return _deny_download(request)
 
-    task = _get_personnel_task(request, pk)
     result = build_zip_response(task)
     if result is None:
         raise Http404('No documents available.')

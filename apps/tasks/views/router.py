@@ -15,6 +15,7 @@ Do not remove any existing requirements from this header without explicit instru
 """
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 
 from ..utils import is_procurement_coordinator
 from ..workflow_config import creator_has_coordinator_fallback
@@ -22,6 +23,7 @@ from .detail.base import get_task_or_404
 from .redirects import redirect_to_my_tasks, try_handle_archive_post
 
 
+@login_required
 def task_detail(request, pk):
     """
     Route the user to the appropriate task detail view.
@@ -36,7 +38,7 @@ def task_detail(request, pk):
     if archive_response is not None:
         return archive_response
 
-    task = get_task_or_404(pk, request.user)
+    task = get_task_or_404(pk, request.user, request=request)
     from django.http import HttpResponseBase
     if isinstance(task, HttpResponseBase):
         return task

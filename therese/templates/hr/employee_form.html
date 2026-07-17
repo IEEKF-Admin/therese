@@ -52,15 +52,30 @@
             return;
         }
 
-        // 1. Try to find a proper hidden empty template first
-        let template = container.querySelector('.empty-form-template');
-        
-        // 2. Fallback to old behavior (first existing row) for backward compatibility
-        if (!template) {
-            template = container.querySelector(templateSelector) || container.querySelector('tr');
+        // Empty templates live next to the container (sibling), not inside it.
+        let templateWrapper = null;
+        if (containerId === 'contract-container') {
+            templateWrapper = document.getElementById('contract-empty-template');
+        } else if (containerId === 'funding-container') {
+            templateWrapper = document.getElementById('funding-empty-template');
         }
-        if (!template) {
-            console.error('No template row found in', containerId);
+        if (!templateWrapper) {
+            templateWrapper = container.parentElement
+                ? container.parentElement.querySelector('.empty-form-template')
+                : null;
+        }
+
+        let rowSource = null;
+        if (templateWrapper) {
+            rowSource = templateWrapper.querySelector(templateSelector)
+                || templateWrapper.querySelector('.inline-form-row')
+                || templateWrapper.firstElementChild;
+        }
+        if (!rowSource) {
+            rowSource = container.querySelector(templateSelector) || container.querySelector('tr');
+        }
+        if (!rowSource) {
+            console.error('No template row found for', containerId);
             return;
         }
 
@@ -70,12 +85,10 @@
             newIndex = parseInt(totalInput.value, 10) || 0;
         }
 
-        // Clone the template
-        let clone = template.cloneNode(true);
+        const clone = rowSource.cloneNode(true);
         clone.classList.remove('empty-form-template', 'd-none');
-        clone.style.display = '';   // make sure it's visible
+        clone.style.display = '';
 
-        // Replace Django formset prefix placeholders
         clone.querySelectorAll('[name],[id],[for]').forEach(el => {
             ['name', 'id', 'for'].forEach(attr => {
                 if (el.hasAttribute(attr)) {
@@ -85,26 +98,38 @@
             });
         });
 
-        // Clear visible field values in the new row
         clone.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'hidden') return;
+            if (el.type === 'hidden' && el.name && el.name.indexOf('-DELETE') === -1 && el.name.indexOf('-id') === -1) {
+                return;
+            }
+            if (el.type === 'hidden' && el.name && (el.name.indexOf('-DELETE') !== -1 || el.name.indexOf('-id') !== -1)) {
+                if (el.name.indexOf('-DELETE') !== -1) {
+                    el.checked = false;
+                    el.value = '';
+                } else {
+                    el.value = '';
+                }
+                return;
+            }
             if (el.type === 'checkbox' || el.type === 'radio') {
                 el.checked = false;
             } else {
                 el.value = '';
             }
+            if (el.name && el.name.indexOf('monthly_salary') !== -1) {
+                el.readOnly = false;
+                el.classList.remove('form-readonly');
+            }
         });
 
-        // Append to the right parent (tbody or div)
-        if (container.tagName === 'TBODY') {
-            container.appendChild(clone);
-        } else {
-            container.appendChild(clone);
-        }
+        container.appendChild(clone);
 
-        // Increment TOTAL_FORMS so Django accepts the new row
         if (totalInput) {
             totalInput.value = newIndex + 1;
+        }
+
+        if (typeof initFlatpickrDatePickers === 'function') {
+            initFlatpickrDatePickers();
         }
 
         console.log('✅ New row added with index', newIndex);

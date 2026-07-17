@@ -120,8 +120,9 @@ echo "  → Empfohlene Zugriffs-URL: https://$FQDN:8000"
 echo "  → (alternativ IP: https://$IP:8000 – aber nur wenn im Zertifikat enthalten)"
 echo "  → Verwendetes Zertifikat: $CERT_FILE"
 echo "  → Wichtige Logs:"
-echo "      tail -f logs/error.log"
-echo "      tail -f logs/access.log"
+echo "      tail -f logs/django.log      # Django exceptions (500 Tracebacks)"
+echo "      tail -f logs/error.log       # Gunicorn errors"
+echo "      tail -f logs/access.log      # HTTP access"
 echo "  → Zum Stoppen: Strg + C"
 if [[ "$CERT_FILE" == *certs/cert.pem ]]; then
     echo "  → Hinweis: Selbst-signiertes Zertifikat – Browser-Warnung akzeptieren."
@@ -138,7 +139,7 @@ gunicorn therese.wsgi:application \
     --certfile "$CERT_FILE" \
     --keyfile "$KEY_FILE" \
     --log-level info \
-    --log-file logs/gunicorn.log \
     --access-logfile logs/access.log \
-    --error-logfile - \
-    --capture-output
+    --error-logfile logs/error.log \
+    --capture-output \
+    --enable-stdio-inheritance

@@ -90,17 +90,17 @@ class PersonnelDocumentHelpersTests(TestCase):
         RecruitmentFundingAllocation.objects.create(
             recruitment_task=self.task,
             wbs_element=psp_a,
-            weekly_hours_allocated='20.00',
+            workhours_percentage='50.00',
         )
         RecruitmentFundingAllocation.objects.create(
             recruitment_task=self.task,
             wbs_element=psp_b,
-            weekly_hours_allocated='19.00',
+            workhours_percentage='49.00',
         )
         RecruitmentFundingAllocation.objects.create(
             recruitment_task=self.task,
             wbs_element=psp_a,
-            weekly_hours_allocated='10.00',
+            workhours_percentage='25.00',
         )
 
         documents = get_personnel_task_documents(self.task)
@@ -220,7 +220,7 @@ class PersonnelDocumentDownloadViewTests(TestCase):
         RecruitmentFundingAllocation.objects.create(
             recruitment_task=self.task,
             wbs_element=psp,
-            weekly_hours_allocated='20.00',
+            workhours_percentage='50.00',
         )
 
         self.client.login(username='coordinator', password='test')
@@ -236,6 +236,8 @@ class PersonnelDocumentDownloadViewTests(TestCase):
         self.assertIn('Drittmittelzusage D-333.0003.1 - Dr. Muster - 09.07.2026.pdf', names)
 
     def test_reallocation_includes_target_wbs_commitment(self):
+        from apps.tasks.models import ReallocationFundingAllocation
+
         employee = Employee.objects.create(
             employee_number='E-904',
             prefix='Prof.',
@@ -253,9 +255,13 @@ class PersonnelDocumentDownloadViewTests(TestCase):
             task_type='personnel_reallocation',
             creator=self.creator,
             employee=employee,
-            target_wbs=target_wbs,
             valid_from=date(2026, 1, 1),
             valid_until=date(2026, 12, 31),
+        )
+        ReallocationFundingAllocation.objects.create(
+            reallocation_task=reallocation,
+            wbs_element=target_wbs,
+            workhours_percentage='100.00',
             plan_position_number='POS-1',
         )
         PersonnelReallocationTask.objects.filter(pk=reallocation.pk).update(

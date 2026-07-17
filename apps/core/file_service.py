@@ -50,6 +50,19 @@ class ThereseFileService:
             raise Http404('File not found.') from exc
 
     @staticmethod
+    def display_name(name):
+        """Human-readable filename (original upload name when stored)."""
+        if not name:
+            return ''
+        try:
+            original = StoredFile.objects.values_list('original_filename', flat=True).get(name=name)
+            if original:
+                return original
+        except StoredFile.DoesNotExist:
+            pass
+        return str(name).replace('\\', '/').rsplit('/', 1)[-1]
+
+    @staticmethod
     def as_response(name, *, filename=None, as_attachment=None, allow_inline=False):
         stored = ThereseFileService.get_stored_file(name)
         content = bytes(stored.content)

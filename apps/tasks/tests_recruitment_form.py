@@ -105,20 +105,16 @@ class LimitationReasonTemplateTests(TestCase):
         self.assertEqual(saved.pay_scale_group, 'E13')
         self.assertEqual(saved.experience_level, 3)
 
-    def test_plan_position_number_visible_and_job_configurable_on_create(self):
+    def test_weekly_hours_visible_and_optional_on_create(self):
         form = PersonnelRecruitmentTaskForm(
             user=CustomUser.objects.create_user('creator3', password='test'),
             is_creation=True,
         )
-        widget = form.fields['plan_position_number'].widget
-        self.assertNotIsInstance(widget, type(form.fields['status'].widget))  # not hidden
-        self.assertFalse(form.fields['plan_position_number'].required)
-        self.assertEqual(
-            form.fields['plan_position_number'].widget.attrs.get('data-recruitment-field'),
-            'plan_position_number',
-        )
+        self.assertIn('weekly_hours', form.fields)
+        self.assertFalse(form.fields['weekly_hours'].required)
+        self.assertNotIn('plan_position_number', form.fields)
 
-    def test_plan_position_number_optional_on_edit(self):
+    def test_weekly_hours_optional_on_edit(self):
         from apps.tasks.models import PersonnelRecruitmentTask
 
         task = PersonnelRecruitmentTask.objects.create(
@@ -169,13 +165,13 @@ class LimitationReasonTemplateTests(TestCase):
                 'pay_scale_group': 'E13',
                 'experience_level': '3',
                 'limitation_reason': 'Existing reason',
-                'plan_position_number': '',
+                'weekly_hours': '39.00',
                 'status': task.status,
             },
             user=CustomUser.objects.create_user('coord', password='test'),
             is_creation=False,
         )
-        self.assertFalse(form.fields['plan_position_number'].required)
+        self.assertFalse(form.fields['weekly_hours'].required)
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_payscale_fields_visible_and_optional_on_create(self):

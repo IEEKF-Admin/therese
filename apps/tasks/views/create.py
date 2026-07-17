@@ -31,6 +31,7 @@ from ..forms import (
     PersonnelContractExtensionTaskForm,
     PersonnelRecruitmentTaskForm,
     RecruitmentFundingFormSet,
+    ReallocationFundingFormSet,
 )
 from ..recruitment_form_helpers import (
     build_recruitment_template_context,
@@ -331,6 +332,12 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 context['funding_formset'] = RecruitmentFundingFormSet(
                     is_creation=True,
                 )
+
+        if task_type == 'personnel_reallocation':
+            if self.request.method == 'POST':
+                context['funding_formset'] = ReallocationFundingFormSet(self.request.POST)
+            else:
+                context['funding_formset'] = ReallocationFundingFormSet()
         return context
 
     def post(self, request, *args, **kwargs):
@@ -383,6 +390,21 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             funding_formset.instance = instance
             funding_formset.save()
             clear_stashed_uploads(self.request)
+            instance = self._assign_personnel_task_number(instance)
+            return self._redirect_after_create(
+                instance,
+                message=f'{instance.get_task_type_display()} created successfully.',
+            )
+
+        if task_type == 'personnel_reallocation':
+            funding_formset = ReallocationFundingFormSet(self.request.POST)
+            if not funding_formset.is_valid():
+                messages.error(self.request, "Please correct errors in the funding allocations.")
+                return self.render_to_response(self.get_context_data(form=form))
+
+            instance = form.save()
+            funding_formset.instance = instance
+            funding_formset.save()
             instance = self._assign_personnel_task_number(instance)
             return self._redirect_after_create(
                 instance,

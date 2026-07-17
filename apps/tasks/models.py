@@ -277,10 +277,8 @@ class PurchaseItem(BaseModel):
 
 class PersonnelReallocationTask(Task):
     employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name='reallocation_tasks')
-    target_wbs = models.ForeignKey(WBSElement, on_delete=models.PROTECT, related_name='+')
     valid_from = models.DateField()
     valid_until = models.DateField(null=True, blank=True)
-    plan_position_number = models.CharField(max_length=50)
 
     class Meta:
         verbose_name = "Personnel Reallocation Task"
@@ -459,11 +457,6 @@ class PersonnelRecruitmentTask(Task):
         blank=True,
         verbose_name="Working As",
     )
-    plan_position_number = models.CharField(
-        max_length=50,
-        blank=True,
-        verbose_name="Plan Position Number",
-    )
     pay_scale_group = models.CharField(
         max_length=50,
         blank=True,
@@ -480,6 +473,13 @@ class PersonnelRecruitmentTask(Task):
         null=True,
         blank=True,
         verbose_name="Monthly Salary (€)",
+    )
+    weekly_hours = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Weekly Working Hours",
     )
     valid_from = models.DateField(verbose_name="Contract Start Date")
     valid_until = models.DateField(verbose_name="Contract End Date")
@@ -531,9 +531,20 @@ class PersonnelRecruitmentTask(Task):
             return self.job.get_estimated_monthly_salary()
         return None
 
+    def get_estimated_monthly_costs(self):
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting
+
+        salary = self.get_estimated_monthly_salary()
+        if salary is None:
+            return None
+        multiplicator = GlobalSetting.get_true_cost_multiplicator()
+        return (Decimal(salary) * Decimal(multiplicator)).quantize(Decimal('0.01'))
+
 
 class RecruitmentFundingAllocation(BaseModel):
-    """WBS element + weekly hours pair for a recruitment task."""
+    """PSP/cost center + workhours percentage for a recruitment task."""
     recruitment_task = models.ForeignKey(
         PersonnelRecruitmentTask,
         on_delete=models.CASCADE,
@@ -555,10 +566,15 @@ class RecruitmentFundingAllocation(BaseModel):
         related_name='recruitment_funding_allocations',
         verbose_name="Cost Center",
     )
-    weekly_hours_allocated = models.DecimalField(
-        max_digits=5,
+    workhours_percentage = models.DecimalField(
+        max_digits=6,
         decimal_places=2,
-        verbose_name="Weekly Working Hours",
+        verbose_name="Percentage of Workhours",
+    )
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
     )
 
     class Meta:
@@ -577,7 +593,66 @@ class RecruitmentFundingAllocation(BaseModel):
 
     def __str__(self):
         from apps.finances.funding_sources import funding_target_display
-        return f"{funding_target_display(self)} ({self.weekly_hours_allocated}h/week)"
+        return f"{funding_target_display(self)} ({self.workhours_percentage}%)"
+
+    @property
+    def funding_target_label(self):
+        from apps.finances.funding_sources import funding_target_display
+        return funding_target_display(self)
+
+
+class ReallocationFundingAllocation(BaseModel):
+    """PSP/cost center + workhours percentage for a reallocation task."""
+    reallocation_task = models.ForeignKey(
+        PersonnelReallocationTask,
+        on_delete=models.CASCADE,
+        related_name='funding_allocations',
+        verbose_name="Reallocation Task",
+    )
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="WBS Element",
+    )
+    cost_center = models.ForeignKey(
+        'finances.CostCenter',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reallocation_funding_allocations',
+        verbose_name="Cost Center",
+    )
+    workhours_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        verbose_name="Percentage of Workhours",
+    )
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes")
+
+    class Meta:
+        verbose_name = "Reallocation Funding Allocation"
+        verbose_name_plural = "Reallocation Funding Allocations"
+        ordering = ['id']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(wbs_element__isnull=False, cost_center__isnull=True)
+                    | models.Q(wbs_element__isnull=True, cost_center__isnull=False)
+                ),
+                name='reallocation_funding_allocation_one_target',
+            ),
+        ]
+
+    def __str__(self):
+        from apps.finances.funding_sources import funding_target_display
+        return f"{funding_target_display(self)} ({self.workhours_percentage}%)"
 
     @property
     def funding_target_label(self):

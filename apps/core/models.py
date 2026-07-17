@@ -55,6 +55,13 @@ class GlobalSetting(models.Model):
         default=39.00,
         verbose_name="Default Weekly Working Hours"
     )
+    true_cost_multiplicator = models.DecimalField(
+        max_digits=5,
+        decimal_places=3,
+        default=1.300,
+        verbose_name="True-Cost Multiplicator",
+        help_text="Monthly costs = monthly salary × this factor (default 1.3).",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -62,11 +69,22 @@ class GlobalSetting(models.Model):
         verbose_name_plural = "Global Settings"
 
     def __str__(self):
-        return f"Default Weekly Hours: {self.default_weekly_hours}h"
+        return (
+            f"Default Weekly Hours: {self.default_weekly_hours}h, "
+            f"True-Cost Multiplicator: {self.true_cost_multiplicator}"
+        )
+
+    @classmethod
+    def get_solo(cls):
+        setting, _ = cls.objects.get_or_create(pk=1)
+        return setting
 
     @classmethod
     def get_default_weekly_hours(cls):
-        setting, _ = cls.objects.get_or_create(pk=1)
-        return setting.default_weekly_hours
+        return cls.get_solo().default_weekly_hours
+
+    @classmethod
+    def get_true_cost_multiplicator(cls):
+        return cls.get_solo().true_cost_multiplicator
 
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
+{% load widget_tweaks file_tags %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
@@ -120,7 +120,7 @@
                     {% if form.third_party_funding_commitment.errors %}{{ form.third_party_funding_commitment|add_class:"form-control error" }}{% else %}{{ form.third_party_funding_commitment }}{% endif %}
                     {% if form.third_party_funding_commitment.help_text %}<span class="helptext">{{ form.third_party_funding_commitment.help_text }}</span>{% endif %}
                     {% if form.instance.third_party_funding_commitment %}
-                    <span class="helptext">Current file: <a href="{{ form.instance.third_party_funding_commitment.url }}" target="_blank" rel="noopener">{{ form.instance.third_party_funding_commitment.name }}</a></span>
+                    <span class="helptext">Current file: <a href="{{ form.instance.third_party_funding_commitment.url }}" target="_blank" rel="noopener">{{ form.instance.third_party_funding_commitment|file_display_name }}</a></span>
                     {% endif %}
                     {{ form.third_party_funding_commitment.errors }}
                 </div>

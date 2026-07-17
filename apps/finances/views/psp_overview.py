@@ -24,8 +24,9 @@ from ..models import WBSElement
 
 def calculate_funding_cost(allocation, period_start, period_end):
     """
-    Calculate total salary cost for a FundingAllocation over the given period,
-    using the contract monthly salary and allocated hours.
+    Calculate total personnel cost for a FundingAllocation over the given period,
+    using contract monthly costs (salary × true-cost multiplicator) and the
+    allocation's percentage of workhours.
     """
     if not period_start:
         period_start = allocation.start_date
@@ -40,17 +41,15 @@ def calculate_funding_cost(allocation, period_start, period_end):
         return 0
 
     contract = allocation.employee.get_contract_as_of(overlap_start)
-
-    if not contract or not contract.weekly_hours:
+    if not contract:
         return 0
 
-    # Monthly salary always comes from the contract field (payscale or manual).
-    full_monthly = contract.get_monthly_salary()
+    full_monthly = contract.get_monthly_costs()
     if full_monthly is None:
         return 0
 
-    hours_ratio = Decimal(allocation.weekly_hours_allocated) / Decimal(contract.weekly_hours)
-    prorated_monthly = Decimal(full_monthly) * hours_ratio
+    percentage = Decimal(allocation.workhours_percentage or 0)
+    prorated_monthly = Decimal(full_monthly) * (percentage / Decimal('100'))
 
     months = (overlap_end.year - overlap_start.year) * 12 + (overlap_end.month - overlap_start.month) + 1
 

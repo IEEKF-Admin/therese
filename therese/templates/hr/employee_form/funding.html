@@ -1,16 +1,17 @@
-﻿{% load widget_tweaks %}
+{% load widget_tweaks %}
 <div class="form-section full-width">
     <h3>Funding Allocations</h3>
     {{ funding_formset.management_form }}
     <div id="funding-container">
         {% for form in funding_formset %}
         <div class="inline-form-row funding-row">
-            {{ form.id }}           <!-- WICHTIG: Hidden ID -->
+            {{ form.id }}
             {{ form.DELETE.as_hidden }}
             <div class="inline-field"><label>PSP / Cost Center</label>{% if form.funding_source.errors %}{{ form.funding_source|add_class:"form-control error" }}{% else %}{{ form.funding_source|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Weekly Hours Allocated</label>{% if form.weekly_hours_allocated.errors %}{{ form.weekly_hours_allocated|add_class:"form-control error" }}{% else %}{{ form.weekly_hours_allocated|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Start Date</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
-            <div class="inline-field"><label>End Date</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
+            <div class="inline-field"><label>Percentage of Workhours</label>{% if form.workhours_percentage.errors %}{{ form.workhours_percentage|add_class:"form-control error" }}{% else %}{{ form.workhours_percentage|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Plan Position Number</label>{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Valid From</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
+            <div class="inline-field"><label>Valid Until</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
             <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
@@ -19,17 +20,17 @@
         {% endfor %}
     </div>
 
-    <!-- Hidden empty template for "Add another" -->
     <div id="funding-empty-template" class="empty-form-template" style="display:none;">
         {% with form=funding_formset.empty_form %}
         <div class="inline-form-row funding-row">
             {{ form.id }}
             {{ form.DELETE.as_hidden }}
             <div class="inline-field"><label>PSP / Cost Center</label>{% if form.funding_source.errors %}{{ form.funding_source|add_class:"form-control error" }}{% else %}{{ form.funding_source|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Weekly Hours Allocated</label>{% if form.weekly_hours_allocated.errors %}{{ form.weekly_hours_allocated|add_class:"form-control error" }}{% else %}{{ form.weekly_hours_allocated|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Start Date</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
-            <div class="inline-field"><label>End Date</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
-            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
+            <div class="inline-field"><label>Percentage of Workhours</label>{% if form.workhours_percentage.errors %}{{ form.workhours_percentage|add_class:"form-control error" }}{% else %}{{ form.workhours_percentage|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Plan Position Number</label>{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Valid From</label>{{ form.start_date }}</div>
+            <div class="inline-field"><label>Valid Until</label>{{ form.end_date }}</div>
+            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
             </div>
@@ -39,5 +40,3 @@
 
     <button type="button" onclick="addInlineRow('funding-container', '.funding-row', 'allocations')" class="btn-secondary">+ Add another Funding Allocation</button>
 </div>
-
-

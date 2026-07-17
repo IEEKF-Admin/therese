@@ -5,11 +5,19 @@ Works with SQLite and MariaDB/MySQL via Django's ORM.
 
 import mimetypes
 import os
+import uuid
 
 from django.conf import settings
+from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import Storage
 from django.utils.deconstruct import deconstructible
+
+
+def _posix_join(*parts):
+    """Join path parts with forward slashes (stable storage keys on all OSes)."""
+    cleaned = [str(p).replace('\\', '/').strip('/') for p in parts if p]
+    return '/'.join(cleaned)
 
 
 @deconstructible
@@ -40,12 +48,18 @@ class DatabaseStorage(Storage):
             data = raw if isinstance(raw, bytes) else raw.encode('utf-8')
 
         original = getattr(content, 'name', None) or os.path.basename(name)
-        content_type = getattr(content, 'content_type', None) or mimetypes.guess_type(original)[0] or 'application/octet-stream'
+        # Keep only the basename; truncate to StoredFile.original_filename max_length.
+        original_basename = os.path.basename(str(original).replace('\\', '/'))[:255]
+        content_type = (
+            getattr(content, 'content_type', None)
+            or mimetypes.guess_type(original_basename)[0]
+            or 'application/octet-stream'
+        )
 
         StoredFile.objects.update_or_create(
             name=name,
             defaults={
-                'original_filename': os.path.basename(original),
+                'original_filename': original_basename or os.path.basename(name),
                 'content_type': content_type,
                 'size': len(data),
                 'content': data,
@@ -81,11 +95,34 @@ class DatabaseStorage(Storage):
         return f'{base}{name}'
 
     def get_available_name(self, name, max_length=None):
-        dir_name, file_name = os.path.split(name)
-        file_root, file_ext = os.path.splitext(file_name)
-        candidate = name
-        counter = 1
-        while self.exists(candidate):
-            candidate = os.path.join(dir_name, f'{file_root}_{counter}{file_ext}')
-            counter += 1
-        return candidate
+        """
+        Return a free storage key.
+
+        Django FileFields default to max_length=100 for the stored path. Long
+        original filenames (plus upload_to prefix) therefore fail unless we
+        rename. When the proposed name is too long or already taken, use a
+        short UUID basename and keep the directory + extension. The human
+        filename remains in StoredFile.original_filename for downloads/UI.
+        """
+        name = str(name or '').replace('\\', '/')
+        dir_name, file_name = name.rsplit('/', 1) if '/' in name else ('', name)
+        _file_root, file_ext = os.path.splitext(file_name)
+
+        def fits(candidate):
+            return max_length is None or len(candidate) <= max_length
+
+        if fits(name) and not self.exists(name):
+            return name
+
+        # Collision or oversize: rename to a short unique basename.
+        for _ in range(100):
+            short_basename = f'{uuid.uuid4().hex}{file_ext}'
+            candidate = _posix_join(dir_name, short_basename) if dir_name else short_basename
+            if fits(candidate) and not self.exists(candidate):
+                return candidate
+
+        # Directory prefix alone already exceeds max_length (misconfigured field).
+        raise SuspiciousFileOperation(
+            f'Storage can not find an available filename for "{name}". '
+            f'Please make sure that the corresponding file field allows sufficient "max_length".'
+        )

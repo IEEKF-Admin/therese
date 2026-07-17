@@ -81,8 +81,6 @@ def recruitment_contract_initial(task):
         'valid_from': task.valid_from,
         'valid_until': task.valid_until,
     }
-    if task.plan_position_number:
-        contract_data['plan_position_number'] = task.plan_position_number
     if task.pay_scale_group:
         contract_data['pay_scale_group'] = task.pay_scale_group
     elif task.job and task.job.pay_scale_group:
@@ -94,6 +92,8 @@ def recruitment_contract_initial(task):
     salary = task.get_estimated_monthly_salary()
     if salary is not None:
         contract_data['monthly_salary'] = salary
+    if task.weekly_hours is not None:
+        contract_data['weekly_hours'] = task.weekly_hours
     return contract_data
 
 

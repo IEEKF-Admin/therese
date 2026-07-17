@@ -110,6 +110,11 @@ class WBSElementForm(forms.ModelForm):
         self.fields['cost_center'].queryset = CostCenter.objects.all().order_by('cost_center')
         self.fields['cost_center'].required = True
         self.fields['cost_center'].empty_label = '— Select cost center —'
+        # FileField model max_length=100 applies to the *storage path*. Client
+        # filenames may be longer; DatabaseStorage renames them to a short UUID.
+        # Allow realistic original names through form validation.
+        if 'third_party_funding_commitment' in self.fields:
+            self.fields['third_party_funding_commitment'].max_length = 255
 
     def clean_cost_center(self):
         cost_center = self.cleaned_data.get('cost_center')
@@ -262,6 +267,12 @@ class CostCenterForm(forms.ModelForm):
             'third_party_funding_commitment': 'PDF or image file (optional).',
             'third_party_funder_identifier': 'Identifier of the third-party funder (optional).',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Same as WBSElementForm: client filename may exceed FileField path max_length.
+        if 'third_party_funding_commitment' in self.fields:
+            self.fields['third_party_funding_commitment'].max_length = 255
 
 
 class CostCenterYearEstimateForm(forms.ModelForm):

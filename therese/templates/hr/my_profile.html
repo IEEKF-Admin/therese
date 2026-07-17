@@ -62,8 +62,8 @@
                 <th>Experience Level</th>
                 <th>Monthly Salary</th>
                 <th>Job Number</th>
-                <th>Plan Position</th>
                 <th>Weekly Hours</th>
+                <th>Monthly Costs</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
             </tr>
@@ -75,8 +75,8 @@
                 <td>{{ c.experience_level|default:"—" }}</td>
                 <td>{% if c.get_monthly_salary %}{{ c.get_monthly_salary }} €{% else %}—{% endif %}</td>
                 <td>{{ c.job_number|default:"—" }}</td>
-                <td>{{ c.plan_position_number|default:"—" }}</td>
                 <td>{{ c.weekly_hours }}</td>
+                <td>{% if c.get_monthly_costs %}{{ c.get_monthly_costs }} €{% else %}—{% endif %}</td>
                 <td>{{ c.valid_from }}</td>
                 <td>{{ c.valid_until|default:"open" }}</td>
             </tr>
@@ -96,7 +96,8 @@
         <thead>
             <tr>
                 <th>PSP / Cost Center</th>
-                <th>Hours/Week</th>
+                <th>% of Workhours</th>
+                <th>Plan Position</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
             </tr>
@@ -105,7 +106,8 @@
         {% for f in current_fundings %}
             <tr>
                 <td>{{ f.funding_target_label }}</td>
-                <td>{{ f.weekly_hours_allocated }}</td>
+                <td>{{ f.workhours_percentage }}%</td>
+                <td>{{ f.plan_position_number|default:"—" }}</td>
                 <td>{{ f.start_date }}</td>
                 <td>{{ f.end_date|default:"open" }}</td>
             </tr>

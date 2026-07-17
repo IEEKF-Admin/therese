@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static widget_tweaks %}
 
 {% block title %}Personnel Reallocation: {{ task.title|truncatechars:50 }}{% endblock %}
@@ -35,16 +35,6 @@
             </div>
 
             <div class="aligned-field">
-                <label>Target WBS</label>
-                <strong>{{ task.target_wbs }}</strong>
-            </div>
-
-            <div class="aligned-field">
-                <label>Plan Position Number</label>
-                {% if can_edit %}{{ form.plan_position_number|add_class:"form-control" }}{% else %}<strong>{{ task.plan_position_number }}</strong>{% endif %}
-            </div>
-
-            <div class="aligned-field">
                 <label>Assigned to</label>
                 {% if can_set_assignee %}
                     {{ form.assignee|add_class:"form-control" }}
@@ -66,6 +56,10 @@
                 {% if can_edit %}{{ form.valid_until|add_class:"form-control" }}{% else %}<strong>{{ task.valid_until|default:"—" }}</strong>{% endif %}
             </div>
         </div>
+
+        {% if funding_formset %}
+        {% include "tasks/reallocation/_funding_allocations.html" %}
+        {% endif %}
 
         <div class="form-section">
             <h3>Status</h3>
@@ -97,4 +91,3 @@
 
 {% include "tasks/detail/_personnel_documents.html" %}
 {% endblock %}
-

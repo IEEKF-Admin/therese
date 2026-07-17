@@ -11,10 +11,15 @@ from .models import (
     Task, TaskComment, TaskAttachment,
     PurchaseOrderTask, PurchaseItem,
     PersonnelReallocationTask, PersonnelContractExtensionTask,
-    PersonnelRecruitmentTask, RecruitmentFundingAllocation, RecruitmentJob,
+    PersonnelRecruitmentTask, RecruitmentFundingAllocation,
+    ReallocationFundingAllocation, RecruitmentJob,
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
-from .forms import PurchaseOrderTaskForm, RecruitmentFundingAllocationForm
+from .forms import (
+    PurchaseOrderTaskForm,
+    RecruitmentFundingAllocationForm,
+    ReallocationFundingAllocationForm,
+)
 from apps.hr.models import Employee
 # GroupNames removed (old groups deleted)
 
@@ -59,10 +64,16 @@ class PurchaseOrderTaskAdmin(admin.ModelAdmin):
         return form
 
 
+class ReallocationFundingInline(admin.TabularInline):
+    model = ReallocationFundingAllocation
+    form = ReallocationFundingAllocationForm
+    extra = 1
+
+
 @admin.register(PersonnelReallocationTask, site=therese_admin)
 class PersonnelReallocationTaskAdmin(admin.ModelAdmin):
-    inlines = [TaskCommentInline, TaskAttachmentInline]
-    list_display = ['title', 'employee', 'target_wbs', 'status', 'valid_from', 'assignee']
+    inlines = [ReallocationFundingInline, TaskCommentInline, TaskAttachmentInline]
+    list_display = ['title', 'employee', 'status', 'valid_from', 'assignee']
     list_filter = ['status', 'valid_from']
 
 

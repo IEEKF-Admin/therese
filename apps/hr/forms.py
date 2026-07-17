@@ -174,7 +174,7 @@ class ContractForm(forms.ModelForm):
         model = Contract
         fields = [
             'pay_scale_group', 'experience_level', 'monthly_salary',
-            'job_number', 'plan_position_number',
+            'job_number',
             'weekly_hours', 'valid_from', 'valid_until', 'comments',
         ]
         widgets = {
@@ -226,7 +226,6 @@ class ContractForm(forms.ModelForm):
         )
 
         self.fields['job_number'].label = 'Job Number'
-        self.fields['plan_position_number'].label = 'Plan Position Number'
         self.fields['monthly_salary'].label = 'Monthly Salary'
         self.fields['monthly_salary'].required = False
         self.fields['monthly_salary'].widget.attrs.update({
@@ -299,12 +298,19 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         model = FundingAllocation
         fields = [
             'funding_source',
-            'weekly_hours_allocated',
+            'workhours_percentage',
+            'plan_position_number',
             'start_date',
             'end_date',
             'comments',
         ]
         widgets = {
+            'workhours_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'plan_position_number': forms.TextInput(attrs={'class': 'form-control'}),
             'start_date': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -317,6 +323,14 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'workhours_percentage' in self.fields:
+            self.fields['workhours_percentage'].label = 'Percentage of Workhours'
+        if 'plan_position_number' in self.fields:
+            self.fields['plan_position_number'].label = 'Plan Position Number'
+            self.fields['plan_position_number'].required = False
 
 # = FORMSETS =
 # extra=0 / min_num=0: no empty inline rows on open; user adds rows explicitly.

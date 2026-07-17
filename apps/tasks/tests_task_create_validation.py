@@ -108,10 +108,8 @@ class PersonnelTaskValidationTests(TestCase):
         form = PersonnelReallocationTaskForm(
             data={
                 'employee': self.employee.pk,
-                'target_wbs': self.wbs.pk,
                 'valid_from': '01.06.2026',
                 'valid_until': '01.01.2026',
-                'plan_position_number': 'POS-1',
                 'status': 'not_yet_processed',
             },
             user=self.user,
@@ -168,7 +166,8 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
             'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
-            'funding_allocations-0-weekly_hours_allocated': '20',
+            'funding_allocations-0-workhours_percentage': '50',
+            'funding_allocations-0-plan_position_number': '',
         }
         data.update(overrides)
         return data
@@ -193,10 +192,12 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
             'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
-            'funding_allocations-0-weekly_hours_allocated': '20',
+            'funding_allocations-0-workhours_percentage': '50',
+            'funding_allocations-0-plan_position_number': '',
             'funding_allocations-1-id': '0',
             'funding_allocations-1-funding_source': '',
-            'funding_allocations-1-weekly_hours_allocated': '',
+            'funding_allocations-1-workhours_percentage': '',
+            'funding_allocations-1-plan_position_number': '',
         }
         formset = RecruitmentFundingFormSet(data, is_creation=True)
         self.assertTrue(formset.is_valid(), formset.errors)
@@ -209,9 +210,11 @@ class RecruitmentFundingFormsetTests(TestCase):
             'funding_allocations-MIN_NUM_FORMS': '0',
             'funding_allocations-MAX_NUM_FORMS': '1000',
             'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
-            'funding_allocations-0-weekly_hours_allocated': '20',
+            'funding_allocations-0-workhours_percentage': '50',
+            'funding_allocations-0-plan_position_number': '',
             'funding_allocations-1-funding_source': f'wbs:{self.wbs.pk}',
-            'funding_allocations-1-weekly_hours_allocated': '10',
+            'funding_allocations-1-workhours_percentage': '25',
+            'funding_allocations-1-plan_position_number': '',
         }
         formset = RecruitmentFundingFormSet(data, is_creation=True)
         self.assertTrue(formset.is_valid(), formset.errors)

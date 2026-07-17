@@ -156,7 +156,7 @@ def create_test_data():
             FundingAllocation.objects.create(
                 employee=emp,
                 wbs_element=random.choice(wbs_list),
-                weekly_hours_allocated=round(random.uniform(12, 39), 2),
+                workhours_percentage=round(random.uniform(20, 100), 2),
                 start_date=start,
                 end_date=end,
             )

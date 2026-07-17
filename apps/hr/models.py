@@ -241,11 +241,6 @@ class Contract(BaseModel):
         blank=True,
         verbose_name="Job Number",
     )
-    plan_position_number = models.CharField(
-        max_length=50,
-        blank=True,
-        verbose_name="Plan Position Number",
-    )
     monthly_salary = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -316,6 +311,20 @@ class Contract(BaseModel):
             )
         return None
 
+    def get_monthly_costs(self):
+        """
+        True monthly personnel costs: monthly salary × global true-cost multiplicator.
+        """
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting
+
+        salary = self.get_monthly_salary()
+        if salary is None:
+            return None
+        multiplicator = GlobalSetting.get_true_cost_multiplicator()
+        return (Decimal(salary) * Decimal(multiplicator)).quantize(Decimal('0.01'))
+
     def __str__(self):
         return f"Contract for {self.employee} from {self.valid_from} ({self.weekly_hours} hours)"
 
@@ -375,7 +384,7 @@ class EmployeeDocumentVersion(BaseModel):
 
 
 class FundingAllocation(BaseModel):
-    """Hours-based funding allocation for an employee on a WBS Element"""
+    """Percentage-based funding allocation for an employee on a WBS / cost center."""
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
@@ -398,11 +407,17 @@ class FundingAllocation(BaseModel):
         related_name='funding_allocations',
         verbose_name="Cost Center",
     )
-    
-    weekly_hours_allocated = models.DecimalField(
-        max_digits=5,
+
+    workhours_percentage = models.DecimalField(
+        max_digits=6,
         decimal_places=2,
-        verbose_name="Allocated Weekly Hours"
+        verbose_name="Percentage of Workhours",
+        help_text="Share of the employee's contract weekly hours (0–100+).",
+    )
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
     )
     
     start_date = models.DateField(verbose_name="Valid From")
@@ -430,7 +445,10 @@ class FundingAllocation(BaseModel):
 
     def __str__(self):
         from apps.finances.funding_sources import funding_target_display
-        return f"{self.employee} → {funding_target_display(self)} ({self.weekly_hours_allocated} hours)"
+        return (
+            f"{self.employee} → {funding_target_display(self)} "
+            f"({self.workhours_percentage}%)"
+        )
 
     @property
     def funding_target_label(self):

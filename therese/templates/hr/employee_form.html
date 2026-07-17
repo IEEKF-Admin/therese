@@ -19,7 +19,15 @@
         return str.replace(/__prefix__/g, newIndex);
     }
 
-    function getTotalFormsInput(container) {
+    function getTotalFormsInput(container, formsetPrefix) {
+        // Prefer the explicit formset prefix when provided (avoids grabbing another formset).
+        if (formsetPrefix) {
+            const byPrefix = document.querySelector(
+                `input[name="${formsetPrefix}-TOTAL_FORMS"]`
+            );
+            if (byPrefix) return byPrefix;
+        }
+
         // 1. Direct descendant or inside the container
         let input = container.querySelector('input[name$="-TOTAL_FORMS"]');
         if (input) return input;
@@ -39,7 +47,14 @@
             if (input) return input;
         }
 
-        // 4. Last resort: any TOTAL_FORMS on the page (better than nothing)
+        // 4. Section form-section that wraps table + management form
+        let section = container.closest('.form-section');
+        if (section) {
+            input = section.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (input) return input;
+        }
+
+        // 5. Last resort: any TOTAL_FORMS on the page (better than nothing)
         const all = document.querySelectorAll('input[name$="-TOTAL_FORMS"]');
         return all.length ? all[0] : null;
     }
@@ -64,22 +79,33 @@
                 ? container.parentElement.querySelector('.empty-form-template')
                 : null;
         }
+        // Workgroup / salary: empty template row is inside the tbody itself
+        if (!templateWrapper) {
+            templateWrapper = container.querySelector('.empty-form-template');
+        }
 
         let rowSource = null;
         if (templateWrapper) {
-            rowSource = templateWrapper.querySelector(templateSelector)
-                || templateWrapper.querySelector('.inline-form-row')
-                || templateWrapper.firstElementChild;
+            if (templateWrapper.matches && templateWrapper.matches(templateSelector)) {
+                rowSource = templateWrapper;
+            } else {
+                rowSource = templateWrapper.querySelector(templateSelector)
+                    || templateWrapper.querySelector('.inline-form-row')
+                    || templateWrapper.firstElementChild
+                    || (templateWrapper.tagName === 'TR' ? templateWrapper : null);
+            }
         }
         if (!rowSource) {
-            rowSource = container.querySelector(templateSelector) || container.querySelector('tr');
+            rowSource = container.querySelector('.empty-form-template')
+                || container.querySelector(templateSelector)
+                || container.querySelector('tr');
         }
         if (!rowSource) {
             console.error('No template row found for', containerId);
             return;
         }
 
-        const totalInput = getTotalFormsInput(container);
+        const totalInput = getTotalFormsInput(container, formsetPrefix);
         let newIndex = 0;
         if (totalInput) {
             newIndex = parseInt(totalInput.value, 10) || 0;

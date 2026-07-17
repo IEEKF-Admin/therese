@@ -10,6 +10,7 @@ from django.shortcuts import render
 from ....forms import (
     PersonnelContractExtensionTaskForm,
     PersonnelReallocationTaskForm,
+    ReallocationFundingFormSet,
 )
 from ....recruitment_form_helpers import build_recruitment_template_context
 from ....utils import is_personnel_coordinator
@@ -52,6 +53,8 @@ def handle_standard_personnel_detail(request, task):
     if request.method == 'POST' and can_edit_coordinator_steps and not can_edit:
         return save_personnel_coordinator_steps(request, task, employee=employee)
 
+    funding_formset = None
+
     # POST: full form save (coordinator, assignee, or superuser).
     if request.method == 'POST' and can_edit:
         form = form_class(
@@ -60,11 +63,20 @@ def handle_standard_personnel_detail(request, task):
             user=request.user,
             is_creation=False,
         )
-        if form.is_valid():
+        if task_type == 'personnel_reallocation':
+            funding_formset = ReallocationFundingFormSet(request.POST, instance=task)
+            form_ok = form.is_valid() and funding_formset.is_valid()
+        else:
+            form_ok = form.is_valid()
+
+        if form_ok:
             saved = form.save(commit=False)
             if employee:
                 saved.last_changed_by = employee
             saved.save()
+            if funding_formset is not None:
+                funding_formset.instance = saved
+                funding_formset.save()
             record_task_update(
                 saved,
                 employee,
@@ -79,12 +91,15 @@ def handle_standard_personnel_detail(request, task):
             user=request.user,
             is_creation=False,
         )
+        if task_type == 'personnel_reallocation':
+            funding_formset = ReallocationFundingFormSet(instance=task)
 
     is_archived_by_user = employee and employee in task.archived_by.all()
 
     context = {
         'task': task,
         'form': form,
+        'funding_formset': funding_formset,
         'can_edit': can_edit,
         'can_edit_coordinator_steps': can_edit_coordinator_steps,
         'can_set_assignee': can_set_assignee,

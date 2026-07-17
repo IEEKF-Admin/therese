@@ -147,7 +147,8 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 funding_initial = [
                     {
                         'funding_source': funding_source_value_for_instance(allocation),
-                        'weekly_hours_allocated': allocation.weekly_hours_allocated,
+                        'workhours_percentage': allocation.workhours_percentage,
+                        'plan_position_number': allocation.plan_position_number,
                         'start_date': task.valid_from,
                         'end_date': task.valid_until,
                     }

@@ -33,7 +33,6 @@ class ContractInline(admin.TabularInline):
     extra = 0
     fields = (
         'job_number',
-        'plan_position_number',
         'pay_scale_group',
         'experience_level',
         'monthly_salary',
@@ -56,7 +55,8 @@ class FundingAllocationInline(admin.TabularInline):
     extra = 0
     fields = (
         'funding_source',
-        'weekly_hours_allocated',
+        'workhours_percentage',
+        'plan_position_number',
         'start_date',
         'end_date',
         'comments',
@@ -291,7 +291,6 @@ class ContractAdmin(admin.ModelAdmin):
     list_display = (
         'employee',
         'job_number',
-        'plan_position_number',
         'pay_scale_group',
         'experience_level',
         'monthly_salary',
@@ -305,13 +304,11 @@ class ContractAdmin(admin.ModelAdmin):
         'employee__first_name',
         'employee__last_name',
         'job_number',
-        'plan_position_number',
     )
     autocomplete_fields = ('employee',)
     fields = (
         'employee',
         'job_number',
-        'plan_position_number',
         'pay_scale_group',
         'experience_level',
         'monthly_salary',
@@ -328,7 +325,8 @@ class FundingAllocationAdmin(admin.ModelAdmin):
     list_display = (
         'employee',
         'funding_target_label',
-        'weekly_hours_allocated',
+        'workhours_percentage',
+        'plan_position_number',
         'start_date',
         'end_date',
     )
@@ -339,12 +337,14 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'employee__last_name',
         'wbs_element__wbs_code',
         'cost_center__cost_center',
+        'plan_position_number',
     )
     autocomplete_fields = ('employee',)
     fields = (
         'employee',
         'funding_source',
-        'weekly_hours_allocated',
+        'workhours_percentage',
+        'plan_position_number',
         'start_date',
         'end_date',
         'comments',

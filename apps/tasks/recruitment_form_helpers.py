@@ -111,7 +111,7 @@ def configure_recruitment_job_field(form):
 def apply_recruitment_field_defaults(form, *, is_creation):
     optional_always = {
         'prefix', 'initial_message', 'gender', 'private_phone_number',
-        'limitation_reason', 'plan_position_number', 'working_as',
+        'limitation_reason', 'working_as', 'weekly_hours',
         'pay_scale_group', 'experience_level', 'monthly_salary',
     }
     for field_name, field in form.fields.items():
@@ -243,6 +243,8 @@ def build_recruitment_template_context():
             'monthly_salary': str(ps.monthly_salary),
         })
 
+    from apps.core.models import GlobalSetting
+
     # Python objects for template json_script (not pre-serialized strings).
     return {
         'recruitment_job_rules_json': serialize_all_job_rules(),
@@ -250,6 +252,7 @@ def build_recruitment_template_context():
         'recruitment_field_keys_json': field_keys,
         'recruitment_job_payscale_json': job_payscale,
         'recruitment_payscale_data_json': payscale_data,
+        'true_cost_multiplicator': GlobalSetting.get_true_cost_multiplicator(),
     }
 
 

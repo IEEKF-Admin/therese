@@ -41,7 +41,7 @@ from apps.tasks.workflow_config import creator_has_coordinator_fallback
 # ---------------------------------------------------------------------------
 class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
     """
-    One WBS + weekly-hours row for recruitment funding.
+    One PSP/cost-center + workhours-percentage row for recruitment funding.
 
     Blank rows are treated as empty via INTERNAL_FIELDS and _is_empty_row();
     empty cleaned rows are marked DELETE so they are not persisted.
@@ -50,32 +50,38 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
 
     class Meta:
         model = RecruitmentFundingAllocation
-        fields = ['weekly_hours_allocated']
+        fields = ['workhours_percentage', 'plan_position_number']
         widgets = {
-            'weekly_hours_allocated': forms.NumberInput(attrs={
+            'workhours_percentage': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
                 'min': '0',
             }),
+            'plan_position_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.empty_permitted = True
+        if 'workhours_percentage' in self.fields:
+            self.fields['workhours_percentage'].label = 'Percentage of Workhours'
+        if 'plan_position_number' in self.fields:
+            self.fields['plan_position_number'].label = 'Plan Position Number'
+            self.fields['plan_position_number'].required = False
         # INTERNAL_FIELDS must not block empty placeholder rows in the formset.
         for field_name, field in self.fields.items():
-            if field_name in self.INTERNAL_FIELDS:
+            if field_name in self.INTERNAL_FIELDS or field_name == 'plan_position_number':
                 field.required = False
             else:
                 field.required = True
 
     def _is_empty_row(self, cleaned_data=None):
-        """True when both WBS and weekly hours are unset on this inline row."""
+        """True when funding source and percentage are unset on this inline row."""
         if cleaned_data is not None:
             if not cleaned_data:
                 return True
             for field_name, value in cleaned_data.items():
-                if field_name in self.INTERNAL_FIELDS:
+                if field_name in self.INTERNAL_FIELDS or field_name == 'plan_position_number':
                     continue
                 if value not in (None, ''):
                     return False
@@ -83,8 +89,8 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         if not self.is_bound:
             return not (self.instance and self.instance.pk)
         source = self.data.get(self.add_prefix('funding_source'), '').strip()
-        hours = self.data.get(self.add_prefix('weekly_hours_allocated'), '').strip()
-        return not source and not hours
+        percentage = self.data.get(self.add_prefix('workhours_percentage'), '').strip()
+        return not source and not percentage
 
     def full_clean(self):
         # Blank extra rows skip validation (same pattern as PurchaseItemForm).
@@ -103,21 +109,19 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             return cleaned_data
         if not cleaned_data.get('funding_source'):
             self.add_error('funding_source', 'PSP element or cost center is required.')
-        hours = cleaned_data.get('weekly_hours_allocated')
-        if hours in (None, ''):
-            self.add_error('weekly_hours_allocated', 'Weekly working hours are required.')
+        percentage = cleaned_data.get('workhours_percentage')
+        if percentage in (None, ''):
+            self.add_error('workhours_percentage', 'Percentage of workhours is required.')
         else:
             try:
-                hours_value = Decimal(str(hours))
+                percentage_value = Decimal(str(percentage))
             except Exception:
-                self.add_error('weekly_hours_allocated', 'Enter a valid number of hours.')
+                self.add_error('workhours_percentage', 'Enter a valid percentage.')
             else:
-                if hours_value <= 0:
-                    self.add_error('weekly_hours_allocated', 'Weekly hours must be greater than 0.')
-                elif hours_value > Decimal('168'):
-                    self.add_error('weekly_hours_allocated', 'Weekly hours cannot exceed 168.')
+                if percentage_value <= 0:
+                    self.add_error('workhours_percentage', 'Percentage must be greater than 0.')
                 else:
-                    cleaned_data['weekly_hours_allocated'] = hours_value
+                    cleaned_data['workhours_percentage'] = percentage_value
         return cleaned_data
 
 
@@ -174,7 +178,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'country_of_origin', 'place_of_birth', 'email_private',
             'private_phone_number', 'street', 'house_number', 'postal_code',
             'city', 'country', 'job', 'working_as', 'pay_scale_group',
-            'experience_level', 'monthly_salary', 'plan_position_number',
+            'experience_level', 'monthly_salary', 'weekly_hours',
             'valid_from', 'valid_until', 'limitation_reason',
             'cv_file', 'latest_degree_certificate_file',
             'assignee', 'status',
@@ -272,6 +276,13 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         if 'monthly_salary' in self.fields:
             self.fields['monthly_salary'].widget.attrs.update({
                 'data-recruitment-monthly-salary': 'true',
+                'step': '0.01',
+                'min': '0',
+            })
+        if 'weekly_hours' in self.fields:
+            self.fields['weekly_hours'].required = False
+            self.fields['weekly_hours'].widget.attrs.update({
+                'class': 'form-control',
                 'step': '0.01',
                 'min': '0',
             })

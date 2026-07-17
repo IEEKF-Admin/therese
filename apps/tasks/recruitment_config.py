@@ -66,7 +66,7 @@ RECRUITMENT_CONFIGURABLE_FIELDS = [
     ('pay_scale_group', 'Pay Scale Group', 'Entgeltstufe'),
     ('experience_level', 'Experience Level', 'Erfahrungsstufe'),
     ('monthly_salary', 'Monthly Salary', 'Monatsgehalt'),
-    ('plan_position_number', 'Plan Position Number', 'Planstellen-Nummer'),
+    ('weekly_hours', 'Weekly Working Hours', 'Wochenarbeitszeit'),
     ('valid_from', 'Contract Start Date', 'Vertragsbeginn'),
     ('valid_until', 'Contract End Date', 'Vertragsende'),
     ('limitation_reason', 'Limitation Reason', 'Befristungsgrund'),
@@ -79,12 +79,12 @@ DEFAULT_OPTIONAL_FIELDS = {
     'prefix',
     'gender',
     'private_phone_number',
-    'plan_position_number',
     'limitation_reason',
     'working_as',
     'pay_scale_group',
     'experience_level',
     'monthly_salary',
+    'weekly_hours',
 }
 
 FILE_FIELDS = {'cv_file', 'latest_degree_certificate_file'}

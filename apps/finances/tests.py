@@ -101,6 +101,42 @@ class WBSElementFormTests(TestCase):
         psp = form.save()
         self.assertTrue(psp.third_party_funding_commitment.name.endswith('.pdf'))
 
+    def test_third_party_funding_commitment_accepts_long_filename(self):
+        """Regression: long client filenames must not break PSP save."""
+        from apps.core.models import StoredFile
+
+        field_max = WBSElement._meta.get_field('third_party_funding_commitment').max_length
+        # Client name within form limit; storage path (prefix + name) exceeds max_length.
+        long_name = ('x' * 230) + '.pdf'
+        self.assertLessEqual(len(long_name), field_max)
+        self.assertGreater(
+            len('finances/psp/third_party_funding/2026/07/' + long_name),
+            field_max,
+        )
+        pdf = SimpleUploadedFile(long_name, b'%PDF-1.4 long', content_type='application/pdf')
+        form = WBSElementForm(
+            data={
+                'wbs_code': 'D-999.0002.4',
+                'title': 'Long funding file name',
+                'work_group': '',
+                'responsible_person': '',
+                'cost_center': self.cost_center.pk,
+                'period_start': '',
+                'period_end': '',
+                'subject_to_annual_recurrence': False,
+                'is_inactive': False,
+                'comment': '',
+                'third_party_funder_identifier': '',
+            },
+            files={'third_party_funding_commitment': pdf},
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        psp = form.save()
+        self.assertLessEqual(len(psp.third_party_funding_commitment.name), field_max)
+        self.assertTrue(psp.third_party_funding_commitment.name.endswith('.pdf'))
+        stored = StoredFile.objects.get(name=psp.third_party_funding_commitment.name)
+        self.assertEqual(stored.original_filename, long_name)
+
 
 class WBSElementYearEstimateFormSetTests(TestCase):
     def setUp(self):
@@ -309,7 +345,7 @@ class PSPManageAccessTests(TestCase):
         FundingAllocation.objects.create(
             employee=allocation_employee,
             wbs_element=self.psp_group_a,
-            weekly_hours_allocated='10.00',
+            workhours_percentage='25.00',
             start_date=date(2026, 1, 1),
         )
 
@@ -329,7 +365,7 @@ class PSPManageAccessTests(TestCase):
         FundingAllocation.objects.create(
             employee=allocation_employee,
             wbs_element=self.psp_group_a,
-            weekly_hours_allocated='5.00',
+            workhours_percentage='15.00',
             start_date=date(2026, 1, 1),
         )
 

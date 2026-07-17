@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static widget_tweaks %}
 
 {% block title %}New Personnel Reallocation - THERESE{% endblock %}
@@ -23,16 +23,6 @@
                 <label>Employee <span style="color:#ef4444;">*</span></label>
                 {{ form.employee|add_class:"form-control" }}
             </div>
-
-            <div class="aligned-field">
-                <label>Target WBS Element <span style="color:#ef4444;">*</span></label>
-                {{ form.target_wbs|add_class:"form-control" }}
-            </div>
-
-            <div class="aligned-field">
-                <label>Plan Position Number <span style="color:#ef4444;">*</span></label>
-                {{ form.plan_position_number|add_class:"form-control" }}
-            </div>
         </div>
 
         <div class="form-section">
@@ -48,6 +38,8 @@
                 {{ form.valid_until|add_class:"form-control" }}
             </div>
         </div>
+
+        {% include "tasks/reallocation/_funding_allocations.html" %}
 
         <div class="form-section">
             <h3>Assignment &amp; Priority</h3>
@@ -80,4 +72,3 @@
     </form>
 </div>
 {% endblock %}
-

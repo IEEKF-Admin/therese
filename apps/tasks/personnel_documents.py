@@ -175,18 +175,40 @@ def _reallocation_documents(task):
     employee = task.employee
     prefix = getattr(employee, 'prefix', '') or ''
     last_name = employee.last_name
-    wbs = task.target_wbs
-    if wbs and wbs.third_party_funding_commitment:
-        category = f'Drittmittelzusage {wbs.wbs_code}'
-        _add_file_document(
-            documents,
-            key=f'psp_{wbs.pk}',
-            label=category,
-            file_field=wbs.third_party_funding_commitment,
-            prefix=prefix,
-            last_name=last_name,
-            task=task,
-        )
+    seen_keys = set()
+    for allocation in task.funding_allocations.select_related(
+        'wbs_element', 'cost_center',
+    ):
+        wbs = allocation.wbs_element
+        if wbs and wbs.third_party_funding_commitment:
+            key = f'psp_{wbs.pk}'
+            if key not in seen_keys:
+                seen_keys.add(key)
+                category = f'Drittmittelzusage {wbs.wbs_code}'
+                _add_file_document(
+                    documents,
+                    key=key,
+                    label=category,
+                    file_field=wbs.third_party_funding_commitment,
+                    prefix=prefix,
+                    last_name=last_name,
+                    task=task,
+                )
+        cost_center = allocation.cost_center
+        if cost_center and cost_center.third_party_funding_commitment:
+            key = f'cc_{cost_center.pk}'
+            if key not in seen_keys:
+                seen_keys.add(key)
+                category = f'Drittmittelzusage {cost_center.cost_center}'
+                _add_file_document(
+                    documents,
+                    key=key,
+                    label=category,
+                    file_field=cost_center.third_party_funding_commitment,
+                    prefix=prefix,
+                    last_name=last_name,
+                    task=task,
+                )
     return documents
 
 

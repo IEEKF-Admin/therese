@@ -32,6 +32,94 @@ class DatabaseStorageTests(TestCase):
         ThereseFileService.delete(path)
         self.assertFalse(StoredFile.objects.filter(name=path).exists())
 
+    def test_display_name_prefers_original_filename(self):
+        upload = SimpleUploadedFile(
+            'Original Report Name.pdf',
+            b'%PDF',
+            content_type='application/pdf',
+        )
+        path = ThereseFileService.save('tests/uuid-looking-name.pdf', upload)
+        self.assertEqual(
+            ThereseFileService.display_name(path),
+            'Original Report Name.pdf',
+        )
+
+    def test_get_available_name_renames_when_path_exceeds_max_length(self):
+        """FileField default max_length=100; long original names must be renamed."""
+        from django.core.files.storage import default_storage
+
+        long_name = (
+            'finances/psp/third_party_funding/2026/07/'
+            + ('sehr_langer_dateiname_der_den_standard_filefield_pfad_sprengt_' * 3)
+            + '.pdf'
+        )
+        self.assertGreater(len(long_name), 100)
+
+        available = default_storage.get_available_name(long_name, max_length=100)
+        self.assertLessEqual(len(available), 100)
+        self.assertTrue(available.startswith('finances/psp/third_party_funding/2026/07/'))
+        self.assertTrue(available.endswith('.pdf'))
+        # Renamed to a short UUID basename rather than a truncated original.
+        basename = available.rsplit('/', 1)[-1]
+        self.assertRegex(basename, r'^[0-9a-f]{32}\.pdf$')
+
+    def test_get_available_name_keeps_short_unused_names(self):
+        from django.core.files.storage import default_storage
+
+        name = 'finances/psp/third_party_funding/2026/07/zusage.pdf'
+        self.assertEqual(
+            default_storage.get_available_name(name, max_length=100),
+            name,
+        )
+
+    def test_get_available_name_renames_on_collision(self):
+        from django.core.files.storage import default_storage
+
+        upload = SimpleUploadedFile('zusage.pdf', b'%PDF-1', content_type='application/pdf')
+        existing = ThereseFileService.save(
+            'finances/psp/third_party_funding/2026/07/zusage.pdf',
+            upload,
+        )
+        available = default_storage.get_available_name(existing, max_length=100)
+        self.assertNotEqual(available, existing)
+        self.assertTrue(available.endswith('.pdf'))
+        self.assertLessEqual(len(available), 100)
+
+    def test_filefield_accepts_very_long_original_filename(self):
+        """PSP-style FileField must save even when the client filename is very long."""
+        from apps.finances.models import CostCenter, WBSElement
+
+        cost_center = CostCenter.objects.create(cost_center='LONG/2026')
+        # Exceed FileField max_length including upload_to prefix → storage renames.
+        # Client name must stay within form max_length (255); path can still overflow.
+        long_filename = ('x' * 230) + '.pdf'
+        field_max = WBSElement._meta.get_field('third_party_funding_commitment').max_length
+        self.assertLessEqual(len(long_filename), field_max)
+        self.assertGreater(
+            len('finances/psp/third_party_funding/2026/07/' + long_filename),
+            field_max,
+        )
+        upload = SimpleUploadedFile(
+            long_filename,
+            b'%PDF-1.4 long name',
+            content_type='application/pdf',
+        )
+        psp = WBSElement.objects.create(
+            wbs_code='D-LONG.0001.1',
+            title='Long filename test',
+            cost_center=cost_center,
+            third_party_funding_commitment=upload,
+        )
+
+        self.assertTrue(psp.third_party_funding_commitment.name)
+        self.assertLessEqual(len(psp.third_party_funding_commitment.name), field_max)
+        self.assertTrue(psp.third_party_funding_commitment.name.endswith('.pdf'))
+        basename = psp.third_party_funding_commitment.name.rsplit('/', 1)[-1]
+        self.assertRegex(basename, r'^[0-9a-f]{32}\.pdf$')
+        stored = StoredFile.objects.get(name=psp.third_party_funding_commitment.name)
+        self.assertEqual(stored.original_filename, long_filename)
+        self.assertEqual(bytes(stored.content), b'%PDF-1.4 long name')
+
     def test_filefield_uses_database_storage(self):
         job = RecruitmentJob.objects.create(name='Scientist')
         creator = Employee.objects.create(

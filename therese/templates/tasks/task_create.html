@@ -234,7 +234,7 @@
             </div>
 
         {% elif task_type == 'personnel_reallocation' %}
-            <!-- === PERSONNEL REALLOCATION (no Assignment & Priority card at all) === -->
+            <!-- === PERSONNEL REALLOCATION (funding via inline formset) === -->
             <div class="form-section compact">
                 <h3>Reallocation Details</h3>
 
@@ -242,11 +242,6 @@
                     <label>Employee<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
                     {{ form.employee|add_class:"form-control" }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Mitarbeiter</small>
-                </div>
-                <div class="aligned-field">
-                    <label>Target WBS Element<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
-                    {{ form.target_wbs|add_class:"form-control" }}
-                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">PSP - Element</small>
                 </div>
                 <div class="aligned-field">
                     <label>Valid From<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
@@ -258,12 +253,9 @@
                     {{ form.valid_until|add_class:"date-picker" }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
                 </div>
-                <div class="aligned-field">
-                    <label>Plan Position Number<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
-                    {{ form.plan_position_number|add_class:"form-control" }}
-                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Planstellen-Nummer</small>
-                </div>
             </div>
+
+            {% include "tasks/reallocation/_funding_allocations.html" %}
 
             <!-- Comment / Notes - full width -->
             <div class="form-section comment-full">

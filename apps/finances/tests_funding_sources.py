@@ -40,7 +40,8 @@ class FundingSourceChoicesTests(TestCase):
     def test_employee_funding_form_saves_cost_center_allocation(self):
         form = FundingAllocationForm(data={
             'funding_source': f'cc:{self.cost_center.pk}',
-            'weekly_hours_allocated': '12.50',
+            'workhours_percentage': '50.00',
+            'plan_position_number': '',
             'start_date': date(2026, 1, 1),
             'end_date': '',
             'comments': '',

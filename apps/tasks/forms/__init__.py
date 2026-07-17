@@ -25,6 +25,8 @@ from apps.tasks.forms.generic import GenericTextTaskForm
 from apps.tasks.forms.personnel import (
     PersonnelContractExtensionTaskForm,
     PersonnelReallocationTaskForm,
+    ReallocationFundingAllocationForm,
+    ReallocationFundingFormSet,
 )
 from apps.tasks.forms.purchase import (
     BasePurchaseItemFormSet,
@@ -55,6 +57,8 @@ __all__ = [
     'PurchaseItemFormSet',
     'PersonnelReallocationTaskForm',
     'PersonnelContractExtensionTaskForm',
+    'ReallocationFundingAllocationForm',
+    'ReallocationFundingFormSet',
     'RecruitmentFundingAllocationForm',
     'BaseRecruitmentFundingFormSet',
     'RecruitmentFundingFormSet',

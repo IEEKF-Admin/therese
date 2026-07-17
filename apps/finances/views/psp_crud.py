@@ -38,7 +38,9 @@ def _psp_delete_blocker_labels(wbs_element):
     if purchase_count:
         blockers.append(f'{purchase_count} purchase order(s)')
 
-    reallocation_count = PersonnelReallocationTask.objects.filter(target_wbs=wbs_element).count()
+    reallocation_count = PersonnelReallocationTask.objects.filter(
+        funding_allocations__wbs_element=wbs_element,
+    ).distinct().count()
     if reallocation_count:
         blockers.append(f'{reallocation_count} personnel reallocation task(s)')
 

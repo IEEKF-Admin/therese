@@ -1,7 +1,10 @@
 """Personnel reallocation and contract extension task forms."""
-from django import forms
+from decimal import Decimal
 
-from apps.finances.models import WBSElement
+from django import forms
+from django.forms.models import BaseInlineFormSet, inlineformset_factory
+
+from apps.finances.funding_sources import FundingSourceFormMixin
 from apps.hr.models import Employee
 from apps.tasks.form_validation import require_non_empty_text, validate_contract_dates
 from apps.tasks.forms.common import _configure_personnel_assignee_field, add_initial_message_field
@@ -9,10 +12,133 @@ from apps.tasks.models import (
     PERSONNEL_STATUSES,
     PersonnelContractExtensionTask,
     PersonnelReallocationTask,
+    ReallocationFundingAllocation,
 )
 from apps.tasks.recruitment_form_helpers import (
     add_limitation_reason_template_field,
     strip_limitation_reason_template,
+)
+
+
+# ---------------------------------------------------------------------------
+# Reallocation funding allocations (inline formset)
+# ---------------------------------------------------------------------------
+class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
+    """One PSP/cost-center + percentage row for reallocation funding."""
+
+    INTERNAL_FIELDS = {'id', 'reallocation_task', 'DELETE'}
+
+    class Meta:
+        model = ReallocationFundingAllocation
+        fields = ['workhours_percentage', 'plan_position_number', 'notes']
+        widgets = {
+            'workhours_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'plan_position_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'notes': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.empty_permitted = True
+        if 'workhours_percentage' in self.fields:
+            self.fields['workhours_percentage'].label = 'Percentage of Workhours'
+        if 'plan_position_number' in self.fields:
+            self.fields['plan_position_number'].label = 'Plan Position Number'
+            self.fields['plan_position_number'].required = False
+        if 'notes' in self.fields:
+            self.fields['notes'].required = False
+        for field_name, field in self.fields.items():
+            if field_name in self.INTERNAL_FIELDS or field_name in (
+                'plan_position_number',
+                'notes',
+            ):
+                field.required = False
+            else:
+                field.required = True
+
+    def _is_empty_row(self, cleaned_data=None):
+        if cleaned_data is not None:
+            if not cleaned_data:
+                return True
+            for field_name, value in cleaned_data.items():
+                if field_name in self.INTERNAL_FIELDS or field_name in (
+                    'plan_position_number',
+                    'notes',
+                ):
+                    continue
+                if value not in (None, ''):
+                    return False
+            return True
+        if not self.is_bound:
+            return not (self.instance and self.instance.pk)
+        source = self.data.get(self.add_prefix('funding_source'), '').strip()
+        percentage = self.data.get(self.add_prefix('workhours_percentage'), '').strip()
+        return not source and not percentage
+
+    def full_clean(self):
+        if self._is_empty_row():
+            self.cleaned_data = {}
+            self._errors = {}
+            return
+        super().full_clean()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self._is_empty_row(cleaned_data):
+            if cleaned_data is not None:
+                cleaned_data['DELETE'] = True
+            return cleaned_data
+        if not cleaned_data.get('funding_source'):
+            self.add_error('funding_source', 'PSP element or cost center is required.')
+        percentage = cleaned_data.get('workhours_percentage')
+        if percentage in (None, ''):
+            self.add_error('workhours_percentage', 'Percentage of workhours is required.')
+        else:
+            try:
+                percentage_value = Decimal(str(percentage))
+            except Exception:
+                self.add_error('workhours_percentage', 'Enter a valid percentage.')
+            else:
+                if percentage_value <= 0:
+                    self.add_error('workhours_percentage', 'Percentage must be greater than 0.')
+                else:
+                    cleaned_data['workhours_percentage'] = percentage_value
+        return cleaned_data
+
+
+class BaseReallocationFundingFormSet(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for form in self.forms:
+            form.empty_permitted = True
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active = [
+            form for form in self.forms
+            if form.cleaned_data
+            and not form.cleaned_data.get('DELETE', False)
+            and form.cleaned_data.get('funding_source')
+        ]
+        if not active:
+            raise forms.ValidationError('At least one funding allocation is required.')
+
+
+ReallocationFundingFormSet = inlineformset_factory(
+    PersonnelReallocationTask,
+    ReallocationFundingAllocation,
+    form=ReallocationFundingAllocationForm,
+    formset=BaseReallocationFundingFormSet,
+    extra=1,
+    can_delete=True,
+    min_num=0,
+    validate_min=False,
 )
 
 
@@ -22,14 +148,12 @@ from apps.tasks.recruitment_form_helpers import (
 class PersonnelReallocationTaskForm(forms.ModelForm):
     """
     Form for Personnel Reallocation tasks.
-    No title (auto-generated), no assignee/priority/due_date at creation time.
-    The entire "Assignment & Priority" card is omitted in the template.
-    Comment/Notes gets full width.
+    Funding targets live on ReallocationFundingAllocation (inline formset).
     """
+
     class Meta:
         model = PersonnelReallocationTask
-        fields = ['employee', 'target_wbs', 'valid_from', 'valid_until',
-                  'plan_position_number', 'assignee', 'status']
+        fields = ['employee', 'valid_from', 'valid_until', 'assignee', 'status']
         widgets = {
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
@@ -48,8 +172,6 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
         self.is_creation = kwargs.pop('is_creation', False)
         super().__init__(*args, **kwargs)
 
-        # --- Status ---
-        # Hidden on creation with initial not_yet_processed; shown on detail per template.
         if 'status' in self.fields:
             self.fields['status'].choices = PERSONNEL_STATUSES
             if self.is_creation:
@@ -60,11 +182,11 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
                     self.data = self.data.copy()
                     self.data['status'] = 'not_yet_processed'
 
-        # --- Core reallocation fields ---
-        for field_name in ['employee', 'target_wbs', 'plan_position_number']:
-            if field_name in self.fields:
-                self.fields[field_name].widget.attrs.update({'class': 'form-control'})
-                self.fields[field_name].required = True
+        if 'employee' in self.fields:
+            self.fields['employee'].widget.attrs.update({'class': 'form-control'})
+            self.fields['employee'].required = True
+            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['employee'].empty_label = "— Select employee —"
 
         for field_name in ['valid_from', 'valid_until']:
             if field_name in self.fields:
@@ -79,23 +201,11 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
                 placeholder='Add any additional notes or context for this reallocation...',
             )
 
-        # Employee dropdown (all employees)
-        if 'employee' in self.fields:
-            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-            self.fields['employee'].empty_label = "— Select employee —"
-
-        # Target WBS (reasonable WBS elements)
-        if 'target_wbs' in self.fields:
-            self.fields['target_wbs'].queryset = WBSElement.objects.active().order_by('wbs_code')
-            self.fields['target_wbs'].empty_label = "— Select target WBS —"
-
-        # --- Assignee (coordinator / creator-fallback only) ---
         _configure_personnel_assignee_field(self)
 
     def clean(self):
         cleaned_data = super().clean()
         strip_limitation_reason_template(cleaned_data)
-        require_non_empty_text(self, cleaned_data, 'plan_position_number')
         validate_contract_dates(
             self,
             cleaned_data,
@@ -137,8 +247,6 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         self.is_creation = kwargs.pop('is_creation', False)
         super().__init__(*args, **kwargs)
 
-        # --- Status ---
-        # Hidden on creation with initial not_yet_processed.
         if 'status' in self.fields:
             self.fields['status'].choices = PERSONNEL_STATUSES
             if self.is_creation:
@@ -149,7 +257,6 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
                     self.data = self.data.copy()
                     self.data['status'] = 'not_yet_processed'
 
-        # --- Employee and plan position ---
         for field_name in ['employee', 'plan_position_number']:
             if field_name in self.fields:
                 self.fields[field_name].widget.attrs.update({'class': 'form-control'})
@@ -157,6 +264,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
 
         if 'valid_from' in self.fields:
             self.fields['valid_from'].widget.attrs.update({'class': 'form-control'})
+            self.fields['valid_from'].required = True
 
         if self.is_creation:
             add_initial_message_field(
@@ -168,23 +276,14 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'limitation_reason' in self.fields:
             self.fields['limitation_reason'].widget.attrs.update({'class': 'form-control'})
 
-        # Employee dropdown (all employees)
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
 
-        # is_limited default True for new limited contracts
         if 'is_limited' in self.fields and self.is_creation:
             self.fields['is_limited'].initial = True
-            self.fields['is_limited'].label = ""  # label rendered manually in template for nicer checkbox UX
-        if 'status' in self.fields:
-            self.fields['status'].choices = PERSONNEL_STATUSES
-            if self.is_creation:
-                self.fields['status'].widget = forms.HiddenInput()
-                self.fields['status'].initial = 'not_yet_processed'
-                self.fields['status'].required = True
+            self.fields['is_limited'].label = ""
 
-        # Styling
         for fname in ['plan_position_number', 'priority', 'assignee', 'employee']:
             if fname in self.fields:
                 self.fields[fname].widget.attrs.update({'class': 'form-control'})
@@ -193,10 +292,6 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             if fname in self.fields:
                 self.fields[fname].widget.attrs.update({'class': 'form-control'})
 
-        if 'employee' in self.fields:
-            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
-
-        # --- Assignee (coordinator / creator-fallback only) ---
         _configure_personnel_assignee_field(self)
         add_limitation_reason_template_field(self, include_all_reasons=True)
 
@@ -207,9 +302,6 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
                 'data-limitation-text': 'true',
             })
 
-        if 'valid_from' in self.fields:
-            self.fields['valid_from'].required = True
-
     def clean(self):
         cleaned_data = super().clean()
         strip_limitation_reason_template(cleaned_data)
@@ -219,7 +311,6 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             cleaned_data,
             require_start=True,
         )
-        # Limited contracts require a free-text limitation reason.
         if cleaned_data.get('is_limited'):
             require_non_empty_text(
                 self,

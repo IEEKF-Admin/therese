@@ -251,10 +251,27 @@
         }
     }
 
+    function updateMonthlyCostsHint() {
+        const salaryInput = getMonthlySalaryInput();
+        const valueEl = document.getElementById('recruitment-monthly-costs-value');
+        const hintEl = document.getElementById('recruitment-monthly-costs-hint');
+        if (!valueEl || !hintEl) {
+            return;
+        }
+        const mult = parseFloat(hintEl.getAttribute('data-true-cost-multiplicator') || '1.3');
+        const salary = salaryInput ? parseFloat(String(salaryInput.value).replace(',', '.')) : NaN;
+        if (!isNaN(salary) && !isNaN(mult)) {
+            valueEl.textContent = (salary * mult).toFixed(2) + ' €';
+        } else {
+            valueEl.textContent = '—';
+        }
+    }
+
     function syncMonthlySalaryField(config) {
         const salaryInput = getMonthlySalaryInput();
         const selects = getPayscaleSelects();
         if (!salaryInput || !selects.group || !selects.level) {
+            updateMonthlyCostsHint();
             return;
         }
         if (payscaleSelectionComplete(selects)) {
@@ -268,10 +285,12 @@
             }
             salaryInput.readOnly = true;
             salaryInput.classList.add('form-readonly');
+            updateMonthlyCostsHint();
             return;
         }
         salaryInput.readOnly = false;
         salaryInput.classList.remove('form-readonly');
+        updateMonthlyCostsHint();
     }
 
     function initPayscaleFields(config) {
@@ -330,8 +349,12 @@
                     applyJobFieldRules(config);
                 }
             }
+            if (event.target.matches('[data-recruitment-monthly-salary], [name="monthly_salary"]')) {
+                updateMonthlyCostsHint();
+            }
         });
 
         refresh();
+        updateMonthlyCostsHint();
     };
 })();

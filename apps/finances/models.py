@@ -73,6 +73,7 @@ class CostCenter(BaseModel):
         upload_to='finances/cost_center/third_party_funding/%Y/%m/',
         blank=True,
         null=True,
+        max_length=255,
         verbose_name="Drittmittelzusage",
         validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
     )
@@ -194,6 +195,7 @@ class WBSElement(BaseModel):
         upload_to='finances/psp/third_party_funding/%Y/%m/',
         blank=True,
         null=True,
+        max_length=255,
         verbose_name="Drittmittelzusage",
         validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
     )

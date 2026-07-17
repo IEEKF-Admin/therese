@@ -65,4 +65,5 @@ class CustomUserAdmin(UserAdmin):
         'password_changed',
         'groups',
     )
+    search_fields = ('username', 'first_name', 'last_name', 'email')
 

@@ -29,7 +29,7 @@ from .models import (
     FundingAllocation, SalarySupplement, Workgroup
 )
 from .workgroup_groups import sync_auth_group_for_workgroup
-from apps.finances.funding_sources import FundingSourceFormMixin
+from apps.finances.funding_sources import FundingSourceField, FundingSourceFormMixin
 from apps.finances.models import PayScale
 
 
@@ -292,9 +292,18 @@ class ContractForm(forms.ModelForm):
 
 
 class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
+    # Declared on the class so Django admin inlines include it in base_fields.
+    funding_source = FundingSourceField()
+
     class Meta:
         model = FundingAllocation
-        fields = ['weekly_hours_allocated', 'start_date', 'end_date', 'comments']
+        fields = [
+            'funding_source',
+            'weekly_hours_allocated',
+            'start_date',
+            'end_date',
+            'comments',
+        ]
         widgets = {
             'start_date': forms.DateInput(attrs={
                 'type': 'text',

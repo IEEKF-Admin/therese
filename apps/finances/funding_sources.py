@@ -76,7 +76,12 @@ def funding_target_display(instance):
 
 class FundingSourceField(forms.ChoiceField):
     def __init__(self, **kwargs):
-        kwargs.setdefault('choices', build_funding_source_choices())
+        # Do not hit the DB at import/class-definition time; choices are
+        # refreshed in FundingSourceFormMixin.__init__.
+        kwargs.setdefault(
+            'choices',
+            [('', '— Select PSP element or cost center —')],
+        )
         kwargs.setdefault('label', 'PSP / Cost Center')
         super().__init__(**kwargs)
 
@@ -95,9 +100,15 @@ class FundingSourceFormMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['funding_source'] = FundingSourceField()
+        # Prefer a class-level field (so admin inlines see it in base_fields),
+        # but still inject one if a form only relies on the mixin.
+        if 'funding_source' not in self.fields:
+            self.fields['funding_source'] = FundingSourceField()
         self.fields['funding_source'].choices = build_funding_source_choices()
         self.fields['funding_source'].widget.attrs.setdefault('class', 'form-control')
+        # Hide raw FK fields when present (admin default ModelForm would show them).
+        self.fields.pop('wbs_element', None)
+        self.fields.pop('cost_center', None)
         initial_value = funding_source_value_for_instance(self.instance)
         if initial_value:
             self.initial.setdefault('funding_source', initial_value)

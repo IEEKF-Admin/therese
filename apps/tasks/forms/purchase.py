@@ -177,11 +177,11 @@ class PurchaseOrderTaskForm(forms.ModelForm):
                     self.data['status'] = 'not_yet_processed'
 
         # --- WBS element ---
-        # Coordinators on detail: active WBS codes ending in .1 (editable).
+        # Coordinators on detail: active PSPs with material costs (.1) enabled.
         # Creation: hidden (coordinator assigns WBS after submission).
         if 'wbs_element' in self.fields:
             self.fields['wbs_element'].queryset = WBSElement.objects.active().filter(
-                wbs_code__regex=r'.*-\d+\.\d+\.1$'
+                has_material_costs=True,
             ).order_by('wbs_code')
             self.fields['wbs_element'].empty_label = "---------"
 

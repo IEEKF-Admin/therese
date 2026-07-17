@@ -1586,12 +1586,22 @@ input[type="month"].form-control {
     gap: 0.5rem;
 }
 
+.checkbox-field > input[type="checkbox"] {
+    flex-shrink: 0;
+    margin: 0.2rem 0 0;
+    width: 1rem;
+    height: 1rem;
+}
+
 .checkbox-field label {
     margin: 0;
     font-weight: 400;
+    line-height: 1.35;
 }
 
-.year-estimate-row {
+/* Classic year-estimate grid (cost center form only — must NOT match tr/th) */
+div.year-estimate-header,
+div.year-estimate-row {
     display: grid;
     grid-template-columns: 100px repeat(5, 1fr) 40px;
     gap: 0.5rem;
@@ -1599,6 +1609,127 @@ input[type="month"].form-control {
     margin-bottom: 0.75rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #f3f4f9;
+}
+
+/* PSP year estimates: table columns shared by thead + tbody */
+.year-estimate-scroll {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    max-width: 100%;
+}
+
+.year-estimate-table {
+    width: max-content;
+    max-width: none;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.year-estimate-table col.ye-col-year {
+    width: 7rem;
+}
+
+.year-estimate-table col.ye-col-amount {
+    width: 9.5rem;
+}
+
+.year-estimate-table col.ye-col-delete {
+    width: 2.75rem;
+}
+
+.year-estimate-table th,
+.year-estimate-table td {
+    box-sizing: border-box;
+    padding: 0.4rem 0.45rem;
+    vertical-align: bottom;
+    text-align: left;
+}
+
+.year-estimate-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1.3;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: normal;
+}
+
+.year-estimate-table thead th .bilingual-label__en {
+    display: block;
+    margin-top: 0.15rem;
+    font-weight: 400;
+}
+
+.year-estimate-table tbody tr {
+    border-bottom: 1px solid #f3f4f9;
+}
+
+.year-estimate-table .ye-delete {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Inputs fill their cell; cell width comes from colgroup only */
+.year-estimate-table input,
+.year-estimate-table .form-control,
+.year-estimate-table .form-control-sm,
+.form-card .year-estimate-table .form-control,
+.form-card .year-estimate-table .form-control-sm {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0;
+}
+
+.year-estimate-hidden-fields {
+    display: none !important;
+}
+
+.year-estimate-table col.is-cost-type-hidden,
+.year-estimate-table th.is-cost-type-hidden,
+.year-estimate-table td.is-cost-type-hidden {
+    display: none !important;
+}
+
+.cost-type-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+.cost-type-checkbox {
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.cost-type-checkbox > input[type="checkbox"] {
+    /* Align with the first (German) label line, not the whole bilingual block */
+    margin-top: 0.15rem;
+}
+
+.cost-type-checkbox > div {
+    min-width: 0;
+}
+
+.cost-type-checkbox .bilingual-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+
+.bilingual-label__de {
+    font-weight: 500;
+    color: #374151;
+    line-height: 1.3;
+}
+
+.bilingual-label__en {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #9ca3af;
+    line-height: 1.25;
 }
 
 .job-rules-table {
@@ -1647,16 +1778,6 @@ input[type="month"].form-control {
     }
 }
 
-.year-estimate-header {
-    display: grid;
-    grid-template-columns: 100px repeat(5, 1fr) 40px;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #374151;
-}
-
 @media (max-width: 700px) {
     .recruitment-funding-row {
         grid-template-columns: 1fr;
@@ -1666,12 +1787,12 @@ input[type="month"].form-control {
         padding: 1.5rem 1rem;
     }
 
-    .year-estimate-row,
-    .year-estimate-header {
+    div.year-estimate-header,
+    div.year-estimate-row {
         grid-template-columns: 1fr 1fr;
     }
 
-    .year-estimate-row .inline-delete {
+    div.year-estimate-row .inline-delete {
         grid-column: span 2;
     }
 }

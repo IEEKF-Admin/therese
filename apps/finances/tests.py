@@ -15,7 +15,12 @@ from apps.finances.forms import (
     WBSElementForm,
     WBSElementYearEstimateFormSet,
 )
-from apps.finances.models import CostCenter, WBSElement, WBSElementYearEstimate
+from apps.finances.models import (
+    CostCenter,
+    WBSElement,
+    WBSElementTrueYearlySpending,
+    WBSElementYearEstimate,
+)
 from apps.finances.views.psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
 from apps.hr.models import Employee, FundingAllocation, Workgroup
 
@@ -155,13 +160,21 @@ class WBSElementYearEstimateFormSetTests(TestCase):
             f'{prefix_base}-MIN_NUM_FORMS': '0',
             f'{prefix_base}-MAX_NUM_FORMS': '1000',
         }
+        amount_fields = (
+            'material_costs',
+            'personnel_costs',
+            'domestic_travel_costs',
+            'foreign_travel_costs',
+            'third_party_investments',
+            'publication_costs',
+            'animal_husbandry_costs',
+            'transfer_to_third_parties',
+        )
         for index, row in enumerate(rows):
             prefix = f'{prefix_base}-{index}'
             data[f'{prefix}-year'] = row.get('year', '')
-            data[f'{prefix}-funding'] = row.get('funding', '')
-            data[f'{prefix}-consumables_estimate'] = row.get('consumables_estimate', '')
-            data[f'{prefix}-travel_estimate'] = row.get('travel_estimate', '')
-            data[f'{prefix}-animal_costs_estimate'] = row.get('animal_costs_estimate', '')
+            for field in amount_fields:
+                data[f'{prefix}-{field}'] = row.get(field, '')
             data[f'{prefix}-id'] = row.get('id', '')
             data[f'{prefix}-DELETE'] = row.get('DELETE', '')
         return data
@@ -169,8 +182,8 @@ class WBSElementYearEstimateFormSetTests(TestCase):
     def test_duplicate_year_blocks_save(self):
         formset = WBSElementYearEstimateFormSet(
             self._formset_data([
-                {'year': '2026', 'funding': '1000.00'},
-                {'year': '2026', 'funding': '2000.00'},
+                {'year': '2026', 'material_costs': '1000.00'},
+                {'year': '2026', 'material_costs': '2000.00'},
             ]),
             instance=self.psp,
         )
@@ -180,8 +193,8 @@ class WBSElementYearEstimateFormSetTests(TestCase):
     def test_unique_years_save_successfully(self):
         formset = WBSElementYearEstimateFormSet(
             self._formset_data([
-                {'year': '2026', 'funding': '1000.00'},
-                {'year': '2027', 'funding': '1500.00'},
+                {'year': '2026', 'material_costs': '1000.00'},
+                {'year': '2027', 'personnel_costs': '1500.00'},
             ]),
             instance=self.psp,
         )
@@ -189,7 +202,92 @@ class WBSElementYearEstimateFormSetTests(TestCase):
         formset.save()
         self.assertEqual(self.psp.year_estimates.count(), 2)
         estimate_2026 = WBSElementYearEstimate.objects.get(wbs_element=self.psp, year=2026)
-        self.assertEqual(estimate_2026.funding, 1000.00)
+        self.assertEqual(estimate_2026.material_costs, 1000.00)
+
+    def test_cost_type_flags_default_false_and_can_enable(self):
+        self.assertFalse(self.psp.has_material_costs)
+        form = WBSElementForm(
+            data={
+                'wbs_code': self.psp.wbs_code,
+                'title': self.psp.title,
+                'work_group': '',
+                'responsible_person': '',
+                'cost_center': self.cost_center.pk,
+                'period_start': '',
+                'period_end': '',
+                'subject_to_annual_recurrence': False,
+                'is_inactive': False,
+                'comment': '',
+                'third_party_funder_identifier': '',
+                'has_material_costs': True,
+                'has_personnel_costs': True,
+            },
+            instance=self.psp,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        psp = form.save()
+        self.assertTrue(psp.has_material_costs)
+        self.assertTrue(psp.has_personnel_costs)
+        self.assertFalse(psp.has_domestic_travel_costs)
+
+    def test_clear_disabled_year_estimate_amounts(self):
+        from apps.finances.psp_cost_types import clear_disabled_year_estimate_amounts
+
+        self.psp.has_material_costs = True
+        self.psp.has_personnel_costs = False
+        self.psp.save()
+        estimate = WBSElementYearEstimate.objects.create(
+            wbs_element=self.psp,
+            year=2026,
+            material_costs=500,
+            personnel_costs=900,
+        )
+        clear_disabled_year_estimate_amounts(self.psp)
+        estimate.refresh_from_db()
+        self.assertEqual(estimate.material_costs, 500)
+        self.assertIsNone(estimate.personnel_costs)
+
+
+class WBSElementTrueYearlySpendingTests(TestCase):
+    def setUp(self):
+        self.cost_center = CostCenter.objects.create(cost_center='SPEND/2026')
+        self.psp = WBSElement.objects.create(
+            wbs_code='D-888.0001.1',
+            title='Spending test',
+            cost_center=self.cost_center,
+        )
+
+    def test_stores_actual_amounts_independently_of_estimates(self):
+        WBSElementYearEstimate.objects.create(
+            wbs_element=self.psp,
+            year=2026,
+            material_costs=1000,
+        )
+        spending = WBSElementTrueYearlySpending.objects.create(
+            wbs_element=self.psp,
+            year=2026,
+            material_costs=750,
+            personnel_costs=200,
+        )
+        self.assertEqual(self.psp.true_yearly_spendings.count(), 1)
+        self.assertEqual(spending.material_costs, 750)
+        self.assertEqual(self.psp.year_estimates.get(year=2026).material_costs, 1000)
+
+    def test_unique_per_psp_and_year(self):
+        from django.db import IntegrityError, transaction
+
+        WBSElementTrueYearlySpending.objects.create(
+            wbs_element=self.psp,
+            year=2026,
+            material_costs=100,
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                WBSElementTrueYearlySpending.objects.create(
+                    wbs_element=self.psp,
+                    year=2026,
+                    material_costs=200,
+                )
 
 
 class CostCenterFormTests(TestCase):

@@ -18,6 +18,7 @@ from apps.hr.models import Workgroup
 from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import WBSElement
+from ..psp_cost_types import clear_disabled_year_estimate_amounts
 
 
 def _psp_delete_blocker_labels(wbs_element):
@@ -206,6 +207,7 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             self.object = form.save()
             formset.instance = self.object
             formset.save()
+            clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'PSP element "{self.object.wbs_code}" was created.')
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
@@ -258,6 +260,7 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             self.object = form.save()
             formset.instance = self.object
             formset.save()
+            clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'PSP element "{self.object.wbs_code}" was updated.')
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))

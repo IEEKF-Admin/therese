@@ -74,13 +74,13 @@ class CostCenter(BaseModel):
         blank=True,
         null=True,
         max_length=255,
-        verbose_name="Drittmittelzusage",
+        verbose_name="Third-party funding commitment",
         validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
     )
     third_party_funder_identifier = models.CharField(
         max_length=255,
         blank=True,
-        verbose_name="Kennzeichen des Drittmittelgebers",
+        verbose_name="Third-party funder identifier",
     )
 
     class Meta:
@@ -191,18 +191,51 @@ class WBSElement(BaseModel):
         default=False,
         verbose_name="Is Inactive",
     )
+    # Cost-type flags (.1–.8): control which year-estimate amount columns apply.
+    has_material_costs = models.BooleanField(
+        default=False,
+        verbose_name=".1 - Sachkosten / Material costs",
+    )
+    has_personnel_costs = models.BooleanField(
+        default=False,
+        verbose_name=".2 - Personalkosten / Personnel costs",
+    )
+    has_domestic_travel_costs = models.BooleanField(
+        default=False,
+        verbose_name=".3 - Reisekosten Inland / Domestic travel costs",
+    )
+    has_foreign_travel_costs = models.BooleanField(
+        default=False,
+        verbose_name=".4 - Reisekosten Ausland / Foreign travel costs",
+    )
+    has_third_party_investments = models.BooleanField(
+        default=False,
+        verbose_name=".5 - Drittmittel-Investitionen / Third-party investments",
+    )
+    has_publication_costs = models.BooleanField(
+        default=False,
+        verbose_name=".6 - Publikationskosten / Publication costs",
+    )
+    has_animal_husbandry_costs = models.BooleanField(
+        default=False,
+        verbose_name=".7 - Tierhaltungskosten / Animal husbandry costs",
+    )
+    has_transfer_to_third_parties = models.BooleanField(
+        default=False,
+        verbose_name=".8 - Weitergabe an Dritte / Transfer to third parties",
+    )
     third_party_funding_commitment = models.FileField(
         upload_to='finances/psp/third_party_funding/%Y/%m/',
         blank=True,
         null=True,
         max_length=255,
-        verbose_name="Drittmittelzusage",
+        verbose_name="Third-party funding commitment",
         validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
     )
     third_party_funder_identifier = models.CharField(
         max_length=255,
         blank=True,
-        verbose_name="Kennzeichen des Drittmittelgebers",
+        verbose_name="Third-party funder identifier",
     )
 
     objects = WBSElementQuerySet.as_manager()
@@ -222,46 +255,112 @@ class WBSElement(BaseModel):
         return f"{self.wbs_code} - {short_title}"
 
 
-class WBSElementYearEstimate(BaseModel):
-    """Yearly funding and cost estimates for a PSP element."""
+class PSPYearlyCostAmounts(BaseModel):
+    """
+    Shared yearly amount columns for PSP estimates and true spending.
+    Not used as a table itself — only via concrete subclasses.
+    """
+    year = models.PositiveIntegerField(verbose_name="Year / Period")
+    material_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".1 - Sachkosten / Material costs",
+    )
+    personnel_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".2 - Personalkosten / Personnel costs",
+    )
+    domestic_travel_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".3 - Reisekosten Inland / Domestic travel costs",
+    )
+    foreign_travel_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".4 - Reisekosten Ausland / Foreign travel costs",
+    )
+    third_party_investments = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".5 - Drittmittel-Investitionen / Third-party investments",
+    )
+    publication_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".6 - Publikationskosten / Publication costs",
+    )
+    animal_husbandry_costs = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".7 - Tierhaltungskosten / Animal husbandry costs",
+    )
+    transfer_to_third_parties = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".8 - Weitergabe an Dritte / Transfer to third parties",
+    )
+
+    class Meta:
+        abstract = True
+
+
+class WBSElementYearEstimate(PSPYearlyCostAmounts):
+    """Yearly cost estimates for a PSP element (one amount per enabled cost type)."""
     wbs_element = models.ForeignKey(
         WBSElement,
         on_delete=models.CASCADE,
         related_name='year_estimates',
         verbose_name="PSP Element",
     )
-    year = models.PositiveIntegerField(verbose_name="Year / Period")
-    funding = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Funding",
-    )
-    consumables_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Consumables Estimate",
-    )
-    travel_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Travel Costs Estimate",
-    )
-    animal_costs_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Animal Costs Estimate",
-    )
+
     class Meta:
         verbose_name = "PSP Element Year Estimate"
         verbose_name_plural = "PSP Element Year Estimates"
         unique_together = ('wbs_element', 'year')
         ordering = ['year']
+
+    def __str__(self):
+        return f"{self.wbs_element.wbs_code} — {self.year} (estimate)"
+
+
+class WBSElementTrueYearlySpending(PSPYearlyCostAmounts):
+    """
+    Actual incurred yearly costs for a PSP element.
+
+    Same amount columns as year estimates, but not shown in the PSP element
+    editor UI (managed separately, e.g. via import or admin).
+    """
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.CASCADE,
+        related_name='true_yearly_spendings',
+        verbose_name="PSP Element",
+    )
+
+    class Meta:
+        verbose_name = "PSP Element True Yearly Spending"
+        verbose_name_plural = "PSP Element True Yearly Spendings"
+        unique_together = ('wbs_element', 'year')
+        ordering = ['year']
+
+    def __str__(self):
+        return f"{self.wbs_element.wbs_code} — {self.year} (true spending)"
 

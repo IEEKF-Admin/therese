@@ -3,6 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 from apps.accounts.models import CustomUser
+from apps.finances.models import CostCenter, WBSElement
 from apps.hr.models import Employee
 from apps.tasks.forms import PurchaseOrderTaskForm
 from apps.tasks.models import PurchaseOrderTask
@@ -73,3 +74,29 @@ class PurchaseOrderCreateFormTests(TestCase):
         formset = PurchaseItemFormSet(data)
         self.assertTrue(formset.is_valid(), formset.errors)
         self.assertNotIn('id', formset.forms[0].errors)
+
+    def test_wbs_queryset_uses_material_costs_flag_not_code_suffix(self):
+        """Purchase orders only offer PSPs with has_material_costs (formerly codes ending .1)."""
+        cost_center = CostCenter.objects.create(cost_center='PO/2026')
+        with_flag = WBSElement.objects.create(
+            wbs_code='D-100.0001.9',
+            title='Material enabled',
+            cost_center=cost_center,
+            has_material_costs=True,
+        )
+        without_flag = WBSElement.objects.create(
+            wbs_code='D-100.0001.1',
+            title='Legacy .1 code but flag off',
+            cost_center=cost_center,
+            has_material_costs=False,
+        )
+        view_perm = Permission.objects.get(
+            codename='view_all_purchase_orders',
+            content_type=ContentType.objects.get_for_model(PurchaseOrderTask),
+        )
+        self.user.user_permissions.add(view_perm)
+
+        form = PurchaseOrderTaskForm(user=self.user, is_creation=False)
+        qs = form.fields['wbs_element'].queryset
+        self.assertIn(with_flag, qs)
+        self.assertNotIn(without_flag, qs)

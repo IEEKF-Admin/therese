@@ -9,9 +9,11 @@ from .models import (
     CostCenter,
     CostCenterYearEstimate,
     WBSElement,
+    WBSElementTrueYearlySpending,
     WBSElementYearEstimate,
     PayScale,
 )
+from .psp_cost_types import PSP_COST_TYPE_AMOUNT_FIELDS, PSP_COST_TYPE_FLAG_FIELDS
 
 
 class WBSElementYearEstimateInline(admin.TabularInline):
@@ -19,11 +21,12 @@ class WBSElementYearEstimateInline(admin.TabularInline):
     extra = 1
     fields = (
         'year',
-        'funding',
-        'consumables_estimate',
-        'travel_estimate',
-        'animal_costs_estimate',
+        *PSP_COST_TYPE_AMOUNT_FIELDS,
     )
+
+
+# True yearly spending is intentionally NOT an inline on WBSElementAdmin —
+# it must not appear when editing PSP elements in admin or the public editor.
 
 
 class CostCenterYearEstimateInline(admin.TabularInline):
@@ -77,7 +80,13 @@ class WBSElementAdmin(admin.ModelAdmin):
         'responsible_person',
         'is_inactive',
     )
-    list_filter = ('work_group', 'responsible_person', 'is_inactive', 'subject_to_annual_recurrence')
+    list_filter = (
+        'work_group',
+        'responsible_person',
+        'is_inactive',
+        'subject_to_annual_recurrence',
+        *PSP_COST_TYPE_FLAG_FIELDS,
+    )
     search_fields = ('wbs_code', 'title', 'comment', 'work_group__short_name')
     ordering = ('wbs_code',)
     autocomplete_fields = ['work_group']
@@ -93,6 +102,9 @@ class WBSElementAdmin(admin.ModelAdmin):
                 'comment',
             ),
         }),
+        ('Cost types', {
+            'fields': PSP_COST_TYPE_FLAG_FIELDS,
+        }),
         ('Third-party funding', {
             'fields': (
                 'third_party_funding_commitment',
@@ -107,4 +119,30 @@ class WBSElementAdmin(admin.ModelAdmin):
                 'is_inactive',
             ),
         }),
+    )
+
+
+@admin.register(WBSElementTrueYearlySpending, site=therese_admin)
+class WBSElementTrueYearlySpendingAdmin(admin.ModelAdmin):
+    """Standalone admin for actual costs; not part of the PSP element form."""
+    list_display = (
+        'wbs_element',
+        'year',
+        'material_costs',
+        'personnel_costs',
+        'domestic_travel_costs',
+        'foreign_travel_costs',
+        'third_party_investments',
+        'publication_costs',
+        'animal_husbandry_costs',
+        'transfer_to_third_parties',
+    )
+    list_filter = ('year', 'wbs_element__work_group')
+    search_fields = ('wbs_element__wbs_code', 'wbs_element__title')
+    autocomplete_fields = ['wbs_element']
+    ordering = ('wbs_element__wbs_code', 'year')
+    fields = (
+        'wbs_element',
+        'year',
+        *PSP_COST_TYPE_AMOUNT_FIELDS,
     )

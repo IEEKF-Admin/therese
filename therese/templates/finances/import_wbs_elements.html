@@ -1,4 +1,4 @@
-﻿{% extends "admin/base.html" %}
+{% extends "admin/base.html" %}
 {% load static %}
 
 {% block title %}Import WBS Elements{% endblock %}
@@ -11,12 +11,12 @@
 {% endblock %}
 
 {% block content %}
-<h1>Import WBS Elements + Initial Balances</h1>
+<h1>Import WBS Elements</h1>
 
 <p class="help">
     Paste one or more tables from Excel here.<br>
-    Columns expected: Projekt | PSP Bezeichnung | Freigegebenes Budget<br>
-    The budget will be saved as Initial Balance for the <strong>current year</strong> ({{ current_year }}).
+    Columns expected: Projekt | PSP Bezeichnung | … (further columns are ignored)<br>
+    Only PSP code and title are imported. Year estimates and cost types are configured in the PSP editor.
 </p>
 
 <form method="post">
@@ -27,5 +27,3 @@
     <a href="{% url 'admin:finances_wbselement_changelist' %}" class="button">Back to WBS Elements</a>
 </form>
 {% endblock %}
-
-

@@ -10,6 +10,12 @@ from apps.finances.models import (
     WBSElement,
     WBSElementYearEstimate,
 )
+from apps.finances.psp_cost_types import (
+    PSP_COST_TYPE_AMOUNT_FIELDS,
+    PSP_COST_TYPE_FLAG_FIELDS,
+    PSP_COST_TYPES,
+    bilingual_cost_type_labels,
+)
 
 
 class MonthYearField(forms.Field):
@@ -37,6 +43,14 @@ class MonthYearField(forms.Field):
             raise ValidationError('Enter a valid month and year.')
 
 
+_AMOUNT_NUMBER_WIDGET = forms.NumberInput(attrs={
+    'class': 'form-control form-control-sm',
+    'step': '0.01',
+    'min': '0',
+    'placeholder': '0.00',
+})
+
+
 class WBSElementForm(forms.ModelForm):
     period_start = MonthYearField(
         required=False,
@@ -62,6 +76,7 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence',
             'is_inactive',
             'comment',
+            *PSP_COST_TYPE_FLAG_FIELDS,
             'third_party_funding_commitment',
             'third_party_funder_identifier',
         ]
@@ -79,6 +94,13 @@ class WBSElementForm(forms.ModelForm):
                 'accept': '.pdf,.jpg,.jpeg,.png,.gif,.webp',
             }),
             'third_party_funder_identifier': forms.TextInput(attrs={'class': 'form-control'}),
+            **{
+                flag: forms.CheckboxInput(attrs={
+                    'class': 'form-check-input cost-type-flag',
+                    'data-cost-type': amount,
+                })
+                for flag, amount, *_rest in PSP_COST_TYPES
+            },
         }
         labels = {
             'wbs_code': 'PSP code',
@@ -89,8 +111,9 @@ class WBSElementForm(forms.ModelForm):
             'subject_to_annual_recurrence': 'Subject to annual recurrence',
             'is_inactive': 'Inactive',
             'comment': 'Comment',
-            'third_party_funding_commitment': 'Drittmittelzusage',
-            'third_party_funder_identifier': 'Kennzeichen des Drittmittelgebers',
+            'third_party_funding_commitment': 'Third-party funding commitment',
+            'third_party_funder_identifier': 'Third-party funder identifier',
+            **bilingual_cost_type_labels(),
         }
         help_texts = {
             'wbs_code': 'Unique PSP identifier.',
@@ -110,11 +133,12 @@ class WBSElementForm(forms.ModelForm):
         self.fields['cost_center'].queryset = CostCenter.objects.all().order_by('cost_center')
         self.fields['cost_center'].required = True
         self.fields['cost_center'].empty_label = '— Select cost center —'
-        # FileField model max_length=100 applies to the *storage path*. Client
+        # FileField model max_length applies to the *storage path*. Client
         # filenames may be longer; DatabaseStorage renames them to a short UUID.
-        # Allow realistic original names through form validation.
         if 'third_party_funding_commitment' in self.fields:
             self.fields['third_party_funding_commitment'].max_length = 255
+        for flag in PSP_COST_TYPE_FLAG_FIELDS:
+            self.fields[flag].required = False
 
     def clean_cost_center(self):
         cost_center = self.cleaned_data.get('cost_center')
@@ -136,10 +160,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         model = WBSElementYearEstimate
         fields = [
             'year',
-            'funding',
-            'consumables_estimate',
-            'travel_estimate',
-            'animal_costs_estimate',
+            *PSP_COST_TYPE_AMOUNT_FIELDS,
         ]
         widgets = {
             'year': forms.NumberInput(attrs={
@@ -148,44 +169,21 @@ class WBSElementYearEstimateForm(forms.ModelForm):
                 'max': 2100,
                 'placeholder': 'YYYY',
             }),
-            'funding': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'consumables_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'travel_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'animal_costs_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
+            **{amount: _AMOUNT_NUMBER_WIDGET for amount in PSP_COST_TYPE_AMOUNT_FIELDS},
         }
         labels = {
             'year': 'Year / period',
-            'funding': 'Funding',
-            'consumables_estimate': 'Consumables estimate',
-            'travel_estimate': 'Travel estimate',
-            'animal_costs_estimate': 'Animal costs estimate',
+            **{
+                amount: f'.{code} - {de}'
+                for _flag, amount, code, de, _en in PSP_COST_TYPES
+            },
         }
         help_texts = {
             'year': 'Calendar year for this estimate row.',
-            'funding': 'Funding amount (EUR). Replaces former initial balance.',
-            'consumables_estimate': 'Estimated consumables (EUR).',
-            'travel_estimate': 'Estimated travel costs (EUR).',
-            'animal_costs_estimate': 'Estimated animal costs (EUR).',
+            **{
+                amount: f'Estimated {en.lower()} (EUR).'
+                for _flag, amount, _code, _de, en in PSP_COST_TYPES
+            },
         }
 
     def clean(self):
@@ -193,14 +191,7 @@ class WBSElementYearEstimateForm(forms.ModelForm):
         if cleaned.get('DELETE'):
             return cleaned
         year = cleaned.get('year')
-        if year is None and not any(
-            cleaned.get(f) for f in (
-                'funding',
-                'consumables_estimate',
-                'travel_estimate',
-                'animal_costs_estimate',
-            )
-        ):
+        if year is None and not any(cleaned.get(f) for f in PSP_COST_TYPE_AMOUNT_FIELDS):
             cleaned['DELETE'] = True
         return cleaned
 
@@ -258,8 +249,8 @@ class CostCenterForm(forms.ModelForm):
         labels = {
             'cost_center': 'Cost center',
             'comments': 'Comments',
-            'third_party_funding_commitment': 'Drittmittelzusage',
-            'third_party_funder_identifier': 'Kennzeichen des Drittmittelgebers',
+            'third_party_funding_commitment': 'Third-party funding commitment',
+            'third_party_funder_identifier': 'Third-party funder identifier',
         }
         help_texts = {
             'cost_center': 'Unique cost center identifier (e.g. 4711/2026).',
@@ -270,7 +261,6 @@ class CostCenterForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Same as WBSElementForm: client filename may exceed FileField path max_length.
         if 'third_party_funding_commitment' in self.fields:
             self.fields['third_party_funding_commitment'].max_length = 255
 

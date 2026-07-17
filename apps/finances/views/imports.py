@@ -5,7 +5,6 @@ Do not remove any existing requirements from this module without explicit instru
 """
 
 import csv
-import datetime
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -14,7 +13,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from ..models import CostCenter, PayScale, WBSElement, WBSElementYearEstimate
+from ..models import CostCenter, PayScale, WBSElement
 from .import_logging import log_import
 
 
@@ -76,28 +75,20 @@ def import_wbs_elements(request):
 
         created_wbs = 0
         updated_wbs = 0
-        balances_created = 0
         errors = []
         debug_entries = []
         processed = 0
-        current_year = datetime.date.today().year
         in_table = False
-        budget_col_index = 2
 
         for row_num, row in enumerate(reader, 1):
             processed += 1
-            if not row or len(row) < 3:
+            if not row or len(row) < 2:
                 in_table = False
                 continue
 
             row_str = [str(cell).strip().lower() for cell in row]
             if "projekt" in row_str[0] and "psp bezeichnung" in row_str[1]:
                 in_table = True
-                for i, cell in enumerate(row_str):
-                    if "freigegeben" in cell or "budget" in cell:
-                        budget_col_index = i
-                        print(f"DEBUG: Found budget column at index {i}")
-                        break
                 continue
 
             if not in_table:
@@ -105,7 +96,6 @@ def import_wbs_elements(request):
 
             wbs_code = str(row[0]).strip() if len(row) > 0 else ""
             title = str(row[1]).strip() if len(row) > 1 else ""
-            budget_str = str(row[budget_col_index]).strip() if len(row) > budget_col_index else ""
 
             if not wbs_code or len(wbs_code) < 3 or wbs_code.startswith(" "):
                 continue
@@ -117,52 +107,19 @@ def import_wbs_elements(request):
                 )
                 if created:
                     created_wbs += 1
+                    status = "Created"
                 else:
+                    # Refresh title when the import provides one.
+                    if title and wbs.title != title:
+                        wbs.title = title
+                        wbs.save(update_fields=['title', 'updated_at'])
                     updated_wbs += 1
-
-                raw_budget = budget_str
-                cleaned = ""
-                saved_value = 0.00
-                status = "Skipped (no budget)"
-
-                if budget_str and budget_str.strip() not in ["0,00", "0.00", "0", ""]:
-                    try:
-                        cleaned = budget_str.replace('.', '').replace(',', '.').strip()
-                        initial_balance = float(cleaned)
-                        saved_value = initial_balance
-
-                        WBSElementYearEstimate.objects.update_or_create(
-                            wbs_element=wbs,
-                            year=current_year,
-                            defaults={'funding': initial_balance},
-                        )
-                        balances_created += 1
-                        status = "Saved"
-
-                        print(
-                            f"DEBUG SUCCESS: {wbs_code:15} | Raw: '{raw_budget}' -> "
-                            f"Cleaned: {cleaned} -> Saved: {initial_balance:.2f} EUR"
-                        )
-
-                    except ValueError as ve:
-                        status = "Parse Error"
-                        errors.append(f"Row {row_num}: Cannot convert '{budget_str}' for {wbs_code} -> {ve}")
-                        print(f"DEBUG FAILED:  {wbs_code:15} | Raw: '{raw_budget}' -> Error: {ve}")
-                else:
-                    WBSElementYearEstimate.objects.update_or_create(
-                        wbs_element=wbs,
-                        year=current_year,
-                        defaults={'funding': 0.00},
-                    )
-                    balances_created += 1
-                    status = "Saved as 0.00"
+                    status = "Updated"
 
                 debug_entries.append({
                     'row': row_num,
                     'wbs_code': wbs_code,
-                    'raw': raw_budget,
-                    'cleaned': cleaned,
-                    'saved': f"{saved_value:.2f}",
+                    'title': title,
                     'status': status,
                 })
 
@@ -170,13 +127,13 @@ def import_wbs_elements(request):
                 errors.append(f"Row {row_num} ({wbs_code}): {str(e)}")
 
         log_path = log_import(
-            "wbs_elements", processed, created_wbs, updated_wbs, balances_created, errors, debug_entries,
+            "wbs_elements", processed, created_wbs, updated_wbs, 0, errors, debug_entries,
         )
 
         messages.success(
             request,
-            f"Import successful: {created_wbs} new + {updated_wbs} updated WBS Elements | "
-            f"{balances_created} year estimate(s) for year {current_year}.",
+            f"Import successful: {created_wbs} new + {updated_wbs} updated WBS Elements. "
+            "Year estimates are not imported (set cost types and amounts in the PSP editor).",
         )
         if errors:
             messages.warning(request, f"{len(errors)} errors – check the detailed log.")

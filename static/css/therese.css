@@ -486,20 +486,131 @@ input[readonly].form-control {
     border: 1px solid #e2e8f0;
 }
 
+/* Employee form inline rows (contracts, funding, …) */
+.inline-form-row.contract-row,
+.inline-form-row.funding-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 0.85rem 1rem;
+    align-items: start;
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.1rem 1.15rem 1.15rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.inline-form-row.contract-row + .inline-form-row.contract-row,
+.inline-form-row.funding-row + .inline-form-row.funding-row {
+    margin-top: 0.15rem;
+}
+
+.inline-form-row .inline-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.inline-form-row .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.inline-form-row .inline-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0;
+}
+
+.inline-form-row .inline-delete {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    margin: 0;
+}
+
+/* Soft remove control — matches secondary chrome, danger on hover */
+.btn-inline-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    padding: 0;
+    margin: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff !important;
+    color: #64748b !important;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.btn-inline-remove svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    display: block;
+    pointer-events: none;
+}
+
+.btn-inline-remove:hover {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border-color: #fecaca;
+}
+
+.btn-inline-remove:focus-visible {
+    outline: 2px solid var(--primary, #2563eb);
+    outline-offset: 2px;
+}
+
 /* Contract / Funding Allocation rows: inactive (manual or past end date) */
 .inline-form-row.is-inactive,
 .contract-row.is-inactive,
 .funding-row.is-inactive {
     background: #d1d5db;
     border: 1px solid #9ca3af;
-    border-radius: 8px;
-    opacity: 0.92;
+    border-radius: 10px;
+    opacity: 0.96;
+    box-shadow: none;
 }
 
 .inline-form-row.is-inactive label,
 .contract-row.is-inactive label,
 .funding-row.is-inactive label {
-    color: #374151;
+    color: #4b5563;
+}
+
+/* Locked fields inside inactive rows */
+.inline-form-row.is-inactive .form-control,
+.inline-form-row.is-inactive input:not([type="checkbox"]):not([type="hidden"]),
+.inline-form-row.is-inactive select,
+.inline-form-row.is-inactive textarea,
+.inline-form-row.is-inactive .is-inactive-field {
+    background: #c4c9d1 !important;
+    border-color: #9ca3af !important;
+    color: #374151 !important;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+.inline-form-row.is-inactive .active-toggle-wrap,
+.inline-form-row.is-inactive .active-toggle-wrap input,
+.inline-form-row.is-inactive .inline-delete,
+.inline-form-row.is-inactive .btn-inline-remove {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.inline-form-row.is-inactive .active-toggle-wrap input.is-active-toggle {
+    background: #fff;
+    accent-color: var(--primary, #2563eb);
 }
 
 tr.is-inactive,
@@ -518,6 +629,12 @@ tr.is-inactive,
     width: 1.15rem;
     height: 1.15rem;
     cursor: pointer;
+}
+
+/* Give contract/funding cards room for the absolute remove control */
+.inline-form-row.contract-row,
+.inline-form-row.funding-row {
+    padding-right: 3.25rem;
 }
 
 .form-actions {

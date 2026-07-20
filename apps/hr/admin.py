@@ -31,6 +31,7 @@ class ContractInline(admin.TabularInline):
     model = Contract
     form = ContractForm
     extra = 0
+    ordering = ('valid_from', 'valid_until', 'pk')
     fields = (
         'job_number',
         'pay_scale_group',
@@ -54,6 +55,7 @@ class FundingAllocationInline(admin.TabularInline):
     model = FundingAllocation
     form = FundingAllocationForm
     extra = 0
+    ordering = ('start_date', 'end_date', 'pk')
     fields = (
         'funding_source',
         'workhours_percentage',

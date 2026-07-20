@@ -179,6 +179,17 @@
             row.remove();
         }
     });
+
+    // Re-enable fields that were disabled for inactive rows so values still POST
+    document.querySelectorAll('form.employee-form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            form.querySelectorAll('.is-inactive input:disabled, .is-inactive select:disabled, .is-inactive textarea:disabled').forEach(function(el) {
+                const name = el.getAttribute('name') || '';
+                if (name.indexOf('-is_active') !== -1) return;
+                el.disabled = false;
+            });
+        });
+    });
 })();
 </script>
 {% endblock %}

@@ -301,7 +301,8 @@ class Contract(BaseModel):
     class Meta:
         verbose_name = "Contract"
         verbose_name_plural = "Contracts"
-        ordering = ['employee', '-valid_from']
+        # Chronological: start date, then end date (open ends last via formset/nulls_last)
+        ordering = ['employee', 'valid_from', 'valid_until', 'pk']
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -494,7 +495,8 @@ class FundingAllocation(BaseModel):
     class Meta:
         verbose_name = "Funding Allocation"
         verbose_name_plural = "Funding Allocations"
-        ordering = ['-start_date']
+        # Chronological: start date, then end date
+        ordering = ['start_date', 'end_date', 'pk']
         constraints = [
             models.CheckConstraint(
                 condition=(

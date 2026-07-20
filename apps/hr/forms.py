@@ -350,7 +350,8 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
                 self.fields['is_active'].initial = True
 
 # = FORMSETS =
-# extra=0 / min_num=0: no empty inline rows on open; user adds rows explicitly.
+# Prefer apps.hr.views.employee_form_helpers (chronological formsets used by UI).
+# These remain for import compatibility; default model ordering is chronological.
 ContractFormSet = inlineformset_factory(
     Employee, Contract, form=ContractForm, extra=0, can_delete=True, min_num=0,
 )

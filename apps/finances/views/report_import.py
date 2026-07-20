@@ -14,6 +14,7 @@ from apps.finances.report_import.service import (
     analyze_uploaded_files,
     apply_import_plan,
     merge_user_decisions,
+    normalize_import_scopes,
     refresh_personnel_checks,
 )
 
@@ -36,11 +37,28 @@ def third_party_funding_import(request):
             messages.error(request, 'Import year must be a number.')
             return redirect('finances:third_party_funding_import')
 
+        scopes = normalize_import_scopes(request.POST)
+        if not scopes.get('psp') and not scopes.get('personnel'):
+            messages.error(
+                request,
+                'Bitte mindestens einen Import-Bereich wählen '
+                '(PSP-Element und/oder Personaldaten).',
+            )
+            return redirect('finances:third_party_funding_import')
+
         if not files:
             messages.error(request, 'Please select at least one Excel file.')
             return redirect('finances:third_party_funding_import')
 
-        plan = analyze_uploaded_files(files, import_year=import_year)
+        plan = analyze_uploaded_files(
+            files,
+            import_year=import_year,
+            import_scopes=scopes,
+        )
+
+        if plan.get('scope_error'):
+            messages.error(request, plan['scope_error'])
+            return redirect('finances:third_party_funding_import')
 
         if plan.get('has_duplicate_files'):
             for meta in plan.get('upload_meta') or []:
@@ -64,8 +82,22 @@ def third_party_funding_import(request):
                     messages.error(request, f"{f.get('filename')}: {err}")
             return redirect('finances:third_party_funding_import')
 
-        if not plan['parents']:
-            messages.error(request, 'No PSP parent data could be read from the uploaded file(s).')
+        scopes = plan.get('import_scopes') or scopes
+        has_personnel_rows = any(
+            meta.get('personalkosten_entries')
+            for meta in (plan.get('upload_meta') or [])
+        )
+        if scopes.get('psp') and not plan['parents']:
+            messages.error(
+                request,
+                'No PSP parent data could be read from the uploaded file(s).',
+            )
+            return redirect('finances:third_party_funding_import')
+        if scopes.get('personnel') and not scopes.get('psp') and not has_personnel_rows and not plan['parents']:
+            messages.error(
+                request,
+                'Keine Personalkosten-Zeilen und kein PSP-Inhalt in den Dateien gefunden.',
+            )
             return redirect('finances:third_party_funding_import')
 
         request.session[SESSION_KEY] = plan
@@ -74,6 +106,7 @@ def third_party_funding_import(request):
 
     return render(request, 'finances/report_import_upload.html', {
         'default_import_year': current_year,
+        'default_scopes': normalize_import_scopes(None),
     })
 
 

@@ -4,11 +4,8 @@ Employee self-service profile view.
 Do not remove any existing requirements from this module without explicit instruction.
 """
 
-from datetime import date
-
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView
@@ -16,6 +13,7 @@ from django.views.generic import UpdateView
 from ...forms import EmployeeProfileForm
 from ...models import Employee
 from ...document_utils import process_document_uploads
+from ...validity import contract_open_on_q, resolve_as_of
 from ..employee_form_helpers import WorkgroupFormSet
 from .common import employee_document_context
 
@@ -43,15 +41,17 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         emp = self.object
-        today = date.today()
+        today = resolve_as_of(None)
 
+        # Soft rule: only started (not future) and not ended; latest first.
         context['current_contracts'] = emp.contracts.filter(
-            Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-        ).order_by('-valid_from')
+            contract_open_on_q(today)
+        ).order_by('-valid_from', '-pk')
+        # Soft-winning contract used for salary/costs
+        context['active_contract'] = emp.get_contract_as_of(today)
 
-        context['current_fundings'] = emp.allocations.filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=today)
-        ).select_related('wbs_element', 'cost_center').order_by('-start_date')
+        # One open FA per funding target (WBS / cost center)
+        context['current_fundings'] = emp.get_open_funding_allocations_as_of(today)
 
         if self.request.POST:
             workgroup_formset = WorkgroupFormSet(self.request.POST, instance=self.object)

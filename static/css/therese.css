@@ -486,6 +486,40 @@ input[readonly].form-control {
     border: 1px solid #e2e8f0;
 }
 
+/* Contract / Funding Allocation rows: inactive (manual or past end date) */
+.inline-form-row.is-inactive,
+.contract-row.is-inactive,
+.funding-row.is-inactive {
+    background: #d1d5db;
+    border: 1px solid #9ca3af;
+    border-radius: 8px;
+    opacity: 0.92;
+}
+
+.inline-form-row.is-inactive label,
+.contract-row.is-inactive label,
+.funding-row.is-inactive label {
+    color: #374151;
+}
+
+tr.is-inactive,
+.table tr.is-inactive {
+    background: #d1d5db !important;
+    color: #1f2937;
+}
+
+.active-toggle-wrap {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+}
+
+.active-toggle-wrap input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+    cursor: pointer;
+}
+
 .form-actions {
     margin-top: 2.5rem;
     padding-top: 1.5rem;

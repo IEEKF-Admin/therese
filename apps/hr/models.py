@@ -185,20 +185,52 @@ class Employee(BaseModel):
         return f"{prefix}{self.first_name} {self.last_name}".strip()
 
     def get_contract_as_of(self, as_of=None):
-        """Return the contract valid on as_of (defaults to today)."""
-        from django.utils import timezone
-        from django.db.models import Q
+        """
+        Soft-select the contract open on ``as_of`` (defaults to today).
 
-        if as_of is None:
-            as_of = timezone.now().date()
-        return (
-            self.contracts.filter(
-                Q(valid_until__isnull=True) | Q(valid_until__gte=as_of),
-                valid_from__lte=as_of,
-            )
-            .order_by('-valid_from')
-            .first()
+        Among contracts that have started and not yet ended, the one with the
+        latest ``valid_from`` wins. Future-dated contracts are ignored.
+        See ``apps.hr.validity``.
+        """
+        from apps.hr.validity import select_contract_as_of
+
+        return select_contract_as_of(self.contracts.all(), as_of)
+
+    def get_funding_allocation_as_of(self, *, wbs_element=None, cost_center=None, as_of=None):
+        """
+        Soft-select the funding allocation for one target open on ``as_of``.
+
+        Pass exactly one of ``wbs_element`` or ``cost_center``.
+        Winner = latest ``start_date`` among open rows (not future-started).
+        """
+        from apps.hr.validity import select_allocation_as_of
+
+        qs = self.allocations.all()
+        if wbs_element is not None:
+            qs = qs.filter(wbs_element=wbs_element, cost_center__isnull=True)
+        elif cost_center is not None:
+            qs = qs.filter(cost_center=cost_center, wbs_element__isnull=True)
+        else:
+            raise ValueError('Pass wbs_element or cost_center.')
+        return select_allocation_as_of(qs, as_of)
+
+    def get_open_funding_allocations_as_of(self, as_of=None):
+        """
+        All soft-winning open funding allocations on ``as_of`` (one per target).
+        """
+        from apps.hr.validity import (
+            allocation_open_on_q,
+            dedupe_allocations_as_of,
+            resolve_as_of,
         )
+
+        as_of = resolve_as_of(as_of)
+        open_rows = list(
+            self.allocations.filter(allocation_open_on_q(as_of))
+            .select_related('wbs_element', 'cost_center')
+            .order_by('-start_date', '-pk')
+        )
+        return dedupe_allocations_as_of(open_rows, as_of)
 
     def get_monthly_salary(self, as_of=None):
         """
@@ -255,6 +287,14 @@ class Contract(BaseModel):
         blank=True,
         verbose_name="Valid Until"
     )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Active",
+        help_text=(
+            "Yes/No. Can be set manually. Automatically set to No when "
+            "Valid Until is in the past."
+        ),
+    )
 
     comments = models.TextField(blank=True, verbose_name="Contract Comments")
 
@@ -269,6 +309,9 @@ class Contract(BaseModel):
             raise ValidationError({
                 'valid_until': 'End date cannot be before start date.'
             })
+        # Auto-deactivate when end date is in the past (still allows manual No).
+        from apps.hr.validity import apply_past_end_deactivation
+        apply_past_end_deactivation(self, end_attr='valid_until')
         # When both payscale fields are set, store the TV-L monthly salary.
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
@@ -322,15 +365,23 @@ class Contract(BaseModel):
     def __str__(self):
         return f"Contract for {self.employee} from {self.valid_from} ({self.weekly_hours} hours)"
 
+    def is_open_on(self, as_of=None) -> bool:
+        """True if this contract is open on ``as_of`` (see apps.hr.validity)."""
+        from apps.hr.validity import _require_active_flag, resolve_as_of
+
+        as_of = resolve_as_of(as_of)
+        if _require_active_flag(as_of) and not self.is_active:
+            return False
+        if not self.valid_from or self.valid_from > as_of:
+            return False
+        if self.valid_until is not None and self.valid_until < as_of:
+            return False
+        return True
+
     @property
     def is_current(self):
-        from django.utils import timezone
-        if not self.valid_from:
-            return False
-        today = timezone.now().date()
-        return (self.valid_from <= today) and (
-            self.valid_until is None or self.valid_until >= today
-        )
+        """Open today (active, started, not ended). Soft winner is selected separately."""
+        return self.is_open_on(None)
 
 
 class EmployeeDocumentType(models.TextChoices):
@@ -420,7 +471,15 @@ class FundingAllocation(BaseModel):
         blank=True,
         verbose_name="Valid Until"
     )
-    
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Active",
+        help_text=(
+            "Yes/No. Can be set manually. Automatically set to No when "
+            "Valid Until is in the past."
+        ),
+    )
+
     comments = models.TextField(blank=True, verbose_name="Comments")
     # Marked by import when payroll/admin data for this allocation is confirmed.
     import_completed = models.BooleanField(
@@ -451,6 +510,49 @@ class FundingAllocation(BaseModel):
         return (
             f"{self.employee} → {funding_target_display(self)} "
             f"({self.workhours_percentage}%)"
+        )
+
+    def is_open_on(self, as_of=None) -> bool:
+        """True if this allocation is open on ``as_of`` (see apps.hr.validity)."""
+        from apps.hr.validity import _require_active_flag, resolve_as_of
+
+        as_of = resolve_as_of(as_of)
+        if _require_active_flag(as_of) and not self.is_active:
+            return False
+        if not self.start_date or self.start_date > as_of:
+            return False
+        if self.end_date is not None and self.end_date < as_of:
+            return False
+        return True
+
+    @property
+    def is_current(self):
+        """Open today (active, started, not ended). Soft winner via validity helpers."""
+        return self.is_open_on(None)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError({
+                'end_date': 'End date cannot be before start date.',
+            })
+        from apps.hr.validity import apply_past_end_deactivation
+        apply_past_end_deactivation(self, end_attr='end_date')
+
+    def save(self, *args, **kwargs):
+        # Keep date order sane; soft overlap rule lives in validity helpers.
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def for_employee_wbs_as_of(cls, employee, wbs_element, as_of=None):
+        """Soft-select current FA for employee + PSP on ``as_of``."""
+        from apps.hr.validity import select_allocation_as_of
+
+        return select_allocation_as_of(
+            cls.objects.filter(employee=employee, wbs_element=wbs_element),
+            as_of,
         )
 
     @property

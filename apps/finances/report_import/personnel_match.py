@@ -7,7 +7,8 @@ Assumptions (documented for the product owner):
 - Tolerance: ±2.5% relative to the Excel amount
 - Only Kostenart 60003000, positive Personalkosten
 - Per Personalnummer: latest Belegdatum wins
-- Current allocation: start_date ≤ as_of and (end_date empty or ≥ as_of)
+- Current allocation (soft rule): started (start ≤ as_of), not ended, latest
+  start_date wins; future starts ignored (see apps.hr.validity)
 - Match or adjust_salary → FundingAllocation.import_completed = True
 - no_employee / no_allocation block commit unless explicitly ignored
 """
@@ -16,8 +17,6 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
-
-from django.db.models import Q
 
 from apps.core.models import GlobalSetting
 from apps.hr.models import Employee, FundingAllocation
@@ -39,18 +38,8 @@ def decision_key_for(personalnummer: str, parent_psp_code: str) -> str:
 
 
 def _current_allocation(employee: Employee, wbs, as_of: date) -> FundingAllocation | None:
-    return (
-        FundingAllocation.objects.filter(
-            employee=employee,
-            wbs_element=wbs,
-        )
-        .filter(
-            start_date__lte=as_of,
-        )
-        .filter(Q(end_date__isnull=True) | Q(end_date__gte=as_of))
-        .order_by('-start_date')
-        .first()
-    )
+    """Soft rule: open on as_of, latest start_date wins (no future starts)."""
+    return FundingAllocation.for_employee_wbs_as_of(employee, wbs, as_of)
 
 
 def build_personnel_checks(entries: list, parent_wbs_code: str, as_of: date | None = None) -> list[dict]:

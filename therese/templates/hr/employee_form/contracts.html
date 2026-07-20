@@ -1,10 +1,14 @@
 {% load widget_tweaks %}
 <div class="form-section full-width">
     <h3>Contracts</h3>
+    <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
+        <strong>Active</strong> can be set manually. It is set to No automatically when
+        Valid Until is in the past. Inactive rows use a darker background.
+    </p>
     {{ contract_formset.management_form }}
     <div id="contract-container">
         {% for form in contract_formset %}
-        <div class="inline-form-row contract-row">
+        <div class="inline-form-row contract-row{% if form.instance.pk and not form.instance.is_active %} is-inactive{% endif %}">
             {{ form.id }}
             {{ form.DELETE.as_hidden }}
             <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
@@ -14,6 +18,9 @@
             <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
             <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
+            <div class="inline-field"><label>Active</label>
+                <div class="active-toggle-wrap">{{ form.is_active }}</div>
+            </div>
             <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
@@ -35,6 +42,9 @@
             <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
             <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
             <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
+            <div class="inline-field"><label>Active</label>
+                <div class="active-toggle-wrap">{{ form.is_active }}</div>
+            </div>
             <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
             <div class="inline-delete">
                 <button type="button" class="btn-danger remove-row">🗑️</button>
@@ -107,7 +117,22 @@
         });
     }
 
+    function syncInactiveClass(row) {
+        const toggle = row.querySelector('input.is-active-toggle, input[name$="-is_active"]');
+        if (!toggle) return;
+        row.classList.toggle('is-inactive', !toggle.checked);
+    }
+
+    function attachActiveToggle(row) {
+        const toggle = row.querySelector('input.is-active-toggle, input[name$="-is_active"]');
+        if (!toggle || toggle.dataset.activeBound) return;
+        toggle.dataset.activeBound = '1';
+        toggle.addEventListener('change', function() { syncInactiveClass(row); });
+        syncInactiveClass(row);
+    }
+
     container.querySelectorAll('.contract-row').forEach(attachPayscaleListeners);
+    container.querySelectorAll('.contract-row').forEach(attachActiveToggle);
 
     container.querySelectorAll('.contract-row').forEach(row => {
         const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
@@ -141,6 +166,7 @@
                     node.classList &&
                     (node.classList.contains('contract-row') || node.classList.contains('inline-form-row'))) {
                     attachPayscaleListeners(node);
+                    attachActiveToggle(node);
                     syncContractMonthlySalary(node);
                 }
             });

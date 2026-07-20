@@ -7,10 +7,8 @@
     <div>
         <h1>Import Third-party Funding Reports</h1>
         <p class="text-muted" style="margin:0.35rem 0 0;">
-            Upload one or more Excel Drittmittelbericht files. The importer currently reads the
-            <strong>Übersicht</strong> sheet for <strong>non-annual</strong> PSP parents
-            (one plan for the full project runtime — not one estimate per calendar year).
-            You will review a summary before any data is written.
+            Upload one or more Excel Drittmittelbericht files. Choose which areas to update,
+            then review a summary before any data is written.
         </p>
     </div>
     <div class="page-header-actions">
@@ -20,13 +18,53 @@
 
 <form method="post" enctype="multipart/form-data" class="form-card" style="max-width: 40rem;">
     {% csrf_token %}
+
+    <div class="form-field">
+        <label>Import-Bereiche</label>
+        <div style="display:flex; flex-direction:column; gap:0.55rem; margin-top:0.35rem;">
+            <label style="display:flex; gap:0.5rem; align-items:flex-start; cursor:pointer;">
+                <input type="checkbox" name="scope_psp" value="on"
+                       {% if default_scopes.psp %}checked{% endif %}>
+                <span>
+                    <strong>PSP-Element</strong>
+                    <span class="helptext" style="display:block;">
+                        Stammdaten, Freigegebenes Budget (Lifetime), Ist / Obligo / Verfügt (Snapshots).
+                    </span>
+                </span>
+            </label>
+            <label style="display:flex; gap:0.5rem; align-items:flex-start; cursor:pointer;">
+                <input type="checkbox" name="scope_personnel" value="on"
+                       {% if default_scopes.personnel %}checked{% endif %}>
+                <span>
+                    <strong>Personaldaten</strong>
+                    <span class="helptext" style="display:block;">
+                        Sheet Personalkosten: Abgleich Gehalt × Multiplikator × %,
+                        <code>import_completed</code> an Funding Allocations.
+                    </span>
+                </span>
+            </label>
+            <label style="display:flex; gap:0.5rem; align-items:flex-start; opacity:0.65; cursor:not-allowed;">
+                <input type="checkbox" name="scope_orders" value="on" disabled>
+                <span>
+                    <strong>Bestelldaten</strong>
+                    <span class="helptext" style="display:block;">
+                        Noch nicht implementiert (Purchase Orders / SAP-Felder).
+                    </span>
+                </span>
+            </label>
+        </div>
+        <span class="helptext" style="margin-top:0.5rem; display:block;">
+            Mindestens ein verfügbarer Bereich muss gewählt sein. Kombinationen sind erlaubt.
+        </span>
+    </div>
+
     <div class="form-field">
         <label for="import_year">Reference year (plausibility only)</label>
         <input type="number" name="import_year" id="import_year"
                class="form-control" min="1990" max="2100"
                value="{{ default_import_year }}" required>
         <span class="helptext">
-            Used to check “last booking date” against the chosen year.
+            Used to check “last booking date” against the chosen year (only when PSP is selected).
             <strong>Freigegebenes Budget</strong> is stored as a single
             <em>lifetime</em> plan (full PSP runtime), not as a yearly estimate for this year.
         </span>

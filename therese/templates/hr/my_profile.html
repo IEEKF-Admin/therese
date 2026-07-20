@@ -66,11 +66,12 @@
                 <th>Monthly Costs</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
+                <th>Active</th>
             </tr>
         </thead>
         <tbody>
         {% for c in current_contracts %}
-            <tr>
+            <tr{% if not c.is_active %} class="is-inactive"{% endif %}>
                 <td>{{ c.pay_scale_group|default:"—" }}</td>
                 <td>{{ c.experience_level|default:"—" }}</td>
                 <td>{% if c.get_monthly_salary %}{{ c.get_monthly_salary }} €{% else %}—{% endif %}</td>
@@ -79,6 +80,7 @@
                 <td>{% if c.get_monthly_costs %}{{ c.get_monthly_costs }} €{% else %}—{% endif %}</td>
                 <td>{{ c.valid_from }}</td>
                 <td>{{ c.valid_until|default:"open" }}</td>
+                <td>{% if c.is_active %}Yes{% else %}No{% endif %}</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -100,16 +102,18 @@
                 <th>Plan Position</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
+                <th>Active</th>
             </tr>
         </thead>
         <tbody>
         {% for f in current_fundings %}
-            <tr>
+            <tr{% if not f.is_active %} class="is-inactive"{% endif %}>
                 <td>{{ f.funding_target_label }}</td>
                 <td>{{ f.workhours_percentage }}%</td>
                 <td>{{ f.plan_position_number|default:"—" }}</td>
                 <td>{{ f.start_date }}</td>
                 <td>{{ f.end_date|default:"open" }}</td>
+                <td>{% if f.is_active %}Yes{% else %}No{% endif %}</td>
             </tr>
         {% endfor %}
         </tbody>

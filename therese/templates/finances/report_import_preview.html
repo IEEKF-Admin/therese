@@ -9,6 +9,12 @@
         <p class="text-muted" style="margin:0.35rem 0 0;">
             Reference year: <strong>{{ plan.import_year }}</strong>
             · Snapshot date (true spending / obligo): <strong>{{ plan.snapshot_date }}</strong>
+            · Bereiche:
+            {% if plan.import_scopes.psp %}<strong>PSP</strong>{% else %}<span style="text-decoration:line-through;">PSP</span>{% endif %}
+            ·
+            {% if plan.import_scopes.personnel %}<strong>Personal</strong>{% else %}<span style="text-decoration:line-through;">Personal</span>{% endif %}
+            ·
+            <span style="text-decoration:line-through; opacity:0.7;">Bestellungen</span>
         </p>
     </div>
     <div class="page-header-actions">
@@ -65,7 +71,7 @@
 <form method="post">
     {% csrf_token %}
 
-    {% if plan.requires_year_confirmation %}
+    {% if plan.import_scopes.psp and plan.requires_year_confirmation %}
     <div class="form-card" style="margin-bottom: 1rem; border-left: 4px solid #ca8a04;">
         <label class="checkbox-field" style="display:flex; gap:0.5rem; align-items:flex-start;">
             <input type="checkbox" name="confirm_import_year">
@@ -77,7 +83,7 @@
     </div>
     {% endif %}
 
-    {% if plan.requires_snapshot_update_option %}
+    {% if plan.import_scopes.psp and plan.requires_snapshot_update_option %}
     <div class="form-card" style="margin-bottom: 1rem; border-left: 4px solid #dc2626;">
         <label class="checkbox-field" style="display:flex; gap:0.5rem; align-items:flex-start;">
             <input type="checkbox" name="update_existing_snapshots">
@@ -89,13 +95,21 @@
     </div>
     {% endif %}
 
+    {% if not plan.import_scopes.psp and not plan.import_scopes.personnel %}
+    <div class="alert alert-warning">Kein Import-Bereich aktiv.</div>
+    {% endif %}
+
     {% for parent in plan.parents %}
     <div class="form-card" style="margin-bottom: 1.5rem;">
         <h3 style="margin-top:0;">
             {{ parent.wbs_code }}
+            {% if plan.import_scopes.psp and not parent.personnel_only_stub %}
             <span class="badge" style="font-size:0.75rem; margin-left:0.5rem;">
                 {% if parent.action == 'create' %}CREATE{% else %}UPDATE{% endif %}
             </span>
+            {% elif parent.personnel_only_stub %}
+            <span class="badge" style="font-size:0.75rem; margin-left:0.5rem;">PERSONAL ONLY</span>
+            {% endif %}
         </h3>
         <p class="text-muted" style="margin-top:0;">Source: {{ parent.source_filename }}</p>
 
@@ -105,6 +119,7 @@
         </ul>
         {% endif %}
 
+        {% if plan.import_scopes.psp and not parent.personnel_only_stub %}
         {% if parent.needs_title %}
         <div class="form-field">
             <label for="title__{{ parent.wbs_code }}">Title for new PSP element (required)</label>
@@ -209,7 +224,73 @@
             {% endfor %}
         </ul>
 
-        {% if parent.personnel_checks %}
+        <h4>
+            Lifetime plan (Freigegebenes Budget → overwrite)
+            {% if parent.year_estimate.action == 'update' %}
+            <em>— update existing row</em>
+            {% else %}
+            <em>— create single row</em>
+            {% endif %}
+        </h4>
+        <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
+            Non-annual project: amounts cover the <strong>full PSP runtime</strong>,
+            not only calendar year {{ plan.import_year }}.
+            Technical year key: {{ parent.year_estimate.year }}
+            {% if parent.year_estimate.existing_count > 1 %}
+            · <strong class="text-warning">{{ parent.year_estimate.existing_count }} estimate rows exist; only one will be updated</strong>
+            {% endif %}
+        </p>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead>
+                <tr><th>Field</th><th>New value</th></tr>
+            </thead>
+            <tbody>
+                {% for field, value in parent.year_estimate.amounts.items %}
+                <tr>
+                    <td><code>{{ field }}</code></td>
+                    <td>{{ value|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>True yearly spending (Verfügt) · {{ plan.snapshot_date }}
+            {% if parent.true_spending.exists %}<em class="text-danger">— exists</em>{% endif %}
+        </h4>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for field, value in parent.true_spending.amounts.items %}
+                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>Obligo · {{ plan.snapshot_date }}
+            {% if parent.obligo.exists %}<em class="text-danger">— exists</em>{% endif %}
+        </h4>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for field, value in parent.obligo.amounts.items %}
+                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
+                {% endfor %}
+                <tr>
+                    <td><code>personal</code> (Personalobligo)</td>
+                    <td>{{ parent.obligo.personal|default:"—" }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if parent.year_plausibility_warning %}
+        <p class="text-warning">
+            Last booking year(s) after import year:
+            {{ parent.booking_years_after_import_year|join:", " }}
+        </p>
+        {% endif %}
+        {% endif %}{# end plan.import_scopes.psp and not stub #}
+
+        {% if plan.import_scopes.personnel and parent.personnel_checks %}
         <h4>Personalkosten checks (Kostenart 60003000)</h4>
         <p class="text-muted" style="font-size:0.85rem;">
             Latest Belegdatum per employee number. Compared:
@@ -303,75 +384,10 @@
             </tbody>
         </table>
         {% endif %}
-
-        <h4>
-            Lifetime plan (Freigegebenes Budget → overwrite)
-            {% if parent.year_estimate.action == 'update' %}
-            <em>— update existing row</em>
-            {% else %}
-            <em>— create single row</em>
-            {% endif %}
-        </h4>
-        <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
-            Non-annual project: amounts cover the <strong>full PSP runtime</strong>,
-            not only calendar year {{ plan.import_year }}.
-            Technical year key: {{ parent.year_estimate.year }}
-            {% if parent.year_estimate.existing_count > 1 %}
-            · <strong class="text-warning">{{ parent.year_estimate.existing_count }} estimate rows exist; only one will be updated</strong>
-            {% endif %}
-        </p>
-        <table class="table" style="width:100%; font-size:0.9rem;">
-            <thead>
-                <tr><th>Field</th><th>New value</th></tr>
-            </thead>
-            <tbody>
-                {% for field, value in parent.year_estimate.amounts.items %}
-                <tr>
-                    <td><code>{{ field }}</code></td>
-                    <td>{{ value|default:"—" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <h4>True yearly spending (Verfügt) · {{ plan.snapshot_date }}
-            {% if parent.true_spending.exists %}<em class="text-danger">— exists</em>{% endif %}
-        </h4>
-        <table class="table" style="width:100%; font-size:0.9rem;">
-            <thead><tr><th>Field</th><th>Value</th></tr></thead>
-            <tbody>
-                {% for field, value in parent.true_spending.amounts.items %}
-                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <h4>Obligo · {{ plan.snapshot_date }}
-            {% if parent.obligo.exists %}<em class="text-danger">— exists</em>{% endif %}
-        </h4>
-        <table class="table" style="width:100%; font-size:0.9rem;">
-            <thead><tr><th>Field</th><th>Value</th></tr></thead>
-            <tbody>
-                {% for field, value in parent.obligo.amounts.items %}
-                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
-                {% endfor %}
-                <tr>
-                    <td><code>personal</code> (Personalobligo)</td>
-                    <td>{{ parent.obligo.personal|default:"—" }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if parent.year_plausibility_warning %}
-        <p class="text-warning">
-            Last booking year(s) after import year:
-            {{ parent.booking_years_after_import_year|join:", " }}
-        </p>
-        {% endif %}
     </div>
     {% endfor %}
 
-    {% if plan.requires_personnel_resolution %}
+    {% if plan.import_scopes.personnel and plan.requires_personnel_resolution %}
     <div class="alert alert-warning" style="margin-bottom: 1rem;">
         <strong>Personalkosten blockieren den Import.</strong>
         Lege fehlende Mitarbeiter bzw. Funding Allocations an (Links öffnen in neuem Tab),

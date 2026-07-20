@@ -24,6 +24,7 @@ from apps.finances.report_import.service import (
     analyze_uploaded_files,
     apply_import_plan,
     merge_user_decisions,
+    normalize_import_scopes,
 )
 
 
@@ -139,6 +140,20 @@ class CostCenterLookupTests(TestCase):
 
 
 class ReportImportServiceTests(TestCase):
+    def test_normalize_import_scopes(self):
+        defaults = normalize_import_scopes(None)
+        self.assertTrue(defaults['psp'])
+        self.assertTrue(defaults['personnel'])
+        self.assertFalse(defaults['orders'])
+
+        from_form = normalize_import_scopes({'scope_psp': 'on'})
+        self.assertTrue(from_form['psp'])
+        self.assertFalse(from_form['personnel'])
+
+        personnel_only = normalize_import_scopes({'scope_personnel': 'on'})
+        self.assertFalse(personnel_only['psp'])
+        self.assertTrue(personnel_only['personnel'])
+
     def test_analyze_and_commit_create_flow(self):
         data = _build_sample_workbook()
         upload = SimpleUploadedFile(
@@ -148,6 +163,7 @@ class ReportImportServiceTests(TestCase):
         )
         plan = analyze_uploaded_files([upload], import_year=2026)
         self.assertEqual(len(plan['parents']), 1)
+        self.assertTrue(plan['import_scopes']['psp'])
         parent = plan['parents'][0]
         self.assertEqual(parent['action'], 'create')
         self.assertTrue(parent['needs_title'])
@@ -177,6 +193,42 @@ class ReportImportServiceTests(TestCase):
         self.assertEqual(ye.year, 2026)
         self.assertEqual(ye.material_costs, Decimal('10000'))
         self.assertEqual(ye.personnel_costs, Decimal('50000'))
+
+    def test_psp_scope_only_skips_personnel(self):
+        data = _build_sample_workbook()
+        upload = SimpleUploadedFile('sample.xlsx', data)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        self.assertEqual(plan['personnel_checks'], [])
+        self.assertFalse(plan['requires_personnel_resolution'])
+        plan, errors = merge_user_decisions(plan, {
+            'title__T-100.0001': 'Only PSP',
+            'confirm_import_year': 'on',
+        })
+        self.assertEqual(errors, [])
+        summary = apply_import_plan(plan)
+        self.assertEqual(summary['psp_created'], 1)
+        self.assertEqual(summary['personnel_notes'], [])
+
+    def test_personnel_scope_only_does_not_create_psp(self):
+        data = _build_sample_workbook()
+        upload = SimpleUploadedFile('sample.xlsx', data)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': False, 'personnel': True},
+        )
+        self.assertFalse(plan['import_scopes']['psp'])
+        self.assertFalse(plan['requires_year_confirmation'])
+        # No title required when PSP scope off
+        plan, errors = merge_user_decisions(plan, {})
+        self.assertEqual(errors, [])
+        summary = apply_import_plan(plan)
+        self.assertEqual(summary['psp_created'], 0)
+        self.assertFalse(WBSElement.objects.filter(wbs_code='T-100.0001').exists())
 
     def test_lifetime_plan_overwrites_single_row_not_import_year_key(self):
         """Re-import updates the one lifetime row even if technical year ≠ import year."""

@@ -21,6 +21,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.core.models import GlobalSetting
 from apps.hr.models import FundingAllocation
+from apps.hr.validity import dedupe_allocations_as_of, resolve_as_of
 from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
 from apps.finances.models import (
     WBSElement,
@@ -220,9 +221,16 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
 
     # Load allocations that overlap either the Actual period or the selected year
     # (so Not booked can be computed for the year even on non-annual PSPs).
+    # Soft rule: per employee on this PSP, only the open allocation with the
+    # latest start_date on the reference date wins (future starts ignored).
     range_start = min(period_start, year_start)
     range_end = max(period_end, year_end)
-    allocations = list(
+    as_of = resolve_as_of(None)
+    if as_of > range_end:
+        as_of = range_end
+    if as_of < range_start:
+        as_of = range_start
+    raw_allocations = list(
         FundingAllocation.objects.filter(wbs_element=wbs)
         .filter(
             Q(end_date__isnull=True) | Q(end_date__gte=range_start),
@@ -231,6 +239,19 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
         .select_related('employee')
         .order_by('employee__last_name', 'employee__first_name')
     )
+    allocations = dedupe_allocations_as_of(raw_allocations, as_of)
+    # Keep rows that only cover historical parts of the range (already ended
+    # before as_of) so Actual still reflects past assignments without double-counting
+    # open overlaps. If dedupe dropped everything for an employee, fall back to
+    # raw list filtered to non-open historical rows only.
+    winner_pks = {a.pk for a in allocations}
+    for alloc in raw_allocations:
+        if alloc.pk in winner_pks:
+            continue
+        # Include ended (historical) allocations that are not open on as_of
+        if alloc.end_date is not None and alloc.end_date < as_of:
+            if alloc.start_date <= range_end and alloc.end_date >= range_start:
+                allocations.append(alloc)
     personnel_rows, real_personnel_total, not_booked_personnel_total = _build_personnel_rows(
         allocations,
         period_start,

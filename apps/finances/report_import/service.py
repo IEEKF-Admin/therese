@@ -118,12 +118,101 @@ def get_or_create_cost_center(code: str) -> tuple[CostCenter, bool]:
     return CostCenter.objects.get_or_create(cost_center=raw)
 
 
-def analyze_uploaded_files(files, import_year: int, snapshot_date: date | None = None) -> dict:
+# Import scope keys (orders reserved for a later PO import pass).
+SCOPE_PSP = 'psp'
+SCOPE_PERSONNEL = 'personnel'
+SCOPE_ORDERS = 'orders'
+AVAILABLE_SCOPES = (SCOPE_PSP, SCOPE_PERSONNEL, SCOPE_ORDERS)
+
+
+def normalize_import_scopes(raw=None) -> dict[str, bool]:
+    """
+    Normalize scope flags.
+
+    ``raw`` may be:
+    - None → defaults (PSP + personnel on; orders always off)
+    - list/set of scope names
+    - dict with ``scope_psp`` / ``scope_personnel`` (form POST) or
+      ``psp`` / ``personnel`` booleans
+    """
+    if raw is None:
+        return {
+            SCOPE_PSP: True,
+            SCOPE_PERSONNEL: True,
+            SCOPE_ORDERS: False,
+        }
+    if isinstance(raw, (list, tuple, set)):
+        selected = set(raw)
+        return {
+            SCOPE_PSP: SCOPE_PSP in selected,
+            SCOPE_PERSONNEL: SCOPE_PERSONNEL in selected,
+            SCOPE_ORDERS: False,
+        }
+    get = raw.get
+    # Form POST uses scope_psp / scope_personnel checkboxes
+    if 'scope_psp' in raw or 'scope_personnel' in raw or 'scope_orders' in raw:
+        return {
+            SCOPE_PSP: _truthy(get('scope_psp')),
+            SCOPE_PERSONNEL: _truthy(get('scope_personnel')),
+            SCOPE_ORDERS: False,
+        }
+    return {
+        SCOPE_PSP: _truthy(get(SCOPE_PSP, True)),
+        SCOPE_PERSONNEL: _truthy(get(SCOPE_PERSONNEL, True)),
+        SCOPE_ORDERS: False,
+    }
+
+
+def _truthy(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {'1', 'true', 'on', 'yes', 'y'}
+
+
+def scope_enabled(plan: dict, scope: str) -> bool:
+    scopes = plan.get('import_scopes') or normalize_import_scopes(None)
+    return bool(scopes.get(scope))
+
+
+def analyze_uploaded_files(
+    files,
+    import_year: int,
+    snapshot_date: date | None = None,
+    import_scopes=None,
+) -> dict:
     """
     Parse one or more uploaded files and build a preview plan against the DB.
 
     ``files``: iterable of Django UploadedFile (or file-like with .name).
+    ``import_scopes``: which areas to update (psp / personnel / orders).
     """
+    scopes = normalize_import_scopes(import_scopes)
+    if not scopes[SCOPE_PSP] and not scopes[SCOPE_PERSONNEL]:
+        return {
+            'import_year': import_year,
+            'snapshot_date': (snapshot_date or date.today()).isoformat(),
+            'import_kind': DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            'import_scopes': scopes,
+            'files': [],
+            'upload_meta': [],
+            'parents': [],
+            'personnel_checks': [],
+            'global_warnings': [],
+            'has_blocking_errors': True,
+            'has_duplicate_files': False,
+            'requires_year_confirmation': False,
+            'requires_snapshot_update_option': False,
+            'requires_personnel_decisions': False,
+            'requires_personnel_resolution': False,
+            'blocking_personnel_checks': [],
+            'scope_error': (
+                'Bitte mindestens einen Import-Bereich wählen '
+                '(PSP-Element und/oder Personaldaten).'
+            ),
+        }
+
     snapshot_date = snapshot_date or date.today()
     file_results = []
     parents: list[dict] = []
@@ -196,41 +285,97 @@ def analyze_uploaded_files(files, import_year: int, snapshot_date: date | None =
     has_blocking_errors = any(bool(f.get('errors')) for f in file_results)
     duplicate_files = [m for m in upload_meta if m.get('is_duplicate')]
 
+    # Scope summary for the user
+    active = []
+    if scopes[SCOPE_PSP]:
+        active.append('PSP-Element')
+    if scopes[SCOPE_PERSONNEL]:
+        active.append('Personaldaten')
+    if scopes[SCOPE_ORDERS]:
+        active.append('Bestelldaten')
+    global_warnings.append(
+        'Import-Bereiche: ' + (', '.join(active) if active else '—')
+        + '. Nicht gewählte Bereiche werden nicht geschrieben.'
+    )
+
     for parent in parents:
         plan_parents.append(_enrich_parent_against_db(parent, import_year, snapshot_date))
 
-    # Personnel salary checks (Personalkosten sheet vs current funding allocations)
+    # Personnel-only: ensure parent stubs exist for Personalkosten grouping
+    if scopes[SCOPE_PERSONNEL]:
+        existing_codes = {p['wbs_code'] for p in plan_parents}
+        for meta in upload_meta:
+            for entry in meta.get('personalkosten_entries') or []:
+                code = entry.get('parent_psp_code')
+                if code and code not in existing_codes:
+                    plan_parents.append({
+                        'wbs_code': code,
+                        'source_filename': entry.get('source_filename') or meta.get('filename'),
+                        'exists': WBSElement.objects.filter(wbs_code=code).exists(),
+                        'action': (
+                            'update'
+                            if WBSElement.objects.filter(wbs_code=code).exists()
+                            else 'create'
+                        ),
+                        'personnel_only_stub': True,
+                        'cost_center': {'needs_user_choice': False},
+                        'needs_title': False,
+                        'year_plausibility_warning': False,
+                        'snapshot_conflict': False,
+                        'true_spending': {'amounts': {}, 'exists': False},
+                        'obligo': {'amounts': {}, 'exists': False, 'personal': None},
+                    })
+                    existing_codes.add(code)
+
     plan_shell = {
         'import_year': import_year,
         'snapshot_date': snapshot_date.isoformat(),
         'upload_meta': upload_meta,
         'parents': plan_parents,
         'global_warnings': global_warnings,
+        'import_scopes': scopes,
     }
-    _attach_personnel_checks(plan_shell, snapshot_date)
-    personnel_checks = plan_shell['personnel_checks']
-    global_warnings = plan_shell['global_warnings']
 
-    # Year plausibility across all parents
-    year_conflict_parents = [
-        p['wbs_code']
-        for p in plan_parents
-        if p.get('year_plausibility_warning')
-    ]
-    if year_conflict_parents:
-        global_warnings.append(
-            f'Import year {import_year} is earlier than last booking year(s) for: '
-            + ', '.join(year_conflict_parents)
-            + '. Confirm the import year before committing.'
-        )
+    if scopes[SCOPE_PERSONNEL]:
+        _attach_personnel_checks(plan_shell, snapshot_date)
+    else:
+        plan_shell['personnel_checks'] = []
+        plan_shell['requires_personnel_decisions'] = False
+        plan_shell['requires_personnel_resolution'] = False
+        plan_shell['blocking_personnel_checks'] = []
+        for parent in plan_parents:
+            parent['personnel_checks'] = []
 
-    snapshot_conflicts = [p['wbs_code'] for p in plan_parents if p.get('snapshot_conflict')]
-    if snapshot_conflicts:
-        global_warnings.append(
-            'True spending and/or obligo snapshots already exist for today for: '
-            + ', '.join(snapshot_conflicts)
-            + '. Commit will fail unless you enable “Update existing snapshots”.'
-        )
+    personnel_checks = plan_shell.get('personnel_checks') or []
+    global_warnings = plan_shell.get('global_warnings') or global_warnings
+
+    # Year / snapshot plausibility only when writing PSP data
+    year_conflict_parents = []
+    snapshot_conflicts = []
+    if scopes[SCOPE_PSP]:
+        year_conflict_parents = [
+            p['wbs_code']
+            for p in plan_parents
+            if p.get('year_plausibility_warning') and not p.get('personnel_only_stub')
+        ]
+        if year_conflict_parents:
+            global_warnings.append(
+                f'Import year {import_year} is earlier than last booking year(s) for: '
+                + ', '.join(year_conflict_parents)
+                + '. Confirm the import year before committing.'
+            )
+
+        snapshot_conflicts = [
+            p['wbs_code']
+            for p in plan_parents
+            if p.get('snapshot_conflict') and not p.get('personnel_only_stub')
+        ]
+        if snapshot_conflicts:
+            global_warnings.append(
+                'True spending and/or obligo snapshots already exist for today for: '
+                + ', '.join(snapshot_conflicts)
+                + '. Commit will fail unless you enable “Update existing snapshots”.'
+            )
 
     if duplicate_files:
         names = ', '.join(m['filename'] for m in duplicate_files)
@@ -240,10 +385,15 @@ def analyze_uploaded_files(files, import_year: int, snapshot_date: date | None =
         )
         has_blocking_errors = True
 
+    if scopes[SCOPE_PSP] and not plan_parents and not has_blocking_errors:
+        # No parents from Übersicht — only relevant when PSP scope is selected
+        pass
+
     return {
         'import_year': import_year,
         'snapshot_date': snapshot_date.isoformat(),
         'import_kind': kind,
+        'import_scopes': scopes,
         'files': file_results,
         'upload_meta': upload_meta,
         'parents': plan_parents,
@@ -329,6 +479,14 @@ def _attach_personnel_checks(plan: dict, snapshot_date: date | None = None) -> d
 def refresh_personnel_checks(plan: dict) -> dict:
     """Public helper: re-run personnel matching on an existing session plan."""
     plan = deepcopy(plan)
+    if not scope_enabled(plan, SCOPE_PERSONNEL):
+        plan['personnel_checks'] = []
+        plan['requires_personnel_decisions'] = False
+        plan['requires_personnel_resolution'] = False
+        plan['blocking_personnel_checks'] = []
+        for parent in plan.get('parents') or []:
+            parent['personnel_checks'] = []
+        return plan
     return _attach_personnel_checks(plan)
 
 
@@ -551,101 +709,115 @@ def merge_user_decisions(plan: dict, post_data) -> tuple[dict, list[str]]:
     """
     errors: list[str] = []
     plan = deepcopy(plan)
+    # Ensure scopes exist (older sessions / tests)
+    if 'import_scopes' not in plan:
+        plan['import_scopes'] = normalize_import_scopes(None)
+    do_psp = scope_enabled(plan, SCOPE_PSP)
+    do_personnel = scope_enabled(plan, SCOPE_PERSONNEL)
+
     plan['confirm_import_year'] = post_data.get('confirm_import_year') == 'on'
     plan['update_existing_snapshots'] = post_data.get('update_existing_snapshots') == 'on'
 
-    if plan.get('requires_year_confirmation') and not plan['confirm_import_year']:
+    if do_psp and plan.get('requires_year_confirmation') and not plan['confirm_import_year']:
         errors.append(
             'Please confirm that the import year is correct '
             '(last booking dates after the import year were found).'
         )
 
-    if plan.get('requires_snapshot_update_option'):
-        conflicts = [p for p in plan['parents'] if p.get('snapshot_conflict')]
+    if do_psp and plan.get('requires_snapshot_update_option'):
+        conflicts = [
+            p for p in plan['parents']
+            if p.get('snapshot_conflict') and not p.get('personnel_only_stub')
+        ]
         if conflicts and not plan['update_existing_snapshots']:
             errors.append(
                 'Snapshots for today already exist. Enable “Update existing snapshots” '
                 'to overwrite them, or cancel and try another day.'
             )
 
-    # Personnel decisions: mismatch → ignore|adjust_salary;
-    # no_employee / no_allocation → must explicitly ignore (or resolve via create + recheck).
+    # Personnel decisions (only when personnel scope is active)
     personnel_decisions = {}
-    for check in plan.get('personnel_checks') or []:
-        status = check.get('status')
-        dkey = check.get('decision_key') or decision_key_for(
-            str(check.get('personalnummer') or ''),
-            str(check.get('parent_psp_code') or check.get('psp_code') or ''),
-        )
-        form_key = f'personnel_action__{dkey}'
-        # Legacy fallback for mismatch rows keyed by allocation_pk
-        alloc_pk = check.get('allocation_pk')
-        legacy_key = f'personnel_action__{alloc_pk}' if alloc_pk else None
+    if do_personnel:
+        for check in plan.get('personnel_checks') or []:
+            status = check.get('status')
+            dkey = check.get('decision_key') or decision_key_for(
+                str(check.get('personalnummer') or ''),
+                str(check.get('parent_psp_code') or check.get('psp_code') or ''),
+            )
+            form_key = f'personnel_action__{dkey}'
+            alloc_pk = check.get('allocation_pk')
+            legacy_key = f'personnel_action__{alloc_pk}' if alloc_pk else None
 
-        if status in BLOCKING_PERSONNEL_STATUSES:
-            raw = (post_data.get(form_key) or '').strip()
-            if raw != 'ignore':
-                pn = check.get('personalnummer') or '?'
-                if status == 'no_employee':
-                    errors.append(
-                        f'Der Mitarbeiter mit der Personalnummer {pn} existiert noch nicht '
-                        f'im System. Bitte lege ihn an oder wähle '
-                        f'„Diesen Mitarbeiter ignorieren“.'
-                    )
+            if status in BLOCKING_PERSONNEL_STATUSES:
+                raw = (post_data.get(form_key) or '').strip()
+                if raw != 'ignore':
+                    pn = check.get('personalnummer') or '?'
+                    if status == 'no_employee':
+                        errors.append(
+                            f'Der Mitarbeiter mit der Personalnummer {pn} existiert noch nicht '
+                            f'im System. Bitte lege ihn an oder wähle '
+                            f'„Diesen Mitarbeiter ignorieren“.'
+                        )
+                    else:
+                        errors.append(
+                            f'Keine aktuelle Funding Allocation für Personalnummer {pn} '
+                            f'auf PSP {check.get("parent_psp_code")}. '
+                            f'Bitte lege eine FA an oder wähle „Diesen Mitarbeiter ignorieren“.'
+                        )
                 else:
-                    errors.append(
-                        f'Keine aktuelle Funding Allocation für Personalnummer {pn} '
-                        f'auf PSP {check.get("parent_psp_code")}. '
-                        f'Bitte lege eine FA an oder wähle „Diesen Mitarbeiter ignorieren“.'
-                    )
-            else:
-                personnel_decisions[dkey] = 'ignore'
-            continue
+                    personnel_decisions[dkey] = 'ignore'
+                continue
 
-        if status != 'mismatch':
-            continue
+            if status != 'mismatch':
+                continue
 
-        action = (post_data.get(form_key) or (post_data.get(legacy_key) if legacy_key else None) or 'ignore').strip()
-        if action not in {'ignore', 'adjust_salary'}:
-            action = 'ignore'
-        personnel_decisions[dkey] = action
-        if alloc_pk:
-            personnel_decisions[str(alloc_pk)] = action
+            action = (
+                post_data.get(form_key)
+                or (post_data.get(legacy_key) if legacy_key else None)
+                or 'ignore'
+            ).strip()
+            if action not in {'ignore', 'adjust_salary'}:
+                action = 'ignore'
+            personnel_decisions[dkey] = action
+            if alloc_pk:
+                personnel_decisions[str(alloc_pk)] = action
     plan['personnel_decisions'] = personnel_decisions
 
-    for parent in plan['parents']:
-        code = parent['wbs_code']
-        if parent.get('needs_title'):
-            title = (post_data.get(f'title__{code}') or '').strip()
-            if not title:
-                errors.append(f'Title is required for new PSP element {code}.')
-            parent['proposed_title'] = title
+    if do_psp:
+        for parent in plan['parents']:
+            if parent.get('personnel_only_stub'):
+                continue
+            code = parent['wbs_code']
+            if parent.get('needs_title'):
+                title = (post_data.get(f'title__{code}') or '').strip()
+                if not title:
+                    errors.append(f'Title is required for new PSP element {code}.')
+                parent['proposed_title'] = title
 
-        cc_info = parent['cost_center']
-        if cc_info.get('needs_user_choice'):
-            selected = (post_data.get(f'cost_center__{code}') or '').strip()
-            if not selected:
-                errors.append(f'Please choose a cost center for {code}.')
-            else:
-                # selected may be pk or code
-                if selected.isdigit():
-                    cc = CostCenter.objects.filter(pk=int(selected)).first()
-                    if not cc:
-                        errors.append(f'Invalid cost center selection for {code}.')
-                    else:
-                        cc_info['selected_pk'] = cc.pk
-                        cc_info['selected_code'] = cc.cost_center
-                        cc_info['will_create'] = False
+            cc_info = parent.get('cost_center') or {}
+            if cc_info.get('needs_user_choice'):
+                selected = (post_data.get(f'cost_center__{code}') or '').strip()
+                if not selected:
+                    errors.append(f'Please choose a cost center for {code}.')
                 else:
-                    existing_cc = find_cost_center(selected)
-                    if existing_cc:
-                        cc_info['selected_pk'] = existing_cc.pk
-                        cc_info['selected_code'] = existing_cc.cost_center
-                        cc_info['will_create'] = False
+                    if selected.isdigit():
+                        cc = CostCenter.objects.filter(pk=int(selected)).first()
+                        if not cc:
+                            errors.append(f'Invalid cost center selection for {code}.')
+                        else:
+                            cc_info['selected_pk'] = cc.pk
+                            cc_info['selected_code'] = cc.cost_center
+                            cc_info['will_create'] = False
                     else:
-                        cc_info['selected_pk'] = None
-                        cc_info['selected_code'] = selected
-                        cc_info['will_create'] = True
+                        existing_cc = find_cost_center(selected)
+                        if existing_cc:
+                            cc_info['selected_pk'] = existing_cc.pk
+                            cc_info['selected_code'] = existing_cc.cost_center
+                            cc_info['will_create'] = False
+                        else:
+                            cc_info['selected_pk'] = None
+                            cc_info['selected_code'] = selected
+                            cc_info['will_create'] = True
 
     return plan, errors
 
@@ -657,6 +829,10 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
     snapshot_date = _date(plan['snapshot_date']) or date.today()
     update_snapshots = bool(plan.get('update_existing_snapshots'))
     kind = plan.get('import_kind') or DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT
+    if 'import_scopes' not in plan:
+        plan['import_scopes'] = normalize_import_scopes(None)
+    do_psp = scope_enabled(plan, SCOPE_PSP)
+    do_personnel = scope_enabled(plan, SCOPE_PERSONNEL)
 
     # Block accidental re-import of the same file bytes
     for meta in plan.get('upload_meta') or []:
@@ -681,31 +857,52 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
         'true_spending_written': 0,
         'obligos_written': 0,
         'import_logs': 0,
+        'scopes': plan['import_scopes'],
         'details': [],
     }
 
-    for parent in plan['parents']:
-        detail = {'wbs_code': parent['wbs_code'], 'actions': []}
-        wbs = _upsert_psp(parent, summary, detail)
-        _apply_year_estimate(wbs, parent, import_year, summary, detail)
-        _apply_true_spending(
-            wbs, parent, snapshot_date, update_snapshots, summary, detail
-        )
-        _apply_obligo(wbs, parent, snapshot_date, update_snapshots, summary, detail)
-        summary['details'].append(detail)
+    if do_psp:
+        for parent in plan['parents']:
+            if parent.get('personnel_only_stub'):
+                continue
+            detail = {'wbs_code': parent['wbs_code'], 'actions': []}
+            wbs = _upsert_psp(parent, summary, detail)
+            _apply_year_estimate(wbs, parent, import_year, summary, detail)
+            _apply_true_spending(
+                wbs, parent, snapshot_date, update_snapshots, summary, detail
+            )
+            _apply_obligo(wbs, parent, snapshot_date, update_snapshots, summary, detail)
+            summary['details'].append(detail)
+    else:
+        summary['details'].append({
+            'wbs_code': 'Scopes',
+            'actions': ['PSP-Element-Import übersprungen (Scope deaktiviert).'],
+        })
 
     # Personalkosten salary matching → FundingAllocation.import_completed
-    personnel_notes = apply_personnel_decisions(
-        plan.get('personnel_checks') or [],
-        plan.get('personnel_decisions') or {},
-        as_of=snapshot_date,
-    )
-    summary['personnel_notes'] = personnel_notes
-    for note in personnel_notes:
-        summary['details'].append({'wbs_code': 'Personalkosten', 'actions': [note]})
+    if do_personnel:
+        personnel_notes = apply_personnel_decisions(
+            plan.get('personnel_checks') or [],
+            plan.get('personnel_decisions') or {},
+            as_of=snapshot_date,
+        )
+        summary['personnel_notes'] = personnel_notes
+        for note in personnel_notes:
+            summary['details'].append({'wbs_code': 'Personalkosten', 'actions': [note]})
+    else:
+        summary['personnel_notes'] = []
+        summary['details'].append({
+            'wbs_code': 'Scopes',
+            'actions': ['Personaldaten-Import übersprungen (Scope deaktiviert).'],
+        })
 
     # One audit log row per uploaded file
+    scopes = plan['import_scopes']
+    scope_label = ','.join(
+        k for k in (SCOPE_PSP, SCOPE_PERSONNEL, SCOPE_ORDERS) if scopes.get(k)
+    ) or 'none'
     summary_text = (
+        f"scopes={scope_label}; "
         f"year={import_year}; "
         f"psp_created={summary['psp_created']}; "
         f"psp_updated={summary['psp_updated']}; "

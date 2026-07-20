@@ -175,7 +175,7 @@ class ContractForm(forms.ModelForm):
         fields = [
             'pay_scale_group', 'experience_level', 'monthly_salary',
             'job_number',
-            'weekly_hours', 'valid_from', 'valid_until', 'comments',
+            'weekly_hours', 'valid_from', 'valid_until', 'is_active', 'comments',
         ]
         widgets = {
             'valid_from': forms.DateInput(attrs={
@@ -187,6 +187,9 @@ class ContractForm(forms.ModelForm):
                 'type': 'text',
                 'class': 'form-control date-picker',
                 'placeholder': 'TT.MM.JJJJ'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'is-active-toggle',
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'monthly_salary': forms.NumberInput(attrs={
@@ -234,6 +237,11 @@ class ContractForm(forms.ModelForm):
             'min': '0',
             'data-contract-monthly-salary': 'true',
         })
+        if 'is_active' in self.fields:
+            self.fields['is_active'].label = 'Active'
+            self.fields['is_active'].required = False
+            if not getattr(self.instance, 'pk', None):
+                self.fields['is_active'].initial = True
 
         # When payscale is set, show TV-L salary as read-only (enforced again in clean).
         instance = getattr(self, 'instance', None)
@@ -302,6 +310,7 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             'plan_position_number',
             'start_date',
             'end_date',
+            'is_active',
             'comments',
         ]
         widgets = {
@@ -321,6 +330,9 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
                 'class': 'form-control date-picker',
                 'placeholder': 'TT.MM.JJJJ'
             }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'is-active-toggle',
+            }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 
@@ -331,6 +343,11 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         if 'plan_position_number' in self.fields:
             self.fields['plan_position_number'].label = 'Plan Position Number'
             self.fields['plan_position_number'].required = False
+        if 'is_active' in self.fields:
+            self.fields['is_active'].label = 'Active'
+            self.fields['is_active'].required = False
+            if not getattr(self.instance, 'pk', None):
+                self.fields['is_active'].initial = True
 
 # = FORMSETS =
 # extra=0 / min_num=0: no empty inline rows on open; user adds rows explicitly.

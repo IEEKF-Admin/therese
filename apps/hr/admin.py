@@ -39,6 +39,7 @@ class ContractInline(admin.TabularInline):
         'weekly_hours',
         'valid_from',
         'valid_until',
+        'is_active',
         'comments',
     )
     show_change_link = True
@@ -59,6 +60,7 @@ class FundingAllocationInline(admin.TabularInline):
         'plan_position_number',
         'start_date',
         'end_date',
+        'is_active',
         'comments',
     )
     show_change_link = True
@@ -297,8 +299,9 @@ class ContractAdmin(admin.ModelAdmin):
         'weekly_hours',
         'valid_from',
         'valid_until',
+        'is_active',
     )
-    list_filter = ('pay_scale_group',)
+    list_filter = ('pay_scale_group', 'is_active')
     search_fields = (
         'employee__employee_number',
         'employee__first_name',
@@ -315,6 +318,7 @@ class ContractAdmin(admin.ModelAdmin):
         'weekly_hours',
         'valid_from',
         'valid_until',
+        'is_active',
         'comments',
     )
 
@@ -329,9 +333,10 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'plan_position_number',
         'start_date',
         'end_date',
+        'is_active',
         'import_completed',
     )
-    list_filter = ('start_date', 'import_completed')
+    list_filter = ('start_date', 'is_active', 'import_completed')
     search_fields = (
         'employee__employee_number',
         'employee__first_name',
@@ -348,6 +353,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'plan_position_number',
         'start_date',
         'end_date',
+        'is_active',
         'comments',
         'import_completed',
     )

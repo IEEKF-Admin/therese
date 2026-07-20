@@ -14,6 +14,7 @@ from django.views.generic.edit import DeleteView
 
 from ..forms import CostCenterForm, CostCenterYearEstimateFormSet
 from ..models import CostCenter
+from ..psp_cost_types import clear_disabled_year_estimate_amounts
 
 
 class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -83,6 +84,7 @@ class CostCenterCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             self.object = form.save()
             formset.instance = self.object
             formset.save()
+            clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'Cost center "{self.object.cost_center}" was created.')
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
@@ -116,6 +118,7 @@ class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             self.object = form.save()
             formset.instance = self.object
             formset.save()
+            clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'Cost center "{self.object.cost_center}" was updated.')
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))

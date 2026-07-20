@@ -209,15 +209,28 @@ input[readonly].form-control {
     margin-top: 0.35rem;
 }
 
-/* Sidebar - single column, full height of main area (no nested double box) */
+/* Sidebar - sticky below the sticky header, independently scrollable */
 .sidebar {
     width: 240px;
     flex-shrink: 0;
     background: var(--card);
     border-right: 1px solid var(--border);
-    padding: 1.25rem 1rem 2rem;
-    min-height: calc(100vh - 73px);
-    align-self: stretch;
+    /* Extra bottom padding so the last nav item is not clipped by the viewport edge */
+    padding: 1.25rem 1rem 3.5rem;
+    position: sticky;
+    /* Match sticky .top-header so nav stays usable on long pages */
+    top: 0;
+    align-self: flex-start;
+    max-height: calc(100vh - 73px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.sidebar-nav {
+    padding-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .sidebar-nav > a:first-child {
@@ -311,7 +324,7 @@ input[readonly].form-control {
 /* Main Content */
 .main-container {
     display: flex;
-    align-items: stretch;
+    align-items: flex-start;
     max-width: 1600px;
     margin: 0 auto;
     min-height: calc(100vh - 73px);

@@ -1,4 +1,4 @@
-﻿"""
+"""
 apps/finances/models.py
 Project: THERESE – Transparent HR Employee Resource Evaluation System Enhanced
 """
@@ -14,15 +14,15 @@ THIRD_PARTY_FUNDING_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp']
 class PayScale(BaseModel):
     """TV-L Pay Scale groups and experience levels"""
     pay_scale_group = models.CharField(
-        max_length=50, 
+        max_length=50,
         verbose_name="Pay Scale Group"
     )
     experience_level = models.PositiveSmallIntegerField(
         verbose_name="Experience Level"
     )
     monthly_salary = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
+        max_digits=10,
+        decimal_places=2,
         verbose_name="Monthly Salary"
     )
     effective_as_of = models.DateField(verbose_name="Effective As Of")
@@ -66,21 +66,91 @@ class PayScale(BaseModel):
         return cls.objects.filter(q).order_by('pay_scale_group', 'experience_level')
 
 
+class ContactPerson(BaseModel):
+    """
+    Lightweight contact (e.g. from third-party funding reports).
+
+    Intentionally simpler than Employee: name + optional org/contact details only.
+    A contact may be linked to zero, one, or many PSP elements / cost centers.
+    """
+    first_name = models.CharField(max_length=100, blank=True, verbose_name="First name")
+    last_name = models.CharField(max_length=100, verbose_name="Last name")
+    business_area = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Business area",
+    )
+    phone = models.CharField(max_length=50, blank=True, verbose_name="Phone")
+    email = models.EmailField(blank=True, verbose_name="Email")
+    comments = models.CharField(
+        max_length=400,
+        blank=True,
+        verbose_name="Comments",
+    )
+
+    class Meta:
+        verbose_name = "Contact Person"
+        verbose_name_plural = "Contact Persons"
+        ordering = ['last_name', 'first_name']
+        unique_together = ('last_name', 'first_name')
+        permissions = [
+            ("view_contact_person_list", "Can view contact persons"),
+            ("manage_contact_person", "Can manage contact persons"),
+        ]
+
+    def __str__(self):
+        if self.first_name:
+            return f"{self.last_name}, {self.first_name}"
+        return self.last_name
+
+
 class CostCenter(BaseModel):
     cost_center = models.CharField(max_length=50, unique=True, verbose_name="Cost Center")
     comments = models.TextField(blank=True, verbose_name="Comments")
-    third_party_funding_commitment = models.FileField(
-        upload_to='finances/cost_center/third_party_funding/%Y/%m/',
-        blank=True,
+    contact_person = models.ForeignKey(
+        ContactPerson,
+        on_delete=models.SET_NULL,
         null=True,
-        max_length=255,
-        verbose_name="Third-party funding commitment",
-        validators=[FileExtensionValidator(allowed_extensions=THIRD_PARTY_FUNDING_EXTENSIONS)],
-    )
-    third_party_funder_identifier = models.CharField(
-        max_length=255,
         blank=True,
-        verbose_name="Third-party funder identifier",
+        related_name='cost_centers',
+        verbose_name="Contact person",
+    )
+    # Cost-type flags: control which year-estimate amount columns apply (LOMV is always shown).
+    has_material_costs = models.BooleanField(
+        default=False,
+        verbose_name="Sachkosten / Material costs",
+    )
+    has_personnel_costs = models.BooleanField(
+        default=False,
+        verbose_name="Personalkosten / Personnel costs",
+    )
+    has_domestic_travel_costs = models.BooleanField(
+        default=False,
+        verbose_name="Reisekosten Inland / Domestic travel costs",
+    )
+    has_foreign_travel_costs = models.BooleanField(
+        default=False,
+        verbose_name="Reisekosten Ausland / Foreign travel costs",
+    )
+    has_third_party_investments = models.BooleanField(
+        default=False,
+        verbose_name="Drittmittel-Investitionen / Third-party investments",
+    )
+    has_publication_costs = models.BooleanField(
+        default=False,
+        verbose_name="Publikationskosten / Publication costs",
+    )
+    has_animal_husbandry_costs = models.BooleanField(
+        default=False,
+        verbose_name="Tierhaltungskosten / Animal husbandry costs",
+    )
+    has_transfer_to_third_parties = models.BooleanField(
+        default=False,
+        verbose_name="Weitergabe an Dritte / Transfer to third parties",
+    )
+    has_internal_service_charges = models.BooleanField(
+        default=False,
+        verbose_name="Interne Leistungsverrechnung / Internal service charges",
     )
 
     class Meta:
@@ -93,50 +163,6 @@ class CostCenter(BaseModel):
 
     def __str__(self):
         return self.cost_center
-
-
-class CostCenterYearEstimate(BaseModel):
-    """Yearly Lomv and cost estimates for a cost center."""
-    cost_center = models.ForeignKey(
-        CostCenter,
-        on_delete=models.CASCADE,
-        related_name='year_estimates',
-        verbose_name="Cost Center",
-    )
-    year = models.PositiveIntegerField(verbose_name="Year / Period")
-    lomv = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Lomv",
-    )
-    consumables_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Consumables Estimate",
-    )
-    travel_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Travel Costs Estimate",
-    )
-    animal_costs_estimate = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Animal Costs Estimate",
-    )
-    class Meta:
-        verbose_name = "Cost Center Year Estimate"
-        verbose_name_plural = "Cost Center Year Estimates"
-        unique_together = ('cost_center', 'year')
-        ordering = ['year']
 
 
 class WBSElementQuerySet(models.QuerySet):
@@ -191,7 +217,15 @@ class WBSElement(BaseModel):
         default=False,
         verbose_name="Is Inactive",
     )
-    # Cost-type flags (.1–.8): control which year-estimate amount columns apply.
+    contact_person = models.ForeignKey(
+        ContactPerson,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='wbs_elements',
+        verbose_name="Contact person",
+    )
+    # Cost-type flags (.1–.9): control which year-estimate amount columns apply.
     has_material_costs = models.BooleanField(
         default=False,
         verbose_name=".1 - Sachkosten / Material costs",
@@ -224,6 +258,10 @@ class WBSElement(BaseModel):
         default=False,
         verbose_name=".8 - Weitergabe an Dritte / Transfer to third parties",
     )
+    has_internal_service_charges = models.BooleanField(
+        default=False,
+        verbose_name=".9 - Interne Leistungsverrechnung / Internal service charges",
+    )
     third_party_funding_commitment = models.FileField(
         upload_to='finances/psp/third_party_funding/%Y/%m/',
         blank=True,
@@ -248,6 +286,10 @@ class WBSElement(BaseModel):
             ("view_psp_element", "Can view individual PSP elements"),
             ("manage_psp_element", "Can manage PSP elements"),
             ("view_psp_overview", "Can view PSP overview with bookings and costs"),
+            (
+                "import_third_party_funding_report",
+                "Can import third-party funding reports",
+            ),
         ]
 
     def __str__(self):
@@ -257,10 +299,9 @@ class WBSElement(BaseModel):
 
 class PSPYearlyCostAmounts(BaseModel):
     """
-    Shared yearly amount columns for PSP estimates and true spending.
+    Shared cost-type amount columns for estimates, true spending, and obligo.
     Not used as a table itself — only via concrete subclasses.
     """
-    year = models.PositiveIntegerField(verbose_name="Year / Period")
     material_costs = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -317,9 +358,98 @@ class PSPYearlyCostAmounts(BaseModel):
         blank=True,
         verbose_name=".8 - Weitergabe an Dritte / Transfer to third parties",
     )
+    internal_service_charges = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=".9 - Interne Leistungsverrechnung / Internal service charges",
+    )
 
     class Meta:
         abstract = True
+
+
+class CostCenterYearEstimate(PSPYearlyCostAmounts):
+    """Yearly Lomv + cost-type estimates for a cost center."""
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.CASCADE,
+        related_name='year_estimates',
+        verbose_name="Cost Center",
+    )
+    year = models.PositiveIntegerField(verbose_name="Year / Period")
+    lomv = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Lomv",
+    )
+
+    class Meta:
+        verbose_name = "Cost Center Year Estimate"
+        verbose_name_plural = "Cost Center Year Estimates"
+        unique_together = ('cost_center', 'year')
+        ordering = ['year']
+
+    def __str__(self):
+        return f"{self.cost_center.cost_center} — {self.year} (estimate)"
+
+
+class CostCenterTrueYearlySpending(PSPYearlyCostAmounts):
+    """
+    Actual incurred costs for a cost center (snapshot by date of update).
+
+    Not shown in the cost-center editor UI (managed separately, e.g. admin).
+    """
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.CASCADE,
+        related_name='true_yearly_spendings',
+        verbose_name="Cost Center",
+    )
+    date_of_update = models.DateField(verbose_name="Date of update")
+
+    class Meta:
+        verbose_name = "Cost Center True Yearly Spending"
+        verbose_name_plural = "Cost Center True Yearly Spendings"
+        unique_together = ('cost_center', 'date_of_update')
+        ordering = ['-date_of_update']
+
+    def __str__(self):
+        return f"{self.cost_center.cost_center} — {self.date_of_update} (true spending)"
+
+
+class CostCenterObligo(PSPYearlyCostAmounts):
+    """
+    Open commitments (Obligo) for a cost center, snapshot by date of update.
+
+    Not shown in the cost-center editor UI (managed separately, e.g. admin).
+    """
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.CASCADE,
+        related_name='obligos',
+        verbose_name="Cost Center",
+    )
+    date_of_update = models.DateField(verbose_name="Date of update")
+    personal = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Personalobligo",
+    )
+
+    class Meta:
+        verbose_name = "Cost Center Obligo"
+        verbose_name_plural = "Cost Center Obligos"
+        unique_together = ('cost_center', 'date_of_update')
+        ordering = ['-date_of_update']
+
+    def __str__(self):
+        return f"{self.cost_center.cost_center} — {self.date_of_update} (obligo)"
 
 
 class WBSElementYearEstimate(PSPYearlyCostAmounts):
@@ -330,6 +460,7 @@ class WBSElementYearEstimate(PSPYearlyCostAmounts):
         related_name='year_estimates',
         verbose_name="PSP Element",
     )
+    year = models.PositiveIntegerField(verbose_name="Year / Period")
 
     class Meta:
         verbose_name = "PSP Element Year Estimate"
@@ -343,7 +474,7 @@ class WBSElementYearEstimate(PSPYearlyCostAmounts):
 
 class WBSElementTrueYearlySpending(PSPYearlyCostAmounts):
     """
-    Actual incurred yearly costs for a PSP element.
+    Actual incurred costs for a PSP element (snapshot by date of update).
 
     Same amount columns as year estimates, but not shown in the PSP element
     editor UI (managed separately, e.g. via import or admin).
@@ -354,13 +485,44 @@ class WBSElementTrueYearlySpending(PSPYearlyCostAmounts):
         related_name='true_yearly_spendings',
         verbose_name="PSP Element",
     )
+    date_of_update = models.DateField(verbose_name="Date of update")
 
     class Meta:
         verbose_name = "PSP Element True Yearly Spending"
         verbose_name_plural = "PSP Element True Yearly Spendings"
-        unique_together = ('wbs_element', 'year')
-        ordering = ['year']
+        unique_together = ('wbs_element', 'date_of_update')
+        ordering = ['-date_of_update']
 
     def __str__(self):
-        return f"{self.wbs_element.wbs_code} — {self.year} (true spending)"
+        return f"{self.wbs_element.wbs_code} — {self.date_of_update} (true spending)"
 
+
+class WBSElementObligo(PSPYearlyCostAmounts):
+    """
+    Open commitments (Obligo) for a PSP element, snapshot by date of update.
+
+    Not shown in the PSP element editor UI (managed separately, e.g. admin).
+    """
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.CASCADE,
+        related_name='obligos',
+        verbose_name="PSP Element",
+    )
+    date_of_update = models.DateField(verbose_name="Date of update")
+    personal = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Personalobligo",
+    )
+
+    class Meta:
+        verbose_name = "PSP Element Obligo"
+        verbose_name_plural = "PSP Element Obligos"
+        unique_together = ('wbs_element', 'date_of_update')
+        ordering = ['-date_of_update']
+
+    def __str__(self):
+        return f"{self.wbs_element.wbs_code} — {self.date_of_update} (obligo)"

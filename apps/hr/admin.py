@@ -329,8 +329,9 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'plan_position_number',
         'start_date',
         'end_date',
+        'import_completed',
     )
-    list_filter = ('start_date',)
+    list_filter = ('start_date', 'import_completed')
     search_fields = (
         'employee__employee_number',
         'employee__first_name',
@@ -348,6 +349,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'start_date',
         'end_date',
         'comments',
+        'import_completed',
     )
 
     @admin.display(description='PSP / Cost Center')

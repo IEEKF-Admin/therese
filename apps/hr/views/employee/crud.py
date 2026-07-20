@@ -109,6 +109,15 @@ def employee_list(request):
     return render(request, 'hr/employee_list.html', context)
 
 
+def _safe_next_url(request, default='/hr/employees/'):
+    """Allow only relative same-site next URLs (from import preview etc.)."""
+    next_url = request.GET.get('next') or request.POST.get('next') or ''
+    next_url = next_url.strip()
+    if next_url.startswith('/') and not next_url.startswith('//'):
+        return next_url
+    return default
+
+
 class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Employee
     form_class = EmployeeForm
@@ -127,6 +136,10 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         task = get_recruitment_task(self.request)
         if task:
             initial.update(recruitment_employee_initial(task))
+        # Prefill from third-party funding import preview link
+        employee_number = (self.request.GET.get('employee_number') or '').strip()
+        if employee_number and 'employee_number' not in initial:
+            initial['employee_number'] = employee_number
         return initial
 
     def get_context_data(self, **kwargs):
@@ -161,6 +174,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             context['salary_formset'] = SalaryFormSet()
             context['workgroup_formset'] = WorkgroupFormSet()
         context['from_recruitment_task'] = task
+        context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context.update(employee_document_context(self.request))
         context['current_payscales_json'] = current_payscales_json()
         return context
@@ -183,7 +197,7 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
         finalize_recruitment_task(self.request, employee)
         messages.success(self.request, "Employee successfully created.")
-        return redirect(self.success_url)
+        return redirect(_safe_next_url(self.request, self.success_url))
 
 
 class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -204,12 +218,36 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             context['salary_formset'] = SalaryFormSet(self.request.POST, instance=self.object)
             context['workgroup_formset'] = WorkgroupFormSet(self.request.POST, instance=self.object)
         else:
-            # extra=0: only existing contracts / allocations, no blank rows.
+            # extra=0: only existing contracts / allocations, no blank rows —
+            # unless import preview asked to add a funding row for a WBS.
+            add_wbs = (self.request.GET.get('add_funding_wbs') or '').strip()
+            funding_initial = []
+            if add_wbs:
+                from apps.finances.models import WBSElement
+                from apps.finances.funding_sources import WBS_PREFIX
+                wbs = WBSElement.objects.filter(wbs_code=add_wbs).first()
+                if wbs:
+                    funding_initial = [{
+                        'funding_source': f'{WBS_PREFIX}:{wbs.pk}',
+                        'workhours_percentage': None,
+                        'plan_position_number': '',
+                        'start_date': date.today(),
+                        'end_date': None,
+                    }]
+            if funding_initial:
+                FundingFS = make_funding_formset(extra=len(funding_initial))
+                # Existing allocations + one prefilled extra row for the import WBS
+                context['funding_formset'] = FundingFS(
+                    instance=self.object,
+                    initial=funding_initial,
+                )
+            else:
+                context['funding_formset'] = FundingFormSet(instance=self.object)
             context['contract_formset'] = ContractFormSet(instance=self.object)
-            context['funding_formset'] = FundingFormSet(instance=self.object)
             context['salary_formset'] = SalaryFormSet(instance=self.object)
             context['workgroup_formset'] = WorkgroupFormSet(instance=self.object)
 
+        context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context['current_payscales_json'] = current_payscales_json()
         context.update(employee_document_context(self.request, self.object))
         return context
@@ -228,7 +266,7 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return self.form_invalid(form)
 
         messages.success(self.request, "Employee successfully saved.")
-        return redirect(self.success_url)
+        return redirect(_safe_next_url(self.request, self.success_url))
 
     def form_invalid(self, form):
         messages.error(self.request, "Please correct the errors below.")

@@ -24,6 +24,8 @@ class GroupNames:
     PSP_ELEMENTS_VIEW = "PSP Elements - View"
     PSP_ELEMENTS_MANAGE = "PSP Elements - Manage"
     COST_CENTERS_MANAGE = "Cost Centers - Manage"
+    CONTACT_PERSONS_VIEW = "Contact Persons - View"
+    CONTACT_PERSONS_MANAGE = "Contact Persons - Manage"
 
     PURCHASE_ORDERS_CREATE = "Purchase Orders - Create"
     STANDARD_ORDERS_VIEW = "Standard Orders - View"
@@ -33,6 +35,7 @@ class GroupNames:
 
     PERSONNEL_TASKS_CREATE = "Personnel Tasks - Create"
     PAY_SCALES_IMPORT = "Pay Scales - Import"
+    THIRD_PARTY_FUNDING_REPORTS_IMPORT = "Third-party Funding Reports - Import"
     PERSONNEL_COORDINATION_RIGHTS = "Personnel - Coordination Rights"
     PERSONNEL_APPROVAL_RIGHTS = "Personnel - Approval Rights"
 
@@ -55,6 +58,8 @@ NEW_GROUPS = [
     GroupNames.PSP_ELEMENTS_VIEW,
     GroupNames.PSP_ELEMENTS_MANAGE,
     GroupNames.COST_CENTERS_MANAGE,
+    GroupNames.CONTACT_PERSONS_VIEW,
+    GroupNames.CONTACT_PERSONS_MANAGE,
     GroupNames.PURCHASE_ORDERS_CREATE,
     GroupNames.STANDARD_ORDERS_VIEW,
     GroupNames.STANDARD_ORDERS_MANAGE,
@@ -62,6 +67,7 @@ NEW_GROUPS = [
     GroupNames.PROCUREMENT_APPROVAL_RIGHTS,
     GroupNames.PERSONNEL_TASKS_CREATE,
     GroupNames.PAY_SCALES_IMPORT,
+    GroupNames.THIRD_PARTY_FUNDING_REPORTS_IMPORT,
     GroupNames.PERSONNEL_COORDINATION_RIGHTS,
     GroupNames.PERSONNEL_APPROVAL_RIGHTS,
     GroupNames.GENERAL_REQUESTS_CREATE,
@@ -173,7 +179,7 @@ def assign_permissions_to_groups():
     """
     from django.contrib.contenttypes.models import ContentType
     from apps.hr.models import Employee, Workgroup, Building
-    from apps.finances.models import CostCenter, WBSElement, PayScale
+    from apps.finances.models import ContactPerson, CostCenter, WBSElement, PayScale
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
     from apps.documents.models import Document
     from apps.checklists.models import ChecklistTemplate
@@ -230,6 +236,12 @@ def assign_permissions_to_groups():
     manage_cc = get_perm("manage_cost_center", CostCenter)
     safe_add(GroupNames.COST_CENTERS_MANAGE, manage_cc)
 
+    # Contact Persons
+    view_contacts = get_perm("view_contact_person_list", ContactPerson)
+    manage_contacts = get_perm("manage_contact_person", ContactPerson)
+    safe_add(GroupNames.CONTACT_PERSONS_VIEW, view_contacts)
+    safe_add(GroupNames.CONTACT_PERSONS_MANAGE, view_contacts, manage_contacts)
+
     # Procurement
     create_po = get_perm("create_purchase_order", PurchaseOrderTask)
     view_all_po = get_perm("view_all_purchase_orders", PurchaseOrderTask)
@@ -248,8 +260,10 @@ def assign_permissions_to_groups():
     view_all_personnel = get_perm("view_all_personnel_tasks", Task)
     approve_personnel = get_perm("approve_personnel_task", Task)
     import_scale = get_perm("import_pay_scale", PayScale)
+    import_funding_report = get_perm("import_third_party_funding_report", WBSElement)
     safe_add("Personnel Tasks - Create", create_personnel)
     safe_add("Pay Scales - Import", import_scale)
+    safe_add(GroupNames.THIRD_PARTY_FUNDING_REPORTS_IMPORT, import_funding_report)
     safe_add("Personnel - Coordination Rights", view_all_personnel)
     safe_add("Personnel - Approval Rights", approve_personnel)
 
@@ -280,6 +294,8 @@ def assign_permissions_to_groups():
         get_perm("manage_psp_element", WBSElement),
         get_perm("view_psp_overview", WBSElement),
         get_perm("manage_cost_center", CostCenter),
+        get_perm("view_contact_person_list", ContactPerson),
+        get_perm("manage_contact_person", ContactPerson),
         get_perm("view_all_purchase_orders", PurchaseOrderTask),
         get_perm("manage_standard_order", StandardPurchaseItem),
         manage_doc,

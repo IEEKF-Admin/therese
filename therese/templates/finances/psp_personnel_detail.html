@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+{% load file_tags %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 style="margin:0;">{{ wbs.wbs_code }}</h1>
+        <p class="text-muted" style="margin:0.35rem 0 0;">
+            {{ wbs.title }}
+            {% if wbs.work_group %} · {{ wbs.work_group }}{% endif %}
+            {% if wbs.cost_center %} · CC {{ wbs.cost_center }}{% endif %}
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:psp_elements' %}?year={{ year }}&amp;wbs={{ wbs.pk }}" class="btn-secondary">
+            ← Back to PSP overview
+        </a>
+    </div>
+</div>
+
+<div class="form-card" style="margin-bottom: 1.5rem;">
+    <h2 style="margin-top:0; border:none; padding:0; font-size:1.15rem;">
+        Assigned personnel — true costs
+        {% if overview.personnel_scope == 'lifetime' %}
+            (full project runtime)
+        {% else %}
+            ({{ year }})
+        {% endif %}
+    </h2>
+    <p class="text-muted" style="margin:0.5rem 0 0; font-size:0.9rem;">
+        Monthly true cost = salary × multiplicator <strong>{{ multiplicator }}</strong>,
+        times the allocation workhours percentage.
+        Actual period: {{ overview.period_start }} – {{ overview.period_end }}.
+        Not booked uses only the selected year
+        ({{ overview.not_booked_period_start }} – {{ overview.not_booked_period_end }})
+        and funding allocations with Import completed = No.
+    </p>
+</div>
+
+{% if overview.personnel_rows %}
+<div class="form-card">
+    <div class="year-estimate-scroll">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th class="text-right">% workhours</th>
+                    <th class="text-right">Monthly true cost</th>
+                    <th>Valid from</th>
+                    <th>Valid until</th>
+                    <th class="text-right">Cost in period</th>
+                    <th>Import completed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prow in overview.personnel_rows %}
+                <tr>
+                    <td>{{ prow.employee_name }}</td>
+                    <td class="text-right">{{ prow.percentage|de_number:2 }} %</td>
+                    <td class="text-right">
+                        {% if prow.monthly_true_cost is not None %}{{ prow.monthly_true_cost|de_number:2 }} €{% else %}—{% endif %}
+                    </td>
+                    <td>{{ prow.start_date }}</td>
+                    <td>{% if prow.end_date %}{{ prow.end_date }}{% else %}open{% endif %}</td>
+                    <td class="text-right">{{ prow.period_cost|de_number:2 }} €</td>
+                    <td>{% if prow.import_completed %}Yes{% else %}No{% endif %}</td>
+                </tr>
+                {% endfor %}
+                <tr class="psp-finance-totals">
+                    <td colspan="5"><strong>Total real personnel costs</strong></td>
+                    <td class="text-right"><strong>{{ overview.real_personnel_total|de_number:2 }} €</strong></td>
+                    <td></td>
+                </tr>
+                <tr class="psp-finance-totals">
+                    <td colspan="5"><strong>Not booked</strong> (import completed = No, year {{ year }})</td>
+                    <td class="text-right"><strong>{{ overview.not_booked_personnel_total|de_number:2 }} €</strong></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="form-card">
+    <p class="text-muted" style="margin:0;">
+        No funding allocations are assigned to this PSP for the selected period.
+    </p>
+</div>
+{% endif %}
+
+<style>
+.table th.text-right,
+.table td.text-right {
+    text-align: right;
+}
+.psp-finance-totals td {
+    background: #f8fafc;
+    border-top: 2px solid var(--border, #e2e8f0);
+}
+</style>
+{% endblock %}

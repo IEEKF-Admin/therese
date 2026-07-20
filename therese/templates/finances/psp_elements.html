@@ -1,18 +1,26 @@
 {% extends "base.html" %}
 {% load static %}
+{% load file_tags %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <span class="text-muted" style="font-size:0.9rem;">
+            True-cost multiplicator: <strong>{{ multiplicator }}</strong>
+            · Year <strong>{{ year }}</strong>
+            · {{ psp_count }} PSP element{{ psp_count|pluralize }}
+        </span>
+    </div>
 </div>
 
 <form method="get" class="filter-form">
     <div class="form-row">
         <div>
-            <label>WBS Element (PSP)</label>
-            <select name="wbs" style="width: 300px;">
+            <label for="id_wbs">PSP element</label>
+            <select name="wbs" id="id_wbs" style="min-width: 16rem;">
                 {% for id, label in wbs_choices %}
                 <option value="{{ id }}" {% if selected_wbs == id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -21,8 +29,8 @@
 
         {% if workgroup_choices|length > 1 %}
         <div>
-            <label>Work group</label>
-            <select name="work_group">
+            <label for="id_work_group">Work group</label>
+            <select name="work_group" id="id_work_group">
                 {% for id, label in workgroup_choices %}
                 <option value="{{ id }}" {% if selected_workgroup == id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -31,92 +39,256 @@
         {% endif %}
 
         <div>
-            <label>Start Monat</label>
-            <input type="month" name="start_month" value="{{ start_month }}">
-        </div>
-        <div>
-            <label>End Monat</label>
-            <input type="month" name="end_month" value="{{ end_month }}">
+            <label for="id_year">Year</label>
+            <select name="year" id="id_year">
+                {% for y in year_choices %}
+                <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
         </div>
 
-        <div style="align-self: end;">
-            <button type="submit" class="btn btn-primary">Anzeigen</button>
-            {% if bookings %}
-            <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-secondary">Export CSV</a>
+        <div class="checkbox-field" style="align-self:end; padding-bottom:0.35rem;">
+            <label>
+                <input type="checkbox" name="show_empty" value="1" {% if show_empty %}checked{% endif %}>
+                Show PSPs without data
+            </label>
+        </div>
+
+        <div style="align-self:end;">
+            <button type="submit" class="btn-primary">Show</button>
+            {% if overviews %}
+            <a href="?{{ request.GET.urlencode }}&export=1" class="btn-secondary">Export CSV</a>
             {% endif %}
         </div>
     </div>
 </form>
 
-{% if is_all and grouped_bookings %}
-    {% for wbs, data in grouped_bookings.items %}
-    <h3 style="margin-top: 2rem;">
-        {{ wbs }}
-        {% if wbs.work_group %}
-            <small style="color:#666; font-size:0.85em;">({{ wbs.work_group }})</small>
-        {% endif %}
-    </h3>
-    <p><strong>{{ data.items|length }} Einträge</strong> | <strong>Gesamtbelastung: {{ data.total|floatformat:2 }} €</strong></p>
+{% if overviews %}
+{% for overview in overviews %}
+<section class="form-card psp-overview-card" style="margin-bottom: 2rem;">
+    <header class="psp-overview-header">
+        <div>
+            <h2 style="margin:0; border:none; padding:0;">
+                {{ overview.wbs.wbs_code }}
+            </h2>
+            <p class="text-muted" style="margin:0.25rem 0 0;">
+                {{ overview.wbs.title }}
+                {% if overview.wbs.work_group %}
+                    · {{ overview.wbs.work_group }}
+                {% endif %}
+                {% if overview.wbs.cost_center %}
+                    · CC {{ overview.wbs.cost_center }}
+                {% endif %}
+                ·
+                {% if overview.is_annual %}
+                    <span class="psp-badge psp-badge-annual">Annual recurrence</span>
+                {% else %}
+                    <span class="psp-badge psp-badge-lifetime">Non-annual (lifetime plan)</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="text-muted" style="font-size:0.85rem; text-align:right;">
+            {% if overview.true_spending_date %}
+            Actual snapshot:
+            {{ overview.true_spending_date }}
+            {% if not overview.true_spending_in_year %}
+                <em>(outside {{ year }})</em>
+            {% endif %}
+            <br>
+            {% endif %}
+            {% if overview.obligo_date %}
+            Commitment snapshot:
+            {{ overview.obligo_date }}
+            {% if not overview.obligo_in_year %}
+                <em>(outside {{ year }})</em>
+            {% endif %}
+            {% endif %}
+        </div>
+    </header>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Datum / Zeitraum</th>
-                <th>Person</th>
-                <th>Betrag / Kosten</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for b in data.items %}
-            <tr>
-                <td>{{ b.date }}</td>
-                <td>{{ b.person }}</td>
-                <td>
-                    {% if b.amount %}{{ b.amount }} €{% else %}-{% endif %}
-                </td>
-                <td>
-                    <a href="{{ b.detail_url }}" class="btn btn-sm">🔍 Detail</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <hr>
-    {% endfor %}
+    <div class="year-estimate-scroll" style="margin-top:1rem;">
+        <table class="table psp-finance-table">
+            <thead>
+                <tr>
+                    <th scope="col">Cost type</th>
+                    <th scope="col" class="text-right">
+                        Budget
+                        {% if overview.plan_scope == 'lifetime' %}
+                        <br><span class="col-subhint">approved · full project</span>
+                        {% else %}
+                        <br><span class="col-subhint">approved · {{ year }}</span>
+                        {% endif %}
+                    </th>
+                    <th scope="col" class="text-right">
+                        Actual
+                        {% if overview.personnel_scope == 'lifetime' %}
+                        <br><span class="col-subhint">costs · personnel: full runtime</span>
+                        {% else %}
+                        <br><span class="col-subhint">costs · personnel: {{ year }}</span>
+                        {% endif %}
+                    </th>
+                    <th scope="col" class="text-right">
+                        Commitment
+                        <br><span class="col-subhint">Obligo</span>
+                    </th>
+                    <th scope="col" class="text-right">
+                        Not booked
+                        <br><span class="col-subhint">import pending · {{ year }}</span>
+                    </th>
+                    <th scope="col" class="text-right">
+                        Free budget
+                        <br><span class="col-subhint">Budget − Actual − Commitment − Not booked</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in overview.cost_rows %}
+                <tr class="{% if not row.enabled %}is-muted{% endif %}{% if row.amount_field == 'personnel_costs' %} is-clickable-row{% endif %}">
+                    <td>
+                        {% if row.amount_field == 'personnel_costs' %}
+                        <a href="{% url 'finances:psp_personnel_detail' overview.wbs.pk %}?year={{ year }}"
+                           class="psp-cost-type-link">
+                            <strong>{{ row.label_de }}</strong>
+                            <br><span class="bilingual-label__en">{{ row.label_en }}</span>
+                            <br><span class="psp-true-source-hint">Open assigned personnel →</span>
+                        </a>
+                        {% else %}
+                        <strong>{{ row.label_de }}</strong>
+                        <br><span class="bilingual-label__en">{{ row.label_en }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">{% if row.plan is not None %}{{ row.plan|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.true is not None %}{{ row.true|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.obligo is not None %}{{ row.obligo|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.not_booked is not None %}{{ row.not_booked|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right {% if row.free_budget is not None and row.free_budget < 0 %}is-overdrawn{% endif %}">
+                        {% if row.free_budget is not None %}{{ row.free_budget|de_number:2 }} €{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-muted">No cost-type amounts for this year.</td>
+                </tr>
+                {% endfor %}
 
-{% elif bookings %}
-<h3>Ergebnisse ({{ bookings|length }} Einträge)</h3>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>WBS</th>
-            <th>Datum / Zeitraum</th>
-            <th>Person</th>
-            <th>Betrag / Kosten</th>
-            <th>Details</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for b in bookings %}
-        <tr>
-            <td>{{ b.wbs }}</td>
-            <td>{{ b.date }}</td>
-            <td>{{ b.person }}</td>
-            <td>
-                {% if b.amount %}{{ b.amount }} €{% else %}-{% endif %}
-            </td>
-            <td>
-                <a href="{{ b.detail_url }}" class="btn btn-sm">🔍 Detail</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                <tr class="psp-finance-totals">
+                    <td><strong>Total</strong></td>
+                    <td class="text-right"><strong>{{ overview.plan_total|de_number:2 }} €</strong></td>
+                    <td class="text-right"><strong>{{ overview.true_total|de_number:2 }} €</strong></td>
+                    <td class="text-right"><strong>{{ overview.obligo_total|de_number:2 }} €</strong></td>
+                    <td class="text-right"><strong>{{ overview.not_booked_total|de_number:2 }} €</strong></td>
+                    <td class="text-right {% if overview.free_budget_total < 0 %}is-overdrawn{% endif %}">
+                        <strong>{{ overview.free_budget_total|de_number:2 }} €</strong>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endfor %}
 
 {% else %}
-<p>Bitte WBS Element (oder Alle) und Zeitraum auswählen.</p>
+<p class="text-muted">
+    No PSP elements match the filter
+    {% if not show_empty %}(or none have budget / actual / commitment data for {{ year }}){% endif %}.
+</p>
 {% endif %}
 
+<style>
+.psp-overview-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.psp-finance-table th.text-right,
+.psp-finance-table td.text-right,
+.table th.text-right,
+.table td.text-right {
+    text-align: right;
+}
+.psp-finance-totals td {
+    background: #f8fafc;
+    border-top: 2px solid var(--border, #e2e8f0);
+}
+.psp-true-source-hint {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+.col-subhint {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.psp-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    vertical-align: middle;
+}
+.psp-badge-lifetime {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+.psp-badge-annual {
+    background: #fef3c7;
+    color: #b45309;
+}
+.psp-finance-table td.is-overdrawn {
+    color: #b91c1c;
+    font-weight: 600;
+}
+.bilingual-label__en {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+tr.is-muted td {
+    opacity: 0.75;
+}
+tr.is-clickable-row {
+    cursor: pointer;
+}
+tr.is-clickable-row:hover td {
+    background: #f0f9ff;
+}
+.psp-cost-type-link {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+}
+.psp-cost-type-link:hover strong {
+    color: var(--primary, #005a9e);
+    text-decoration: underline;
+}
+.filter-form .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+}
+.filter-form label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('tr.is-clickable-row').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a')) return;
+            var link = row.querySelector('a.psp-cost-type-link');
+            if (link) window.location.href = link.href;
+        });
+    });
+});
+</script>
 {% endblock %}

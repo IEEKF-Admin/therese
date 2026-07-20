@@ -17,10 +17,15 @@ from apps.finances.forms import (
 )
 from apps.finances.models import (
     CostCenter,
+    CostCenterObligo,
+    CostCenterTrueYearlySpending,
+    CostCenterYearEstimate,
     WBSElement,
+    WBSElementObligo,
     WBSElementTrueYearlySpending,
     WBSElementYearEstimate,
 )
+from apps.finances.psp_cost_types import PSP_COST_TYPE_AMOUNT_FIELDS
 from apps.finances.views.psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
 from apps.hr.models import Employee, FundingAllocation, Workgroup
 
@@ -160,20 +165,10 @@ class WBSElementYearEstimateFormSetTests(TestCase):
             f'{prefix_base}-MIN_NUM_FORMS': '0',
             f'{prefix_base}-MAX_NUM_FORMS': '1000',
         }
-        amount_fields = (
-            'material_costs',
-            'personnel_costs',
-            'domestic_travel_costs',
-            'foreign_travel_costs',
-            'third_party_investments',
-            'publication_costs',
-            'animal_husbandry_costs',
-            'transfer_to_third_parties',
-        )
         for index, row in enumerate(rows):
             prefix = f'{prefix_base}-{index}'
             data[f'{prefix}-year'] = row.get('year', '')
-            for field in amount_fields:
+            for field in PSP_COST_TYPE_AMOUNT_FIELDS:
                 data[f'{prefix}-{field}'] = row.get(field, '')
             data[f'{prefix}-id'] = row.get('id', '')
             data[f'{prefix}-DELETE'] = row.get('DELETE', '')
@@ -265,29 +260,49 @@ class WBSElementTrueYearlySpendingTests(TestCase):
         )
         spending = WBSElementTrueYearlySpending.objects.create(
             wbs_element=self.psp,
-            year=2026,
+            date_of_update=date(2026, 6, 15),
             material_costs=750,
             personnel_costs=200,
         )
         self.assertEqual(self.psp.true_yearly_spendings.count(), 1)
         self.assertEqual(spending.material_costs, 750)
+        self.assertEqual(spending.date_of_update, date(2026, 6, 15))
         self.assertEqual(self.psp.year_estimates.get(year=2026).material_costs, 1000)
 
-    def test_unique_per_psp_and_year(self):
+    def test_unique_per_psp_and_date_of_update(self):
         from django.db import IntegrityError, transaction
 
         WBSElementTrueYearlySpending.objects.create(
             wbs_element=self.psp,
-            year=2026,
+            date_of_update=date(2026, 6, 15),
             material_costs=100,
         )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 WBSElementTrueYearlySpending.objects.create(
                     wbs_element=self.psp,
-                    year=2026,
+                    date_of_update=date(2026, 6, 15),
                     material_costs=200,
                 )
+
+    def test_internal_service_charges_amount_field(self):
+        spending = WBSElementTrueYearlySpending.objects.create(
+            wbs_element=self.psp,
+            date_of_update=date(2026, 7, 1),
+            internal_service_charges=123.45,
+        )
+        self.assertEqual(spending.internal_service_charges, 123.45)
+
+    def test_obligo_snapshot(self):
+        obligo = WBSElementObligo.objects.create(
+            wbs_element=self.psp,
+            date_of_update=date(2026, 7, 10),
+            material_costs=50,
+            internal_service_charges=10,
+        )
+        self.assertEqual(self.psp.obligos.count(), 1)
+        self.assertEqual(obligo.material_costs, 50)
+        self.assertEqual(str(obligo), f'{self.psp.wbs_code} — 2026-07-10 (obligo)')
 
 
 class CostCenterFormTests(TestCase):
@@ -295,26 +310,19 @@ class CostCenterFormTests(TestCase):
         form = CostCenterForm(data={
             'cost_center': '4711/2028',
             'comments': 'Test comments',
-            'third_party_funder_identifier': 'BMBF-99',
+            'has_material_costs': True,
         })
         self.assertTrue(form.is_valid(), form.errors)
         cc = form.save()
         self.assertEqual(cc.cost_center, '4711/2028')
-        self.assertEqual(cc.third_party_funder_identifier, 'BMBF-99')
+        self.assertTrue(cc.has_material_costs)
+        self.assertFalse(cc.has_personnel_costs)
 
-    def test_third_party_funding_commitment_accepts_image(self):
-        image = SimpleUploadedFile('zusage.png', BytesIO(b'\x89PNG\r\n').read(), content_type='image/png')
-        form = CostCenterForm(
-            data={
-                'cost_center': '4711/2029',
-                'comments': '',
-                'third_party_funder_identifier': '',
-            },
-            files={'third_party_funding_commitment': image},
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-        cc = form.save()
-        self.assertTrue(cc.third_party_funding_commitment.name.endswith('.png'))
+    def test_checkbox_labels_omit_leading_numbers(self):
+        form = CostCenterForm()
+        label = str(form.fields['has_material_costs'].label)
+        self.assertIn('Sachkosten', label)
+        self.assertNotIn('.1', label)
 
 
 class PSPManageAccessTests(TestCase):
@@ -505,18 +513,17 @@ class CostCenterYearEstimateFormSetTests(TestCase):
             prefix = f'{prefix_base}-{index}'
             data[f'{prefix}-year'] = row.get('year', '')
             data[f'{prefix}-lomv'] = row.get('lomv', '')
-            data[f'{prefix}-consumables_estimate'] = row.get('consumables_estimate', '')
-            data[f'{prefix}-travel_estimate'] = row.get('travel_estimate', '')
-            data[f'{prefix}-animal_costs_estimate'] = row.get('animal_costs_estimate', '')
+            for field in PSP_COST_TYPE_AMOUNT_FIELDS:
+                data[f'{prefix}-{field}'] = row.get(field, '')
             data[f'{prefix}-id'] = row.get('id', '')
             data[f'{prefix}-DELETE'] = row.get('DELETE', '')
         return data
 
-    def test_unique_years_save_with_lomv(self):
+    def test_unique_years_save_with_lomv_and_cost_types(self):
         formset = CostCenterYearEstimateFormSet(
             self._formset_data([
-                {'year': '2026', 'lomv': '3000.00'},
-                {'year': '2027', 'lomv': '3500.00'},
+                {'year': '2026', 'lomv': '3000.00', 'material_costs': '100.00'},
+                {'year': '2027', 'lomv': '3500.00', 'personnel_costs': '200.00'},
             ]),
             instance=self.cost_center,
         )
@@ -525,3 +532,54 @@ class CostCenterYearEstimateFormSetTests(TestCase):
         self.assertEqual(self.cost_center.year_estimates.count(), 2)
         estimate = self.cost_center.year_estimates.get(year=2026)
         self.assertEqual(estimate.lomv, 3000.00)
+        self.assertEqual(estimate.material_costs, 100.00)
+
+    def test_clear_disabled_amounts_keeps_lomv(self):
+        from apps.finances.psp_cost_types import clear_disabled_year_estimate_amounts
+
+        self.cost_center.has_material_costs = True
+        self.cost_center.has_personnel_costs = False
+        self.cost_center.save()
+        estimate = CostCenterYearEstimate.objects.create(
+            cost_center=self.cost_center,
+            year=2026,
+            lomv=5000,
+            material_costs=100,
+            personnel_costs=200,
+        )
+        clear_disabled_year_estimate_amounts(self.cost_center)
+        estimate.refresh_from_db()
+        self.assertEqual(estimate.lomv, 5000)
+        self.assertEqual(estimate.material_costs, 100)
+        self.assertIsNone(estimate.personnel_costs)
+
+
+class CostCenterTrueYearlySpendingTests(TestCase):
+    def setUp(self):
+        self.cost_center = CostCenter.objects.create(cost_center='TRUE/2026')
+
+    def test_stores_independently_of_estimates(self):
+        CostCenterYearEstimate.objects.create(
+            cost_center=self.cost_center,
+            year=2026,
+            lomv=1000,
+            material_costs=500,
+        )
+        spending = CostCenterTrueYearlySpending.objects.create(
+            cost_center=self.cost_center,
+            date_of_update=date(2026, 6, 1),
+            material_costs=400,
+        )
+        self.assertEqual(self.cost_center.true_yearly_spendings.count(), 1)
+        self.assertEqual(spending.material_costs, 400)
+        self.assertEqual(spending.date_of_update, date(2026, 6, 1))
+        self.assertEqual(self.cost_center.year_estimates.get(year=2026).lomv, 1000)
+
+    def test_obligo_and_internal_service_charges(self):
+        obligo = CostCenterObligo.objects.create(
+            cost_center=self.cost_center,
+            date_of_update=date(2026, 7, 20),
+            internal_service_charges=99.50,
+        )
+        self.assertEqual(self.cost_center.obligos.count(), 1)
+        self.assertEqual(obligo.internal_service_charges, 99.50)

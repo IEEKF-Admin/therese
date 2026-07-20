@@ -188,8 +188,7 @@ def _finance_file(user, path) -> bool:
         return WBSElement.objects.filter(third_party_funding_commitment=path).exists() or user.has_perm(
             'finances.manage_psp_element'
         )
+    # Legacy cost-center third-party uploads (field removed); managers only.
     if path.startswith('finances/cost_center/'):
-        return CostCenter.objects.filter(third_party_funding_commitment=path).exists() or user.has_perm(
-            'finances.manage_cost_center'
-        )
+        return user.has_perm('finances.manage_cost_center')
     return False

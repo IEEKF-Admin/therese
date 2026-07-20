@@ -13,7 +13,7 @@ Do not remove any existing requirements from this header without explicit instru
 
 from django.contrib import admin
 from therese.admin import therese_admin
-from .models import GlobalSetting, StoredFile
+from .models import DataImportLog, GlobalSetting, StoredFile
 
 
 @admin.register(GlobalSetting, site=therese_admin)
@@ -28,5 +28,43 @@ class StoredFileAdmin(admin.ModelAdmin):
     list_display = ['original_filename', 'name', 'content_type', 'size', 'created_at']
     search_fields = ['name', 'original_filename']
     readonly_fields = ['name', 'original_filename', 'content_type', 'size', 'created_at', 'updated_at']
+
+
+@admin.register(DataImportLog, site=therese_admin)
+class DataImportLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'created_at',
+        'kind',
+        'status',
+        'original_filename',
+        'uploaded_by',
+        'file_size',
+        'file_created_at',
+        'report_created_on',
+    )
+    list_filter = ('kind', 'status', 'created_at')
+    search_fields = (
+        'original_filename',
+        'file_sha256',
+        'summary',
+        'uploaded_by__username',
+        'uploaded_by__email',
+    )
+    readonly_fields = (
+        'kind',
+        'uploaded_by',
+        'original_filename',
+        'file_sha256',
+        'file_size',
+        'file_created_at',
+        'file_modified_at',
+        'report_created_on',
+        'status',
+        'summary',
+        'created_at',
+        'updated_at',
+    )
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
 
 

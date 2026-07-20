@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">← Back to manage list</a>
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger" style="margin-bottom: 1rem;">
+    <strong>Could not save:</strong>
+    <ul>
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="post" class="form-card" style="max-width: 36rem;">
+    {% csrf_token %}
+
+    <div class="form-field">
+        <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }} *</label>
+        {% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name }}{% endif %}
+        {% if form.last_name.help_text %}<span class="helptext">{{ form.last_name.help_text }}</span>{% endif %}
+        {{ form.last_name.errors }}
+    </div>
+
+    <div class="form-field">
+        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+        {% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name }}{% endif %}
+        {% if form.first_name.help_text %}<span class="helptext">{{ form.first_name.help_text }}</span>{% endif %}
+        {{ form.first_name.errors }}
+    </div>
+
+    <div class="form-field">
+        <label for="{{ form.business_area.id_for_label }}">{{ form.business_area.label }}</label>
+        {% if form.business_area.errors %}{{ form.business_area|add_class:"form-control error" }}{% else %}{{ form.business_area }}{% endif %}
+        {% if form.business_area.help_text %}<span class="helptext">{{ form.business_area.help_text }}</span>{% endif %}
+        {{ form.business_area.errors }}
+    </div>
+
+    <div class="form-field">
+        <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+        {% if form.phone.errors %}{{ form.phone|add_class:"form-control error" }}{% else %}{{ form.phone }}{% endif %}
+        {% if form.phone.help_text %}<span class="helptext">{{ form.phone.help_text }}</span>{% endif %}
+        {{ form.phone.errors }}
+    </div>
+
+    <div class="form-field">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {% if form.email.errors %}{{ form.email|add_class:"form-control error" }}{% else %}{{ form.email }}{% endif %}
+        {% if form.email.help_text %}<span class="helptext">{{ form.email.help_text }}</span>{% endif %}
+        {{ form.email.errors }}
+    </div>
+
+    <div class="form-field">
+        <label for="{{ form.comments.id_for_label }}">{{ form.comments.label }}</label>
+        {% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}
+        {% if form.comments.help_text %}<span class="helptext">{{ form.comments.help_text }}</span>{% endif %}
+        {{ form.comments.errors }}
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
+        <button type="submit" class="btn-primary">Save</button>
+        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}

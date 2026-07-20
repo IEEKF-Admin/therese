@@ -101,15 +101,23 @@
     {% endif %}
     {% endif %}
 
-    {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups or user.is_superuser %}
+    {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups or 'Contact Persons - View' in user_groups or 'Contact Persons - Manage' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Knowledge</div>
+    {% if 'PSP Elements - View' in user_groups or 'PSP Elements - Manage' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:psp_elements' %}"
        class="{% if 'psp-elements' in request.path %}active{% endif %}">
         <i class="fas fa-project-diagram"></i> PSP Elements
     </a>
     {% endif %}
+    {% if 'Contact Persons - View' in user_groups or 'Contact Persons - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:contact_person_list' %}"
+       class="{% if '/contact-persons/' in request.path and '/manage' not in request.path %}active{% endif %}">
+        <i class="fas fa-address-book"></i> Contact Persons
+    </a>
+    {% endif %}
+    {% endif %}
 
-    {% if 'PSP Elements - Manage' in user_groups or 'Cost Centers - Manage' in user_groups or 'Locations - Manage' in user_groups or 'Working Groups - Manage' in user_groups or 'Documents & SOPs - Manage' in user_groups or 'Checklists - Manage' in user_groups or 'Assisting Admins' in user_groups or user.is_superuser %}
+    {% if 'PSP Elements - Manage' in user_groups or 'Cost Centers - Manage' in user_groups or 'Contact Persons - Manage' in user_groups or 'Locations - Manage' in user_groups or 'Working Groups - Manage' in user_groups or 'Documents & SOPs - Manage' in user_groups or 'Checklists - Manage' in user_groups or 'Assisting Admins' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if 'Locations - Manage' in user_groups or user.is_superuser %}
@@ -123,6 +131,13 @@
     <a href="{% url 'finances:cost_center_manage' %}"
        class="{% if 'cost-centers/manage' in request.path %}active{% endif %}">
         <i class="fas fa-coins"></i> Cost Centers
+    </a>
+    {% endif %}
+
+    {% if 'Contact Persons - Manage' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:contact_person_manage' %}"
+       class="{% if 'contact-persons/manage' in request.path %}active{% endif %}">
+        <i class="fas fa-user-edit"></i> Contact Persons
     </a>
     {% endif %}
 
@@ -181,11 +196,19 @@
     {% endif %}
     {% endif %}
 
-    {% if 'Pay Scales - Import' in user_groups or user.is_superuser %}
+    {% if 'Pay Scales - Import' in user_groups or 'Third-party Funding Reports - Import' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Data Import</div>
+    {% if 'Pay Scales - Import' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:import_pay_scales' %}"
        class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
         <i class="fas fa-table"></i> Pay Scales / TV-L
     </a>
+    {% endif %}
+    {% if 'Third-party Funding Reports - Import' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:third_party_funding_import' %}"
+       class="{% if 'import/third-party-funding' in request.path %}active{% endif %}">
+        <i class="fas fa-file-excel"></i> Third-party Funding Reports
+    </a>
+    {% endif %}
     {% endif %}
 </nav>

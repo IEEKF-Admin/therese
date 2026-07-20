@@ -21,7 +21,6 @@
                     <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
                 </th>
                 <th>Cost center</th>
-                <th>Funder identifier</th>
                 <th>Comments</th>
                 <th>Actions</th>
             </tr>
@@ -31,7 +30,6 @@
             <tr>
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ cc.pk }}"></td>
                 <td>{{ cc.cost_center }}</td>
-                <td>{{ cc.third_party_funder_identifier|default:"-" }}</td>
                 <td>{{ cc.comments|truncatechars:60|default:"-" }}</td>
                 <td>
                     <a href="{% url 'finances:cost_center_update' cc.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
@@ -40,7 +38,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5">No cost centers found.</td></tr>
+            <tr><td colspan="4">No cost centers found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

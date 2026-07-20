@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load widget_tweaks file_tags %}
+{% load widget_tweaks %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
@@ -25,7 +25,7 @@
 </div>
 {% endif %}
 
-<form method="post" id="cost-center-form" enctype="multipart/form-data">
+<form method="post" id="cost-center-form">
     {% csrf_token %}
 
     <div class="psp-two-col">
@@ -35,13 +35,11 @@
                 <div class="form-field">
                     <label for="{{ form.cost_center.id_for_label }}">{{ form.cost_center.label }} *</label>
                     {% if form.cost_center.errors %}{{ form.cost_center|add_class:"form-control error" }}{% else %}{{ form.cost_center }}{% endif %}
-                    {% if form.cost_center.help_text %}<span class="helptext">{{ form.cost_center.help_text }}</span>{% endif %}
                     {{ form.cost_center.errors }}
                 </div>
                 <div class="form-field">
                     <label for="{{ form.comments.id_for_label }}">{{ form.comments.label }}</label>
                     {% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}
-                    {% if form.comments.help_text %}<span class="helptext">{{ form.comments.help_text }}</span>{% endif %}
                     {{ form.comments.errors }}
                 </div>
             </div>
@@ -49,21 +47,17 @@
 
         <div class="right-col">
             <div class="form-card">
-                <h3>Third-party funding</h3>
-                <div class="form-field">
-                    <label for="{{ form.third_party_funder_identifier.id_for_label }}">{{ form.third_party_funder_identifier.label }}</label>
-                    {% if form.third_party_funder_identifier.errors %}{{ form.third_party_funder_identifier|add_class:"form-control error" }}{% else %}{{ form.third_party_funder_identifier }}{% endif %}
-                    {% if form.third_party_funder_identifier.help_text %}<span class="helptext">{{ form.third_party_funder_identifier.help_text }}</span>{% endif %}
-                    {{ form.third_party_funder_identifier.errors }}
-                </div>
-                <div class="form-field">
-                    <label for="{{ form.third_party_funding_commitment.id_for_label }}">{{ form.third_party_funding_commitment.label }}</label>
-                    {% if form.third_party_funding_commitment.errors %}{{ form.third_party_funding_commitment|add_class:"form-control error" }}{% else %}{{ form.third_party_funding_commitment }}{% endif %}
-                    {% if form.third_party_funding_commitment.help_text %}<span class="helptext">{{ form.third_party_funding_commitment.help_text }}</span>{% endif %}
-                    {% if form.instance.third_party_funding_commitment %}
-                    <span class="helptext">Current file: <a href="{{ form.instance.third_party_funding_commitment.url }}" target="_blank" rel="noopener">{{ form.instance.third_party_funding_commitment|file_display_name }}</a></span>
-                    {% endif %}
-                    {{ form.third_party_funding_commitment.errors }}
+                <h3>Cost types</h3>
+                <div class="cost-type-grid">
+                    {% for field in form %}
+                        {% if field.name|slice:":4" == "has_" %}
+                        <div class="form-field checkbox-field cost-type-checkbox">
+                            {{ field }}
+                            <label for="{{ field.id_for_label }}">{{ field.label|safe }}</label>
+                            {{ field.errors }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -71,69 +65,131 @@
 
     <div class="form-card" style="margin-bottom: 2rem;">
         <h3>Year estimates (EUR)</h3>
-        <p class="helptext" style="margin-bottom: 1rem;">One row per year. All fields optional. Lomv replaces the former initial balance.</p>
 
         {{ year_estimate_formset.management_form }}
         {% if year_estimate_formset.non_form_errors %}
         <div class="alert alert-danger">{{ year_estimate_formset.non_form_errors }}</div>
         {% endif %}
 
-        <div class="year-estimate-header">
-            <span>Year / period</span>
-            <span>Lomv</span>
-            <span>Consumables</span>
-            <span>Travel</span>
-            <span>Animal costs</span>
-            <span></span>
-        </div>
+        <div class="year-estimate-scroll">
+            <table class="year-estimate-table">
+                <colgroup>
+                    <col class="ye-col-year">
+                    <col class="ye-col-amount ye-col-lomv">
+                    <col class="ye-col-amount" data-cost-type="material_costs">
+                    <col class="ye-col-amount" data-cost-type="personnel_costs">
+                    <col class="ye-col-amount" data-cost-type="domestic_travel_costs">
+                    <col class="ye-col-amount" data-cost-type="foreign_travel_costs">
+                    <col class="ye-col-amount" data-cost-type="third_party_investments">
+                    <col class="ye-col-amount" data-cost-type="publication_costs">
+                    <col class="ye-col-amount" data-cost-type="animal_husbandry_costs">
+                    <col class="ye-col-amount" data-cost-type="transfer_to_third_parties">
+                    <col class="ye-col-amount" data-cost-type="internal_service_charges">
+                    <col class="ye-col-delete">
+                </colgroup>
+                <thead>
+                    <tr class="year-estimate-table-head">
+                        <th class="ye-year" scope="col">Year / period</th>
+                        <th class="ye-amount ye-lomv" scope="col">Lomv</th>
+                        <th class="ye-amount" scope="col" data-cost-type="material_costs">Sachkosten<br><span class="bilingual-label__en">Material</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="personnel_costs">Personalkosten<br><span class="bilingual-label__en">Personnel</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="domestic_travel_costs">Reisekosten Inland<br><span class="bilingual-label__en">Domestic travel</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="foreign_travel_costs">Reisekosten Ausland<br><span class="bilingual-label__en">Foreign travel</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="third_party_investments">Drittmittel-Investitionen<br><span class="bilingual-label__en">Third-party investments</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="publication_costs">Publikationskosten<br><span class="bilingual-label__en">Publication</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="animal_husbandry_costs">Tierhaltungskosten<br><span class="bilingual-label__en">Animal husbandry</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="transfer_to_third_parties">Weitergabe an Dritte<br><span class="bilingual-label__en">Transfer to third parties</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="internal_service_charges">Interne Leistungsverrechnung<br><span class="bilingual-label__en">Internal service charges</span></th>
+                        <th class="ye-delete" scope="col" aria-hidden="true"></th>
+                    </tr>
+                </thead>
+                <tbody id="year-estimate-container">
+                    {% for estimate_form in year_estimate_formset %}
+                    <tr class="year-estimate-row inline-form-row">
+                        <td class="ye-year">
+                            <div class="year-estimate-hidden-fields">
+                                {{ estimate_form.id }}
+                                {{ estimate_form.DELETE.as_hidden }}
+                            </div>
+                            {% if estimate_form.year.errors %}{{ estimate_form.year|add_class:"error" }}{% else %}{{ estimate_form.year }}{% endif %}
+                            {{ estimate_form.year.errors }}
+                        </td>
+                        <td class="ye-amount ye-lomv">
+                            {% if estimate_form.lomv.errors %}{{ estimate_form.lomv|add_class:"error" }}{% else %}{{ estimate_form.lomv }}{% endif %}
+                            {{ estimate_form.lomv.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="material_costs">
+                            {% if estimate_form.material_costs.errors %}{{ estimate_form.material_costs|add_class:"error" }}{% else %}{{ estimate_form.material_costs }}{% endif %}
+                            {{ estimate_form.material_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="personnel_costs">
+                            {% if estimate_form.personnel_costs.errors %}{{ estimate_form.personnel_costs|add_class:"error" }}{% else %}{{ estimate_form.personnel_costs }}{% endif %}
+                            {{ estimate_form.personnel_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="domestic_travel_costs">
+                            {% if estimate_form.domestic_travel_costs.errors %}{{ estimate_form.domestic_travel_costs|add_class:"error" }}{% else %}{{ estimate_form.domestic_travel_costs }}{% endif %}
+                            {{ estimate_form.domestic_travel_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="foreign_travel_costs">
+                            {% if estimate_form.foreign_travel_costs.errors %}{{ estimate_form.foreign_travel_costs|add_class:"error" }}{% else %}{{ estimate_form.foreign_travel_costs }}{% endif %}
+                            {{ estimate_form.foreign_travel_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="third_party_investments">
+                            {% if estimate_form.third_party_investments.errors %}{{ estimate_form.third_party_investments|add_class:"error" }}{% else %}{{ estimate_form.third_party_investments }}{% endif %}
+                            {{ estimate_form.third_party_investments.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="publication_costs">
+                            {% if estimate_form.publication_costs.errors %}{{ estimate_form.publication_costs|add_class:"error" }}{% else %}{{ estimate_form.publication_costs }}{% endif %}
+                            {{ estimate_form.publication_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="animal_husbandry_costs">
+                            {% if estimate_form.animal_husbandry_costs.errors %}{{ estimate_form.animal_husbandry_costs|add_class:"error" }}{% else %}{{ estimate_form.animal_husbandry_costs }}{% endif %}
+                            {{ estimate_form.animal_husbandry_costs.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="transfer_to_third_parties">
+                            {% if estimate_form.transfer_to_third_parties.errors %}{{ estimate_form.transfer_to_third_parties|add_class:"error" }}{% else %}{{ estimate_form.transfer_to_third_parties }}{% endif %}
+                            {{ estimate_form.transfer_to_third_parties.errors }}
+                        </td>
+                        <td class="ye-amount" data-cost-type="internal_service_charges">
+                            {% if estimate_form.internal_service_charges.errors %}{{ estimate_form.internal_service_charges|add_class:"error" }}{% else %}{{ estimate_form.internal_service_charges }}{% endif %}
+                            {{ estimate_form.internal_service_charges.errors }}
+                        </td>
+                        <td class="ye-delete">
+                            <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
-        <div id="year-estimate-container">
-            {% for estimate_form in year_estimate_formset %}
-            <div class="year-estimate-row inline-form-row">
-                {{ estimate_form.id }}
-                {{ estimate_form.DELETE.as_hidden }}
-                <div class="inline-field">
-                    {% if estimate_form.year.errors %}{{ estimate_form.year|add_class:"error" }}{% else %}{{ estimate_form.year }}{% endif %}
-                    {{ estimate_form.year.errors }}
-                </div>
-                <div class="inline-field">
-                    {% if estimate_form.lomv.errors %}{{ estimate_form.lomv|add_class:"error" }}{% else %}{{ estimate_form.lomv }}{% endif %}
-                    {{ estimate_form.lomv.errors }}
-                </div>
-                <div class="inline-field">
-                    {% if estimate_form.consumables_estimate.errors %}{{ estimate_form.consumables_estimate|add_class:"error" }}{% else %}{{ estimate_form.consumables_estimate }}{% endif %}
-                    {{ estimate_form.consumables_estimate.errors }}
-                </div>
-                <div class="inline-field">
-                    {% if estimate_form.travel_estimate.errors %}{{ estimate_form.travel_estimate|add_class:"error" }}{% else %}{{ estimate_form.travel_estimate }}{% endif %}
-                    {{ estimate_form.travel_estimate.errors }}
-                </div>
-                <div class="inline-field">
-                    {% if estimate_form.animal_costs_estimate.errors %}{{ estimate_form.animal_costs_estimate|add_class:"error" }}{% else %}{{ estimate_form.animal_costs_estimate }}{% endif %}
-                    {{ estimate_form.animal_costs_estimate.errors }}
-                </div>
-                <div class="inline-delete">
-                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div id="year-estimate-empty-template" class="empty-form-template" style="display:none;">
-            {% with estimate_form=year_estimate_formset.empty_form %}
-            <div class="year-estimate-row inline-form-row">
-                {{ estimate_form.id }}
-                {{ estimate_form.DELETE.as_hidden }}
-                <div class="inline-field">{{ estimate_form.year }}</div>
-                <div class="inline-field">{{ estimate_form.lomv }}</div>
-                <div class="inline-field">{{ estimate_form.consumables_estimate }}</div>
-                <div class="inline-field">{{ estimate_form.travel_estimate }}</div>
-                <div class="inline-field">{{ estimate_form.animal_costs_estimate }}</div>
-                <div class="inline-delete">
-                    <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
-                </div>
-            </div>
-            {% endwith %}
+            <table class="year-estimate-table" style="display:none;" aria-hidden="true">
+                <tbody id="year-estimate-empty-template">
+                    {% with estimate_form=year_estimate_formset.empty_form %}
+                    <tr class="year-estimate-row inline-form-row">
+                        <td class="ye-year">
+                            <div class="year-estimate-hidden-fields">
+                                {{ estimate_form.id }}
+                                {{ estimate_form.DELETE.as_hidden }}
+                            </div>
+                            {{ estimate_form.year }}
+                        </td>
+                        <td class="ye-amount ye-lomv">{{ estimate_form.lomv }}</td>
+                        <td class="ye-amount" data-cost-type="material_costs">{{ estimate_form.material_costs }}</td>
+                        <td class="ye-amount" data-cost-type="personnel_costs">{{ estimate_form.personnel_costs }}</td>
+                        <td class="ye-amount" data-cost-type="domestic_travel_costs">{{ estimate_form.domestic_travel_costs }}</td>
+                        <td class="ye-amount" data-cost-type="foreign_travel_costs">{{ estimate_form.foreign_travel_costs }}</td>
+                        <td class="ye-amount" data-cost-type="third_party_investments">{{ estimate_form.third_party_investments }}</td>
+                        <td class="ye-amount" data-cost-type="publication_costs">{{ estimate_form.publication_costs }}</td>
+                        <td class="ye-amount" data-cost-type="animal_husbandry_costs">{{ estimate_form.animal_husbandry_costs }}</td>
+                        <td class="ye-amount" data-cost-type="transfer_to_third_parties">{{ estimate_form.transfer_to_third_parties }}</td>
+                        <td class="ye-amount" data-cost-type="internal_service_charges">{{ estimate_form.internal_service_charges }}</td>
+                        <td class="ye-delete">
+                            <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                </tbody>
+            </table>
         </div>
 
         <button type="button" id="add-year-estimate" class="btn-secondary" style="margin-top: 0.5rem;">
@@ -152,11 +208,28 @@
         return document.querySelector(`input[name="${formsetPrefix}-TOTAL_FORMS"]`);
     }
 
+    function syncCostTypeColumns() {
+        const flags = document.querySelectorAll('.cost-type-flag[data-cost-type]');
+        flags.forEach(function(flag) {
+            const costType = flag.getAttribute('data-cost-type');
+            const enabled = flag.checked;
+            document.querySelectorAll('[data-cost-type="' + costType + '"]').forEach(function(el) {
+                if (el.classList && el.classList.contains('cost-type-flag')) return;
+                el.classList.toggle('is-cost-type-hidden', !enabled);
+                if (!enabled && el.querySelectorAll) {
+                    el.querySelectorAll('input').forEach(function(input) {
+                        if (input.type !== 'hidden') input.value = '';
+                    });
+                }
+            });
+        });
+    }
+
     function getMaxYear() {
         let maxYear = null;
         document.querySelectorAll('#year-estimate-container input[name$="-year"]').forEach(function(input) {
             const row = input.closest('.year-estimate-row');
-            if (!row || row.style.display === 'none') return;
+            if (!row || row.style.display === 'none' || row.offsetParent === null) return;
             const val = parseInt(input.value, 10);
             if (!isNaN(val) && (maxYear === null || val > maxYear)) {
                 maxYear = val;
@@ -171,8 +244,11 @@
         const totalInput = getTotalFormsInput();
         if (!template || !container || !totalInput) return;
 
+        const sourceRow = template.querySelector('tr.year-estimate-row');
+        if (!sourceRow) return;
+
         const newIndex = parseInt(totalInput.value, 10) || 0;
-        const clone = template.firstElementChild.cloneNode(true);
+        const clone = sourceRow.cloneNode(true);
         clone.style.display = '';
 
         clone.querySelectorAll('[name],[id],[for]').forEach(function(el) {
@@ -200,7 +276,13 @@
 
         container.appendChild(clone);
         totalInput.value = newIndex + 1;
+        syncCostTypeColumns();
     }
+
+    document.querySelectorAll('.cost-type-flag').forEach(function(flag) {
+        flag.addEventListener('change', syncCostTypeColumns);
+    });
+    syncCostTypeColumns();
 
     document.getElementById('add-year-estimate').addEventListener('click', addYearEstimateRow);
 
@@ -208,7 +290,7 @@
         const removeBtn = e.target.closest('.remove-row');
         if (!removeBtn || !removeBtn.closest('#year-estimate-container, #year-estimate-empty-template')) return;
 
-        const row = removeBtn.closest('.year-estimate-row');
+        const row = removeBtn.closest('tr.year-estimate-row');
         if (!row) return;
 
         const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
@@ -219,7 +301,7 @@
             row.remove();
             const totalInput = getTotalFormsInput();
             if (totalInput) {
-                const visible = document.querySelectorAll('#year-estimate-container .year-estimate-row:not([style*="display: none"])');
+                const visible = document.querySelectorAll('#year-estimate-container tr.year-estimate-row:not([style*="display: none"])');
                 totalInput.value = visible.length;
             }
         }

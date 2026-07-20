@@ -218,10 +218,59 @@ class PurchaseOrderTask(Task):
         verbose_name="WBS Element"
     )
     at_beleg_nummer = models.CharField(
-        max_length=50, 
-        blank=True, 
-        null=True, 
+        max_length=50,
+        blank=True,
+        null=True,
         verbose_name="AT - Beleg Nummer"
+    )
+    kostenart = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Kostenart",
+    )
+    referenzbeleg_nr = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name="Referenzbeleg-Nr",
+    )
+    einkaufsbeleg_nr = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name="Einkaufsbeleg-Nr",
+    )
+    v_kurztext = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="V-Kurztext",
+    )
+    v_buchungsdatum = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="V-Buchungsdatum",
+    )
+    v_belegdatum = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="V-Belegdatum",
+    )
+    v_istkosten = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="V-Istkosten",
+    )
+    # Marked by import when administration data for this purchase order is complete.
+    import_completed = models.BooleanField(
+        default=False,
+        verbose_name="Import completed",
+        help_text=(
+            "True when imported data confirms the administration process "
+            "for this purchase order is complete."
+        ),
     )
 
     class Meta:

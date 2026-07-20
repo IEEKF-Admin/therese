@@ -1,10 +1,10 @@
 """
-PSP element cost-type flags and matching year-estimate amount fields.
+Shared cost-type flags and matching yearly amount fields for PSP / cost centers.
 
 Each cost type has:
-- flag_field: Boolean on WBSElement (enabled for this PSP)
-- amount_field: Decimal on WBSElementYearEstimate
-- code: numeric suffix historically used in WBS codes (.1 … .8)
+- flag_field: Boolean on WBSElement or CostCenter
+- amount_field: Decimal on year-estimate / true-spending / obligo rows
+- code: numeric suffix historically used in WBS codes (.1 … .9)
 - label_de / label_en: bilingual UI labels
 """
 
@@ -38,29 +38,39 @@ PSP_COST_TYPES = (
         'Weitergabe an Dritte',
         'Transfer to third parties',
     ),
+    (
+        'has_internal_service_charges',
+        'internal_service_charges',
+        '9',
+        'Interne Leistungsverrechnung',
+        'Internal service charges',
+    ),
 )
 
 PSP_COST_TYPE_FLAG_FIELDS = tuple(item[0] for item in PSP_COST_TYPES)
 PSP_COST_TYPE_AMOUNT_FIELDS = tuple(item[1] for item in PSP_COST_TYPES)
 
 
-def bilingual_cost_type_label(code, label_de, label_en):
+def bilingual_cost_type_label(code, label_de, label_en, *, include_code=True):
     """HTML label: German primary, English secondary (smaller/muted)."""
+    if include_code:
+        de_part = f'.{code} - {label_de}'
+    else:
+        de_part = label_de
     return format_html(
         '<span class="bilingual-label">'
-        '<span class="bilingual-label__de">.{} - {}</span>'
+        '<span class="bilingual-label__de">{}</span>'
         '<span class="bilingual-label__en">{}</span>'
         '</span>',
-        code,
-        label_de,
+        de_part,
         label_en,
     )
 
 
-def bilingual_cost_type_labels():
+def bilingual_cost_type_labels(*, include_code=True):
     """Map flag_field -> safe HTML label for forms."""
     return {
-        flag: bilingual_cost_type_label(code, de, en)
+        flag: bilingual_cost_type_label(code, de, en, include_code=include_code)
         for flag, _amount, code, de, en in PSP_COST_TYPES
     }
 
@@ -70,12 +80,16 @@ def short_header_label(code, label_de):
     return f'.{code} {label_de}'
 
 
-def clear_disabled_year_estimate_amounts(wbs_element):
-    """Null amount fields whose matching PSP flag is false."""
-    for estimate in wbs_element.year_estimates.all():
+def clear_disabled_year_estimate_amounts(parent):
+    """
+    Null amount fields whose matching cost-type flag is false.
+
+    Works for WBSElement and CostCenter (both use related_name='year_estimates').
+    """
+    for estimate in parent.year_estimates.all():
         update_fields = []
         for flag_field, amount_field, *_rest in PSP_COST_TYPES:
-            if not getattr(wbs_element, flag_field) and getattr(estimate, amount_field) is not None:
+            if not getattr(parent, flag_field) and getattr(estimate, amount_field) is not None:
                 setattr(estimate, amount_field, None)
                 update_fields.append(amount_field)
         if update_fields:

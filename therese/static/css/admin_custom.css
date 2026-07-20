@@ -242,6 +242,36 @@ input[type=submit]:hover {
     gap: 30px !important;
 }
 
+/* Main app list needs room for long model names (e.g. True Yearly Spending). */
+#content-main {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+/* Django default sets .dashboard .module table th { width: 100% } which
+   crushes the model-name column when the right sidebar is present. */
+.dashboard .module table,
+#content-main .module table {
+    table-layout: auto !important;
+    width: 100% !important;
+}
+
+.dashboard .module table th,
+#content-main .module table th[scope="row"] {
+    width: auto !important;
+    min-width: 18rem !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    padding-right: 1.5rem !important;
+}
+
+.dashboard .module table td,
+#content-main .module table td {
+    width: auto !important;
+    white-space: nowrap !important;
+}
+
 /* The right sidebar must start at the very top */
 #content-related,
 .content-related {

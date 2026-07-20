@@ -35,13 +35,11 @@
                 <div class="form-field">
                     <label for="{{ form.wbs_code.id_for_label }}">{{ form.wbs_code.label }}</label>
                     {% if form.wbs_code.errors %}{{ form.wbs_code|add_class:"form-control error" }}{% else %}{{ form.wbs_code }}{% endif %}
-                    {% if form.wbs_code.help_text %}<span class="helptext">{{ form.wbs_code.help_text }}</span>{% endif %}
                     {{ form.wbs_code.errors }}
                 </div>
                 <div class="form-field">
                     <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
                     {% if form.title.errors %}{{ form.title|add_class:"form-control error" }}{% else %}{{ form.title }}{% endif %}
-                    {% if form.title.help_text %}<span class="helptext">{{ form.title.help_text }}</span>{% endif %}
                     {{ form.title.errors }}
                 </div>
                 {% if hide_work_group_field %}
@@ -51,29 +49,23 @@
                 <div class="form-field">
                     <label for="{{ form.work_group.id_for_label }}">{{ form.work_group.label }}</label>
                     {% if form.work_group.errors %}{{ form.work_group|add_class:"form-select error" }}{% else %}{{ form.work_group }}{% endif %}
-                    {% if form.work_group.help_text %}<span class="helptext">{{ form.work_group.help_text }}</span>{% endif %}
                     {{ form.work_group.errors }}
                 </div>
                 {% endif %}
                 <div class="form-field">
                     <label for="{{ form.responsible_person.id_for_label }}">{{ form.responsible_person.label }}</label>
                     {% if form.responsible_person.errors %}{{ form.responsible_person|add_class:"form-select error" }}{% else %}{{ form.responsible_person }}{% endif %}
-                    {% if form.responsible_person.help_text %}<span class="helptext">{{ form.responsible_person.help_text }}</span>{% endif %}
                     {{ form.responsible_person.errors }}
                 </div>
                 <div class="form-field">
                     <label for="{{ form.cost_center.id_for_label }}">{{ form.cost_center.label }} *</label>
                     {% if form.cost_center.errors %}{{ form.cost_center|add_class:"form-select error" }}{% else %}{{ form.cost_center }}{% endif %}
-                    {% if form.cost_center.help_text %}<span class="helptext">{{ form.cost_center.help_text }} — Required in the editor.</span>{% endif %}
                     {{ form.cost_center.errors }}
                 </div>
             </div>
 
             <div class="form-card" style="margin-top: 1rem;">
                 <h3>Cost types</h3>
-                <p class="helptext" style="margin-bottom: 0.75rem;">
-                    Enable the cost types that apply to this PSP element. Only enabled types appear as year-estimate columns.
-                </p>
                 <div class="cost-type-grid">
                     {% for field in form %}
                         {% if field.name|slice:":4" == "has_" %}
@@ -94,33 +86,28 @@
                 <div class="form-field">
                     <label for="{{ form.period_start.id_for_label }}">{{ form.period_start.label }}</label>
                     {% if form.period_start.errors %}{{ form.period_start|add_class:"form-control error" }}{% else %}{{ form.period_start }}{% endif %}
-                    {% if form.period_start.help_text %}<span class="helptext">{{ form.period_start.help_text }} — Month/year picker (no day).</span>{% endif %}
                     {{ form.period_start.errors }}
                 </div>
                 <div class="form-field">
                     <label for="{{ form.period_end.id_for_label }}">{{ form.period_end.label }}</label>
                     {% if form.period_end.errors %}{{ form.period_end|add_class:"form-control error" }}{% else %}{{ form.period_end }}{% endif %}
-                    {% if form.period_end.help_text %}<span class="helptext">{{ form.period_end.help_text }} — Month/year picker (no day).</span>{% endif %}
                     {{ form.period_end.errors }}
                 </div>
                 <div class="form-field checkbox-field">
                     {{ form.subject_to_annual_recurrence }}
                     <div>
                         <label for="{{ form.subject_to_annual_recurrence.id_for_label }}">{{ form.subject_to_annual_recurrence.label }}</label>
-                        {% if form.subject_to_annual_recurrence.help_text %}<span class="helptext">{{ form.subject_to_annual_recurrence.help_text }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="form-field checkbox-field">
                     {{ form.is_inactive }}
                     <div>
                         <label for="{{ form.is_inactive.id_for_label }}">{{ form.is_inactive.label }}</label>
-                        {% if form.is_inactive.help_text %}<span class="helptext">{{ form.is_inactive.help_text }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="form-field">
                     <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
                     {% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment }}{% endif %}
-                    {% if form.comment.help_text %}<span class="helptext">{{ form.comment.help_text }}</span>{% endif %}
                     {{ form.comment.errors }}
                 </div>
             </div>
@@ -130,13 +117,11 @@
                 <div class="form-field">
                     <label for="{{ form.third_party_funder_identifier.id_for_label }}">{{ form.third_party_funder_identifier.label }}</label>
                     {% if form.third_party_funder_identifier.errors %}{{ form.third_party_funder_identifier|add_class:"form-control error" }}{% else %}{{ form.third_party_funder_identifier }}{% endif %}
-                    {% if form.third_party_funder_identifier.help_text %}<span class="helptext">{{ form.third_party_funder_identifier.help_text }}</span>{% endif %}
                     {{ form.third_party_funder_identifier.errors }}
                 </div>
                 <div class="form-field">
                     <label for="{{ form.third_party_funding_commitment.id_for_label }}">{{ form.third_party_funding_commitment.label }}</label>
                     {% if form.third_party_funding_commitment.errors %}{{ form.third_party_funding_commitment|add_class:"form-control error" }}{% else %}{{ form.third_party_funding_commitment }}{% endif %}
-                    {% if form.third_party_funding_commitment.help_text %}<span class="helptext">{{ form.third_party_funding_commitment.help_text }}</span>{% endif %}
                     {% if form.instance.third_party_funding_commitment %}
                     <span class="helptext">Current file: <a href="{{ form.instance.third_party_funding_commitment.url }}" target="_blank" rel="noopener">{{ form.instance.third_party_funding_commitment|file_display_name }}</a></span>
                     {% endif %}
@@ -148,12 +133,6 @@
 
     <div class="form-card" style="margin-bottom: 2rem;">
         <h3>Year estimates (EUR)</h3>
-        <p class="helptext" style="margin-bottom: 1rem;">
-            One row per year. Amount columns follow the enabled cost types above. All amounts optional.
-        </p>
-        <p id="year-estimate-no-types-hint" class="helptext" style="display:none; margin-bottom: 1rem; color:#b45309;">
-            Enable at least one cost type to enter yearly amounts.
-        </p>
 
         {{ year_estimate_formset.management_form }}
         {% if year_estimate_formset.non_form_errors %}
@@ -173,6 +152,7 @@
                     <col class="ye-col-amount" data-cost-type="publication_costs">
                     <col class="ye-col-amount" data-cost-type="animal_husbandry_costs">
                     <col class="ye-col-amount" data-cost-type="transfer_to_third_parties">
+                    <col class="ye-col-amount" data-cost-type="internal_service_charges">
                     <col class="ye-col-delete">
                 </colgroup>
                 <thead>
@@ -186,6 +166,7 @@
                         <th class="ye-amount" scope="col" data-cost-type="publication_costs">Publikationskosten<br><span class="bilingual-label__en">Publication</span></th>
                         <th class="ye-amount" scope="col" data-cost-type="animal_husbandry_costs">Tierhaltungskosten<br><span class="bilingual-label__en">Animal husbandry</span></th>
                         <th class="ye-amount" scope="col" data-cost-type="transfer_to_third_parties">Weitergabe an Dritte<br><span class="bilingual-label__en">Transfer to third parties</span></th>
+                        <th class="ye-amount" scope="col" data-cost-type="internal_service_charges">Interne Leistungsverrechnung<br><span class="bilingual-label__en">Internal service charges</span></th>
                         <th class="ye-delete" scope="col" aria-hidden="true"></th>
                     </tr>
                 </thead>
@@ -232,6 +213,10 @@
                             {% if estimate_form.transfer_to_third_parties.errors %}{{ estimate_form.transfer_to_third_parties|add_class:"error" }}{% else %}{{ estimate_form.transfer_to_third_parties }}{% endif %}
                             {{ estimate_form.transfer_to_third_parties.errors }}
                         </td>
+                        <td class="ye-amount" data-cost-type="internal_service_charges">
+                            {% if estimate_form.internal_service_charges.errors %}{{ estimate_form.internal_service_charges|add_class:"error" }}{% else %}{{ estimate_form.internal_service_charges }}{% endif %}
+                            {{ estimate_form.internal_service_charges.errors }}
+                        </td>
                         <td class="ye-delete">
                             <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
                         </td>
@@ -259,6 +244,7 @@
                         <td class="ye-amount" data-cost-type="publication_costs">{{ estimate_form.publication_costs }}</td>
                         <td class="ye-amount" data-cost-type="animal_husbandry_costs">{{ estimate_form.animal_husbandry_costs }}</td>
                         <td class="ye-amount" data-cost-type="transfer_to_third_parties">{{ estimate_form.transfer_to_third_parties }}</td>
+                        <td class="ye-amount" data-cost-type="internal_service_charges">{{ estimate_form.internal_service_charges }}</td>
                         <td class="ye-delete">
                             <button type="button" class="btn-danger remove-row" title="Remove row">🗑️</button>
                         </td>
@@ -286,11 +272,9 @@
 
     function syncCostTypeColumns() {
         const flags = document.querySelectorAll('.cost-type-flag[data-cost-type]');
-        let anyEnabled = false;
         flags.forEach(function(flag) {
             const costType = flag.getAttribute('data-cost-type');
             const enabled = flag.checked;
-            if (enabled) anyEnabled = true;
             document.querySelectorAll('[data-cost-type="' + costType + '"]').forEach(function(el) {
                 if (el.classList && el.classList.contains('cost-type-flag')) return;
                 el.classList.toggle('is-cost-type-hidden', !enabled);
@@ -301,8 +285,6 @@
                 }
             });
         });
-        const hint = document.getElementById('year-estimate-no-types-hint');
-        if (hint) hint.style.display = anyEnabled ? 'none' : 'block';
     }
 
     function getMaxYear() {

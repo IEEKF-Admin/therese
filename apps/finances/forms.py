@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
 from apps.finances.models import (
+    ContactPerson,
     CostCenter,
     CostCenterYearEstimate,
     WBSElement,
@@ -228,41 +229,109 @@ WBSElementYearEstimateFormSet = inlineformset_factory(
 )
 
 
+class ContactPersonForm(forms.ModelForm):
+    class Meta:
+        model = ContactPerson
+        fields = [
+            'last_name',
+            'first_name',
+            'business_area',
+            'phone',
+            'email',
+            'comments',
+        ]
+        widgets = {
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'business_area': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'comments': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'maxlength': 400,
+            }),
+        }
+        labels = {
+            'last_name': 'Last name',
+            'first_name': 'First name',
+            'business_area': 'Business area',
+            'phone': 'Phone',
+            'email': 'Email',
+            'comments': 'Comments',
+        }
+        help_texts = {
+            'last_name': 'Required. Together with first name this identifies the contact.',
+            'first_name': 'Optional given name.',
+            'business_area': 'Organizational unit or business area (optional).',
+            'phone': 'Phone number (optional).',
+            'email': 'Email address (optional).',
+            'comments': 'Optional notes (max. 400 characters).',
+        }
+
+    def clean_last_name(self):
+        value = (self.cleaned_data.get('last_name') or '').strip()
+        if not value:
+            raise ValidationError('Last name is required.')
+        return value
+
+    def clean_first_name(self):
+        return (self.cleaned_data.get('first_name') or '').strip()
+
+    def clean_comments(self):
+        return (self.cleaned_data.get('comments') or '').strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        last_name = cleaned.get('last_name') or ''
+        first_name = cleaned.get('first_name') or ''
+        qs = ContactPerson.objects.filter(
+            last_name__iexact=last_name,
+            first_name__iexact=first_name,
+        )
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError(
+                'A contact person with this last name and first name already exists.'
+            )
+        return cleaned
+
+
 class CostCenterForm(forms.ModelForm):
     class Meta:
         model = CostCenter
         fields = [
             'cost_center',
             'comments',
-            'third_party_funding_commitment',
-            'third_party_funder_identifier',
+            *PSP_COST_TYPE_FLAG_FIELDS,
         ]
         widgets = {
             'cost_center': forms.TextInput(attrs={'class': 'form-control'}),
             'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'third_party_funding_commitment': forms.ClearableFileInput(attrs={
-                'class': 'form-control',
-                'accept': '.pdf,.jpg,.jpeg,.png,.gif,.webp',
-            }),
-            'third_party_funder_identifier': forms.TextInput(attrs={'class': 'form-control'}),
+            **{
+                flag: forms.CheckboxInput(attrs={
+                    'class': 'form-check-input cost-type-flag',
+                    'data-cost-type': amount,
+                })
+                for flag, amount, *_rest in PSP_COST_TYPES
+            },
         }
         labels = {
             'cost_center': 'Cost center',
             'comments': 'Comments',
-            'third_party_funding_commitment': 'Third-party funding commitment',
-            'third_party_funder_identifier': 'Third-party funder identifier',
+            # Cost centers: no leading .1 / .2 numbers on checkbox labels.
+            **bilingual_cost_type_labels(include_code=False),
         }
         help_texts = {
             'cost_center': 'Unique cost center identifier (e.g. 4711/2026).',
             'comments': 'Optional notes.',
-            'third_party_funding_commitment': 'PDF or image file (optional).',
-            'third_party_funder_identifier': 'Identifier of the third-party funder (optional).',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if 'third_party_funding_commitment' in self.fields:
-            self.fields['third_party_funding_commitment'].max_length = 255
+        for flag in PSP_COST_TYPE_FLAG_FIELDS:
+            self.fields[flag].required = False
 
 
 class CostCenterYearEstimateForm(forms.ModelForm):
@@ -271,9 +340,7 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         fields = [
             'year',
             'lomv',
-            'consumables_estimate',
-            'travel_estimate',
-            'animal_costs_estimate',
+            *PSP_COST_TYPE_AMOUNT_FIELDS,
         ]
         widgets = {
             'year': forms.NumberInput(attrs={
@@ -288,38 +355,23 @@ class CostCenterYearEstimateForm(forms.ModelForm):
                 'min': '0',
                 'placeholder': '0.00',
             }),
-            'consumables_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'travel_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
-            'animal_costs_estimate': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00',
-            }),
+            **{amount: _AMOUNT_NUMBER_WIDGET for amount in PSP_COST_TYPE_AMOUNT_FIELDS},
         }
         labels = {
             'year': 'Year / period',
             'lomv': 'Lomv',
-            'consumables_estimate': 'Consumables estimate',
-            'travel_estimate': 'Travel estimate',
-            'animal_costs_estimate': 'Animal costs estimate',
+            **{
+                amount: de
+                for _flag, amount, _code, de, _en in PSP_COST_TYPES
+            },
         }
         help_texts = {
             'year': 'Calendar year for this estimate row.',
-            'lomv': 'Lomv amount (EUR). Replaces former initial balance.',
-            'consumables_estimate': 'Estimated consumables (EUR).',
-            'travel_estimate': 'Estimated travel costs (EUR).',
-            'animal_costs_estimate': 'Estimated animal costs (EUR).',
+            'lomv': 'Lomv amount (EUR). Always available (not tied to cost-type checkboxes).',
+            **{
+                amount: f'Estimated {en.lower()} (EUR).'
+                for _flag, amount, _code, _de, en in PSP_COST_TYPES
+            },
         }
 
     def clean(self):
@@ -327,14 +379,8 @@ class CostCenterYearEstimateForm(forms.ModelForm):
         if cleaned.get('DELETE'):
             return cleaned
         year = cleaned.get('year')
-        if year is None and not any(
-            cleaned.get(f) for f in (
-                'lomv',
-                'consumables_estimate',
-                'travel_estimate',
-                'animal_costs_estimate',
-            )
-        ):
+        amount_keys = ('lomv',) + PSP_COST_TYPE_AMOUNT_FIELDS
+        if year is None and not any(cleaned.get(f) for f in amount_keys):
             cleaned['DELETE'] = True
         return cleaned
 

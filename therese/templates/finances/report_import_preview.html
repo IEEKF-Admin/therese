@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}Import preview — Third-party Funding Reports{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1>Import preview</h1>
+        <p class="text-muted" style="margin:0.35rem 0 0;">
+            Reference year: <strong>{{ plan.import_year }}</strong>
+            · Snapshot date (true spending / obligo): <strong>{{ plan.snapshot_date }}</strong>
+        </p>
+    </div>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:third_party_funding_import' %}" class="btn-secondary">← Back to upload</a>
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">My Tasks</a>
+    </div>
+</div>
+
+{% if plan.global_warnings %}
+<div class="alert alert-warning" style="margin-bottom: 1rem;">
+    <strong>Warnings</strong>
+    <ul style="margin: 0.5rem 0 0 1.25rem;">
+        {% for w in plan.global_warnings %}
+        <li>{{ w }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% for f in plan.files %}
+<div class="form-card" style="margin-bottom: 1rem;">
+    <h3 style="margin-top:0;">{{ f.filename }}</h3>
+    <p class="text-muted" style="margin:0;">Report kind: {{ f.report_kind }}</p>
+    {% with meta=f.upload_meta %}
+    {% if meta %}
+    <p class="text-muted" style="margin:0.35rem 0 0; font-size:0.85rem;">
+        SHA-256: <code>{{ meta.file_sha256|slice:":16" }}…</code>
+        · size: {{ meta.file_size }} bytes
+        {% if meta.file_created_at %}
+        · document created: {{ meta.file_created_at|slice:":19" }}
+        {% endif %}
+        {% if meta.report_created_on %}
+        · report created on (content): {{ meta.report_created_on }}
+        {% endif %}
+        {% if meta.is_duplicate %}
+        <br><strong class="text-danger">Duplicate of a previously completed import.</strong>
+        {% endif %}
+    </p>
+    {% endif %}
+    {% endwith %}
+    {% if f.errors %}
+    <ul class="text-danger">
+        {% for e in f.errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if f.notes %}
+    <ul class="text-muted">
+        {% for n in f.notes %}<li>{{ n }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endfor %}
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if plan.requires_year_confirmation %}
+    <div class="form-card" style="margin-bottom: 1rem; border-left: 4px solid #ca8a04;">
+        <label class="checkbox-field" style="display:flex; gap:0.5rem; align-items:flex-start;">
+            <input type="checkbox" name="confirm_import_year">
+            <span>
+                I confirm that import year <strong>{{ plan.import_year }}</strong> is correct,
+                even though last booking dates after this year were found in the file(s).
+            </span>
+        </label>
+    </div>
+    {% endif %}
+
+    {% if plan.requires_snapshot_update_option %}
+    <div class="form-card" style="margin-bottom: 1rem; border-left: 4px solid #dc2626;">
+        <label class="checkbox-field" style="display:flex; gap:0.5rem; align-items:flex-start;">
+            <input type="checkbox" name="update_existing_snapshots">
+            <span>
+                <strong>Update existing snapshots</strong> for true spending / obligo that already
+                exist for {{ plan.snapshot_date }}. Without this option, commit is blocked for those PSP elements.
+            </span>
+        </label>
+    </div>
+    {% endif %}
+
+    {% for parent in plan.parents %}
+    <div class="form-card" style="margin-bottom: 1.5rem;">
+        <h3 style="margin-top:0;">
+            {{ parent.wbs_code }}
+            <span class="badge" style="font-size:0.75rem; margin-left:0.5rem;">
+                {% if parent.action == 'create' %}CREATE{% else %}UPDATE{% endif %}
+            </span>
+        </h3>
+        <p class="text-muted" style="margin-top:0;">Source: {{ parent.source_filename }}</p>
+
+        {% if parent.warnings %}
+        <ul class="text-warning">
+            {% for w in parent.warnings %}<li>{{ w }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if parent.needs_title %}
+        <div class="form-field">
+            <label for="title__{{ parent.wbs_code }}">Title for new PSP element (required)</label>
+            <input type="text" class="form-control" name="title__{{ parent.wbs_code }}"
+                   id="title__{{ parent.wbs_code }}" required
+                   placeholder="Enter PSP title">
+        </div>
+        {% else %}
+        <p><strong>Existing title (unchanged):</strong> {{ parent.existing_title }}</p>
+        {% endif %}
+
+        <table class="table" style="width:100%; margin: 1rem 0;">
+            <tbody>
+                <tr>
+                    <th style="width:40%;">Third-party funder identifier</th>
+                    <td>{{ parent.third_party_funder_identifier|default:"—" }}</td>
+                </tr>
+                <tr>
+                    <th>Period start / end</th>
+                    <td>{{ parent.period_start|default:"—" }} → {{ parent.period_end|default:"—" }}</td>
+                </tr>
+                <tr>
+                    <th>Contact</th>
+                    <td>
+                        {% if parent.contact_plan.last_name %}
+                            {{ parent.contact_plan.last_name }}{% if parent.contact_plan.first_name %}, {{ parent.contact_plan.first_name }}{% endif %}
+                            ({{ parent.contact_plan.action }})
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Cost center (file)</th>
+                    <td>
+                        {{ parent.cost_center.file_code|default:"—" }}
+                        {% if parent.cost_center.is_placeholder %}
+                            <em>(placeholder / invalid)</em>
+                        {% elif parent.cost_center.will_create %}
+                            <em>(will be created)</em>
+                        {% elif parent.cost_center.exists_in_db %}
+                            <em>
+                                → matched existing
+                                <code>{{ parent.cost_center.matched_code }}</code>
+                                {% if parent.cost_center.matched_via == 'prefix_stripped' %}
+                                    (prefix stripped)
+                                {% endif %}
+                            </em>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if parent.cost_center.needs_user_choice %}
+        <div class="form-field">
+            <label for="cost_center__{{ parent.wbs_code }}">Cost center (required)</label>
+            <select name="cost_center__{{ parent.wbs_code }}" id="cost_center__{{ parent.wbs_code }}"
+                    class="form-select" required>
+                <option value="">— Select cost center —</option>
+                {% for cc in cost_centers %}
+                <option value="{{ cc.pk }}"
+                    {% if parent.cost_center.suggested_pk == cc.pk %}selected{% endif %}>
+                    {{ cc.cost_center }}
+                </option>
+                {% endfor %}
+            </select>
+            <span class="helptext">
+                Suggested: the cost center already assigned to this PSP (if any).
+                You may choose another.
+            </span>
+        </div>
+        {% endif %}
+
+        {% if parent.field_diffs %}
+        <h4>Field updates</h4>
+        <table class="table" style="width:100%;">
+            <thead>
+                <tr><th>Field</th><th>Current</th><th>From file</th></tr>
+            </thead>
+            <tbody>
+                {% for d in parent.field_diffs %}
+                <tr>
+                    <td>{{ d.label }}</td>
+                    <td>{{ d.old|default:"—" }}</td>
+                    <td>{{ d.new }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <h4>Cost-type flags</h4>
+        <ul>
+            {% for f in parent.flags %}
+            <li>
+                {{ f.label }}
+                {% if f.already_set %}(already set){% else %}→ will be set{% endif %}
+            </li>
+            {% empty %}
+            <li>None</li>
+            {% endfor %}
+        </ul>
+
+        {% if parent.personnel_checks %}
+        <h4>Personalkosten checks (Kostenart 60003000)</h4>
+        <p class="text-muted" style="font-size:0.85rem;">
+            Latest Belegdatum per employee number. Compared:
+            monthly salary × true-cost multiplicator × allocation % vs Excel Personalkosten (±2.5%).
+            Match or “Adjust salary” sets <strong>Funding allocation → Import completed</strong>.
+            Unbekannte Personalnummern oder fehlende Funding Allocations <strong>blockieren den Import</strong>,
+            bis angelegt oder explizit ignoriert.
+        </p>
+        <table class="table" style="width:100%; font-size:0.85rem;">
+            <thead>
+                <tr>
+                    <th>Personalnr.</th>
+                    <th>Employee</th>
+                    <th class="text-right">Excel</th>
+                    <th class="text-right">Expected</th>
+                    <th class="text-right">Δ %</th>
+                    <th>Status</th>
+                    <th>Import completed (now)</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in parent.personnel_checks %}
+                <tr {% if check.requires_resolution %}style="background:#fff7ed;"{% endif %}>
+                    <td><code>{{ check.personalnummer }}</code></td>
+                    <td>{{ check.employee_name|default:"—" }}</td>
+                    <td class="text-right">{{ check.excel_amount }} €</td>
+                    <td class="text-right">{{ check.expected_amount|default:"—" }}{% if check.expected_amount %} €{% endif %}</td>
+                    <td class="text-right">{{ check.delta_pct|default:"—" }}{% if check.delta_pct %}%{% endif %}</td>
+                    <td>
+                        {% if check.status == 'match' %}
+                        <span style="color:#047857;">Match → will set Yes</span>
+                        {% elif check.status == 'mismatch' %}
+                        <span style="color:#b45309;">Mismatch</span>
+                        {% elif check.status == 'no_employee' %}
+                        <span style="color:#b91c1c;">Mitarbeiter fehlt</span>
+                        {% elif check.status == 'no_allocation' %}
+                        <span style="color:#b91c1c;">Funding Allocation fehlt</span>
+                        {% else %}
+                        <span class="text-muted">{{ check.status }}</span>
+                        {% endif %}
+                        <br><span class="text-muted" style="font-size:0.78rem;">{{ check.message }}</span>
+                    </td>
+                    <td>{% if check.import_completed_current %}Yes{% else %}No{% endif %}</td>
+                    <td>
+                        {% if check.status == 'mismatch' %}
+                        <select name="personnel_action__{{ check.decision_key }}" class="form-select form-select-sm">
+                            <option value="ignore">Ignore (keep import_completed as is)</option>
+                            <option value="adjust_salary">
+                                Adjust monthly salary to {{ check.suggested_monthly_salary }} € and set Yes
+                            </option>
+                        </select>
+                        {% elif check.status == 'match' %}
+                        <em>Auto</em>
+                        {% elif check.status == 'no_employee' %}
+                        <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:12rem;">
+                            <a class="btn-secondary"
+                               style="text-align:center; font-size:0.8rem; padding:0.35rem 0.5rem;"
+                               target="_blank" rel="noopener"
+                               href="{% url 'hr:employee_create' %}?employee_number={{ check.personalnummer|urlencode }}&amp;next={% url 'finances:third_party_funding_import_preview' %}">
+                                Den Mitarbeiter anlegen
+                            </a>
+                            <label style="display:flex; gap:0.35rem; align-items:flex-start; font-size:0.8rem; cursor:pointer;">
+                                <input type="checkbox"
+                                       name="personnel_action__{{ check.decision_key }}"
+                                       value="ignore">
+                                <span>Diesen Mitarbeiter ignorieren</span>
+                            </label>
+                        </div>
+                        {% elif check.status == 'no_allocation' and check.employee_pk %}
+                        <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:12rem;">
+                            <a class="btn-secondary"
+                               style="text-align:center; font-size:0.8rem; padding:0.35rem 0.5rem;"
+                               target="_blank" rel="noopener"
+                               href="{% url 'hr:employee_update' check.employee_pk %}?add_funding_wbs={{ parent.wbs_code|urlencode }}&amp;next={% url 'finances:third_party_funding_import_preview' %}#funding">
+                                Funding Allocation anlegen
+                            </a>
+                            <label style="display:flex; gap:0.35rem; align-items:flex-start; font-size:0.8rem; cursor:pointer;">
+                                <input type="checkbox"
+                                       name="personnel_action__{{ check.decision_key }}"
+                                       value="ignore">
+                                <span>Diesen Mitarbeiter ignorieren</span>
+                            </label>
+                        </div>
+                        {% else %}
+                        <em>—</em>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <h4>
+            Lifetime plan (Freigegebenes Budget → overwrite)
+            {% if parent.year_estimate.action == 'update' %}
+            <em>— update existing row</em>
+            {% else %}
+            <em>— create single row</em>
+            {% endif %}
+        </h4>
+        <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
+            Non-annual project: amounts cover the <strong>full PSP runtime</strong>,
+            not only calendar year {{ plan.import_year }}.
+            Technical year key: {{ parent.year_estimate.year }}
+            {% if parent.year_estimate.existing_count > 1 %}
+            · <strong class="text-warning">{{ parent.year_estimate.existing_count }} estimate rows exist; only one will be updated</strong>
+            {% endif %}
+        </p>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead>
+                <tr><th>Field</th><th>New value</th></tr>
+            </thead>
+            <tbody>
+                {% for field, value in parent.year_estimate.amounts.items %}
+                <tr>
+                    <td><code>{{ field }}</code></td>
+                    <td>{{ value|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>True yearly spending (Verfügt) · {{ plan.snapshot_date }}
+            {% if parent.true_spending.exists %}<em class="text-danger">— exists</em>{% endif %}
+        </h4>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for field, value in parent.true_spending.amounts.items %}
+                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>Obligo · {{ plan.snapshot_date }}
+            {% if parent.obligo.exists %}<em class="text-danger">— exists</em>{% endif %}
+        </h4>
+        <table class="table" style="width:100%; font-size:0.9rem;">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for field, value in parent.obligo.amounts.items %}
+                <tr><td><code>{{ field }}</code></td><td>{{ value|default:"—" }}</td></tr>
+                {% endfor %}
+                <tr>
+                    <td><code>personal</code> (Personalobligo)</td>
+                    <td>{{ parent.obligo.personal|default:"—" }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if parent.year_plausibility_warning %}
+        <p class="text-warning">
+            Last booking year(s) after import year:
+            {{ parent.booking_years_after_import_year|join:", " }}
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if plan.requires_personnel_resolution %}
+    <div class="alert alert-warning" style="margin-bottom: 1rem;">
+        <strong>Personalkosten blockieren den Import.</strong>
+        Lege fehlende Mitarbeiter bzw. Funding Allocations an (Links öffnen in neuem Tab),
+        dann „Status neu prüfen“ — oder setze „Diesen Mitarbeiter ignorieren“ für Buchungsfehler.
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom: 2rem;">
+        <button type="submit" name="action" value="commit" class="btn-primary">
+            Confirm and import
+        </button>
+        <button type="submit" name="action" value="refresh_personnel" class="btn-secondary"
+                formnovalidate>
+            Status neu prüfen
+        </button>
+        <button type="submit" name="action" value="cancel" class="btn-secondary"
+                formnovalidate>
+            Cancel
+        </button>
+    </div>
+</form>
+{% endblock %}

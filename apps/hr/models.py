@@ -165,12 +165,6 @@ class Employee(BaseModel):
         related_name='employees',
         verbose_name="Cost Center"
     )
-
-    class Meta:
-        verbose_name = "Employee"
-        verbose_name_plural = "Employees"
-        ordering = ['last_name', 'first_name']
-    
     website = models.URLField(blank=True, verbose_name="Website")
 
     class Meta:
@@ -428,6 +422,15 @@ class FundingAllocation(BaseModel):
     )
     
     comments = models.TextField(blank=True, verbose_name="Comments")
+    # Marked by import when payroll/admin data for this allocation is confirmed.
+    import_completed = models.BooleanField(
+        default=False,
+        verbose_name="Import completed",
+        help_text=(
+            "True when imported data confirms the administration process "
+            "for this funding allocation is complete."
+        ),
+    )
 
     class Meta:
         verbose_name = "Funding Allocation"

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:contact_person_create' %}" class="btn-primary">+ New contact person</a>
+        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">View list</a>
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
+    </div>
+</div>
+
+<form method="get" class="filter-form" style="margin-bottom: 1.25rem;">
+    <div class="form-row" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+        <div>
+            <label for="id_q">Search</label>
+            <input type="search" name="q" id="id_q" class="form-control"
+                   value="{{ search_query }}" placeholder="Name, area, phone, email…"
+                   style="min-width: 16rem;">
+        </div>
+        <div>
+            <button type="submit" class="btn-primary">Search</button>
+            {% if search_query %}
+            <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<form method="post" id="bulk-delete-form" class="list-panel form-card">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
+                </th>
+                <th>Last name</th>
+                <th>First name</th>
+                <th>Business area</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Comments</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in contact_persons %}
+            <tr>
+                <td class="table-checkbox-col">
+                    <input type="checkbox" name="selected_ids" value="{{ person.pk }}">
+                </td>
+                <td>{{ person.last_name }}</td>
+                <td>{{ person.first_name|default:"—" }}</td>
+                <td>{{ person.business_area|default:"—" }}</td>
+                <td>{{ person.phone|default:"—" }}</td>
+                <td>
+                    {% if person.email %}
+                    <a href="mailto:{{ person.email }}">{{ person.email }}</a>
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+                <td>{{ person.comments|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'finances:contact_person_update' person.pk %}"
+                       class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'finances:contact_person_delete' person.pk %}"
+                       class="action-icon delete"
+                       onclick="return confirm('Delete this contact person?');"
+                       title="Delete"><i class="fas fa-trash-alt"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-muted">No contact persons found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if contact_persons %}
+    <div class="table-bulk-actions">
+        <button type="submit" class="btn-subtle"
+                onclick="return confirm('Delete selected contact persons?');">
+            Delete selected
+        </button>
+        <small>Linked PSP elements and cost centers keep their other data; the contact link is cleared.</small>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

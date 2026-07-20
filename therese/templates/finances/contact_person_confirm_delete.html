@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Contact Person - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Delete contact person</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 32rem;">
+    <p>
+        Do you really want to delete
+        <strong>{{ object }}</strong>?
+    </p>
+    <p class="text-muted" style="font-size:0.9rem;">
+        PSP elements and cost centers that reference this contact will keep their other data;
+        the contact person link will be cleared.
+    </p>
+    <form method="post" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Delete</button>
+        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

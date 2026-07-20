@@ -13,6 +13,13 @@ Do not remove any existing requirements from this package without explicit instr
 """
 
 from .ajax import ajax_payscale_levels
+from .contact_person_crud import (
+    ContactPersonCreateView,
+    ContactPersonDeleteView,
+    ContactPersonListView,
+    ContactPersonManageListView,
+    ContactPersonUpdateView,
+)
 from .cost_center_crud import (
     CostCenterCreateView,
     CostCenterDeleteView,
@@ -21,15 +28,22 @@ from .cost_center_crud import (
 )
 from .imports import import_cost_centers, import_pay_scales, import_wbs_elements
 from .psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
-from .psp_overview import calculate_funding_cost, psp_elements
+from .psp_overview import calculate_funding_cost, psp_elements, psp_personnel_detail
+from .report_import import (
+    third_party_funding_import,
+    third_party_funding_import_preview,
+)
 
 __all__ = [
     'import_cost_centers',
     'import_wbs_elements',
     'import_pay_scales',
+    'third_party_funding_import',
+    'third_party_funding_import_preview',
     'ajax_payscale_levels',
     'calculate_funding_cost',
     'psp_elements',
+    'psp_personnel_detail',
     'PSPListView',
     'PSPCreateView',
     'PSPUpdateView',
@@ -38,4 +52,9 @@ __all__ = [
     'CostCenterCreateView',
     'CostCenterUpdateView',
     'CostCenterDeleteView',
+    'ContactPersonListView',
+    'ContactPersonManageListView',
+    'ContactPersonCreateView',
+    'ContactPersonUpdateView',
+    'ContactPersonDeleteView',
 ]

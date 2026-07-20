@@ -16,7 +16,6 @@ from .models import (
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
 from .forms import (
-    PurchaseOrderTaskForm,
     RecruitmentFundingAllocationForm,
     ReallocationFundingAllocationForm,
 )
@@ -44,24 +43,142 @@ class TaskAttachmentInline(admin.TabularInline):
     readonly_fields = ['uploaded_by', 'created_at']
 
 
+class PurchaseOrderTaskAdminForm(forms.ModelForm):
+    """
+    Admin-only form for purchase orders.
+
+    Do not reuse the frontend PurchaseOrderTaskForm here — that form pops
+    fields (e.g. quote_file) based on role/creation mode and breaks admin
+    fieldsets with KeyError.
+    """
+
+    class Meta:
+        model = PurchaseOrderTask
+        fields = [
+            'title',
+            'creator',
+            'supplier',
+            'is_quote_order',
+            'quote_file',
+            'wbs_element',
+            'at_beleg_nummer',
+            'kostenart',
+            'referenzbeleg_nr',
+            'einkaufsbeleg_nr',
+            'v_kurztext',
+            'v_buchungsdatum',
+            'v_belegdatum',
+            'v_istkosten',
+            'import_completed',
+            'priority',
+            'status',
+            'assignee',
+        ]
+        widgets = {
+            'quote_file': forms.ClearableFileInput(attrs={'accept': '.pdf,application/pdf'}),
+        }
+
+
 # = Admin Classes =
 @admin.register(PurchaseOrderTask, site=therese_admin)
 class PurchaseOrderTaskAdmin(admin.ModelAdmin):
-    form = PurchaseOrderTaskForm
+    form = PurchaseOrderTaskAdminForm
     inlines = [PurchaseItemInline, TaskCommentInline, TaskAttachmentInline]
-    
-    list_display = ['supplier', 'is_quote_order', 'wbs_element', 'status', 'priority', 'assignee', 'created_at']
-    list_filter = ['status', 'priority', 'created_at']
-    search_fields = ['supplier', 'wbs_element__wbs_code']
-    readonly_fields = ['creator', 'last_status_change', 'last_changed_by']
+
+    list_display = [
+        'supplier',
+        'is_quote_order',
+        'wbs_element',
+        'status',
+        'priority',
+        'assignee',
+        'kostenart',
+        'einkaufsbeleg_nr',
+        'import_completed',
+        'created_at',
+    ]
+    list_filter = [
+        'status', 'priority', 'is_quote_order', 'import_completed', 'created_at', 'kostenart',
+    ]
+    search_fields = [
+        'supplier',
+        'wbs_element__wbs_code',
+        'at_beleg_nummer',
+        'referenzbeleg_nr',
+        'einkaufsbeleg_nr',
+        'v_kurztext',
+    ]
+    readonly_fields = [
+        'task_number',
+        'last_status_change',
+        'last_changed_by',
+        'created_at',
+        'updated_at',
+    ]
+    autocomplete_fields = ['wbs_element', 'assignee', 'creator']
+    fieldsets = (
+        (None, {
+            'fields': (
+                'title',
+                'task_number',
+                'creator',
+                'supplier',
+                'is_quote_order',
+                'quote_file',
+                'wbs_element',
+                'priority',
+                'status',
+                'assignee',
+            ),
+        }),
+        ('Document numbers', {
+            'fields': (
+                'at_beleg_nummer',
+                'referenzbeleg_nr',
+                'einkaufsbeleg_nr',
+            ),
+        }),
+        ('SAP / posting', {
+            'fields': (
+                'kostenart',
+                'v_kurztext',
+                'v_buchungsdatum',
+                'v_belegdatum',
+                'v_istkosten',
+            ),
+        }),
+        ('Import status', {
+            'fields': ('import_completed',),
+            'description': (
+                'Set when imported data confirms the administration process '
+                'for this purchase order is complete.'
+            ),
+        }),
+        ('Audit', {
+            'fields': (
+                'last_status_change',
+                'last_changed_by',
+                'created_at',
+                'updated_at',
+            ),
+        }),
+    )
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         # Hide WBS field unless user has change_wbs_on_purchase_order permission
-        if not (request.user.is_superuser or request.user.has_perm('tasks.change_wbs_on_purchase_order')):
+        if 'wbs_element' in form.base_fields and not (
+            request.user.is_superuser
+            or request.user.has_perm('tasks.change_wbs_on_purchase_order')
+        ):
             form.base_fields['wbs_element'].widget = forms.HiddenInput()
             form.base_fields['wbs_element'].required = False
         return form
+
+    def save_model(self, request, obj, form, change):
+        if not obj.task_type:
+            obj.task_type = 'purchase_order'
+        super().save_model(request, obj, form, change)
 
 
 class ReallocationFundingInline(admin.TabularInline):

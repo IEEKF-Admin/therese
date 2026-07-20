@@ -12,6 +12,7 @@ Features / Requirements:
 Do not remove any existing requirements from this header without explicit instruction.
 """
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -23,6 +24,109 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class DataImportLog(BaseModel):
+    """
+    Audit log for data imports of any kind (Excel, paste tables, …).
+
+    Stores who uploaded what and when, plus a content hash to detect accidental
+    re-imports of the same file.
+    """
+
+    class Kind(models.TextChoices):
+        THIRD_PARTY_FUNDING_REPORT = (
+            'third_party_funding_report',
+            'Third-party funding report',
+        )
+        PAY_SCALE = 'pay_scale', 'Pay scale / TV-L'
+        COST_CENTER_PASTE = 'cost_center_paste', 'Cost center paste import'
+        WBS_PASTE = 'wbs_paste', 'WBS element paste import'
+        OTHER = 'other', 'Other'
+
+    class Status(models.TextChoices):
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+        REJECTED_DUPLICATE = 'rejected_duplicate', 'Rejected (duplicate file)'
+
+    kind = models.CharField(
+        max_length=64,
+        choices=Kind.choices,
+        verbose_name='Import kind',
+        db_index=True,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='data_imports',
+        verbose_name='Uploaded by',
+    )
+    original_filename = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Original filename',
+        help_text='Client filename; may be long.',
+    )
+    file_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='File SHA-256',
+        help_text='Hex digest of the uploaded content (empty for paste-only imports).',
+    )
+    file_size = models.PositiveBigIntegerField(
+        default=0,
+        verbose_name='File size (bytes)',
+    )
+    # From OOXML package metadata (docProps/core.xml) when available
+    file_created_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Document created at',
+        help_text='Creation timestamp from Excel/OOXML core properties, if present.',
+    )
+    file_modified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Document modified at',
+        help_text='Last-modified timestamp from Excel/OOXML core properties, if present.',
+    )
+    # From report sheet content (e.g. "angelegt am" on Übersicht)
+    report_created_on = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Report created on',
+        help_text='Business report creation date from file content (e.g. angelegt am).',
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=Status.choices,
+        default=Status.COMPLETED,
+        verbose_name='Status',
+        db_index=True,
+    )
+    summary = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Summary',
+    )
+
+    class Meta:
+        verbose_name = 'Data import log'
+        verbose_name_plural = 'Data import logs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['kind', 'file_sha256']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+
+    def __str__(self):
+        name = self.original_filename or '(no file)'
+        return f'{self.get_kind_display()}: {name} ({self.created_at:%Y-%m-%d %H:%M})'
 
 
 class StoredFile(BaseModel):

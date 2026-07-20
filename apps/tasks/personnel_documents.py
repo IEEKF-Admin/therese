@@ -150,22 +150,7 @@ def _recruitment_documents(task):
                 last_name=last_name,
                 task=task,
             )
-        elif allocation.cost_center_id:
-            source_key = f'cc:{allocation.cost_center_id}'
-            if source_key in seen_source_keys:
-                continue
-            seen_source_keys.add(source_key)
-            cost_center = allocation.cost_center
-            category = f'Drittmittelzusage {cost_center.cost_center}'
-            _add_file_document(
-                documents,
-                key=f'cc_{cost_center.pk}',
-                label=category,
-                file_field=cost_center.third_party_funding_commitment,
-                prefix=prefix,
-                last_name=last_name,
-                task=task,
-            )
+        # Cost centers no longer store third-party funding commitment files.
 
     return documents
 
@@ -194,21 +179,7 @@ def _reallocation_documents(task):
                     last_name=last_name,
                     task=task,
                 )
-        cost_center = allocation.cost_center
-        if cost_center and cost_center.third_party_funding_commitment:
-            key = f'cc_{cost_center.pk}'
-            if key not in seen_keys:
-                seen_keys.add(key)
-                category = f'Drittmittelzusage {cost_center.cost_center}'
-                _add_file_document(
-                    documents,
-                    key=key,
-                    label=category,
-                    file_field=cost_center.third_party_funding_commitment,
-                    prefix=prefix,
-                    last_name=last_name,
-                    task=task,
-                )
+        # Cost centers no longer store third-party funding commitment files.
     return documents
 
 

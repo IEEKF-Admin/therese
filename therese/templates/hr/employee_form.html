@@ -200,6 +200,9 @@
 
 <form method="post" enctype="multipart/form-data" class="employee-form">
     {% csrf_token %}
+    {% if next_url %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {% endif %}
 
     {% include "hr/employee_form/base.html" %}
 </form>

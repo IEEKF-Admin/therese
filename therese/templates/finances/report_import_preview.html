@@ -57,7 +57,19 @@
         <span class="text-muted">(heuristic from Personalkosten)</span>
         {% endif %}
         {% if meta.is_duplicate %}
-        <br><strong class="text-danger">Duplicate of a previously completed import.</strong>
+        <br><strong class="text-danger">
+            Duplicate for the selected import areas
+            {% if meta.scopes_already_imported %}
+            (already done: {{ meta.scopes_already_imported|join:", " }})
+            {% endif %}
+            — commit blocked.
+        </strong>
+        {% elif meta.scopes_already_imported %}
+        <br><strong class="text-muted">
+            Already imported for: {{ meta.scopes_already_imported|join:", " }}.
+            This run applies remaining selected areas:
+            {% if meta.scopes_remaining %}{{ meta.scopes_remaining|join:", " }}{% else %}—{% endif %}.
+        </strong>
         {% endif %}
     </p>
     {% endif %}

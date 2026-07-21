@@ -12,11 +12,18 @@ from openpyxl import Workbook
 from apps.core.import_tracking import (
     extract_xlsx_document_timestamps,
     find_completed_import_by_hash,
+    parse_scopes_from_import_summary,
     record_data_import,
+    remaining_scopes_for_hash,
     sha256_bytes,
 )
 from apps.core.models import DataImportLog
-from apps.finances.report_import.service import analyze_uploaded_files, apply_import_plan
+from apps.finances.report_import.service import (
+    SCOPE_PERSONNEL,
+    SCOPE_PSP,
+    analyze_uploaded_files,
+    apply_import_plan,
+)
 
 
 User = get_user_model()
@@ -91,7 +98,7 @@ class ImportTrackingHelpersTests(TestCase):
         self.assertEqual(created.month, 7)
         self.assertEqual(created.day, 16)
 
-    def test_duplicate_detection_blocks_second_import(self):
+    def test_duplicate_detection_blocks_same_scopes_again(self):
         user = User.objects.create_user('importer', password='test')
         content = _minimal_xlsx_with_core_props('2026-07-16T12:05:28Z')
         digest = sha256_bytes(content)
@@ -102,7 +109,7 @@ class ImportTrackingHelpersTests(TestCase):
             file_sha256=digest,
             file_size=len(content),
             status=DataImportLog.Status.COMPLETED,
-            summary='first',
+            summary='scopes=psp,personnel; year=2026',
         )
         prior = find_completed_import_by_hash(
             DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT, digest
@@ -110,9 +117,56 @@ class ImportTrackingHelpersTests(TestCase):
         self.assertIsNotNone(prior)
 
         upload = SimpleUploadedFile('report.xlsx', content)
-        plan = analyze_uploaded_files([upload], import_year=2026)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={SCOPE_PSP: True, SCOPE_PERSONNEL: True},
+        )
         self.assertTrue(plan['has_duplicate_files'])
         self.assertTrue(plan['has_blocking_errors'])
+
+    def test_same_file_allowed_for_remaining_scope(self):
+        user = User.objects.create_user('importer-partial', password='test')
+        content = _minimal_xlsx_with_core_props('2026-07-16T12:05:28Z')
+        digest = sha256_bytes(content)
+        record_data_import(
+            kind=DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            uploaded_by=user,
+            original_filename='report.xlsx',
+            file_sha256=digest,
+            file_size=len(content),
+            status=DataImportLog.Status.COMPLETED,
+            summary='scopes=psp; year=2026',
+        )
+        already, remaining, requested = remaining_scopes_for_hash(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            digest,
+            {SCOPE_PSP: True, SCOPE_PERSONNEL: True},
+        )
+        self.assertEqual(already, {SCOPE_PSP})
+        self.assertEqual(remaining, {SCOPE_PERSONNEL})
+
+        upload = SimpleUploadedFile('report.xlsx', content)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={SCOPE_PSP: True, SCOPE_PERSONNEL: True},
+        )
+        self.assertFalse(plan['has_duplicate_files'])
+        self.assertFalse(plan['has_blocking_errors'])
+        meta = plan['upload_meta'][0]
+        self.assertEqual(meta['scopes_already_imported'], ['psp'])
+        self.assertEqual(meta['scopes_remaining'], ['personnel'])
+
+    def test_parse_scopes_from_summary(self):
+        self.assertEqual(
+            parse_scopes_from_import_summary('scopes=psp; year=2026'),
+            {'psp'},
+        )
+        self.assertEqual(
+            parse_scopes_from_import_summary('legacy without scopes'),
+            {'psp', 'personnel'},
+        )
 
     def test_successful_import_writes_log(self):
         user = User.objects.create_user('importer2', password='test')

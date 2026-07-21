@@ -102,6 +102,76 @@ def find_completed_import_by_hash(kind: str, file_sha256: str) -> DataImportLog 
     )
 
 
+def find_completed_imports_by_hash(kind: str, file_sha256: str):
+    """All completed imports of this kind with the same file hash (newest first)."""
+    if not file_sha256:
+        return DataImportLog.objects.none()
+    return (
+        DataImportLog.objects.filter(
+            kind=kind,
+            file_sha256=file_sha256,
+            status=DataImportLog.Status.COMPLETED,
+        )
+        .select_related('uploaded_by')
+        .order_by('-created_at')
+    )
+
+
+# Known scope keys written into DataImportLog.summary as scopes=psp,personnel
+_SCOPE_KEYS = frozenset({'psp', 'personnel', 'orders'})
+
+
+def parse_scopes_from_import_summary(summary: str) -> set[str]:
+    """
+    Parse ``scopes=psp,personnel`` from a DataImportLog.summary string.
+
+    Legacy logs without an explicit scopes= segment are treated as a full
+    import of PSP + personnel (orders never auto-enabled).
+    """
+    text = (summary or '').strip()
+    if not text:
+        return {'psp', 'personnel'}
+    for part in text.split(';'):
+        part = part.strip()
+        if part.lower().startswith('scopes='):
+            val = part.split('=', 1)[1].strip()
+            if not val or val.lower() == 'none':
+                return set()
+            return {s.strip() for s in val.split(',') if s.strip() in _SCOPE_KEYS}
+    # Older completed logs: assume both main scopes were imported
+    return {'psp', 'personnel'}
+
+
+def scopes_already_imported_for_hash(kind: str, file_sha256: str) -> set[str]:
+    """Union of scopes already successfully imported for this file content hash."""
+    already: set[str] = set()
+    for log in find_completed_imports_by_hash(kind, file_sha256):
+        already |= parse_scopes_from_import_summary(log.summary)
+    return already
+
+
+def remaining_scopes_for_hash(
+    kind: str,
+    file_sha256: str,
+    requested_scopes: set[str] | dict[str, bool] | None,
+) -> tuple[set[str], set[str], set[str]]:
+    """
+    Compare requested scopes against prior completed imports of the same file.
+
+    Returns ``(already, remaining, requested)`` as sets of scope names.
+    """
+    if isinstance(requested_scopes, dict):
+        requested = {k for k, v in requested_scopes.items() if v and k in _SCOPE_KEYS}
+    elif requested_scopes is None:
+        requested = {'psp', 'personnel'}
+    else:
+        requested = {s for s in requested_scopes if s in _SCOPE_KEYS}
+
+    already = scopes_already_imported_for_hash(kind, file_sha256)
+    remaining = requested - already
+    return already & requested, remaining, requested
+
+
 def record_data_import(
     *,
     kind: str,

@@ -16,7 +16,10 @@ from django.db import transaction
 from apps.core.import_tracking import (
     extract_xlsx_document_timestamps,
     find_completed_import_by_hash,
+    parse_scopes_from_import_summary,
     record_data_import,
+    remaining_scopes_for_hash,
+    scopes_already_imported_for_hash,
     sha256_bytes,
 )
 from apps.core.models import DataImportLog
@@ -232,6 +235,12 @@ def analyze_uploaded_files(
 
         file_hash = sha256_bytes(raw)
         file_created_at, file_modified_at = extract_xlsx_document_timestamps(raw)
+        already_scopes, remaining_scopes, requested_scopes = remaining_scopes_for_hash(
+            kind, file_hash, scopes,
+        )
+        # Full duplicate only when every selected scope was already imported
+        # for this file hash (same bytes may be re-used for a new scope).
+        is_duplicate = bool(requested_scopes) and not remaining_scopes
         prior = find_completed_import_by_hash(kind, file_hash)
         meta = {
             'filename': filename,
@@ -239,7 +248,9 @@ def analyze_uploaded_files(
             'file_size': len(raw),
             'file_created_at': file_created_at.isoformat() if file_created_at else None,
             'file_modified_at': file_modified_at.isoformat() if file_modified_at else None,
-            'is_duplicate': prior is not None,
+            'is_duplicate': is_duplicate,
+            'scopes_already_imported': sorted(already_scopes),
+            'scopes_remaining': sorted(remaining_scopes),
             'prior_import': None,
         }
         if prior:
@@ -250,6 +261,7 @@ def analyze_uploaded_files(
                     str(prior.uploaded_by) if prior.uploaded_by_id else 'unknown'
                 ),
                 'original_filename': prior.original_filename,
+                'scopes': sorted(parse_scopes_from_import_summary(prior.summary)),
             }
 
         parsed = detect_and_parse(raw, filename)
@@ -387,10 +399,24 @@ def analyze_uploaded_files(
     if duplicate_files:
         names = ', '.join(m['filename'] for m in duplicate_files)
         global_warnings.append(
-            f'Duplicate file content detected (already imported successfully): {names}. '
-            'Commit is blocked to prevent accidental re-import of the same file.'
+            f'Duplicate file content for the selected import areas: {names}. '
+            'These scope(s) were already imported successfully for this file. '
+            'Commit is blocked — choose remaining areas (if any) or a different file.'
         )
         has_blocking_errors = True
+
+    # Partial re-upload: same file, new scope(s) still open
+    partial_reuploads = [
+        m for m in upload_meta
+        if not m.get('is_duplicate') and m.get('scopes_already_imported')
+    ]
+    for meta in partial_reuploads:
+        already = ', '.join(meta.get('scopes_already_imported') or []) or '—'
+        remaining = ', '.join(meta.get('scopes_remaining') or []) or '—'
+        global_warnings.append(
+            f'File "{meta.get("filename")}" was already imported for: {already}. '
+            f'This run will only apply remaining selected areas: {remaining}.'
+        )
 
     if scopes[SCOPE_PSP] and not plan_parents and not has_blocking_errors:
         # No parents from Übersicht — only relevant when PSP scope is selected
@@ -841,19 +867,41 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
     do_psp = scope_enabled(plan, SCOPE_PSP)
     do_personnel = scope_enabled(plan, SCOPE_PERSONNEL)
 
-    # Block accidental re-import of the same file bytes
+    # Scope-aware duplicate check: same file bytes may be re-imported only for
+    # scopes not yet completed for that hash.
+    effective_scopes = dict(plan['import_scopes'])
     for meta in plan.get('upload_meta') or []:
         file_hash = meta.get('file_sha256') or ''
         if not file_hash:
             continue
-        prior = find_completed_import_by_hash(kind, file_hash)
-        if prior:
-            raise ValueError(
-                f'File "{meta.get("filename")}" was already imported on '
-                f'{prior.created_at:%Y-%m-%d %H:%M} by '
-                f'{prior.uploaded_by or "unknown"} '
-                f'(SHA-256 {file_hash[:12]}…). Re-import blocked.'
+        already, remaining, requested = remaining_scopes_for_hash(
+            kind, file_hash, effective_scopes,
+        )
+        if requested and not remaining:
+            prior = find_completed_import_by_hash(kind, file_hash)
+            when = (
+                f'{prior.created_at:%Y-%m-%d %H:%M}' if prior else 'earlier'
             )
+            who = (str(prior.uploaded_by) if prior and prior.uploaded_by_id else 'unknown')
+            raise ValueError(
+                f'File "{meta.get("filename")}" was already imported for the '
+                f'selected areas ({", ".join(sorted(requested)) or "—"}) '
+                f'on {when} by {who} (SHA-256 {file_hash[:12]}…). '
+                f'Re-import blocked for those scopes.'
+            )
+        # Drop already-imported scopes from this run (apply only remaining)
+        for scope_name in already:
+            effective_scopes[scope_name] = False
+
+    plan['import_scopes'] = effective_scopes
+    do_psp = scope_enabled(plan, SCOPE_PSP)
+    do_personnel = scope_enabled(plan, SCOPE_PERSONNEL)
+
+    if not do_psp and not do_personnel:
+        raise ValueError(
+            'Nothing left to import: all selected areas were already imported '
+            'for this file content.'
+        )
 
     summary = {
         'psp_created': 0,

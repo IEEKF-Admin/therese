@@ -34,13 +34,15 @@ class PersonnelMatchTests(TestCase):
             first_name='Kerstin',
             last_name='Hallmann',
         )
-        Contract.objects.create(
+        self.contract = Contract.objects.create(
             employee=self.employee,
             valid_from=date(2025, 1, 1),
             weekly_hours=Decimal('39.00'),
             monthly_salary=Decimal('4000.00'),
+            is_active=True,
         )
         self.alloc = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.employee,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('50.00'),
@@ -156,14 +158,16 @@ class PersonnelMatchTests(TestCase):
             first_name='Max',
             last_name='Mustermann',
         )
-        Contract.objects.create(
+        c2 = Contract.objects.create(
             employee=emp2,
             valid_from=date(2025, 1, 1),
             weekly_hours=Decimal('39.00'),
             monthly_salary=Decimal('3000.00'),
+            is_active=True,
         )
         # FA only on other WBS — not the imported parent
         FundingAllocation.objects.create(
+            contract=c2,
             employee=emp2,
             wbs_element=other_wbs,
             workhours_percentage=Decimal('100.00'),

@@ -486,6 +486,160 @@ input[readonly].form-control {
     border: 1px solid #e2e8f0;
 }
 
+/* Contract cards with nested funding allocations */
+.contracts-section .contract-archive-toolbar {
+    margin: 0.5rem 0 1rem;
+}
+
+.contract-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.contract-card.is-archived {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.contract-card.is-hidden-archive {
+    display: none !important;
+}
+
+.contract-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.contract-card.is-archived .contract-card-header {
+    background: #d1d5db;
+}
+
+.contract-card-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--primary, #1e3a5f);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-active {
+    background: #dcfce7;
+    color: #166534;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+}
+
+.badge-archived {
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid #9ca3af;
+}
+
+.contract-card-body {
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.contract-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.contract-fields-grid .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.funding-block {
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 1rem;
+}
+
+.funding-block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.funding-block-header h5 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.funding-active-grid,
+.funding-readonly-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+}
+
+@media (min-width: 900px) {
+    .funding-active-grid,
+    .funding-readonly-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.funding-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.75rem;
+}
+
+.funding-item .funding-item-top {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.funding-item .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.funding-item-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.funding-item.is-inactive {
+    background: #d1d5db;
+    border-color: #9ca3af;
+}
+
+.funding-archive-toolbar {
+    margin: 0.65rem 0 0.5rem;
+}
+
+.btn-add-funding {
+    margin-top: 0.35rem;
+}
+
 /* Employee form inline rows (contracts, funding, …) */
 .inline-form-row.contract-row,
 .inline-form-row.funding-row {

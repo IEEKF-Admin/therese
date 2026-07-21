@@ -202,10 +202,11 @@ class Employee(BaseModel):
 
         Pass exactly one of ``wbs_element`` or ``cost_center``.
         Winner = latest ``start_date`` among open rows (not future-started).
+        Only allocations on an active contract are considered for current lookups.
         """
         from apps.hr.validity import select_allocation_as_of
 
-        qs = self.allocations.all()
+        qs = self.allocations.filter(contract__is_active=True)
         if wbs_element is not None:
             qs = qs.filter(wbs_element=wbs_element, cost_center__isnull=True)
         elif cost_center is not None:
@@ -226,8 +227,8 @@ class Employee(BaseModel):
 
         as_of = resolve_as_of(as_of)
         open_rows = list(
-            self.allocations.filter(allocation_open_on_q(as_of))
-            .select_related('wbs_element', 'cost_center')
+            self.allocations.filter(allocation_open_on_q(as_of), contract__is_active=True)
+            .select_related('wbs_element', 'cost_center', 'contract')
             .order_by('-start_date', '-pk')
         )
         return dedupe_allocations_as_of(open_rows, as_of)
@@ -313,6 +314,21 @@ class Contract(BaseModel):
         # Auto-deactivate when end date is in the past (still allows manual No).
         from apps.hr.validity import apply_past_end_deactivation
         apply_past_end_deactivation(self, end_attr='valid_until')
+        # At most one active contract per employee.
+        if self.is_active and self.employee_id:
+            others = Contract.objects.filter(
+                employee_id=self.employee_id,
+                is_active=True,
+            )
+            if self.pk:
+                others = others.exclude(pk=self.pk)
+            if others.exists():
+                raise ValidationError({
+                    'is_active': (
+                        'Only one active contract is allowed per employee. '
+                        'Deactivate the other contract first.'
+                    ),
+                })
         # When both payscale fields are set, store the TV-L monthly salary.
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
@@ -330,7 +346,22 @@ class Contract(BaseModel):
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        was_active = True
+        if self.pk:
+            was_active = (
+                Contract.objects.filter(pk=self.pk)
+                .values_list('is_active', flat=True)
+                .first()
+            )
+            if was_active is None:
+                was_active = True
         super().save(*args, **kwargs)
+        # Expired / inactive contract → all its funding allocations inactive.
+        if not self.is_active:
+            self.funding_allocations.filter(is_active=True).update(is_active=False)
+        elif was_active is False and self.is_active:
+            # Re-activated contract does not auto-reactivate FAs (manual).
+            pass
 
     def get_monthly_salary(self):
         """Resolved monthly salary for this contract (stored value, with payscale fallback)."""
@@ -362,6 +393,17 @@ class Contract(BaseModel):
             return None
         multiplicator = GlobalSetting.get_true_cost_multiplicator()
         return (Decimal(salary) * Decimal(multiplicator)).quantize(Decimal('0.01'))
+
+    def active_funding_percentage_total(self):
+        """Sum of workhours % of active funding allocations on this contract."""
+        from decimal import Decimal
+
+        total = Decimal('0.00')
+        for pct in self.funding_allocations.filter(is_active=True).values_list(
+            'workhours_percentage', flat=True
+        ):
+            total += Decimal(pct or 0)
+        return total.quantize(Decimal('0.01'))
 
     def __str__(self):
         return f"Contract for {self.employee} from {self.valid_from} ({self.weekly_hours} hours)"
@@ -430,14 +472,24 @@ class EmployeeDocumentVersion(BaseModel):
 
 
 class FundingAllocation(BaseModel):
-    """Percentage-based funding allocation for an employee on a WBS / cost center."""
+    """Percentage-based funding allocation for an employee on a WBS / cost center.
+
+    Always belongs to exactly one Contract. ``employee`` is kept in sync with
+    ``contract.employee`` for efficient filtering.
+    """
+    contract = models.ForeignKey(
+        'Contract',
+        on_delete=models.CASCADE,
+        related_name='funding_allocations',
+        verbose_name="Contract",
+    )
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
         related_name='allocations',
-        verbose_name="Employee"
+        verbose_name="Employee",
     )
-    
+
     wbs_element = models.ForeignKey(
         WBSElement,
         on_delete=models.PROTECT,
@@ -541,9 +593,25 @@ class FundingAllocation(BaseModel):
             })
         from apps.hr.validity import apply_past_end_deactivation
         apply_past_end_deactivation(self, end_attr='end_date')
+        # Sync employee from contract; force inactive if contract is inactive.
+        if self.contract_id:
+            contract = self.contract
+            self.employee_id = contract.employee_id
+            if not contract.is_active:
+                self.is_active = False
+        elif self.contract and getattr(self.contract, 'employee_id', None):
+            self.employee_id = self.contract.employee_id
+            if not self.contract.is_active:
+                self.is_active = False
 
     def save(self, *args, **kwargs):
         # Keep date order sane; soft overlap rule lives in validity helpers.
+        if self.contract_id or getattr(self, 'contract', None):
+            contract = self.contract
+            if contract is not None:
+                self.employee_id = contract.employee_id
+                if not contract.is_active:
+                    self.is_active = False
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -553,7 +621,11 @@ class FundingAllocation(BaseModel):
         from apps.hr.validity import select_allocation_as_of
 
         return select_allocation_as_of(
-            cls.objects.filter(employee=employee, wbs_element=wbs_element),
+            cls.objects.filter(
+                employee=employee,
+                wbs_element=wbs_element,
+                contract__is_active=True,
+            ),
             as_of,
         )
 

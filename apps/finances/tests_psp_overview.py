@@ -33,11 +33,12 @@ class CalculateFundingCostTests(TestCase):
             first_name='Ada',
             last_name='Lovelace',
         )
-        Contract.objects.create(
+        self.contract = Contract.objects.create(
             employee=self.employee,
             valid_from=date(2026, 1, 1),
             weekly_hours=Decimal('39.00'),
             monthly_salary=Decimal('1000.00'),
+            is_active=True,
         )
         self.cc = CostCenter.objects.create(cost_center='CC-PSP')
         self.wbs = WBSElement.objects.create(
@@ -48,6 +49,7 @@ class CalculateFundingCostTests(TestCase):
             has_material_costs=True,
         )
         self.alloc = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.employee,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('50.00'),
@@ -100,13 +102,15 @@ class BuildPspOverviewTests(TestCase):
             first_name='Grace',
             last_name='Hopper',
         )
-        Contract.objects.create(
+        contract = Contract.objects.create(
             employee=self.employee,
             valid_from=date(2026, 1, 1),
             weekly_hours=Decimal('39.00'),
             monthly_salary=Decimal('2000.00'),
+            is_active=True,
         )
         FundingAllocation.objects.create(
+            contract=contract,
             employee=self.employee,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('100.00'),

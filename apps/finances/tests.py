@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from io import BytesIO
 
 from django.contrib.auth.models import Group, Permission
@@ -27,7 +28,7 @@ from apps.finances.models import (
 )
 from apps.finances.psp_cost_types import PSP_COST_TYPE_AMOUNT_FIELDS
 from apps.finances.views.psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
-from apps.hr.models import Employee, FundingAllocation, Workgroup
+from apps.hr.models import Contract, Employee, FundingAllocation, Workgroup
 
 
 class WBSElementFormTests(TestCase):
@@ -448,7 +449,15 @@ class PSPManageAccessTests(TestCase):
             first_name='Alloc',
             last_name='User',
         )
+        contract = Contract.objects.create(
+            employee=allocation_employee,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2026, 1, 1),
+            is_active=True,
+        )
         FundingAllocation.objects.create(
+            contract=contract,
             employee=allocation_employee,
             wbs_element=self.psp_group_a,
             workhours_percentage='25.00',
@@ -468,7 +477,15 @@ class PSPManageAccessTests(TestCase):
             first_name='Alloc',
             last_name='Two',
         )
+        contract = Contract.objects.create(
+            employee=allocation_employee,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2026, 1, 1),
+            is_active=True,
+        )
         FundingAllocation.objects.create(
+            contract=contract,
             employee=allocation_employee,
             wbs_element=self.psp_group_a,
             workhours_percentage='15.00',

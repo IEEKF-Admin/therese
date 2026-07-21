@@ -17,11 +17,10 @@ from ...forms import EmployeeForm
 from ...models import Employee
 from ..employee_form_helpers import (
     ContractFormSet,
-    FundingFormSet,
     SalaryFormSet,
     WorkgroupFormSet,
-    make_contract_formset,
-    make_funding_formset,
+    build_contract_cards,
+    collect_funding_formsets_from_post,
 )
 from apps.tasks.utils import can_create_employee_from_recruitment
 from .common import (
@@ -29,7 +28,6 @@ from .common import (
     employee_document_context,
     finalize_recruitment_task,
     get_recruitment_task,
-    recruitment_contract_initial,
     recruitment_employee_initial,
     save_employee_with_formsets,
 )
@@ -118,6 +116,98 @@ def _safe_next_url(request, default='/hr/employees/'):
     return default
 
 
+def _cards_from_nested(nested, data=None):
+    cards = []
+    for index, cform, fa_fs in nested:
+        inst = cform.instance
+        is_existing = bool(getattr(inst, 'pk', None))
+        is_active = True
+        if is_existing:
+            # Prefer POST cleaned is_active when available
+            if data is not None and hasattr(cform, 'data'):
+                raw = data.get(cform.add_prefix('is_active'))
+                # checkbox missing => False
+                is_active = raw in ('on', 'true', 'True', '1')
+            else:
+                is_active = bool(inst.is_active)
+        cards.append({
+            'index': index,
+            'form': cform,
+            'funding_formset': fa_fs if is_active else None,
+            'prefix': fa_fs.prefix,
+            'is_existing': is_existing,
+            'is_active': is_active,
+            'contract_pk': inst.pk if is_existing else None,
+            'funding_readonly': list(
+                inst.funding_allocations.order_by('start_date', 'end_date', 'pk')
+            ) if is_existing and not is_active else [],
+        })
+    return cards
+
+
+def _contract_ui_context(request, employee, task=None):
+    funding_initial_by_index = {}
+    contract_extra = 0
+
+    contract_initial = None
+    if request.method != 'POST' and task is not None:
+        from .common import recruitment_contract_initial
+        from apps.finances.funding_sources import funding_source_value_for_instance
+        contract_extra = 1
+        contract_initial = [recruitment_contract_initial(task)]
+        funding_initial_by_index[0] = [
+            {
+                'funding_source': funding_source_value_for_instance(allocation),
+                'workhours_percentage': allocation.workhours_percentage,
+                'plan_position_number': allocation.plan_position_number,
+                'start_date': task.valid_from,
+                'end_date': task.valid_until,
+                'is_active': True,
+            }
+            for allocation in task.funding_allocations.all()
+        ]
+
+    if request.method != 'POST' and employee and getattr(employee, 'pk', None):
+        add_wbs = (request.GET.get('add_funding_wbs') or '').strip()
+        if add_wbs and not employee.contracts.filter(is_active=True).exists():
+            messages.warning(
+                request,
+                'No active contract found. Create/activate a contract before adding a funding allocation.',
+            )
+
+    data = request.POST if request.method == 'POST' else None
+    built = build_contract_cards(
+        employee,
+        data,
+        contract_extra=contract_extra,
+        contract_initial=contract_initial,
+        funding_initial_by_index=funding_initial_by_index,
+    )
+
+    for card in built['contract_cards']:
+        cform = card['form']
+        inst = cform.instance
+        if inst.pk and not inst.is_active and data is None:
+            card['funding_readonly'] = list(
+                inst.funding_allocations.order_by('start_date', 'end_date', 'pk')
+            )
+            card['funding_formset'] = None
+        else:
+            card.setdefault('funding_readonly', [])
+
+    return {
+        **built,
+        'add_funding_wbs': (
+            (request.GET.get('add_funding_wbs') or '').strip()
+            if request.method != 'POST' else ''
+        ),
+        'show_archived_contracts': (
+            request.GET.get('show_archived_contracts') == '1'
+            or request.POST.get('show_archived_contracts') == '1'
+        ),
+    }
+
+
 class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Employee
     form_class = EmployeeForm
@@ -136,7 +226,6 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         task = get_recruitment_task(self.request)
         if task:
             initial.update(recruitment_employee_initial(task))
-        # Prefill from third-party funding import preview link
         employee_number = (self.request.GET.get('employee_number') or '').strip()
         if employee_number and 'employee_number' not in initial:
             initial['employee_number'] = employee_number
@@ -145,34 +234,30 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         task = get_recruitment_task(self.request)
+        employee = Employee()
         if self.request.POST:
-            # TOTAL_FORMS on POST drives how many forms bind.
-            context['contract_formset'] = ContractFormSet(self.request.POST)
-            context['funding_formset'] = FundingFormSet(self.request.POST)
-            context['salary_formset'] = SalaryFormSet(self.request.POST)
-            context['workgroup_formset'] = WorkgroupFormSet(self.request.POST)
+            contract_fs = ContractFormSet(self.request.POST, instance=employee)
+            nested = collect_funding_formsets_from_post(
+                employee, contract_fs, self.request.POST
+            )
+            context['contract_formset'] = contract_fs
+            context['contract_cards'] = _cards_from_nested(nested, self.request.POST)
+            context['salary_formset'] = SalaryFormSet(self.request.POST, instance=employee)
+            context['workgroup_formset'] = WorkgroupFormSet(self.request.POST, instance=employee)
+            context['nested_funding'] = nested
+            context['show_archived_contracts'] = (
+                self.request.POST.get('show_archived_contracts') == '1'
+            )
         else:
-            contract_initial = []
-            funding_initial = []
-            if task:
-                contract_initial = [recruitment_contract_initial(task)]
-                from apps.finances.funding_sources import funding_source_value_for_instance
-                funding_initial = [
-                    {
-                        'funding_source': funding_source_value_for_instance(allocation),
-                        'workhours_percentage': allocation.workhours_percentage,
-                        'plan_position_number': allocation.plan_position_number,
-                        'start_date': task.valid_from,
-                        'end_date': task.valid_until,
-                    }
-                    for allocation in task.funding_allocations.all()
-                ]
-            ContractFS = make_contract_formset(extra=len(contract_initial))
-            FundingFS = make_funding_formset(extra=len(funding_initial))
-            context['contract_formset'] = ContractFS(initial=contract_initial)
-            context['funding_formset'] = FundingFS(initial=funding_initial)
-            context['salary_formset'] = SalaryFormSet()
-            context['workgroup_formset'] = WorkgroupFormSet()
+            ui = _contract_ui_context(self.request, employee, task=task)
+            context.update(ui)
+            context['salary_formset'] = SalaryFormSet(instance=employee)
+            context['workgroup_formset'] = WorkgroupFormSet(instance=employee)
+            context['nested_funding'] = [
+                (c['index'], c['form'], c['funding_formset'])
+                for c in ui['contract_cards']
+                if c.get('funding_formset') is not None
+            ]
         context['from_recruitment_task'] = task
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context.update(employee_document_context(self.request))
@@ -181,18 +266,17 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def form_valid(self, form):
         context = self.get_context_data()
-        formsets = (
-            context['contract_formset'],
-            context['funding_formset'],
-            context['salary_formset'],
-            context['workgroup_formset'],
+        contract_fs = context['contract_formset']
+        nested = context.get('nested_funding') or []
+        employee, errors = save_employee_with_formsets(
+            self.request,
+            form,
+            (contract_fs, context['salary_formset'], context['workgroup_formset']),
+            nested_funding=nested,
         )
-        employee = save_employee_with_formsets(self.request, form, formsets)
         if employee is None:
-            if not context['contract_formset'].is_valid():
-                messages.error(self.request, "Please correct errors in Contracts.")
-            elif not context['funding_formset'].is_valid():
-                messages.error(self.request, "Please correct errors in Funding Allocations.")
+            for err in errors:
+                messages.error(self.request, err)
             return self.form_invalid(form)
 
         finalize_recruitment_task(self.request, employee)
@@ -212,41 +296,30 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        employee = self.object
         if self.request.POST:
-            context['contract_formset'] = ContractFormSet(self.request.POST, instance=self.object)
-            context['funding_formset'] = FundingFormSet(self.request.POST, instance=self.object)
-            context['salary_formset'] = SalaryFormSet(self.request.POST, instance=self.object)
-            context['workgroup_formset'] = WorkgroupFormSet(self.request.POST, instance=self.object)
+            contract_fs = ContractFormSet(self.request.POST, instance=employee)
+            nested = collect_funding_formsets_from_post(
+                employee, contract_fs, self.request.POST
+            )
+            context['contract_formset'] = contract_fs
+            context['contract_cards'] = _cards_from_nested(nested, self.request.POST)
+            context['salary_formset'] = SalaryFormSet(self.request.POST, instance=employee)
+            context['workgroup_formset'] = WorkgroupFormSet(self.request.POST, instance=employee)
+            context['nested_funding'] = nested
+            context['show_archived_contracts'] = (
+                self.request.POST.get('show_archived_contracts') == '1'
+            )
         else:
-            # extra=0: only existing contracts / allocations, no blank rows —
-            # unless import preview asked to add a funding row for a WBS.
-            add_wbs = (self.request.GET.get('add_funding_wbs') or '').strip()
-            funding_initial = []
-            if add_wbs:
-                from apps.finances.models import WBSElement
-                from apps.finances.funding_sources import WBS_PREFIX
-                wbs = WBSElement.objects.filter(wbs_code=add_wbs).first()
-                if wbs:
-                    funding_initial = [{
-                        'funding_source': f'{WBS_PREFIX}:{wbs.pk}',
-                        'workhours_percentage': None,
-                        'plan_position_number': '',
-                        'start_date': date.today(),
-                        'end_date': None,
-                    }]
-            if funding_initial:
-                FundingFS = make_funding_formset(extra=len(funding_initial))
-                # Existing allocations + one prefilled extra row for the import WBS
-                context['funding_formset'] = FundingFS(
-                    instance=self.object,
-                    initial=funding_initial,
-                )
-            else:
-                context['funding_formset'] = FundingFormSet(instance=self.object)
-            context['contract_formset'] = ContractFormSet(instance=self.object)
-            context['salary_formset'] = SalaryFormSet(instance=self.object)
-            context['workgroup_formset'] = WorkgroupFormSet(instance=self.object)
-
+            ui = _contract_ui_context(self.request, employee, task=None)
+            context.update(ui)
+            context['salary_formset'] = SalaryFormSet(instance=employee)
+            context['workgroup_formset'] = WorkgroupFormSet(instance=employee)
+            context['nested_funding'] = [
+                (c['index'], c['form'], c['funding_formset'])
+                for c in ui['contract_cards']
+                if c.get('funding_formset') is not None
+            ]
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context['current_payscales_json'] = current_payscales_json()
         context.update(employee_document_context(self.request, self.object))
@@ -254,15 +327,17 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         context = self.get_context_data()
-        formsets = (
-            context['contract_formset'],
-            context['funding_formset'],
-            context['salary_formset'],
-            context['workgroup_formset'],
+        contract_fs = context['contract_formset']
+        nested = context.get('nested_funding') or []
+        employee, errors = save_employee_with_formsets(
+            self.request,
+            form,
+            (contract_fs, context['salary_formset'], context['workgroup_formset']),
+            nested_funding=nested,
         )
-        employee = save_employee_with_formsets(self.request, form, formsets)
         if employee is None:
-            messages.error(self.request, "Please correct errors in the related sections.")
+            for err in errors:
+                messages.error(self.request, err)
             return self.form_invalid(form)
 
         messages.success(self.request, "Employee successfully saved.")

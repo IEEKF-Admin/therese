@@ -138,28 +138,33 @@ def create_test_data():
             if i == 0:
                 end = None if random.random() > 0.4 else end
 
-            Contract.objects.create(
+            contract = Contract.objects.create(
                 employee=emp,
                 pay_scale_group=random.choice(['E 13', 'E 14', 'E 15', 'E 12']),
                 experience_level=random.randint(1, 6),
                 weekly_hours=random.choice([39.0, 38.5, 30.0]),
                 valid_from=start,
                 valid_until=end,
+                is_active=(end is None or end >= today),
             )
+            # Only one active contract per employee
+            if contract.is_active:
+                Contract.objects.filter(employee=emp, is_active=True).exclude(
+                    pk=contract.pk
+                ).update(is_active=False)
 
-        for i in range(random.randint(2, 5)):
-            start = today - timedelta(days=random.randint(30, 800))
-            end = start + timedelta(days=random.randint(120, 600))
-            if i == 0:
-                end = None if random.random() > 0.5 else end
-
-            FundingAllocation.objects.create(
-                employee=emp,
-                wbs_element=random.choice(wbs_list),
-                workhours_percentage=round(random.uniform(20, 100), 2),
-                start_date=start,
-                end_date=end,
-            )
+            for i in range(random.randint(1, 3)):
+                fa_start = start
+                fa_end = end
+                FundingAllocation.objects.create(
+                    contract=contract,
+                    employee=emp,
+                    wbs_element=random.choice(wbs_list),
+                    workhours_percentage=round(random.uniform(20, 100), 2),
+                    start_date=fa_start,
+                    end_date=fa_end,
+                    is_active=contract.is_active,
+                )
 
     requesters = [
         emp for emp, (_, _, role) in zip(employees, USER_DATA)

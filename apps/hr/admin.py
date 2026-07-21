@@ -50,12 +50,14 @@ class FundingAllocationInline(admin.TabularInline):
     """
     Uses FundingAllocationForm so PSP elements and cost centers share one
     funding_source dropdown (matches the employee UI form).
+    Parent: Contract (not Employee).
     """
 
     model = FundingAllocation
     form = FundingAllocationForm
     extra = 0
     ordering = ('start_date', 'end_date', 'pk')
+    fk_name = 'contract'
     fields = (
         'funding_source',
         'workhours_percentage',
@@ -199,7 +201,6 @@ class EmployeeAdmin(admin.ModelAdmin):
     # forms are brittle in admin and produced "missing TOTAL_FORMS" save errors.
     inlines = [
         ContractInline,
-        FundingAllocationInline,
         SalarySupplementInline,
         WorkgroupMembershipInline,
     ]
@@ -323,6 +324,7 @@ class ContractAdmin(admin.ModelAdmin):
         'is_active',
         'comments',
     )
+    inlines = [FundingAllocationInline]
 
 
 @admin.register(FundingAllocation, site=therese_admin)
@@ -330,6 +332,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
     form = FundingAllocationForm
     list_display = (
         'employee',
+        'contract',
         'funding_target_label',
         'workhours_percentage',
         'plan_position_number',
@@ -347,8 +350,9 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'cost_center__cost_center',
         'plan_position_number',
     )
-    autocomplete_fields = ('employee',)
+    autocomplete_fields = ('employee', 'contract')
     fields = (
+        'contract',
         'employee',
         'funding_source',
         'workhours_percentage',

@@ -19,12 +19,13 @@ class ContractSoftSelectTests(TestCase):
         )
 
     def test_latest_started_open_contract_wins(self):
-        Contract.objects.create(
+        older = Contract.objects.create(
             employee=self.emp,
             weekly_hours=Decimal('39.00'),
             monthly_salary=Decimal('3000.00'),
             valid_from=date(2024, 1, 1),
-            valid_until=None,
+            valid_until=date(2025, 5, 31),
+            is_active=False,
         )
         newer = Contract.objects.create(
             employee=self.emp,
@@ -32,6 +33,7 @@ class ContractSoftSelectTests(TestCase):
             monthly_salary=Decimal('4000.00'),
             valid_from=date(2025, 6, 1),
             valid_until=None,
+            is_active=True,
         )
         as_of = date(2026, 7, 1)
         picked = self.emp.get_contract_as_of(as_of)
@@ -45,6 +47,7 @@ class ContractSoftSelectTests(TestCase):
             monthly_salary=Decimal('3000.00'),
             valid_from=date(2024, 1, 1),
             valid_until=None,
+            is_active=True,
         )
         Contract.objects.create(
             employee=self.emp,
@@ -52,6 +55,7 @@ class ContractSoftSelectTests(TestCase):
             monthly_salary=Decimal('9999.00'),
             valid_from=date(2030, 1, 1),
             valid_until=None,
+            is_active=False,
         )
         picked = self.emp.get_contract_as_of(date(2026, 7, 1))
         self.assertEqual(picked.pk, current.pk)
@@ -63,6 +67,7 @@ class ContractSoftSelectTests(TestCase):
             monthly_salary=Decimal('2000.00'),
             valid_from=date(2020, 1, 1),
             valid_until=date(2024, 12, 31),
+            is_active=False,
         )
         active = Contract.objects.create(
             employee=self.emp,
@@ -70,6 +75,7 @@ class ContractSoftSelectTests(TestCase):
             monthly_salary=Decimal('3500.00'),
             valid_from=date(2025, 1, 1),
             valid_until=None,
+            is_active=True,
         )
         self.assertEqual(self.emp.get_contract_as_of(date(2026, 1, 1)).pk, active.pk)
         # Mid old contract: only the 2020–2024 row is open
@@ -105,9 +111,18 @@ class FundingAllocationSoftSelectTests(TestCase):
             first_name='Grace',
             last_name='Hopper',
         )
+        self.contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('4000.00'),
+            valid_from=date(2024, 1, 1),
+            valid_until=None,
+            is_active=True,
+        )
 
     def test_latest_start_on_same_psp_wins(self):
         FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('30.00'),
@@ -115,6 +130,7 @@ class FundingAllocationSoftSelectTests(TestCase):
             end_date=None,
         )
         newer = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('50.00'),
@@ -129,6 +145,7 @@ class FundingAllocationSoftSelectTests(TestCase):
 
     def test_future_allocation_ignored(self):
         current = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('40.00'),
@@ -136,6 +153,7 @@ class FundingAllocationSoftSelectTests(TestCase):
             end_date=None,
         )
         FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('99.00'),
@@ -149,6 +167,7 @@ class FundingAllocationSoftSelectTests(TestCase):
 
     def test_different_psps_both_open(self):
         a = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('50.00'),
@@ -156,6 +175,7 @@ class FundingAllocationSoftSelectTests(TestCase):
             end_date=None,
         )
         b = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs_other,
             workhours_percentage=Decimal('50.00'),
@@ -168,6 +188,7 @@ class FundingAllocationSoftSelectTests(TestCase):
 
     def test_dedupe_keeps_one_per_target(self):
         old = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('20.00'),
@@ -175,6 +196,7 @@ class FundingAllocationSoftSelectTests(TestCase):
             end_date=None,
         )
         new = FundingAllocation.objects.create(
+            contract=self.contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('80.00'),
@@ -190,12 +212,95 @@ class FundingAllocationSoftSelectTests(TestCase):
 
         with self.assertRaises(ValidationError):
             FundingAllocation.objects.create(
+                contract=self.contract,
                 employee=self.emp,
                 wbs_element=self.wbs,
                 workhours_percentage=Decimal('50.00'),
                 start_date=date(2025, 6, 1),
                 end_date=date(2025, 1, 1),
             )
+
+
+class ContractFundingRulesTests(TestCase):
+    def setUp(self):
+        self.cc = CostCenter.objects.create(cost_center='CC-RULE')
+        self.wbs = WBSElement.objects.create(
+            wbs_code='R-100.0001',
+            title='Rules PSP',
+            cost_center=self.cc,
+            has_personnel_costs=True,
+        )
+        self.emp = Employee.objects.create(
+            employee_number='90010',
+            first_name='Rule',
+            last_name='Tester',
+        )
+
+    def test_only_one_active_contract(self):
+        from django.core.exceptions import ValidationError
+
+        Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 1, 1),
+            is_active=True,
+        )
+        with self.assertRaises(ValidationError):
+            Contract.objects.create(
+                employee=self.emp,
+                weekly_hours=Decimal('20.00'),
+                monthly_salary=Decimal('2000.00'),
+                valid_from=date(2025, 1, 1),
+                is_active=True,
+            )
+
+    def test_inactive_contract_deactivates_funding(self):
+        contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 1, 1),
+            is_active=True,
+        )
+        fa = FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.emp,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2024, 1, 1),
+            is_active=True,
+        )
+        contract.is_active = False
+        contract.save()
+        fa.refresh_from_db()
+        self.assertFalse(fa.is_active)
+
+    def test_active_funding_percentage_total(self):
+        contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 1, 1),
+            is_active=True,
+        )
+        FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.emp,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('40.00'),
+            start_date=date(2024, 1, 1),
+            is_active=True,
+        )
+        FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.emp,
+            cost_center=self.cc,
+            workhours_percentage=Decimal('60.00'),
+            start_date=date(2024, 1, 1),
+            is_active=True,
+        )
+        self.assertEqual(contract.active_funding_percentage_total(), Decimal('100.00'))
 
 
 class IsActiveFieldTests(TestCase):
@@ -255,7 +360,16 @@ class IsActiveFieldTests(TestCase):
         self.assertEqual(picked.pk, active.pk)
 
     def test_past_end_auto_deactivates_funding_allocation(self):
+        contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2020, 1, 1),
+            valid_until=None,
+            is_active=True,
+        )
         fa = FundingAllocation.objects.create(
+            contract=contract,
             employee=self.emp,
             wbs_element=self.wbs,
             workhours_percentage=Decimal('50.00'),

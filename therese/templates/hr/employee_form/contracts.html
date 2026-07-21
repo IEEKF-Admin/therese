@@ -1,121 +1,292 @@
 {% load widget_tweaks %}
-<div class="form-section full-width">
-    <h3>Contracts</h3>
+<div class="form-section full-width contracts-section">
+    <h3>Contracts &amp; Funding Allocations</h3>
     <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
-        <strong>Active</strong> can be set manually. It is set to No automatically when
-        Valid Until is in the past. Inactive rows are greyed out and not editable
-        (except Active and remove).
+        Each contract is a card. Funding allocations belong to that contract.
+        Active funding % on the <strong>active</strong> contract must sum to
+        <strong>exactly 100%</strong>. At most one active contract is allowed.
+        Expired contracts and allocations are archived (read-only).
     </p>
+
     {{ contract_formset.management_form }}
-    <div id="contract-container">
-        {% for form in contract_formset %}
-        <div class="inline-form-row contract-row{% if form.instance.pk and not form.instance.is_active %} is-inactive{% endif %}">
-            {{ form.id }}
-            {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Monthly Salary</label>{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
-            <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
-            <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
-            <div class="inline-field"><label>Active</label>
-                <div class="active-toggle-wrap">{{ form.is_active }}</div>
-            </div>
-            <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
-            <div class="inline-delete">
-                <button type="button" class="btn-inline-remove remove-row" title="Remove" aria-label="Remove">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        {% endfor %}
+    <input type="hidden" name="show_archived_contracts" id="show-archived-contracts-field"
+           value="{% if show_archived_contracts %}1{% else %}0{% endif %}">
+
+    <div class="contract-archive-toolbar">
+        <label class="checkbox-field" style="display:inline-flex; gap:0.4rem; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="toggle-archived-contracts"
+                   {% if show_archived_contracts %}checked{% endif %}>
+            <span>Show archived (inactive) contracts</span>
+        </label>
     </div>
 
-    <!-- Hidden empty template for "Add another" (required for extra=0) -->
-    <div id="contract-empty-template" class="empty-form-template" style="display:none;">
-        {% with form=contract_formset.empty_form %}
-        <div class="inline-form-row contract-row">
-            {{ form.id }}
-            {{ form.DELETE.as_hidden }}
-            <div class="inline-field"><label>Pay Scale Group</label>{{ form.pay_scale_group|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Experience Level</label>{{ form.experience_level|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Monthly Salary</label>{{ form.monthly_salary|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Job Number</label>{{ form.job_number|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Weekly Hours</label>{{ form.weekly_hours|add_class:"form-control" }}</div>
-            <div class="inline-field"><label>Valid From</label>{{ form.valid_from }}</div>
-            <div class="inline-field"><label>Valid Until</label>{{ form.valid_until }}</div>
-            <div class="inline-field"><label>Active</label>
-                <div class="active-toggle-wrap">{{ form.is_active }}</div>
+    <div id="contract-cards-container">
+        {% for card in contract_cards %}
+        {% with form=card.form %}
+        <div class="contract-card{% if not card.is_active %} is-archived{% if not show_archived_contracts %} is-hidden-archive{% endif %}{% endif %}"
+             data-contract-index="{{ card.index }}"
+             data-contract-pk="{{ card.contract_pk|default:'' }}"
+             data-active="{% if card.is_active %}1{% else %}0{% endif %}">
+            <div class="contract-card-header">
+                <h4>
+                    {% if card.is_existing %}
+                        Contract from {{ form.instance.valid_from }}
+                        {% if form.instance.valid_until %}– {{ form.instance.valid_until }}{% else %}(open){% endif %}
+                    {% else %}
+                        New contract
+                    {% endif %}
+                    {% if not card.is_active %}
+                    <span class="badge badge-archived">Archived</span>
+                    {% else %}
+                    <span class="badge badge-active">Active</span>
+                    {% endif %}
+                </h4>
+                <div class="contract-card-actions">
+                    {% if card.is_active %}
+                    <button type="button" class="btn-inline-remove remove-row" title="Remove contract" aria-label="Remove contract"
+                            data-remove-scope="contract">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </div>
             </div>
-            <div class="inline-field full"><label>Comments</label>{{ form.comments }}</div>
-            <div class="inline-delete">
-                <button type="button" class="btn-inline-remove remove-row" title="Remove" aria-label="Remove">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                </button>
+
+            <div class="contract-card-body{% if not card.is_active %} is-readonly{% endif %}">
+                {{ form.id }}
+                {{ form.DELETE.as_hidden }}
+                <div class="contract-fields-grid">
+                    <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field"><label>Monthly Salary</label>{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
+                    <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
+                    <div class="inline-field"><label>Active</label>
+                        <div class="active-toggle-wrap">{{ form.is_active }}</div>
+                    </div>
+                    <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
+                </div>
+
+                <div class="funding-block" data-fa-prefix="{{ card.prefix }}">
+                    <div class="funding-block-header">
+                        <h5>Funding Allocations</h5>
+                        {% if card.is_active and card.funding_formset %}
+                        <span class="funding-pct-hint text-muted" data-pct-hint>Active % sum: <strong data-pct-sum>—</strong></span>
+                        {% endif %}
+                    </div>
+
+                    {% if card.funding_formset %}
+                    {{ card.funding_formset.management_form }}
+                    <div class="funding-active-grid" data-fa-container>
+                        {% for fform in card.funding_formset %}
+                        <div class="funding-item{% if fform.instance.pk and not fform.instance.is_active %} is-inactive is-archived-fa{% endif %}"
+                             data-fa-active="{% if fform.instance.pk and not fform.instance.is_active %}0{% else %}1{% endif %}">
+                            {{ fform.id }}
+                            {{ fform.DELETE.as_hidden }}
+                            <div class="funding-item-top">
+                                <span class="funding-item-label">Allocation</span>
+                                <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="inline-field"><label>PSP / Cost Center</label>{% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}</div>
+                            <div class="inline-field"><label>% of Workhours</label>{% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error fa-pct" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control fa-pct" }}{% endif %}</div>
+                            <div class="inline-field"><label>Plan Position</label>{% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+                            <div class="inline-field"><label>Valid From</label>{% if fform.start_date.errors %}{{ fform.start_date|add_class:"form-control error" }}{% else %}{{ fform.start_date }}{% endif %}</div>
+                            <div class="inline-field"><label>Valid Until</label>{% if fform.end_date.errors %}{{ fform.end_date|add_class:"form-control error" }}{% else %}{{ fform.end_date }}{% endif %}</div>
+                            <div class="inline-field"><label>Active</label>
+                                <div class="active-toggle-wrap">{{ fform.is_active }}</div>
+                            </div>
+                            <div class="inline-field full"><label>Comments</label>{% if fform.comments.errors %}{{ fform.comments|add_class:"form-control error" }}{% else %}{{ fform.comments }}{% endif %}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="funding-archive-toolbar">
+                        <label style="display:inline-flex; gap:0.35rem; align-items:center; font-size:0.85rem; cursor:pointer;">
+                            <input type="checkbox" class="toggle-archived-fa">
+                            <span>Show archived funding allocations</span>
+                        </label>
+                    </div>
+                    <button type="button" class="btn-secondary btn-add-funding" data-fa-prefix="{{ card.prefix }}">
+                        + Add funding allocation
+                    </button>
+                    {% elif card.funding_readonly %}
+                    <div class="funding-readonly-grid">
+                        {% for fa in card.funding_readonly %}
+                        <div class="funding-item is-inactive">
+                            <div class="funding-item-top"><span class="funding-item-label">{{ fa.funding_target_label }}</span></div>
+                            <p style="margin:0.25rem 0; font-size:0.85rem;">
+                                <strong>{{ fa.workhours_percentage }}%</strong>
+                                · {{ fa.start_date }}{% if fa.end_date %} – {{ fa.end_date }}{% else %} (open){% endif %}
+                                · Active: {% if fa.is_active %}Yes{% else %}No{% endif %}
+                            </p>
+                            {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="text-muted" style="font-size:0.85rem;">No funding allocations.</p>
+                        {% endfor %}
+                    </div>
+                    <p class="text-muted" style="font-size:0.8rem; margin-top:0.5rem;">
+                        Archived contract — funding allocations are read-only. No new allocations can be added.
+                    </p>
+                    {% else %}
+                    <p class="text-muted" style="font-size:0.85rem;">No funding allocations.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endwith %}
+        {% empty %}
+        <p class="text-muted">No contracts yet. Add one below.</p>
+        {% endfor %}
     </div>
 
-    <button type="button" onclick="addInlineRow('contract-container', '.contract-row', 'contracts')" class="btn-secondary">+ Add another Contract</button>
+    <button type="button" class="btn-secondary" id="btn-add-contract" style="margin-top:0.75rem;">
+        + Add contract
+    </button>
 </div>
 
-{# Current PayScale data for cascading + salary auto-fill on each contract row #}
+{# Templates for JS cloning #}
+<div id="contract-empty-template" class="empty-form-template" style="display:none;"
+     data-contract-prefix="{{ contract_formset.prefix }}">
+    {% if empty_contract_form %}
+    <div class="contract-card" data-contract-index="__prefix__" data-active="1">
+        <div class="contract-card-header">
+            <h4>New contract <span class="badge badge-active">Active</span></h4>
+            <div class="contract-card-actions">
+                <button type="button" class="btn-inline-remove remove-row" title="Remove contract" aria-label="Remove contract" data-remove-scope="contract">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="contract-card-body">
+            {{ empty_contract_form.id }}
+            {{ empty_contract_form.DELETE.as_hidden }}
+            <div class="contract-fields-grid">
+                <div class="inline-field"><label>Pay Scale Group</label>{{ empty_contract_form.pay_scale_group|add_class:"form-control" }}</div>
+                <div class="inline-field"><label>Experience Level</label>{{ empty_contract_form.experience_level|add_class:"form-control" }}</div>
+                <div class="inline-field"><label>Monthly Salary</label>{{ empty_contract_form.monthly_salary|add_class:"form-control" }}</div>
+                <div class="inline-field"><label>Job Number</label>{{ empty_contract_form.job_number|add_class:"form-control" }}</div>
+                <div class="inline-field"><label>Weekly Hours</label>{{ empty_contract_form.weekly_hours|add_class:"form-control" }}</div>
+                <div class="inline-field"><label>Valid From</label>{{ empty_contract_form.valid_from }}</div>
+                <div class="inline-field"><label>Valid Until</label>{{ empty_contract_form.valid_until }}</div>
+                <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_contract_form.is_active }}</div></div>
+                <div class="inline-field full"><label>Comments</label>{{ empty_contract_form.comments }}</div>
+            </div>
+            <div class="funding-block" data-fa-prefix="fa_n__prefix__">
+                <div class="funding-block-header">
+                    <h5>Funding Allocations</h5>
+                    <span class="funding-pct-hint text-muted" data-pct-hint>Active % sum: <strong data-pct-sum>0.00</strong></span>
+                </div>
+                <input type="hidden" name="fa_n__prefix__-TOTAL_FORMS" value="0" id="id_fa_n__prefix__-TOTAL_FORMS">
+                <input type="hidden" name="fa_n__prefix__-INITIAL_FORMS" value="0" id="id_fa_n__prefix__-INITIAL_FORMS">
+                <input type="hidden" name="fa_n__prefix__-MIN_NUM_FORMS" value="0" id="id_fa_n__prefix__-MIN_NUM_FORMS">
+                <input type="hidden" name="fa_n__prefix__-MAX_NUM_FORMS" value="1000" id="id_fa_n__prefix__-MAX_NUM_FORMS">
+                <div class="funding-active-grid" data-fa-container></div>
+                <div class="funding-archive-toolbar">
+                    <label style="display:inline-flex; gap:0.35rem; align-items:center; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" class="toggle-archived-fa">
+                        <span>Show archived funding allocations</span>
+                    </label>
+                </div>
+                <button type="button" class="btn-secondary btn-add-funding" data-fa-prefix="fa_n__prefix__">+ Add funding allocation</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="funding-empty-template" class="empty-form-template" style="display:none;">
+    {% if empty_funding_form %}
+    <div class="funding-item" data-fa-active="1">
+        {{ empty_funding_form.id }}
+        {{ empty_funding_form.DELETE.as_hidden }}
+        <div class="funding-item-top">
+            <span class="funding-item-label">Allocation</span>
+            <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="inline-field"><label>PSP / Cost Center</label>{{ empty_funding_form.funding_source|add_class:"form-control" }}</div>
+        <div class="inline-field"><label>% of Workhours</label>{{ empty_funding_form.workhours_percentage|add_class:"form-control fa-pct" }}</div>
+        <div class="inline-field"><label>Plan Position</label>{{ empty_funding_form.plan_position_number|add_class:"form-control" }}</div>
+        <div class="inline-field"><label>Valid From</label>{{ empty_funding_form.start_date }}</div>
+        <div class="inline-field"><label>Valid Until</label>{{ empty_funding_form.end_date }}</div>
+        <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_funding_form.is_active }}</div></div>
+        <div class="inline-field full"><label>Comments</label>{{ empty_funding_form.comments }}</div>
+    </div>
+    {% endif %}
+</div>
+
 {{ current_payscales_json|json_script:"therese-payscale-data" }}
 <script>
 (function() {
-    var el = document.getElementById('therese-payscale-data');
-    const PAYSCALE_DATA = el ? JSON.parse(el.textContent) : {};
+    const PAYSCALE_DATA = (function() {
+        var el = document.getElementById('therese-payscale-data');
+        return el ? JSON.parse(el.textContent) : {};
+    })();
 
-    const container = document.getElementById('contract-container');
-    if (!container || !PAYSCALE_DATA) return;
-
-    function getSalaryField(row) {
-        return row.querySelector('input[data-contract-monthly-salary], input[name$="-monthly_salary"]');
+    function replacePrefix(str, oldP, newP) {
+        return str.split(oldP).join(newP);
     }
 
-    function syncContractMonthlySalary(row) {
-        const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
-        const levelSelect = row.querySelector('select[name$="experience_level"]');
-        const salaryField = getSalaryField(row);
-        if (!salaryField || !groupSelect || !levelSelect) return;
-
-        const group = groupSelect.value;
-        const level = parseInt(levelSelect.value, 10);
-        if (group && !isNaN(level) && PAYSCALE_DATA[group]) {
-            const match = PAYSCALE_DATA[group].find(i => i.experience_level === level);
-            if (match) {
-                salaryField.value = match.monthly_salary;
-                salaryField.readOnly = true;
-                salaryField.classList.add('form-readonly');
-                return;
-            }
-        }
-        salaryField.readOnly = false;
-        salaryField.classList.remove('form-readonly');
+    function updatePctSum(card) {
+        if (!card || !card.classList.contains('contract-card')) return;
+        let sum = 0;
+        card.querySelectorAll('.funding-item:not([style*="display: none"])').forEach(function(item) {
+            if (item.classList.contains('is-inactive') && item.style.display === 'none') return;
+            const activeCb = item.querySelector('input[name$="-is_active"]');
+            if (activeCb && !activeCb.checked) return;
+            const del = item.querySelector('input[name$="-DELETE"]');
+            if (del && del.checked) return;
+            const pct = item.querySelector('.fa-pct, input[name$="-workhours_percentage"]');
+            if (!pct) return;
+            const v = parseFloat(String(pct.value).replace(',', '.'));
+            if (!isNaN(v)) sum += v;
+        });
+        const el = card.querySelector('[data-pct-sum]');
+        if (el) el.textContent = sum.toFixed(2);
     }
 
-    function attachPayscaleListeners(row) {
+    function attachPayscale(row) {
         const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
         const levelSelect = row.querySelector('select[name$="experience_level"]');
-
+        const salaryField = row.querySelector('input[name$="-monthly_salary"], input[data-contract-monthly-salary]');
         if (!groupSelect || !levelSelect) return;
+
+        function sync() {
+            if (!salaryField) return;
+            const group = groupSelect.value;
+            const level = parseInt(levelSelect.value, 10);
+            if (group && !isNaN(level) && PAYSCALE_DATA[group]) {
+                const match = PAYSCALE_DATA[group].find(i => i.experience_level === level);
+                if (match) {
+                    salaryField.value = match.monthly_salary;
+                    salaryField.readOnly = true;
+                    salaryField.classList.add('form-readonly');
+                    return;
+                }
+            }
+            salaryField.readOnly = false;
+            salaryField.classList.remove('form-readonly');
+        }
 
         groupSelect.addEventListener('change', function() {
             const group = this.value;
             levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
-
             if (group && PAYSCALE_DATA[group]) {
                 PAYSCALE_DATA[group].forEach(item => {
                     const opt = document.createElement('option');
@@ -124,104 +295,239 @@
                     levelSelect.appendChild(opt);
                 });
             }
-            syncContractMonthlySalary(row);
+            sync();
         });
-
-        levelSelect.addEventListener('change', function() {
-            syncContractMonthlySalary(row);
-        });
+        levelSelect.addEventListener('change', sync);
+        sync();
     }
 
-    function setInactiveFieldsLocked(row, inactive) {
-        row.querySelectorAll('input, select, textarea').forEach(function(el) {
+    function setFaInactive(item, inactive) {
+        item.classList.toggle('is-inactive', inactive);
+        item.querySelectorAll('input, select, textarea').forEach(function(el) {
             const name = el.getAttribute('name') || '';
             if (!name || el.type === 'hidden') return;
             if (name.indexOf('-is_active') !== -1 || name.indexOf('-DELETE') !== -1) return;
-
             if (inactive) {
                 el.classList.add('is-inactive-field');
-                if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') {
-                    if (!el.dataset.lockPrevDisabled) {
-                        el.dataset.lockPrevDisabled = el.disabled ? '1' : '0';
-                    }
+                if (el.tagName === 'SELECT' || el.type === 'checkbox') {
                     el.disabled = true;
                 } else {
                     el.setAttribute('readonly', 'readonly');
                 }
             } else {
                 el.classList.remove('is-inactive-field');
-                if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') {
-                    if (el.dataset.lockPrevDisabled === '0' || el.dataset.lockPrevDisabled === undefined) {
-                        el.disabled = false;
-                    }
-                    delete el.dataset.lockPrevDisabled;
+                if (el.tagName === 'SELECT' || el.type === 'checkbox') {
+                    el.disabled = false;
                 } else {
-                    // Keep payscale-driven salary readonly when applicable
-                    if (!(el.name && el.name.indexOf('monthly_salary') !== -1 && el.classList.contains('form-readonly'))) {
-                        el.removeAttribute('readonly');
-                    }
+                    el.removeAttribute('readonly');
                 }
             }
         });
     }
 
-    function syncInactiveClass(row) {
-        const toggle = row.querySelector('input.is-active-toggle, input[name$="-is_active"]');
-        if (!toggle) return;
-        const inactive = !toggle.checked;
-        row.classList.toggle('is-inactive', inactive);
-        setInactiveFieldsLocked(row, inactive);
+    function bindFundingItem(item, card) {
+        const activeCb = item.querySelector('input[name$="-is_active"]');
+        if (activeCb && !activeCb.dataset.bound) {
+            activeCb.dataset.bound = '1';
+            activeCb.addEventListener('change', function() {
+                setFaInactive(item, !activeCb.checked);
+                if (!activeCb.checked) item.classList.add('is-archived-fa');
+                else item.classList.remove('is-archived-fa');
+                applyFaArchiveVisibility(card);
+                updatePctSum(card);
+            });
+            setFaInactive(item, !activeCb.checked);
+        }
+        item.querySelectorAll('.fa-pct, input[name$="-workhours_percentage"]').forEach(function(inp) {
+            if (inp.dataset.pctBound) return;
+            inp.dataset.pctBound = '1';
+            inp.addEventListener('input', function() { updatePctSum(card); });
+        });
     }
 
-    function attachActiveToggle(row) {
-        const toggle = row.querySelector('input.is-active-toggle, input[name$="-is_active"]');
-        if (!toggle || toggle.dataset.activeBound) return;
-        toggle.dataset.activeBound = '1';
-        toggle.addEventListener('change', function() { syncInactiveClass(row); });
-        syncInactiveClass(row);
+    function applyFaArchiveVisibility(card) {
+        const toggle = card.querySelector('.toggle-archived-fa');
+        const show = toggle && toggle.checked;
+        card.querySelectorAll('.funding-item.is-archived-fa, .funding-item.is-inactive').forEach(function(item) {
+            const activeCb = item.querySelector('input[name$="-is_active"]');
+            const inactive = activeCb ? !activeCb.checked : item.classList.contains('is-inactive');
+            if (inactive) {
+                item.style.display = show ? '' : 'none';
+            }
+        });
+        updatePctSum(card);
     }
 
-    container.querySelectorAll('.contract-row').forEach(attachPayscaleListeners);
-    container.querySelectorAll('.contract-row').forEach(attachActiveToggle);
+    function bindCard(card) {
+        attachPayscale(card);
+        card.querySelectorAll('.funding-item').forEach(function(item) {
+            bindFundingItem(item, card);
+        });
+        const faToggle = card.querySelector('.toggle-archived-fa');
+        if (faToggle && !faToggle.dataset.bound) {
+            faToggle.dataset.bound = '1';
+            faToggle.addEventListener('change', function() { applyFaArchiveVisibility(card); });
+        }
+        applyFaArchiveVisibility(card);
+        updatePctSum(card);
 
-    container.querySelectorAll('.contract-row').forEach(row => {
-        const groupSelect = row.querySelector('select[name$="pay_scale_group"]');
-        const levelSelect = row.querySelector('select[name$="experience_level"]');
-
-        if (groupSelect && groupSelect.value) {
-            const group = groupSelect.value;
-            const originalLevel = levelSelect.value;
-
-            if (PAYSCALE_DATA[group]) {
-                levelSelect.innerHTML = '<option value="">— Select Experience Level —</option>';
-                PAYSCALE_DATA[group].forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.experience_level;
-                    opt.textContent = item.experience_level;
-                    levelSelect.appendChild(opt);
-                });
-
-                if (originalLevel) {
-                    levelSelect.value = originalLevel;
-                }
+        // Readonly archived contract fields
+        if (card.classList.contains('is-archived') || card.getAttribute('data-active') === '0') {
+            card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
+                const name = el.getAttribute('name') || '';
+                if (name.indexOf('-is_active') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
+                if (el.tagName === 'SELECT' || el.type === 'checkbox') el.disabled = true;
+                else el.setAttribute('readonly', 'readonly');
+                el.classList.add('is-inactive-field');
+            });
+            // Keep is_active enabled so user can re-activate
+            const act = card.querySelector('.contract-fields-grid input[name$="-is_active"]');
+            if (act) {
+                act.disabled = false;
+                act.classList.remove('is-inactive-field');
             }
         }
-        syncContractMonthlySalary(row);
+    }
+
+    document.querySelectorAll('.contract-card').forEach(bindCard);
+
+    // Global archive toggle for contracts
+    const archToggle = document.getElementById('toggle-archived-contracts');
+    const archField = document.getElementById('show-archived-contracts-field');
+    if (archToggle) {
+        archToggle.addEventListener('change', function() {
+            const show = archToggle.checked;
+            if (archField) archField.value = show ? '1' : '0';
+            document.querySelectorAll('.contract-card.is-archived').forEach(function(card) {
+                card.classList.toggle('is-hidden-archive', !show);
+            });
+        });
+    }
+
+    // Add funding allocation
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-add-funding');
+        if (!btn) return;
+        const card = btn.closest('.contract-card');
+        if (!card || card.getAttribute('data-active') === '0') return;
+        const prefix = btn.getAttribute('data-fa-prefix');
+        const container = card.querySelector('[data-fa-container]');
+        const tpl = document.querySelector('#funding-empty-template .funding-item');
+        const totalInput = document.getElementById('id_' + prefix + '-TOTAL_FORMS')
+            || card.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
+        if (!container || !tpl || !totalInput) return;
+
+        const idx = parseInt(totalInput.value, 10) || 0;
+        const clone = tpl.cloneNode(true);
+        clone.querySelectorAll('[name],[id],[for]').forEach(function(el) {
+            ['name', 'id', 'for'].forEach(function(attr) {
+                if (!el.hasAttribute(attr)) return;
+                let v = el.getAttribute(attr);
+                // empty template uses fa_tpl-__prefix__ or fa_tpl-0
+                v = v.replace(/fa_tpl-__prefix__/g, prefix + '-' + idx);
+                v = v.replace(/fa_tpl-0/g, prefix + '-' + idx);
+                v = v.replace(/__prefix__/g, String(idx));
+                el.setAttribute(attr, v);
+            });
+        });
+        clone.querySelectorAll('input, select, textarea').forEach(function(el) {
+            if (el.type === 'hidden' && el.name && el.name.indexOf('-DELETE') !== -1) {
+                el.checked = false; el.value = '';
+                return;
+            }
+            if (el.type === 'hidden' && el.name && el.name.indexOf('-id') !== -1) {
+                el.value = '';
+                return;
+            }
+            if (el.type === 'checkbox') {
+                el.checked = (el.name && el.name.indexOf('-is_active') !== -1);
+            } else if (el.type !== 'hidden') {
+                el.value = '';
+            }
+        });
+        container.appendChild(clone);
+        totalInput.value = idx + 1;
+        bindFundingItem(clone, card);
+        updatePctSum(card);
+        if (typeof initFlatpickrDatePickers === 'function') initFlatpickrDatePickers();
     });
 
-    const observer = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1 &&
-                    node.classList &&
-                    (node.classList.contains('contract-row') || node.classList.contains('inline-form-row'))) {
-                    attachPayscaleListeners(node);
-                    attachActiveToggle(node);
-                    syncContractMonthlySalary(node);
-                }
+    // Add contract
+    const addContractBtn = document.getElementById('btn-add-contract');
+    if (addContractBtn) {
+        addContractBtn.addEventListener('click', function() {
+            const container = document.getElementById('contract-cards-container');
+            const tplWrap = document.getElementById('contract-empty-template');
+            const totalInput = document.querySelector('input[name="contracts-TOTAL_FORMS"]');
+            const tpl = tplWrap && tplWrap.querySelector('.contract-card');
+            if (!container || !tpl || !totalInput) return;
+            const idx = parseInt(totalInput.value, 10) || 0;
+            const clone = tpl.cloneNode(true);
+            clone.querySelectorAll('[name],[id],[for]').forEach(function(el) {
+                ['name', 'id', 'for'].forEach(function(attr) {
+                    if (!el.hasAttribute(attr)) return;
+                    let v = el.getAttribute(attr);
+                    v = v.replace(/contracts-__prefix__/g, 'contracts-' + idx);
+                    v = v.replace(/fa_n__prefix__/g, 'fa_n' + idx);
+                    v = v.replace(/__prefix__/g, String(idx));
+                    el.setAttribute(attr, v);
+                });
+            });
+            clone.setAttribute('data-contract-index', String(idx));
+            clone.setAttribute('data-active', '1');
+            const faBlock = clone.querySelector('.funding-block');
+            if (faBlock) faBlock.setAttribute('data-fa-prefix', 'fa_n' + idx);
+            clone.querySelectorAll('.btn-add-funding').forEach(function(b) {
+                b.setAttribute('data-fa-prefix', 'fa_n' + idx);
+            });
+            // Check is_active by default
+            clone.querySelectorAll('input[name$="-is_active"]').forEach(function(cb) {
+                cb.checked = true;
+            });
+            container.appendChild(clone);
+            totalInput.value = idx + 1;
+            bindCard(clone);
+            if (typeof initFlatpickrDatePickers === 'function') initFlatpickrDatePickers();
+        });
+    }
+
+    // Remove handlers (contract / funding)
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.remove-row');
+        if (!btn) return;
+        const scope = btn.getAttribute('data-remove-scope') || 'funding';
+        if (scope === 'contract') {
+            const card = btn.closest('.contract-card');
+            if (!card) return;
+            const del = card.querySelector('input[name$="-DELETE"]');
+            if (del && del.name && del.name.indexOf('contracts-') === 0) {
+                del.checked = true;
+                card.style.display = 'none';
+            } else {
+                card.remove();
+            }
+            return;
+        }
+        const item = btn.closest('.funding-item');
+        if (!item) return;
+        const card = item.closest('.contract-card');
+        const del = item.querySelector('input[name$="-DELETE"]');
+        if (del) {
+            del.checked = true;
+            item.style.display = 'none';
+        } else {
+            item.remove();
+        }
+        if (card) updatePctSum(card);
+    });
+
+    // Re-enable disabled fields on submit
+    document.querySelectorAll('form.employee-form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            form.querySelectorAll('input:disabled, select:disabled, textarea:disabled').forEach(function(el) {
+                el.disabled = false;
             });
         });
     });
-    observer.observe(container, { childList: true, subtree: true });
 })();
 </script>

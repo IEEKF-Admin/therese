@@ -102,6 +102,25 @@ class DataImportLog(BaseModel):
         verbose_name='Report created on',
         help_text='Business report creation date from file content (e.g. angelegt am).',
     )
+    # Estimated coverage from Personalkosten "Belegdatum" column (min/max)
+    beleg_from = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Beleg period from',
+        help_text=(
+            'Earliest Belegdatum found on the Personalkosten sheet '
+            '(heuristic coverage start).'
+        ),
+    )
+    beleg_to = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Beleg period to',
+        help_text=(
+            'Latest Belegdatum found on the Personalkosten sheet '
+            '(heuristic coverage end).'
+        ),
+    )
     status = models.CharField(
         max_length=32,
         choices=Status.choices,

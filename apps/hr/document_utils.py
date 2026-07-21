@@ -180,7 +180,8 @@ def copy_recruitment_documents_to_employee(task, employee, uploaded_by=None):
 def user_can_manage_employee_documents(user, employee):
     if not user.is_authenticated or not employee:
         return False
-    if user.is_superuser or user.has_perm('hr.manage_employee'):
+    from apps.hr.employee_access import user_can_manage_employee
+    if user_can_manage_employee(user, employee):
         return True
     profile = getattr(user, 'employee', None)
     return profile is not None and profile.pk == employee.pk
@@ -189,7 +190,8 @@ def user_can_manage_employee_documents(user, employee):
 def user_can_delete_document_version(user, version):
     if not user.is_authenticated:
         return False
-    if user.is_superuser or user.has_perm('hr.manage_employee'):
+    from apps.hr.employee_access import user_can_manage_employee
+    if user_can_manage_employee(user, version.employee if version else None):
         return True
     profile = getattr(user, 'employee', None)
     return (

@@ -3,7 +3,7 @@ apps/hr/urls.py
 """
 from django.urls import path
 from .views.employee import (
-    employee_list, EmployeeCreateView, EmployeeUpdateView, MyProfileView,
+    employee_list, phone_list, EmployeeCreateView, EmployeeUpdateView, MyProfileView,
     WorkgroupListView, WorkgroupCreateView, WorkgroupUpdateView, WorkgroupDeleteView, LocationManagementView,
     BuildingCreateView, BuildingUpdateView,
     RoomCreateView, RoomUpdateView,
@@ -29,7 +29,8 @@ urlpatterns = [
     path('employees/<int:employee_pk>/documents/<int:version_pk>/view/', employee_document_view, name='employee_document_view'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/delete/', employee_document_delete, name='employee_document_delete'),
     path('my-profile/', MyProfileView.as_view(), name='my_profile'),
-    
+    path('phone-list/', phone_list, name='phone_list'),
+
     # AJAX Cascading Dropdowns
     path('ajax/rooms-by-building/', ajax_rooms_by_building, name='ajax_rooms_by_building'),
     path('ajax/phonenumbers-by-room/', ajax_phonenumbers_by_room, name='ajax_phonenumbers_by_room'),
@@ -37,7 +38,7 @@ urlpatterns = [
     # Import (aus Finances)
     path('import-wbs-elements/', finance_views.import_wbs_elements, name='import_wbs_elements'),
 
-    # Assisting Admins dedicated views
+    # Location / related admin views (HR Superassistant / Locations - Manage)
     path('workgroups/', WorkgroupListView.as_view(), name='workgroup_list'),
     path('workgroups/new/', WorkgroupCreateView.as_view(), name='workgroup_create'),
     path('workgroups/<int:pk>/edit/', WorkgroupUpdateView.as_view(), name='workgroup_update'),

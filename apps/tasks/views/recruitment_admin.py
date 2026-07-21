@@ -33,14 +33,17 @@ def _job_form_payscale_context():
 
 
 def user_is_assisting_admin(user):
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    return user.groups.filter(name='Assisting Admins').exists()
+    """
+    Legacy name kept for imports: institute-wide HR admin tools.
+    Now maps to HR Superassistant (not the removed Assisting Admins group).
+    """
+    from apps.accounts.permissions import user_is_hr_superassistant
+    return user_is_hr_superassistant(user)
 
 
 class AssistingAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Gate recruitment admin / related HR institute tools for HR Superassistants."""
+
     def test_func(self):
         return user_is_assisting_admin(self.request.user)
 

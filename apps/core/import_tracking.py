@@ -112,6 +112,8 @@ def record_data_import(
     file_created_at=None,
     file_modified_at=None,
     report_created_on=None,
+    beleg_from=None,
+    beleg_to=None,
     status: str = DataImportLog.Status.COMPLETED,
     summary: str = '',
 ) -> DataImportLog:
@@ -124,6 +126,8 @@ def record_data_import(
         file_created_at=file_created_at,
         file_modified_at=file_modified_at,
         report_created_on=report_created_on,
+        beleg_from=beleg_from,
+        beleg_to=beleg_to,
         status=status,
         summary=summary or '',
     )

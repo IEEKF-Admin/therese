@@ -13,8 +13,8 @@ from django.views.decorators.http import require_POST
 
 from apps.checklists.access import (
     acknowledge_instance,
-    employees_in_workgroup,
-    get_user_first_workgroup,
+    employees_in_user_workgroups,
+    get_user_workgroups_ordered,
     subject_active_instances,
     user_can_fill_instance,
     user_can_manage,
@@ -422,12 +422,14 @@ def _progress_matrix(employees, templates):
 @login_required
 @permission_required('checklists.view_workgroup_progress', raise_exception=True)
 def progress_workgroup(request):
-    workgroup = get_user_first_workgroup(request.user)
-    employees = employees_in_workgroup(workgroup)
+    """Checklist progress for employees in all of the user's workgroups."""
+    workgroups = get_user_workgroups_ordered(request.user)
+    employees = employees_in_user_workgroups(request.user)
     templates = ChecklistTemplate.objects.order_by('name_en')
     rows = _progress_matrix(employees, templates)
     return render(request, 'checklists/progress/workgroup_matrix.html', {
-        'workgroup': workgroup,
+        'workgroups': workgroups,
+        'workgroup': workgroups[0] if len(workgroups) == 1 else None,
         'templates': templates,
         'rows': rows,
     })
@@ -436,6 +438,7 @@ def progress_workgroup(request):
 @login_required
 @permission_required('checklists.view_institute_progress', raise_exception=True)
 def progress_institute(request):
+    """Institute-wide checklist progress (all employees)."""
     employees = list(Employee.objects.order_by('last_name', 'first_name'))
     templates = ChecklistTemplate.objects.order_by('name_en')
     rows = _progress_matrix(employees, templates)

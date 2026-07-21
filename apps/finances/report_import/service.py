@@ -30,7 +30,10 @@ from apps.finances.models import (
 )
 from apps.finances.psp_cost_types import PSP_COST_TYPE_AMOUNT_FIELDS
 from apps.finances.report_import.parsers import detect_and_parse
-from apps.finances.report_import.parsers.personalkosten import parse_personalkosten_sheet
+from apps.finances.report_import.parsers.personalkosten import (
+    extract_beleg_date_range,
+    parse_personalkosten_sheet,
+)
 from apps.finances.report_import.personnel_match import (
     BLOCKING_PERSONNEL_STATUSES,
     apply_personnel_decisions,
@@ -273,6 +276,10 @@ def analyze_uploaded_files(
             }
             for e in pk_entries
         ]
+        # Heuristic coverage window: min/max Belegdatum on Personalkosten sheet
+        beleg_from, beleg_to = extract_beleg_date_range(raw)
+        meta['beleg_from'] = beleg_from.isoformat() if beleg_from else None
+        meta['beleg_to'] = beleg_to.isoformat() if beleg_to else None
 
         parsed_dict['upload_meta'] = meta
         file_results.append(parsed_dict)
@@ -928,6 +935,8 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
             file_created_at=_datetime(meta.get('file_created_at')),
             file_modified_at=_datetime(meta.get('file_modified_at')),
             report_created_on=report_created_on,
+            beleg_from=_date(meta.get('beleg_from')),
+            beleg_to=_date(meta.get('beleg_to')),
             status=DataImportLog.Status.COMPLETED,
             summary=summary_text,
         )

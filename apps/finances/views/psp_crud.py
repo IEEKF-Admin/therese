@@ -1,10 +1,9 @@
 """
-PSP / WBS element CRUD views for assisting admins.
+PSP / WBS element CRUD views.
 
 Do not remove any existing requirements from this module without explicit instruction.
 """
 
-from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models.deletion import ProtectedError
@@ -13,9 +12,13 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import DeleteView
 
-from apps.accounts.permissions import GroupNames
-from apps.hr.models import Workgroup
-from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
+from apps.finances.psp_access import (
+    filter_psp_for_user,
+    psp_workgroup_queryset_for_user,
+    user_can_manage_psp,
+    user_manages_all_psp,
+)
+from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import WBSElement
 from ..psp_cost_types import clear_disabled_year_estimate_amounts
@@ -69,47 +72,28 @@ def _protected_error_message(code, protected_objects):
     )
 
 
-def _user_is_institute_psp_admin(user):
-    """Assisting Admins and superusers manage PSP elements institute-wide."""
-    if user.is_superuser:
-        return True
-    return user.groups.filter(name=GroupNames.ASSISTING_ADMINS).exists()
-
-
 def _psp_manage_queryset(queryset, user):
-    """Workgroup-scoped PSP managers only see elements from their work groups."""
-    if _user_is_institute_psp_admin(user):
+    """Managers only see elements they may manage (scoped or institute-wide)."""
+    if user_manages_all_psp(user):
         return queryset
-    return filter_by_user_workgroups(queryset, user)
-
-
-def _psp_workgroup_queryset(user, instance=None):
-    """Work group choices for the PSP editor."""
-    if _user_is_institute_psp_admin(user):
-        queryset = Workgroup.objects.all()
-    else:
-        queryset = get_user_workgroups(user)
-    if instance and instance.work_group_id:
-        queryset = queryset | Workgroup.objects.filter(pk=instance.work_group_id)
-    return queryset.distinct().order_by('short_name')
+    return filter_psp_for_user(queryset, user)
 
 
 def _default_workgroup_for_user(user):
     return get_user_workgroups(user).order_by('short_name').first()
 
 
-def _work_group_field_hidden(user):
-    return not _user_is_institute_psp_admin(user)
-
-
 def _configure_work_group_field(form, user, *, instance=None):
-    form.fields['work_group'].queryset = _psp_workgroup_queryset(user, instance=instance)
-    if _work_group_field_hidden(user):
-        form.fields['work_group'].widget = forms.HiddenInput()
-        if instance is None or not instance.pk:
-            workgroup = _default_workgroup_for_user(user)
-            if workgroup:
-                form.initial.setdefault('work_group', workgroup.pk)
+    form.fields['work_group'].queryset = psp_workgroup_queryset_for_user(
+        user, instance=instance,
+    )
+    form.fields['work_group'].required = True
+    form.fields['work_group'].empty_label = '— Select work group —'
+    # Prefill when the user has exactly one assignable workgroup and none set yet.
+    if instance is None or not getattr(instance, 'pk', None) or not instance.work_group_id:
+        qs = form.fields['work_group'].queryset
+        if qs.count() == 1:
+            form.initial.setdefault('work_group', qs.first().pk)
 
 
 class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -124,7 +108,7 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return _psp_manage_queryset(queryset, self.request.user)
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_psp_element')
+        return user_can_manage_psp(self.request.user)
 
     def post(self, request, *args, **kwargs):
         if request.POST.get('action') == 'delete_selected':
@@ -168,7 +152,7 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('finances:psp_manage')
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_psp_element')
+        return user_can_manage_psp(self.request.user)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -178,10 +162,9 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        if _work_group_field_hidden(self.request.user):
-            workgroup = _default_workgroup_for_user(self.request.user)
-            if workgroup:
-                initial['work_group'] = workgroup.pk
+        workgroup = _default_workgroup_for_user(self.request.user)
+        if workgroup and get_user_workgroups(self.request.user).count() == 1:
+            initial['work_group'] = workgroup.pk
         return initial
 
     def get_form(self, form_class=None):
@@ -196,7 +179,7 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         else:
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet()
         context['title'] = 'Create PSP Element'
-        context['hide_work_group_field'] = _work_group_field_hidden(self.request.user)
+        context['hide_work_group_field'] = False
         return context
 
     def post(self, request, *args, **kwargs):
@@ -223,7 +206,7 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return _psp_manage_queryset(WBSElement.objects.all(), self.request.user)
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_psp_element')
+        return user_can_manage_psp(self.request.user)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -249,7 +232,7 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         else:
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet(instance=self.object)
         context['title'] = 'Edit PSP Element'
-        context['hide_work_group_field'] = _work_group_field_hidden(self.request.user)
+        context['hide_work_group_field'] = False
         return context
 
     def post(self, request, *args, **kwargs):
@@ -275,7 +258,7 @@ class PSPDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return _psp_manage_queryset(WBSElement.objects.all(), self.request.user)
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_psp_element')
+        return user_can_manage_psp(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

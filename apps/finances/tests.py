@@ -376,7 +376,7 @@ class PSPManageAccessTests(TestCase):
         self.assisting_admin = CustomUser.objects.create_user('psp-assisting-admin', password='test')
         self.assisting_admin.password_changed = True
         self.assisting_admin.save(update_fields=['password_changed'])
-        self.assisting_admin.groups.add(Group.objects.get(name=GroupNames.ASSISTING_ADMINS))
+        self.assisting_admin.groups.add(Group.objects.get(name=GroupNames.FINANCES_SUPERASSISTANT))
 
     def test_group_manager_only_sees_own_workgroup_psp_elements(self):
         factory = RequestFactory()
@@ -414,7 +414,7 @@ class PSPManageAccessTests(TestCase):
         self.assertEqual(form['title'].value(), 'Group A PSP')
         self.assertEqual(form['work_group'].value(), self.workgroup_a.pk)
 
-    def test_group_manager_create_hides_work_group_and_prefills_value(self):
+    def test_group_manager_create_requires_and_prefills_work_group(self):
         factory = RequestFactory()
         request = factory.get('/finances/psp/manage/new/')
         request.user = self.group_manager
@@ -425,9 +425,10 @@ class PSPManageAccessTests(TestCase):
         form = view.get_form()
         context = view.get_context_data()
 
-        self.assertTrue(context['hide_work_group_field'])
-        self.assertEqual(form.fields['work_group'].widget.__class__.__name__, 'HiddenInput')
+        self.assertFalse(context['hide_work_group_field'])
+        self.assertTrue(form.fields['work_group'].required)
         self.assertEqual(form['work_group'].value(), self.workgroup_a.pk)
+        self.assertEqual(list(form.fields['work_group'].queryset), [self.workgroup_a])
 
     def test_assisting_admin_can_edit_other_workgroup_psp(self):
         factory = RequestFactory()
@@ -512,6 +513,57 @@ class PSPManageAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(WBSElement.objects.filter(pk=self.psp_group_a.pk).exists())
         self.assertContains(response, 'was deleted')
+
+    def test_orphan_psp_hidden_from_scoped_manager(self):
+        orphan = WBSElement.objects.create(
+            wbs_code='WBS-ORPHAN',
+            title='No group',
+            cost_center=self.cost_center,
+            work_group=None,
+        )
+        factory = RequestFactory()
+        request = factory.get('/finances/psp/manage/')
+        request.user = self.group_manager
+        view = PSPListView()
+        view.request = request
+        self.assertNotIn(orphan, list(view.get_queryset()))
+
+    def test_orphan_psp_visible_to_assisting_admin(self):
+        orphan = WBSElement.objects.create(
+            wbs_code='WBS-ORPHAN2',
+            title='No group 2',
+            cost_center=self.cost_center,
+            work_group=None,
+        )
+        factory = RequestFactory()
+        request = factory.get('/finances/psp/manage/')
+        request.user = self.assisting_admin
+        view = PSPListView()
+        view.request = request
+        self.assertIn(orphan, list(view.get_queryset()))
+
+    def test_create_rejects_missing_work_group(self):
+        from apps.finances.forms import WBSElementForm
+
+        form = WBSElementForm(data={
+            'wbs_code': 'WBS-NEW',
+            'title': 'Needs WG',
+            'cost_center': self.cost_center.pk,
+            'work_group': '',
+            'subject_to_annual_recurrence': False,
+            'is_inactive': False,
+            'has_material_costs': False,
+            'has_personnel_costs': False,
+            'has_domestic_travel_costs': False,
+            'has_foreign_travel_costs': False,
+            'has_third_party_investments': False,
+            'has_publication_costs': False,
+            'has_animal_husbandry_costs': False,
+            'has_transfer_to_third_parties': False,
+            'has_internal_service_charges': False,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('work_group', form.errors)
 
 
 class CostCenterYearEstimateFormSetTests(TestCase):

@@ -31,6 +31,7 @@ from .psp_crud import PSPCreateView, PSPDeleteView, PSPListView, PSPUpdateView
 from .psp_overview import calculate_funding_cost, psp_elements, psp_personnel_detail
 from .report_import import (
     third_party_funding_import,
+    third_party_funding_import_history,
     third_party_funding_import_preview,
 )
 
@@ -40,6 +41,7 @@ __all__ = [
     'import_pay_scales',
     'third_party_funding_import',
     'third_party_funding_import_preview',
+    'third_party_funding_import_history',
     'ajax_payscale_levels',
     'calculate_funding_cost',
     'psp_elements',

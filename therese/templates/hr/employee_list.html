@@ -16,10 +16,28 @@
 </div>
 
 <div class="card list-panel">
-    <div class="search-toolbar">
-        <input type="text" id="employee-search" class="form-control" placeholder="Search by name or employee number..."
-               value="{{ search_query }}">
-    </div>
+    <form method="get" class="search-toolbar" id="employee-search-form" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+        {% if archive_mode %}<input type="hidden" name="archive" value="1">{% endif %}
+        {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
+        {% if current_dir %}<input type="hidden" name="dir" value="{{ current_dir }}">{% endif %}
+        <input type="text" name="q" id="employee-search" class="form-control"
+               placeholder="Name, number, job no., plan position…"
+               value="{{ search_query }}" style="flex:1; min-width:14rem;">
+        <button type="submit" class="btn-secondary">Search</button>
+        {% if not archive_mode %}
+        <div class="filter-chips" style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}sort={{ current_sort }}&amp;dir={{ current_dir }}"
+               class="btn-subtle{% if not list_filter %} is-active{% endif %}"
+               style="{% if not list_filter %}font-weight:600;{% endif %}">All</a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}filter=expiring_soon&amp;sort={{ current_sort }}&amp;dir={{ current_dir }}"
+               class="btn-subtle{% if list_filter == 'expiring_soon' %} is-active{% endif %}"
+               style="{% if list_filter == 'expiring_soon' %}font-weight:600;{% endif %}"
+               title="Contract ending within 3 months without seamless follow-up, or gap today">
+                Expiring soon / gaps
+            </a>
+        </div>
+        {% endif %}
+    </form>
 
     <form method="post" id="bulk-delete-employees">
         {% csrf_token %}
@@ -27,29 +45,86 @@
         <table class="table" id="employee-table">
             <thead>
                 <tr>
+                    {% if show_checkboxes %}
                     <th class="table-checkbox-col">
                         <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
                     </th>
-                    <th onclick="sortTable(0)">Name</th>
-                    <th onclick="sortTable(1)">Employee No.</th>
-                    <th>Office Phone</th>
+                    {% endif %}
+                    <th>
+                        <a href="?{% if archive_mode %}archive=1&amp;{% endif %}{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if list_filter %}filter={{ list_filter }}&amp;{% endif %}sort=last_name&amp;dir={% if current_sort == 'last_name' and current_dir == 'asc' %}desc{% else %}asc{% endif %}">
+                            Name
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% if archive_mode %}archive=1&amp;{% endif %}{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if list_filter %}filter={{ list_filter }}&amp;{% endif %}sort=employee_number&amp;dir={% if current_sort == 'employee_number' and current_dir == 'asc' %}desc{% else %}asc{% endif %}">
+                            Employee No.
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% if archive_mode %}archive=1&amp;{% endif %}{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if list_filter %}filter={{ list_filter }}&amp;{% endif %}sort=valid_until&amp;dir={% if current_sort == 'valid_until' and current_dir == 'asc' %}desc{% else %}asc{% endif %}">
+                            Contract Valid Until
+                        </a>
+                    </th>
+                    {% if show_actions %}
                     <th>Actions</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for employee in employees %}
-                <tr>
-                    <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ employee.pk }}"></td>
-                    <td><strong>{{ employee.get_full_name }}</strong></td>
-                    <td>{{ employee.employee_number }}</td>
-                    <td>{{ employee.phone_number|default:"—" }}</td>
-                    <td>
-                        <a href="{% url 'hr:employee_update' employee.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <tr
+                    {% if employee.list_can_edit %}
+                    class="employee-row-clickable"
+                    data-edit-url="{% url 'hr:employee_update' employee.pk %}"
+                    style="cursor:pointer;"
+                    title="Open employee"
+                    {% endif %}
+                >
+                    {% if show_checkboxes %}
+                    <td class="table-checkbox-col" data-stop-row-nav>
+                        <input type="checkbox" name="selected_ids" value="{{ employee.pk }}">
                     </td>
+                    {% endif %}
+                    <td>
+                        <strong>{{ employee.get_full_name }}</strong>
+                        {% if employee.list_expiry_warning %}
+                        <span class="employee-expiry-warning"
+                              title="{{ employee.list_expiry_tooltip }}"
+                              aria-label="{{ employee.list_expiry_tooltip }}"
+                              style="color:#dc2626; font-weight:800; margin-left:0.35rem; font-size:1.15em;">!</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ employee.employee_number }}</td>
+                    <td>
+                        {% with vu=employee.list_valid_until %}
+                            {% if vu.from_date %}
+                            <span class="text-muted" style="font-size:0.85em;">from {{ vu.from_date|date:"Y-m-d" }}:</span>
+                            {% endif %}
+                            {% if vu.open_ended %}
+                                Open-ended
+                            {% elif vu.date %}
+                                {{ vu.date|date:"Y-m-d" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    {% if show_actions %}
+                    <td data-stop-row-nav style="white-space:nowrap;">
+                        <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation&amp;employee={{ employee.pk }}"
+                           class="action-icon" title="Reallocation" aria-label="Create reallocation for {{ employee.get_full_name }}">
+                            <i class="fas fa-exchange-alt"></i>
+                        </a>
+                        <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension&amp;employee={{ employee.pk }}"
+                           class="action-icon" title="Extension" aria-label="Create extension for {{ employee.get_full_name }}">
+                            <i class="fas fa-file-contract"></i>
+                        </a>
+                    </td>
+                    {% endif %}
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="{% if show_checkboxes and show_actions %}5{% elif show_checkboxes or show_actions %}4{% else %}3{% endif %}" class="empty-state">
                         {% if archive_mode %}No employees in archive.{% else %}No active employees found.{% endif %}
                     </td>
                 </tr>
@@ -57,7 +132,7 @@
             </tbody>
         </table>
 
-        {% if employees %}
+        {% if employees and show_checkboxes %}
         <div class="table-bulk-actions">
             <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected employees?');">
                 Delete selected
@@ -67,41 +142,24 @@
     </form>
 </div>
 
+{% if can_manage_employees %}
 <a href="{% url 'hr:employee_create' %}" class="fab-button">
     <span>+</span> New Employee
 </a>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function filterEmployees() {
-    const input = document.getElementById('employee-search').value.toLowerCase();
-    document.querySelectorAll('#employee-table tbody tr').forEach(function(row) {
-        row.style.display = row.textContent.toLowerCase().includes(input) ? '' : 'none';
+(function() {
+    document.querySelectorAll('#employee-table tbody tr.employee-row-clickable').forEach(function(row) {
+        row.addEventListener('click', function(ev) {
+            if (ev.target.closest('[data-stop-row-nav]')) return;
+            if (ev.target.closest('a, button, input, label')) return;
+            var url = row.getAttribute('data-edit-url');
+            if (url) window.location.href = url;
+        });
     });
-}
-
-function sortTable(n) {
-    const table = document.getElementById("employee-table");
-    let rows = Array.from(table.rows).slice(1);
-    const isAsc = table.rows[0].cells[n].getAttribute('data-dir') !== 'asc';
-
-    rows.sort(function(a, b) {
-        let x = a.cells[n].textContent.trim();
-        let y = b.cells[n].textContent.trim();
-        if (n === 1) {
-            x = parseInt(x, 10) || 0;
-            y = parseInt(y, 10) || 0;
-        }
-        return (x < y ? -1 : (x > y ? 1 : 0)) * (isAsc ? 1 : -1);
-    });
-
-    rows.forEach(function(row) { table.tBodies[0].appendChild(row); });
-    Array.from(table.rows[0].cells).forEach(function(cell, i) {
-        if (i === n) cell.setAttribute('data-dir', isAsc ? 'asc' : 'desc');
-    });
-}
-
-document.getElementById('employee-search').addEventListener('keyup', filterEmployees);
+})();
 </script>
 {% endblock %}

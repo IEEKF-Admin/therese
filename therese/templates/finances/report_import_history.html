@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Import History{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1>Import History <small class="field-hint-de">Import-Verlauf</small></h1>
+        <p class="text-muted" style="margin:0.35rem 0 0;">
+            Completed and rejected data imports you are allowed to run.
+            For funding reports, coverage is estimated from min/max <strong>Belegdatum</strong>
+            on the Personalkosten sheet (heuristic).
+        </p>
+    </div>
+    <div class="page-header-actions">
+        {% if can_run_third_party_import %}
+        <a href="{% url 'finances:third_party_funding_import' %}" class="btn-primary">
+            New funding import
+        </a>
+        {% endif %}
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">My Tasks</a>
+    </div>
+</div>
+
+<form method="get" class="form-card" style="margin-bottom:1rem; max-width:28rem;">
+    <div class="form-field">
+        <label for="status">Status</label>
+        <select name="status" id="status" class="form-select" onchange="this.form.submit()">
+            <option value="">All</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<div class="form-card" style="overflow-x:auto;">
+    <table class="table" style="width:100%; font-size:0.9rem;">
+        <thead>
+            <tr>
+                <th>Uploaded at</th>
+                <th>Kind</th>
+                <th>Filename</th>
+                <th>Document created</th>
+                <th>Report created on</th>
+                <th>Coverage (Belegdatum)</th>
+                <th>Status</th>
+                <th>Uploaded by</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in imports %}
+            <tr>
+                <td style="white-space:nowrap;">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                <td style="white-space:nowrap;">{{ log.get_kind_display }}</td>
+                <td>
+                    <code style="font-size:0.85rem; word-break:break-all;">{{ log.original_filename|default:"—" }}</code>
+                    {% if log.file_size %}
+                    <br><span class="text-muted" style="font-size:0.78rem;">{{ log.file_size }} bytes</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    {% if log.file_created_at %}
+                        {{ log.file_created_at|date:"Y-m-d H:i" }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    {% if log.report_created_on %}
+                        {{ log.report_created_on|date:"Y-m-d" }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    {% if log.beleg_from or log.beleg_to %}
+                        {% if log.beleg_from %}{{ log.beleg_from|date:"Y-m-d" }}{% else %}?{% endif %}
+                        →
+                        {% if log.beleg_to %}{{ log.beleg_to|date:"Y-m-d" }}{% else %}?{% endif %}
+                    {% else %}
+                        <span class="text-muted" title="No Belegdatum found on Personalkosten sheet">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.status == 'completed' %}
+                    <span style="color:#047857;">{{ log.get_status_display }}</span>
+                    {% elif log.status == 'rejected_duplicate' %}
+                    <span style="color:#b45309;">{{ log.get_status_display }}</span>
+                    {% else %}
+                    <span class="text-muted">{{ log.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.uploaded_by %}
+                        {{ log.uploaded_by.get_username }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-muted">No imports recorded yet for your allowed import types.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+    {% if page_obj.has_previous %}
+    <a class="btn-secondary" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="btn-secondary" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

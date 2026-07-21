@@ -283,9 +283,26 @@ class WBSElement(BaseModel):
         verbose_name_plural = "PSP Elements"
         ordering = ['wbs_code']
         permissions = [
-            ("view_psp_element", "Can view individual PSP elements"),
-            ("manage_psp_element", "Can manage PSP elements"),
-            ("view_psp_overview", "Can view PSP overview with bookings and costs"),
+            (
+                "view_psp_element",
+                "Can view individual PSP elements in own workgroups",
+            ),
+            (
+                "manage_psp_element",
+                "Can manage PSP elements in own workgroups",
+            ),
+            (
+                "view_psp_overview",
+                "Can view PSP overview for own workgroups",
+            ),
+            (
+                "view_all_psp_elements",
+                "Can view all PSP elements institute-wide (ignore workgroup scope)",
+            ),
+            (
+                "manage_all_psp_elements",
+                "Can manage all PSP elements institute-wide (ignore workgroup scope)",
+            ),
             (
                 "import_third_party_funding_report",
                 "Can import third-party funding reports",

@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Workgroup Progress / Arbeitsgruppen-Fortschritt - THERESE{% endblock %}
+{% block title %}Checklist Progress - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Workgroup Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt Arbeitsgruppe</small></h1>
-    {% if workgroup %}<p class="page-subtitle">{{ workgroup.short_name }} — {{ workgroup.long_name }}</p>{% endif %}
+    <h1>Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt</small></h1>
+    {% if workgroups %}
+    <p class="page-subtitle">
+        {% for wg in workgroups %}{{ wg.short_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
 </div>
 
-{% if not workgroup %}
+{% if not workgroups %}
 <p>No workgroup membership. / Keine Arbeitsgruppen-Zugehörigkeit.</p>
 {% else %}
 <div class="user-group-matrix-wrap" style="overflow-x:auto;">
@@ -34,6 +38,12 @@
                 {% else %}—{% endif %}
             </td>
             {% endfor %}
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="{{ templates|length|add:1 }}" class="empty-state">
+                No employees in your workgroup(s). / Keine Mitarbeiter in Ihren Arbeitsgruppen.
+            </td>
         </tr>
         {% endfor %}
     </tbody>

@@ -30,7 +30,7 @@ class TaskWorkflowConfigTests(TestCase):
         self.admin_user = CustomUser.objects.create_user('admin', password='test')
         self.admin_user.password_changed = True
         self.admin_user.save(update_fields=['password_changed'])
-        admin_group, _ = Group.objects.get_or_create(name=GroupNames.ASSISTING_ADMINS)
+        admin_group, _ = Group.objects.get_or_create(name=GroupNames.HR_SUPERASSISTANT)
         self.admin_user.groups.add(admin_group)
 
     def _employee(self, number, first, last):

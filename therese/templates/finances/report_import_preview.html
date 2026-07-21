@@ -49,6 +49,13 @@
         {% if meta.report_created_on %}
         · report created on (content): {{ meta.report_created_on }}
         {% endif %}
+        {% if meta.beleg_from or meta.beleg_to %}
+        <br>Coverage (Belegdatum):
+        {% if meta.beleg_from %}{{ meta.beleg_from }}{% else %}?{% endif %}
+        →
+        {% if meta.beleg_to %}{{ meta.beleg_to }}{% else %}?{% endif %}
+        <span class="text-muted">(heuristic from Personalkosten)</span>
+        {% endif %}
         {% if meta.is_duplicate %}
         <br><strong class="text-danger">Duplicate of a previously completed import.</strong>
         {% endif %}

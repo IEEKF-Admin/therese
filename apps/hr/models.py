@@ -172,8 +172,22 @@ class Employee(BaseModel):
         verbose_name_plural = "Employees"
         ordering = ['last_name', 'first_name']
         permissions = [
-            ("can_view_employees", "Can view employee list and details"),
-            ("manage_employee", "Can manage employees (create and fully edit)"),
+            (
+                "can_view_employees",
+                "Can view employees in shared workgroups",
+            ),
+            (
+                "manage_employee",
+                "Can manage employees in shared workgroups (create and edit)",
+            ),
+            (
+                "can_view_all_employees",
+                "Can view all employees institute-wide (ignore workgroup scope)",
+            ),
+            (
+                "manage_all_employees",
+                "Can manage all employees institute-wide (ignore workgroup scope)",
+            ),
         ]
 
     def __str__(self):
@@ -636,24 +650,86 @@ class FundingAllocation(BaseModel):
 
 
 class SalarySupplement(BaseModel):
-    """Salary supplement for an employee"""
+    """Salary supplement belonging to exactly one Contract.
+
+    Use either ``percentage`` (%) or ``fixed_amount`` (€), not both.
+    """
+    contract = models.ForeignKey(
+        'Contract',
+        on_delete=models.CASCADE,
+        related_name='salary_supplements',
+        verbose_name="Contract",
+    )
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
         related_name='salary_supplements',
-        verbose_name="Employee"
+        verbose_name="Employee",
     )
-    percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Percentage")
+    percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Percentage (%)",
+        help_text="Percentage of monthly salary. Leave empty if using a fixed amount.",
+    )
+    fixed_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Fixed amount (€)",
+        help_text="Fixed euro amount per month. Leave empty if using a percentage.",
+    )
     comment = models.TextField(blank=True, verbose_name="Comment")
 
     class Meta:
         verbose_name = "Salary Supplement"
         verbose_name_plural = "Salary Supplements"
-        ordering = ['employee', '-created_at']
+        ordering = ['contract', '-created_at']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.contract_id:
+            self.employee_id = self.contract.employee_id
+        elif self.contract and getattr(self.contract, 'employee_id', None):
+            self.employee_id = self.contract.employee_id
+
+        has_pct = self.percentage is not None
+        has_fixed = self.fixed_amount is not None
+        if has_pct and has_fixed:
+            raise ValidationError(
+                'Enter either a percentage or a fixed amount, not both.'
+            )
+        if not has_pct and not has_fixed:
+            raise ValidationError(
+                'Enter either a percentage (%) or a fixed amount (€).'
+            )
+        if has_pct and self.percentage < 0:
+            raise ValidationError({'percentage': 'Percentage cannot be negative.'})
+        if has_fixed and self.fixed_amount < 0:
+            raise ValidationError({'fixed_amount': 'Fixed amount cannot be negative.'})
+
+    def save(self, *args, **kwargs):
+        if self.contract_id or getattr(self, 'contract', None):
+            contract = self.contract
+            if contract is not None:
+                self.employee_id = contract.employee_id
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def is_fixed(self) -> bool:
+        return self.fixed_amount is not None
 
     def __str__(self):
+        if self.fixed_amount is not None:
+            return f"{self.employee} - {self.fixed_amount} € (fixed)"
         return f"{self.employee} - {self.percentage}%"
-        
+
+
 class Workgroup(models.Model):
     """
     Project: THERESE

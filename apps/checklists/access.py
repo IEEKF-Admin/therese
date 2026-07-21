@@ -112,7 +112,32 @@ def get_user_first_workgroup(user):
     return employee.workgroups.order_by('short_name').first()
 
 
+def get_user_workgroups_ordered(user):
+    """All workgroups the user's employee belongs to, ordered by short_name."""
+    employee = _user_employee(user)
+    if not employee:
+        return []
+    return list(employee.workgroups.order_by('short_name'))
+
+
 def employees_in_workgroup(workgroup):
     if not workgroup:
         return []
     return list(workgroup.members.order_by('last_name', 'first_name'))
+
+
+def employees_in_user_workgroups(user):
+    """
+    Distinct employees who share at least one workgroup with the current user.
+    Covers all of the user's workgroups (not only the first).
+    """
+    from apps.hr.models import Employee
+
+    wg_ids = _user_workgroup_ids(user)
+    if not wg_ids:
+        return []
+    return list(
+        Employee.objects.filter(workgroups__in=wg_ids)
+        .distinct()
+        .order_by('last_name', 'first_name')
+    )

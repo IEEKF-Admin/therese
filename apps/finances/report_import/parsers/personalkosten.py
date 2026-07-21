@@ -68,6 +68,102 @@ def _normalize_kostenart(value) -> str:
     return text.strip()
 
 
+def _detect_personalkosten_layout(rows: list) -> tuple[int, dict]:
+    """
+    Return (header_row_index, column_map) for a Personalkosten sheet.
+    """
+    header_idx = None
+    col: dict = {}
+    for i, row in enumerate(rows[:15]):
+        cells = [_cell_str(c).lower().replace('\n', ' ') for c in row]
+        joined = ' '.join(cells)
+        if 'personal' in joined and 'kostenart' in joined and 'personalkosten' in joined:
+            header_idx = i
+            for j, c in enumerate(cells):
+                if 'psp' in c and 'bezeichnung' not in c:
+                    col['psp'] = j
+                elif c == 'kostenart' or (
+                    c.startswith('kostenart') and 'bezeichnung' not in c and 'koa' not in c
+                ):
+                    col.setdefault('kostenart', j)
+                elif 'beleg' in c and 'datum' in c:
+                    col['belegdatum'] = j
+                elif 'personal' in c and 'nummer' in c:
+                    col['personalnummer'] = j
+                elif c.replace(' ', '') in {'personalkosten', 'personalkosten'}:
+                    col['personalkosten'] = j
+                elif 'personalkosten' in c:
+                    col['personalkosten'] = j
+            break
+
+    if header_idx is None:
+        # Fallback to known layout: B=PSP, C=Kostenart, G=Belegdatum, H=Personalnummer, I=Personalkosten
+        header_idx = 1
+        col = {
+            'psp': 1,
+            'kostenart': 2,
+            'belegdatum': 6,
+            'personalnummer': 7,
+            'personalkosten': 8,
+        }
+        if rows and 'psp' in _cell_str(rows[0][1] if len(rows[0]) > 1 else '').lower():
+            header_idx = 0
+
+    required = ('psp', 'kostenart', 'personalnummer', 'personalkosten')
+    if not all(k in col for k in required):
+        col = {
+            'psp': 1,
+            'kostenart': 2,
+            'belegdatum': 6,
+            'personalnummer': 7,
+            'personalkosten': 8,
+        }
+        header_idx = 1
+
+    return header_idx, col
+
+
+def extract_beleg_date_range(file_bytes: bytes) -> tuple[date | None, date | None]:
+    """
+    Heuristic coverage window from Personalkosten column Belegdatum.
+
+    Scans **all** data rows with a parseable Belegdatum (not only Kostenart
+    60003000 / latest-per-employee). Returns (min_date, max_date) or (None, None).
+    """
+    try:
+        wb = load_workbook(BytesIO(file_bytes), data_only=True, read_only=True)
+    except Exception:  # noqa: BLE001
+        return None, None
+
+    try:
+        if 'Personalkosten' not in wb.sheetnames:
+            return None, None
+        ws = wb['Personalkosten']
+        rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    finally:
+        wb.close()
+
+    if not rows:
+        return None, None
+
+    header_idx, col = _detect_personalkosten_layout(rows)
+    beleg_idx = col.get('belegdatum')
+    if beleg_idx is None:
+        return None, None
+
+    dates: list[date] = []
+    for row in rows[header_idx + 1 :]:
+        if not row or beleg_idx >= len(row):
+            continue
+        d = _parse_german_date(row[beleg_idx])
+        if d is not None:
+            dates.append(d)
+
+    if not dates:
+        return None, None
+    return min(dates), max(dates)
+
+
 def parse_personalkosten_sheet(file_bytes: bytes, filename: str) -> list[ParsedPersonalkostenEntry]:
     """
     Parse Personalkosten sheet; return latest positive 60003000 row per Personalnummer.
@@ -85,60 +181,17 @@ def parse_personalkosten_sheet(file_bytes: bytes, filename: str) -> list[ParsedP
     finally:
         wb.close()
 
-    # Detect header row
-    header_idx = None
-    col = {}
-    for i, row in enumerate(rows[:15]):
-        cells = [_cell_str(c).lower().replace('\n', ' ') for c in row]
-        joined = ' '.join(cells)
-        if 'personal' in joined and 'kostenart' in joined and 'personalkosten' in joined:
-            header_idx = i
-            for j, c in enumerate(cells):
-                if 'psp' in c and 'bezeichnung' not in c:
-                    col['psp'] = j
-                elif c == 'kostenart' or (c.startswith('kostenart') and 'bezeichnung' not in c and 'koa' not in c):
-                    # first Kostenart column (numeric code)
-                    col.setdefault('kostenart', j)
-                elif 'beleg' in c and 'datum' in c:
-                    col['belegdatum'] = j
-                elif 'personal' in c and 'nummer' in c:
-                    col['personalnummer'] = j
-                elif c.replace(' ', '') in {'personalkosten', 'personalkosten'}:
-                    col['personalkosten'] = j
-                elif 'personalkosten' in c:
-                    col['personalkosten'] = j
-            break
+    if not rows:
+        return []
 
-    if header_idx is None:
-        # Fallback to known layout: B=PSP, C=Kostenart, G=Belegdatum, H=Personalnummer, I=Personalkosten
-        header_idx = 1  # row index 1 often headers at row 2 → index 1
-        col = {
-            'psp': 1,
-            'kostenart': 2,
-            'belegdatum': 6,
-            'personalnummer': 7,
-            'personalkosten': 8,
-        }
-        # If first row looks like header at index 0
-        if rows and 'psp' in _cell_str(rows[0][1] if len(rows[0]) > 1 else '').lower():
-            header_idx = 0
-
-    required = ('psp', 'kostenart', 'personalnummer', 'personalkosten')
-    if not all(k in col for k in required):
-        col = {
-            'psp': 1,
-            'kostenart': 2,
-            'belegdatum': 6,
-            'personalnummer': 7,
-            'personalkosten': 8,
-        }
-        header_idx = 1
+    header_idx, col = _detect_personalkosten_layout(rows)
 
     best_by_personal: dict[str, ParsedPersonalkostenEntry] = {}
 
     for row in rows[header_idx + 1 :]:
         if not row:
             continue
+
         def get(key, default=None):
             idx = col.get(key)
             if idx is None or idx >= len(row):

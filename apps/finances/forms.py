@@ -134,6 +134,9 @@ class WBSElementForm(forms.ModelForm):
         self.fields['cost_center'].queryset = CostCenter.objects.all().order_by('cost_center')
         self.fields['cost_center'].required = True
         self.fields['cost_center'].empty_label = '— Select cost center —'
+        # Manual create/edit requires a work group (orphan PSPs only via bulk import).
+        self.fields['work_group'].required = True
+        self.fields['work_group'].empty_label = '— Select work group —'
         # FileField model max_length applies to the *storage path*. Client
         # filenames may be longer; DatabaseStorage renames them to a short UUID.
         if 'third_party_funding_commitment' in self.fields:

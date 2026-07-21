@@ -22,8 +22,14 @@ class ChecklistTemplate(BaseModel):
         permissions = [
             ('view_checklist', 'Can view checklists'),
             ('manage_checklist', 'Can manage checklist templates and assignments'),
-            ('view_workgroup_progress', 'Can view checklist progress for own workgroup'),
-            ('view_institute_progress', 'Can view institute-wide checklist progress'),
+            (
+                'view_workgroup_progress',
+                'Can view checklist progress for own workgroups',
+            ),
+            (
+                'view_institute_progress',
+                'Can view institute-wide checklist progress (all employees)',
+            ),
         ]
 
     def __str__(self):

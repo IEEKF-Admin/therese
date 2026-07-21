@@ -73,7 +73,8 @@ class FundingAllocationInline(admin.TabularInline):
 class SalarySupplementInline(admin.TabularInline):
     model = SalarySupplement
     extra = 0
-    fields = ('percentage', 'comment')
+    fk_name = 'contract'
+    fields = ('percentage', 'fixed_amount', 'comment')
 
 
 class WorkgroupMembershipInline(admin.TabularInline):
@@ -201,7 +202,6 @@ class EmployeeAdmin(admin.ModelAdmin):
     # forms are brittle in admin and produced "missing TOTAL_FORMS" save errors.
     inlines = [
         ContractInline,
-        SalarySupplementInline,
         WorkgroupMembershipInline,
     ]
 
@@ -324,7 +324,7 @@ class ContractAdmin(admin.ModelAdmin):
         'is_active',
         'comments',
     )
-    inlines = [FundingAllocationInline]
+    inlines = [FundingAllocationInline, SalarySupplementInline]
 
 
 @admin.register(FundingAllocation, site=therese_admin)
@@ -371,13 +371,14 @@ class FundingAllocationAdmin(admin.ModelAdmin):
 
 @admin.register(SalarySupplement, site=therese_admin)
 class SalarySupplementAdmin(admin.ModelAdmin):
-    list_display = ('employee', 'percentage', 'comment')
+    list_display = ('employee', 'contract', 'percentage', 'fixed_amount', 'comment')
     search_fields = (
         'employee__employee_number',
         'employee__first_name',
         'employee__last_name',
     )
-    autocomplete_fields = ('employee',)
+    autocomplete_fields = ('employee', 'contract')
+    fields = ('contract', 'employee', 'percentage', 'fixed_amount', 'comment')
 
 
 @admin.register(EmployeeDocumentVersion, site=therese_admin)

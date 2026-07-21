@@ -12,6 +12,8 @@ from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
+from django import forms as django_forms
+
 from ..forms import ContractForm, FundingAllocationForm
 from ..models import (
     Contract,
@@ -20,6 +22,56 @@ from ..models import (
     SalarySupplement,
     Workgroup,
 )
+
+
+class SalarySupplementForm(django_forms.ModelForm):
+    class Meta:
+        model = SalarySupplement
+        fields = ['percentage', 'fixed_amount', 'comment']
+        widgets = {
+            'percentage': django_forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'e.g. 5.00',
+            }),
+            'fixed_amount': django_forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'e.g. 250.00',
+            }),
+            'comment': django_forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['percentage'].label = 'Percentage (%)'
+        self.fields['percentage'].required = False
+        self.fields['fixed_amount'].label = 'Fixed amount (€)'
+        self.fields['fixed_amount'].required = False
+        self.fields['comment'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        pct = cleaned.get('percentage')
+        fixed = cleaned.get('fixed_amount')
+        # Treat empty string as None
+        if pct == '':
+            cleaned['percentage'] = None
+            pct = None
+        if fixed == '':
+            cleaned['fixed_amount'] = None
+            fixed = None
+        if pct is not None and fixed is not None:
+            raise django_forms.ValidationError(
+                'Enter either a percentage or a fixed amount, not both.'
+            )
+        if pct is None and fixed is None:
+            raise django_forms.ValidationError(
+                'Enter either a percentage (%) or a fixed amount (€).'
+            )
+        return cleaned
 
 
 class ChronologicalContractFormSet(BaseInlineFormSet):
@@ -90,8 +142,22 @@ def make_contract_funding_formset(extra=0):
     )
 
 
+def make_contract_salary_formset(extra=0):
+    """Salary supplements parented on Contract."""
+    return inlineformset_factory(
+        Contract,
+        SalarySupplement,
+        form=SalarySupplementForm,
+        fk_name='contract',
+        extra=extra,
+        can_delete=True,
+        min_num=0,
+    )
+
+
 ContractFormSet = make_contract_formset(extra=0)
 ContractFundingFormSet = make_contract_funding_formset(extra=0)
+ContractSalaryFormSet = make_contract_salary_formset(extra=0)
 
 # Legacy name used in older imports — employee-level FA formset removed.
 FundingFormSet = ContractFundingFormSet
@@ -105,6 +171,23 @@ def funding_prefix_for_new(contract_form_index: int) -> str:
     return f'fa_n{contract_form_index}'
 
 
+def salary_prefix_for_existing(contract_pk: int) -> str:
+    return f'ss_c{contract_pk}'
+
+
+def salary_prefix_for_new(contract_form_index: int) -> str:
+    return f'ss_n{contract_form_index}'
+
+
+def _bind_nested(FormSetFactory, parent, prefix, data, *, extra=0, initial=None):
+    FS = FormSetFactory(extra=extra)
+    if data is not None:
+        return FS(data, instance=parent, prefix=prefix)
+    if initial:
+        return FS(instance=parent, prefix=prefix, initial=initial)
+    return FS(instance=parent, prefix=prefix)
+
+
 def build_contract_cards(
     employee,
     data=None,
@@ -112,14 +195,13 @@ def build_contract_cards(
     contract_extra=0,
     contract_initial=None,
     funding_initial_by_index=None,
+    salary_initial_by_index=None,
 ):
     """
-    Build contract formset + nested funding formsets for template/save.
-
-    ``funding_initial_by_index``: optional dict form_index -> list of FA initial dicts
-    (used when creating from recruitment on the first new contract).
+    Build contract formset + nested funding/salary formsets for template/save.
     """
     funding_initial_by_index = funding_initial_by_index or {}
+    salary_initial_by_index = salary_initial_by_index or {}
     ContractFS = make_contract_formset(extra=contract_extra)
     kwargs = {'instance': employee}
     if data is not None:
@@ -133,51 +215,53 @@ def build_contract_cards(
     for index, cform in enumerate(contract_fs.forms):
         contract = cform.instance
         is_existing = bool(getattr(contract, 'pk', None))
+        shell = (
+            contract if is_existing
+            else (Contract(employee=employee) if employee is not None else Contract())
+        )
         if is_existing:
-            prefix = funding_prefix_for_existing(contract.pk)
-            FundingFSLocal = make_contract_funding_formset(extra=0)
-            fa_fs = FundingFSLocal(data, instance=contract, prefix=prefix) if data is not None else FundingFSLocal(
-                instance=contract, prefix=prefix
-            )
+            fa_prefix = funding_prefix_for_existing(contract.pk)
+            ss_prefix = salary_prefix_for_existing(contract.pk)
+            fa_fs = _bind_nested(make_contract_funding_formset, shell, fa_prefix, data)
+            ss_fs = _bind_nested(make_contract_salary_formset, shell, ss_prefix, data)
         else:
-            prefix = funding_prefix_for_new(index)
-            initials = funding_initial_by_index.get(index) or []
-            fa_extra = len(initials)
-            FundingFSLocal = make_contract_funding_formset(extra=max(fa_extra, 0))
-            shell = Contract(employee=employee) if employee is not None else Contract()
-            if data is not None:
-                fa_fs = FundingFSLocal(data, instance=shell, prefix=prefix)
-            else:
-                fa_fs = FundingFSLocal(
-                    instance=shell,
-                    prefix=prefix,
-                    initial=initials or None,
-                )
+            fa_prefix = funding_prefix_for_new(index)
+            ss_prefix = salary_prefix_for_new(index)
+            fa_init = funding_initial_by_index.get(index) or []
+            ss_init = salary_initial_by_index.get(index) or []
+            fa_fs = _bind_nested(
+                make_contract_funding_formset, shell, fa_prefix, data,
+                extra=len(fa_init), initial=fa_init or None,
+            )
+            ss_fs = _bind_nested(
+                make_contract_salary_formset, shell, ss_prefix, data,
+                extra=len(ss_init), initial=ss_init or None,
+            )
 
         cards.append({
             'index': index,
             'form': cform,
             'funding_formset': fa_fs,
-            'prefix': prefix,
+            'salary_formset': ss_fs,
+            'prefix': fa_prefix,
+            'salary_prefix': ss_prefix,
             'is_existing': is_existing,
             'is_active': bool(getattr(contract, 'is_active', True)) if is_existing else True,
             'contract_pk': contract.pk if is_existing else None,
         })
 
-    # Empty templates for JS "Add contract" / "Add funding" (__prefix__)
     empty_contract_fs = make_contract_formset(extra=0)(instance=employee)
     empty_contract_form = empty_contract_fs.empty_form
-    empty_fa_fs = make_contract_funding_formset(extra=0)(
-        instance=Contract(employee=employee) if employee is not None else Contract(),
-        prefix='fa_tpl',
-    )
-    empty_fa_form = empty_fa_fs.empty_form
+    shell = Contract(employee=employee) if employee is not None else Contract()
+    empty_fa_fs = make_contract_funding_formset(extra=0)(instance=shell, prefix='fa_tpl')
+    empty_ss_fs = make_contract_salary_formset(extra=0)(instance=shell, prefix='ss_tpl')
 
     return {
         'contract_formset': contract_fs,
         'contract_cards': cards,
         'empty_contract_form': empty_contract_form,
-        'empty_funding_form': empty_fa_form,
+        'empty_funding_form': empty_fa_fs.empty_form,
+        'empty_salary_form': empty_ss_fs.empty_form,
         'empty_funding_management': empty_fa_fs.management_form,
     }
 
@@ -193,17 +277,31 @@ def collect_funding_formsets_from_post(employee, contract_formset, data):
         else:
             prefix = funding_prefix_for_new(index)
             parent = Contract(employee=employee)
-        # Only bind if management form present for this prefix
         total_key = f'{prefix}-TOTAL_FORMS'
-        if total_key not in data and f'{prefix}-TOTAL_FORMS' not in getattr(data, 'keys', lambda: [])():
-            # QueryDict always has keys
-            pass
+        FS = make_contract_funding_formset(extra=0)
         if data is not None and total_key not in data:
-            # No FA block submitted for this card — treat as empty formset
-            FS = make_contract_funding_formset(extra=0)
             formsets.append((index, cform, FS(instance=parent, prefix=prefix)))
             continue
-        FS = make_contract_funding_formset(extra=0)
+        formsets.append((index, cform, FS(data, instance=parent, prefix=prefix)))
+    return formsets
+
+
+def collect_salary_formsets_from_post(employee, contract_formset, data):
+    """Build nested salary-supplement formsets for each contract form index."""
+    formsets = []
+    for index, cform in enumerate(contract_formset.forms):
+        contract = cform.instance
+        if getattr(contract, 'pk', None):
+            prefix = salary_prefix_for_existing(contract.pk)
+            parent = contract
+        else:
+            prefix = salary_prefix_for_new(index)
+            parent = Contract(employee=employee)
+        total_key = f'{prefix}-TOTAL_FORMS'
+        FS = make_contract_salary_formset(extra=0)
+        if data is not None and total_key not in data:
+            formsets.append((index, cform, FS(instance=parent, prefix=prefix)))
+            continue
         formsets.append((index, cform, FS(data, instance=parent, prefix=prefix)))
     return formsets
 
@@ -253,13 +351,8 @@ def validate_active_contract_funding_totals(contract_formset, nested_funding) ->
     return errors
 
 
-SalaryFormSet = inlineformset_factory(
-    Employee,
-    SalarySupplement,
-    fields=['percentage', 'comment'],
-    extra=0,
-    can_delete=True,
-)
+# Employee-level salary formset removed — use ContractSalaryFormSet / nested cards.
+SalaryFormSet = ContractSalaryFormSet
 
 WorkgroupFormSet = inlineformset_factory(
     Employee,

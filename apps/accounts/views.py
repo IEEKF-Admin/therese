@@ -94,7 +94,8 @@ def _set_popup_audience(config, post_data):
 
 
 def login_popup_settings(request):
-    if not (request.user.is_superuser or request.user.groups.filter(name='Assisting Admins').exists()):
+    from apps.accounts.permissions import user_is_hr_superassistant
+    if not user_is_hr_superassistant(request.user):
         return redirect('tasks:my_tasks')
     if request.method == 'POST':
         if request.POST.get('action') == 'delete_selected':

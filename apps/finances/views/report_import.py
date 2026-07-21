@@ -6,9 +6,18 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from django.core.exceptions import PermissionDenied
+
+from apps.core.models import DataImportLog
+from apps.finances.import_access import (
+    import_history_kinds_for_user,
+    user_can_import_third_party_funding,
+    user_can_view_import_history,
+)
 from apps.finances.models import CostCenter
 from apps.finances.report_import.service import (
     analyze_uploaded_files,
@@ -185,4 +194,39 @@ def third_party_funding_import_preview(request):
     return render(request, 'finances/report_import_preview.html', {
         'plan': plan,
         'cost_centers': cost_centers,
+    })
+
+
+@login_required
+@require_http_methods(['GET'])
+def third_party_funding_import_history(request):
+    """
+    Upload history for tracked finance imports.
+
+    Anyone who may run an import (third-party funding report and/or pay scale)
+    can view history; rows are limited to the import kinds they may perform.
+    """
+    if not user_can_view_import_history(request.user):
+        raise PermissionDenied
+
+    kinds = import_history_kinds_for_user(request.user)
+    qs = (
+        DataImportLog.objects.filter(kind__in=kinds)
+        .select_related('uploaded_by')
+        .order_by('-created_at')
+    )
+    status_filter = (request.GET.get('status') or '').strip()
+    if status_filter in {c.value for c in DataImportLog.Status}:
+        qs = qs.filter(status=status_filter)
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    return render(request, 'finances/report_import_history.html', {
+        'page_obj': page_obj,
+        'imports': page_obj.object_list,
+        'status_filter': status_filter,
+        'status_choices': DataImportLog.Status.choices,
+        'can_run_third_party_import': user_can_import_third_party_funding(request.user),
+        'history_kinds': kinds,
     })

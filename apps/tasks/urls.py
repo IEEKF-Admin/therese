@@ -65,11 +65,11 @@ urlpatterns = [
     path('standard-orders/image/<int:pk>/', standard_item_thumbnail, name='standard_item_thumbnail'),
     path('<int:pk>/standardize/', save_standard_checkboxes, name='save_standard_checkboxes'),
 
-    # Task workflow administration (Assisting Admins)
+    # Task workflow administration (HR Superassistant)
     path('admin/workflow/', TaskWorkflowConfigListView.as_view(), name='workflow_config_manage'),
     path('admin/workflow/<int:pk>/', TaskWorkflowConfigUpdateView.as_view(), name='workflow_config_update'),
 
-    # Recruitment administration (Assisting Admins)
+    # Recruitment administration (HR Superassistant)
     path('admin/jobs/', RecruitmentJobListView.as_view(), name='recruitment_job_manage'),
     path('admin/jobs/new/', RecruitmentJobCreateView.as_view(), name='recruitment_job_create'),
     path('admin/jobs/<int:pk>/edit/', RecruitmentJobUpdateView.as_view(), name='recruitment_job_update'),

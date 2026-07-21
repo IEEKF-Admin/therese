@@ -358,11 +358,8 @@ ContractFormSet = inlineformset_factory(
 FundingFormSet = inlineformset_factory(
     Employee, FundingAllocation, form=FundingAllocationForm, extra=0, can_delete=True, min_num=0,
 )
-SalaryFormSet = inlineformset_factory(
-    Employee, SalarySupplement,
-    fields=['percentage', 'comment'],
-    extra=0, can_delete=True,
-)
+# Salary supplements are nested under Contract (see employee_form_helpers).
+SalaryFormSet = None
 WorkgroupFormSet = inlineformset_factory(Employee, Workgroup.members.through, fields=('workgroup',), extra=0, can_delete=True)
 
 
@@ -391,7 +388,7 @@ class WorkgroupForm(forms.ModelForm):
         return instance
 
 
-# = Location management forms for Assisting Admins (Buildings / Rooms / Phones) =
+# = Location management forms (Buildings / Rooms / Phones) =
 
 class BuildingForm(forms.ModelForm):
     class Meta:

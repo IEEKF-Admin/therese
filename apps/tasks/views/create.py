@@ -247,6 +247,20 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             elif standard_supplier:
                 kwargs['initial']['supplier'] = standard_supplier
 
+        # Prefill employee for reallocation / extension (e.g. from employee list)
+        if task_type in ('personnel_reallocation', 'personnel_contract_extension'):
+            employee_raw = (self.request.GET.get('employee') or '').strip()
+            if employee_raw and not self.request.POST:
+                try:
+                    employee_pk = int(employee_raw)
+                except (TypeError, ValueError):
+                    employee_pk = None
+                if employee_pk is not None:
+                    from apps.hr.models import Employee
+                    if Employee.objects.filter(pk=employee_pk).exists():
+                        initial = kwargs.setdefault('initial', {})
+                        initial.setdefault('employee', employee_pk)
+
         return kwargs
 
     def get_context_data(self, **kwargs):

@@ -20,14 +20,20 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.core.models import GlobalSetting
-from apps.hr.models import FundingAllocation
+from apps.hr.models import FundingAllocation, Workgroup
 from apps.hr.validity import dedupe_allocations_as_of, resolve_as_of
-from apps.hr.workgroup_access import filter_by_user_workgroups, get_user_workgroups
+from apps.hr.workgroup_access import get_user_workgroups
 from apps.finances.models import (
     WBSElement,
     WBSElementObligo,
     WBSElementTrueYearlySpending,
     WBSElementYearEstimate,
+)
+from apps.finances.psp_access import (
+    filter_psp_for_user,
+    user_can_view_psp,
+    user_can_view_psp_list,
+    user_sees_all_psp,
 )
 from apps.finances.psp_cost_types import PSP_COST_TYPES
 
@@ -384,28 +390,21 @@ def psp_elements(request):
     """PSP / WBS elements financial overview (Plan / True / Obligo)."""
     user = request.user
 
-    if not (
-        user.is_superuser
-        or user.has_perm('finances.view_psp_overview')
-        or user.has_perm('finances.manage_psp_element')
-    ):
+    if not user_can_view_psp_list(user):
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('tasks:my_tasks')
 
-    user_workgroups = list(get_user_workgroups(user))
     base_wbs = (
         WBSElement.objects.active()
         .select_related('work_group', 'cost_center')
         .order_by('wbs_code')
     )
-    # Superusers and assisting-style managers without a workgroup see all PSPs.
-    # Workgroup members only see PSPs of their groups.
-    if user.is_superuser or (
-        user.has_perm('finances.manage_psp_element') and not user_workgroups
-    ):
-        all_wbs = base_wbs
+    all_wbs = filter_psp_for_user(base_wbs, user)
+
+    if user_sees_all_psp(user):
+        user_workgroups = list(Workgroup.objects.order_by('short_name'))
     else:
-        all_wbs = filter_by_user_workgroups(base_wbs, user)
+        user_workgroups = list(get_user_workgroups(user))
 
     current_year = date.today().year
     try:
@@ -417,7 +416,12 @@ def psp_elements(request):
     filter_workgroup_id = request.GET.get('work_group', '')
     filter_workgroup = None
     if filter_workgroup_id and filter_workgroup_id != 'all':
-        filter_workgroup = get_user_workgroups(user).filter(pk=filter_workgroup_id).first()
+        try:
+            wg_pk = int(filter_workgroup_id)
+        except (TypeError, ValueError):
+            wg_pk = None
+        if wg_pk is not None:
+            filter_workgroup = next((wg for wg in user_workgroups if wg.pk == wg_pk), None)
 
     wbs_qs = all_wbs
     if filter_workgroup:
@@ -473,34 +477,11 @@ def psp_elements(request):
     return render(request, 'finances/psp_elements.html', context)
 
 
-def _user_can_view_psp(user, wbs: WBSElement) -> bool:
-    """Same visibility rules as the PSP overview list."""
-    if user.is_superuser:
-        return True
-    if not (
-        user.has_perm('finances.view_psp_overview')
-        or user.has_perm('finances.manage_psp_element')
-    ):
-        return False
-    user_workgroups = list(get_user_workgroups(user))
-    if user.has_perm('finances.manage_psp_element') and not user_workgroups:
-        return True
-    if not user_workgroups:
-        return False
-    if wbs.work_group_id is None:
-        return False
-    return wbs.work_group_id in {wg.pk for wg in user_workgroups}
-
-
 @login_required
 def psp_personnel_detail(request, pk):
     """Assigned personnel (true costs) for one PSP — opened from the Personalkosten row."""
     user = request.user
-    if not (
-        user.is_superuser
-        or user.has_perm('finances.view_psp_overview')
-        or user.has_perm('finances.manage_psp_element')
-    ):
+    if not user_can_view_psp_list(user):
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('tasks:my_tasks')
 
@@ -508,7 +489,7 @@ def psp_personnel_detail(request, pk):
         WBSElement.objects.select_related('work_group', 'cost_center'),
         pk=pk,
     )
-    if not _user_can_view_psp(user, wbs):
+    if not user_can_view_psp(user, wbs):
         messages.error(request, 'You do not have permission to view this PSP element.')
         return redirect('finances:psp_elements')
 

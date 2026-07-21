@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Institute Progress / Instituts-Fortschritt - THERESE{% endblock %}
+{% block title %}Checklist Progress - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Institute Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt Institut</small></h1>
+    <h1>Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt (Institut)</small></h1>
 </div>
 
 <div class="user-group-matrix-wrap" style="overflow-x:auto;">
@@ -28,6 +28,10 @@
                 {% else %}—{% endif %}
             </td>
             {% endfor %}
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="{{ templates|length|add:1 }}" class="empty-state">No employees found.</td>
         </tr>
         {% endfor %}
     </tbody>

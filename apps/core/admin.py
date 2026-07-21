@@ -41,6 +41,8 @@ class DataImportLogAdmin(admin.ModelAdmin):
         'file_size',
         'file_created_at',
         'report_created_on',
+        'beleg_from',
+        'beleg_to',
     )
     list_filter = ('kind', 'status', 'created_at')
     search_fields = (
@@ -59,6 +61,8 @@ class DataImportLogAdmin(admin.ModelAdmin):
         'file_created_at',
         'file_modified_at',
         'report_created_on',
+        'beleg_from',
+        'beleg_to',
         'status',
         'summary',
         'created_at',

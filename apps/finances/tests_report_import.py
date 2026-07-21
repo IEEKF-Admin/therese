@@ -4,13 +4,13 @@ from datetime import date
 from decimal import Decimal
 from io import BytesIO
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from openpyxl import Workbook
 
 from apps.accounts.models import CustomUser
-from apps.accounts.permissions import GroupNames, assign_permissions_to_groups
+from apps.accounts.permissions import assign_permissions_to_groups
 from apps.finances.models import (
     ContactPerson,
     CostCenter,
@@ -19,6 +19,7 @@ from apps.finances.models import (
     WBSElementTrueYearlySpending,
     WBSElementYearEstimate,
 )
+from apps.finances.report_import.parsers.personalkosten import extract_beleg_date_range
 from apps.finances.report_import.parsers.uebersicht import UebersichtPspParser
 from apps.finances.report_import.service import (
     analyze_uploaded_files,
@@ -83,6 +84,92 @@ def _build_sample_workbook() -> bytes:
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def _build_workbook_with_personalkosten() -> bytes:
+    """Sample Übersicht + Personalkosten with Belegdatum range."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Übersicht'
+    ws['F3'] = 'Förderkennzeichen:  DFG - TEST-1'
+    ws['B4'] = 'Projektdefinition:  DFG - TEST-1'
+    ws['B5'] = 'Ansprechpartner:  Muster, Erika'
+    ws['B8'] = 'Projektlaufzeit:     01.01.2026 bis  31.12.2028'
+    ws['H9'] = date(2028, 12, 31)
+    ws['B10'] = 'Projekt'
+    ws['C10'] = 'Kostenstelle'
+    ws['F10'] = 'Letztes Buchungsdatum'
+    ws['B12'] = 'T-200.0001'
+    ws['C12'] = '0001/991000'
+    ws['F12'] = date(2026, 6, 1)
+    ws['B13'] = 'T-200.0001.2'
+    ws['C13'] = '0001/991000'
+    ws['F13'] = date(2026, 6, 1)
+    ws['B17'] = 'Projekt'
+    ws['C17'] = 'PSP Bezeichnung'
+    ws['E17'] = 'Freigegebenes Budget'
+    ws['F17'] = 'Ist-Kosten'
+    ws['G17'] = 'Obligo'
+    ws['I17'] = 'Personalobligo'
+    ws['K17'] = 'Verfügt'
+    ws['B18'] = 'T-200.0001'
+    ws['C18'] = 'Parent'
+    ws['E18'] = 0
+    ws['F18'] = 0
+    ws['G18'] = 0
+    ws['I18'] = 0
+    ws['K18'] = 0
+    ws['B19'] = 'T-200.0001.2'
+    ws['C19'] = 'Personal'
+    ws['E19'] = 10000
+    ws['F19'] = 1000
+    ws['G19'] = 0
+    ws['I19'] = 500
+    ws['K19'] = 1200
+
+    pk = wb.create_sheet('Personalkosten')
+    # Row 2 headers (index 1): B=PSP, C=Kostenart, G=Belegdatum, H=Personalnummer, I=Personalkosten
+    pk['B2'] = 'PSP'
+    pk['C2'] = 'Kostenart'
+    pk['G2'] = 'Belegdatum'
+    pk['H2'] = 'Personalnummer'
+    pk['I2'] = 'Personalkosten'
+    pk['B3'] = 'T-200.0001.2'
+    pk['C3'] = '60003000'
+    pk['G3'] = date(2026, 1, 15)
+    pk['H3'] = '50001001'
+    pk['I3'] = 1000
+    pk['B4'] = 'T-200.0001.2'
+    pk['C4'] = '60003000'
+    pk['G4'] = date(2026, 3, 28)
+    pk['H4'] = '50001002'
+    pk['I4'] = 2000
+    # Other cost type with earlier date — still counts for coverage range
+    pk['B5'] = 'T-200.0001.2'
+    pk['C5'] = '60001000'
+    pk['G5'] = date(2025, 12, 1)
+    pk['H5'] = '50001003'
+    pk['I5'] = 50
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+class BelegDateRangeTests(TestCase):
+    def test_extract_beleg_from_to(self):
+        data = _build_workbook_with_personalkosten()
+        beleg_from, beleg_to = extract_beleg_date_range(data)
+        self.assertEqual(beleg_from, date(2025, 12, 1))
+        self.assertEqual(beleg_to, date(2026, 3, 28))
+
+    def test_analyze_stores_beleg_range_on_meta(self):
+        data = _build_workbook_with_personalkosten()
+        upload = SimpleUploadedFile('with-pk.xlsx', data)
+        plan = analyze_uploaded_files([upload], import_year=2026)
+        meta = plan['upload_meta'][0]
+        self.assertEqual(meta.get('beleg_from'), '2025-12-01')
+        self.assertEqual(meta.get('beleg_to'), '2026-03-28')
 
 
 class UebersichtParserTests(TestCase):
@@ -314,14 +401,11 @@ class ReportImportViewTests(TestCase):
         self.user = CustomUser.objects.create_user('importer', password='test')
         self.user.password_changed = True
         self.user.save(update_fields=['password_changed'])
-        group = Group.objects.get(name=GroupNames.THIRD_PARTY_FUNDING_REPORTS_IMPORT)
-        # Ensure permission exists after model migration
         perm = Permission.objects.filter(
             codename='import_third_party_funding_report'
         ).first()
         if perm:
-            group.permissions.add(perm)
-        self.user.groups.add(group)
+            self.user.user_permissions.add(perm)
         self.client = Client()
         self.client.login(username='importer', password='test')
 
@@ -334,7 +418,7 @@ class ReportImportViewTests(TestCase):
         response = c.get('/finances/import/third-party-funding/')
         self.assertEqual(response.status_code, 403)
 
-    def test_upload_page_ok_for_group(self):
+    def test_upload_page_ok_for_permission(self):
         response = self.client.get('/finances/import/third-party-funding/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Reference year')

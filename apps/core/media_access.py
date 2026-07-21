@@ -176,18 +176,20 @@ def _document_file(user, path) -> bool:
 def _finance_file(user, path) -> bool:
     from apps.finances.models import CostCenter, WBSElement
 
+    from apps.finances.psp_access import filter_psp_for_user, user_can_view_psp_list
+
     if not (
-        user.has_perm('finances.manage_psp_element')
-        or user.has_perm('finances.view_psp_overview')
+        user_can_view_psp_list(user)
         or user.has_perm('finances.manage_cost_center')
-        or user.has_perm('finances.view_psp_element')
     ):
         return False
 
     if path.startswith('finances/psp/'):
-        return WBSElement.objects.filter(third_party_funding_commitment=path).exists() or user.has_perm(
-            'finances.manage_psp_element'
+        qs = filter_psp_for_user(
+            WBSElement.objects.filter(third_party_funding_commitment=path),
+            user,
         )
+        return qs.exists()
     # Legacy cost-center third-party uploads (field removed); managers only.
     if path.startswith('finances/cost_center/'):
         return user.has_perm('finances.manage_cost_center')

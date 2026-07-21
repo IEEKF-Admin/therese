@@ -33,6 +33,11 @@ urlpatterns = [
         finance_views.third_party_funding_import_preview,
         name='third_party_funding_import_preview',
     ),
+    path(
+        'import/third-party-funding/history/',
+        finance_views.third_party_funding_import_history,
+        name='third_party_funding_import_history',
+    ),
     path('psp-elements/', finance_views.psp_elements, name='psp_elements'),
     path(
         'psp-elements/<int:pk>/personnel/',
@@ -40,13 +45,13 @@ urlpatterns = [
         name='psp_personnel_detail',
     ),
 
-    # Assisting Admins - PSP Elements (WBS) CRUD
+    # PSP Elements (WBS) CRUD — Finances Assistant / Superassistant
     path('psp/manage/', PSPListView.as_view(), name='psp_manage'),
     path('psp/manage/new/', PSPCreateView.as_view(), name='psp_create'),
     path('psp/manage/<int:pk>/edit/', PSPUpdateView.as_view(), name='psp_update'),
     path('psp/manage/<int:pk>/delete/', PSPDeleteView.as_view(), name='psp_delete'),
 
-    # Assisting Admins - Cost Centers CRUD
+    # Cost Centers CRUD — Finances Superassistant
     path('cost-centers/manage/', CostCenterListView.as_view(), name='cost_center_manage'),
     path('cost-centers/manage/new/', CostCenterCreateView.as_view(), name='cost_center_create'),
     path('cost-centers/manage/<int:pk>/edit/', CostCenterUpdateView.as_view(), name='cost_center_update'),

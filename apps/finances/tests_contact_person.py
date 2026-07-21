@@ -1,10 +1,10 @@
 """Tests for Contact Person list and manage views."""
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 from django.test import Client, TestCase
 
 from apps.accounts.models import CustomUser
-from apps.accounts.permissions import GroupNames, assign_permissions_to_groups
+from apps.accounts.permissions import assign_permissions_to_groups
 from apps.finances.models import ContactPerson
 
 
@@ -20,16 +20,14 @@ class ContactPersonViewTests(TestCase):
             email='erika@example.com',
         )
 
-    def _user_with_group(self, username, group_name, codenames):
+    def _user_with_perms(self, username, *codenames):
         user = CustomUser.objects.create_user(username, password='test')
         user.password_changed = True
         user.save(update_fields=['password_changed'])
-        group = Group.objects.get(name=group_name)
         for code in codenames:
             perm = Permission.objects.filter(codename=code).first()
             if perm:
-                group.permissions.add(perm)
-        user.groups.add(group)
+                user.user_permissions.add(perm)
         return user
 
     def test_view_list_requires_permission(self):
@@ -41,12 +39,8 @@ class ContactPersonViewTests(TestCase):
         response = client.get('/finances/contact-persons/')
         self.assertEqual(response.status_code, 403)
 
-    def test_view_list_ok_for_view_group(self):
-        self._user_with_group(
-            'viewer',
-            GroupNames.CONTACT_PERSONS_VIEW,
-            ['view_contact_person_list'],
-        )
+    def test_view_list_ok_for_view_permission(self):
+        self._user_with_perms('viewer', 'view_contact_person_list')
         client = Client()
         client.login(username='viewer', password='test')
         response = client.get('/finances/contact-persons/')
@@ -57,10 +51,10 @@ class ContactPersonViewTests(TestCase):
         self.assertNotContains(response, 'Delete selected')
 
     def test_manage_create_and_edit(self):
-        self._user_with_group(
+        self._user_with_perms(
             'manager',
-            GroupNames.CONTACT_PERSONS_MANAGE,
-            ['view_contact_person_list', 'manage_contact_person'],
+            'view_contact_person_list',
+            'manage_contact_person',
         )
         client = Client()
         client.login(username='manager', password='test')

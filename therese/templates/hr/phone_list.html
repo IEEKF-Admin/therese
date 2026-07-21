@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Phone List - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Phone List <small class="field-hint-de">Telefonliste</small></h1>
+</div>
+
+<div class="card list-panel">
+    <div class="search-toolbar">
+        <input type="text" id="phone-list-search" class="form-control"
+               placeholder="Search first or last name…"
+               autocomplete="off"
+               style="max-width: 28rem;">
+    </div>
+
+    <table class="table" id="phone-list-table">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Office Phone</th>
+                <th>Professional Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr data-search="{{ employee.first_name|lower }} {{ employee.last_name|lower }}">
+                <td>{{ employee.first_name }}</td>
+                <td>{{ employee.last_name }}</td>
+                <td>{{ employee.phone_number|default:"—" }}</td>
+                <td>{{ employee.email_professional|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr id="phone-list-empty-static">
+                <td colspan="4" class="empty-state">No employees with an active contract.</td>
+            </tr>
+            {% endfor %}
+            <tr id="phone-list-no-match" class="empty-state" style="display:none;">
+                <td colspan="4" class="empty-state">No matching names.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var input = document.getElementById('phone-list-search');
+    if (!input) return;
+    var rows = Array.prototype.slice.call(
+        document.querySelectorAll('#phone-list-table tbody tr[data-search]')
+    );
+    var noMatch = document.getElementById('phone-list-no-match');
+
+    function filterRows() {
+        var q = (input.value || '').trim().toLowerCase();
+        var visible = 0;
+        rows.forEach(function(row) {
+            var hay = row.getAttribute('data-search') || '';
+            var show = !q || hay.indexOf(q) !== -1;
+            // also match if either name part contains q when multi-token
+            if (q && !show) {
+                var parts = q.split(/\s+/);
+                show = parts.every(function(p) { return hay.indexOf(p) !== -1; });
+            }
+            row.style.display = show ? '' : 'none';
+            if (show) visible += 1;
+        });
+        if (noMatch) {
+            noMatch.style.display = (rows.length && visible === 0) ? '' : 'none';
+        }
+    }
+
+    input.addEventListener('input', filterRows);
+    input.addEventListener('keyup', filterRows);
+})();
+</script>
+{% endblock %}

@@ -7,6 +7,10 @@
         <label>{{ form.job.label }} <span class="required-marker" data-required-for="job" style="color:#ef4444;">*</span></label>
         {% if can_edit_fields|default:True %}{% if form.job.errors %}{{ form.job|add_class:"form-control error" }}{% else %}{{ form.job }}{% endif %}{% else %}<span class="form-readonly">{{ task.job.name }}</span>{% endif %}
         <small class="field-hint-de">Jobbezeichnung</small>
+        <div id="recruitment-job-help-text"
+             class="recruitment-job-help"
+             style="{% if not task.job_id or not task.job.help_text %}display:none; {% endif %}margin-top:0.65rem; padding:0.75rem 0.9rem; border-radius:8px; background:#eff6ff; border:1px solid #93c5fd; color:#1e3a8a; white-space:pre-wrap; font-size:0.92rem; line-height:1.45;"
+             aria-live="polite">{% if task.job_id and task.job.help_text %}{{ task.job.help_text }}{% endif %}</div>
     </div>
     <div class="recruitment-payscale-row">
         <div class="recruitment-payscale-field recruitment-field" data-recruitment-field="working_as">

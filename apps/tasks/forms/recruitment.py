@@ -373,6 +373,7 @@ class RecruitmentJobForm(forms.ModelForm):
         model = RecruitmentJob
         fields = [
             'name',
+            'help_text',
             'pay_scale_group',
             'experience_level',
             'estimated_monthly_salary',
@@ -380,6 +381,11 @@ class RecruitmentJobForm(forms.ModelForm):
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'help_text': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Optional guidance shown when this job is selected…',
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'estimated_monthly_salary': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -390,6 +396,7 @@ class RecruitmentJobForm(forms.ModelForm):
         }
         labels = {
             'name': 'Job name',
+            'help_text': 'Help text for recruitment form',
             'pay_scale_group': 'Pay scale group',
             'experience_level': 'Experience level',
             'estimated_monthly_salary': 'Estimated monthly salary (100% workload)',

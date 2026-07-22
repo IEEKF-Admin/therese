@@ -1,0 +1,32 @@
+<div class="dual-list-widget" data-dual-list>
+    <div class="dual-list-panel">
+        <div class="dual-list-heading">Available</div>
+        <select multiple class="form-select dual-list-available" size="8" aria-label="Available {{ widget.name }}">
+            {% for group_name, group_choices, group_index in widget.optgroups %}
+                {% for option in group_choices %}
+                    {% if not option.selected and option.value != '' %}
+                    <option value="{{ option.value }}">{{ option.label }}</option>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </select>
+    </div>
+    <div class="dual-list-actions">
+        <button type="button" class="btn-secondary dual-list-add" title="Add selected" aria-label="Add selected">&rarr;</button>
+        <button type="button" class="btn-secondary dual-list-remove" title="Remove selected" aria-label="Remove selected">&larr;</button>
+        <button type="button" class="btn-subtle dual-list-add-all" title="Add all" aria-label="Add all">&raquo;</button>
+        <button type="button" class="btn-subtle dual-list-remove-all" title="Remove all" aria-label="Remove all">&laquo;</button>
+    </div>
+    <div class="dual-list-panel">
+        <div class="dual-list-heading">Selected</div>
+        <select name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} multiple class="form-select dual-list-selected" size="8" aria-label="Selected {{ widget.name }}">
+            {% for group_name, group_choices, group_index in widget.optgroups %}
+                {% for option in group_choices %}
+                    {% if option.selected and option.value != '' %}
+                    <option value="{{ option.value }}" selected>{{ option.label }}</option>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </select>
+    </div>
+</div>

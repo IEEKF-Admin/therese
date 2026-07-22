@@ -349,6 +349,12 @@ class RecruitmentJob(BaseModel):
     """Configurable job type for personnel recruitment tasks."""
     name = models.CharField(max_length=200, unique=True, verbose_name="Job Name")
     is_active = models.BooleanField(default=True, verbose_name="Active")
+    help_text = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Help text",
+        help_text="Shown in the recruitment form when this job is selected.",
+    )
     pay_scale_group = models.CharField(
         max_length=50,
         blank=True,

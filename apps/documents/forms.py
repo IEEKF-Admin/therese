@@ -1,5 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.html import conditional_escape, format_html, format_html_join
+from django.utils.safestring import mark_safe
 
 from apps.accounts.models import CustomUser
 from apps.core.html_sanitize import sanitize_html
@@ -65,8 +67,13 @@ class TreeSelect(forms.Select):
         super().__init__(*args, **kwargs)
 
     def optgroups(self, name, value, attrs=None):
-        value = str(value) if value is not None else None
-        selected = {value} if value is not None else set()
+        # Django passes selected values as a list; never str() the whole list.
+        if value is None:
+            selected_values = set()
+        elif isinstance(value, (list, tuple)):
+            selected_values = {str(v) for v in value if v not in (None, '')}
+        else:
+            selected_values = {str(value)}
 
         options = []
         for row in self.tree_rows:
@@ -74,15 +81,82 @@ class TreeSelect(forms.Select):
             option_value = str(category.pk)
             indent = '— ' * row['depth']
             label = f'{indent}{category.name}' if row['depth'] else category.name
+            is_selected = option_value in selected_values
             options.append(self.create_option(
                 name,
                 option_value,
                 label,
-                selected,
+                is_selected,
                 index=len(options),
             ))
 
         return [(None, options, 0)]
+
+
+class DualListSelect(forms.SelectMultiple):
+    """
+    Two multi-select lists: available vs selected.
+
+    Empty selection is allowed (all items can be moved back to Available).
+    """
+
+    def render(self, name, value, attrs=None, renderer=None):
+        if value is None:
+            value = []
+        final_attrs = self.build_attrs(self.attrs, attrs)
+        final_attrs['name'] = name
+        final_attrs['multiple'] = True
+        final_attrs.setdefault('class', 'form-select dual-list-selected')
+        final_attrs.setdefault('size', '8')
+        selected_values = {str(v) for v in value}
+
+        available_opts = []
+        selected_opts = []
+        for option_value, option_label in self.choices:
+            if option_value in (None, ''):
+                continue
+            opt_val = str(option_value)
+            label = conditional_escape(str(option_label))
+            html = format_html('<option value="{}">{}</option>', opt_val, mark_safe(label))
+            if opt_val in selected_values:
+                selected_opts.append(
+                    format_html('<option value="{}" selected>{}</option>', opt_val, mark_safe(label))
+                )
+            else:
+                available_opts.append(html)
+
+        available_html = mark_safe('\n'.join(available_opts))
+        selected_html = mark_safe('\n'.join(selected_opts))
+        selected_attrs = forms.widgets.flatatt(final_attrs)
+
+        return format_html(
+            '<div class="dual-list-widget" data-dual-list>'
+            '<div class="dual-list-panel">'
+            '<div class="dual-list-heading">Available</div>'
+            '<select multiple class="form-select dual-list-available" size="8" '
+            'aria-label="Available {name}">{available}</select>'
+            '</div>'
+            '<div class="dual-list-actions">'
+            '<button type="button" class="btn-secondary dual-list-add" '
+            'title="Add selected" aria-label="Add selected">&rarr;</button>'
+            '<button type="button" class="btn-secondary dual-list-remove" '
+            'title="Remove selected" aria-label="Remove selected">&larr;</button>'
+            '<button type="button" class="btn-subtle dual-list-add-all" '
+            'title="Add all" aria-label="Add all">&raquo;</button>'
+            '<button type="button" class="btn-subtle dual-list-remove-all" '
+            'title="Remove all" aria-label="Remove all">&laquo;</button>'
+            '</div>'
+            '<div class="dual-list-panel">'
+            '<div class="dual-list-heading">Selected</div>'
+            '<select{selected_attrs} multiple size="8" '
+            'aria-label="Selected {name}">{selected}</select>'
+            '</div>'
+            '</div>',
+            name=name,
+            available=available_html,
+            selected_attrs=selected_attrs,
+            selected=selected_html,
+        )
 
 
 class DocumentVersionDraftForm(forms.ModelForm):
@@ -122,16 +196,21 @@ class DocumentMetaForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'form-select'}),
             'requires_read_acknowledgement': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'audience_match_mode': forms.Select(attrs={'class': 'form-select'}),
-            'target_users': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
-            'target_workgroups': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
-            'target_groups': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+            'target_users': DualListSelect(attrs={'class': 'form-select', 'size': 8}),
+            'target_workgroups': DualListSelect(attrs={'class': 'form-select', 'size': 8}),
+            'target_groups': DualListSelect(attrs={'class': 'form-select', 'size': 8}),
         }
         labels = {
             'requires_read_acknowledgement': 'Requires read acknowledgement',
             'audience_match_mode': 'Combine targets with',
+            'target_users': 'Target users',
+            'target_workgroups': 'Target work groups',
+            'target_groups': 'Target Django groups',
         }
         help_texts = {
-            'target_users': 'Leave all empty to show the document to everyone with view permission.',
+            'target_users': 'Leave all three target lists empty to show the document to everyone with view permission.',
+            'target_workgroups': 'Move items between Available and Selected. Selected may be empty.',
+            'target_groups': 'Move items between Available and Selected. Selected may be empty.',
         }
 
     def __init__(self, *args, **kwargs):
@@ -143,12 +222,18 @@ class DocumentMetaForm(forms.ModelForm):
             tree_rows=tree_rows,
         )
         self.fields['category'].queryset = categories
+        # Ensure current category is selected when editing (TreeSelect must see pk)
+        if self.instance and self.instance.pk and self.instance.category_id:
+            self.fields['category'].initial = self.instance.category_id
         self.fields['target_users'].queryset = CustomUser.objects.filter(
             is_active=True
         ).order_by('last_name', 'first_name', 'username')
         self.fields['target_users'].required = False
         self.fields['target_workgroups'].required = False
         self.fields['target_groups'].required = False
+        self.fields['target_users'].help_text = (
+            'Leave Available/Selected empty (nothing selected) to show to everyone with view permission.'
+        )
 
 
 class DocumentAttachmentForm(forms.ModelForm):

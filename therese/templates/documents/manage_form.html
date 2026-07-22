@@ -1,9 +1,20 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
+{% load static widget_tweaks %}
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
 {% block content %}
+<style>
+.dual-list-widget { display:grid; grid-template-columns:1fr auto 1fr; gap:0.65rem; align-items:stretch; max-width:100%; }
+.dual-list-heading { font-size:0.8rem; font-weight:600; color:#475569; margin-bottom:0.3rem; }
+.dual-list-widget select { width:100%; min-height:9rem; }
+.dual-list-actions { display:flex; flex-direction:column; justify-content:center; gap:0.35rem; padding-top:1.2rem; }
+.dual-list-actions button { min-width:2.4rem; padding:0.25rem 0.4rem; }
+@media (max-width:700px) {
+  .dual-list-widget { grid-template-columns:1fr; }
+  .dual-list-actions { flex-direction:row; padding-top:0; justify-content:center; }
+}
+</style>
 <div class="page-header">
     <h1>{{ title }}</h1>
     <div class="page-header-actions">
@@ -12,8 +23,21 @@
     </div>
 </div>
 
+{% if prepare_new_version %}
+<div class="alert alert-info" style="margin-bottom:1rem;">
+    You are preparing a new version. Content is prefilled from
+    {% if source_version %}{{ source_version.version_label }}{% else %}the previous version{% endif %}.
+    <strong>No draft is stored until you click “Save draft”.</strong>
+    Use Cancel to leave without creating a draft.
+    <span class="field-hint-de">Neue Version — Draft erst beim Speichern. Abbrechen ohne Draft.</span>
+</div>
+{% endif %}
+
 <form method="post" enctype="multipart/form-data" id="document-draft-form">
     {% csrf_token %}
+    {% if prepare_new_version %}
+    <input type="hidden" name="prepare_new_version" value="1">
+    {% endif %}
     <div class="two-col-layout">
         <div class="left-col">
             <div class="form-section">
@@ -70,13 +94,20 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% if prepare_new_version and source_version %}
+                <small class="field-hint-de">
+                    Attachments from {{ source_version.version_label }} are copied when you first save the draft.
+                    You can add more files after saving.
+                </small>
+                {% else %}
                 <small class="field-hint-de">Anhänge werden bei neuer Version übernommen und im Entwurf änderbar.</small>
+                {% endif %}
             </div>
         </div>
     </div>
 
     <div class="form-section document-editor-section">
-        <h3>Version draft</h3>
+        <h3>{% if prepare_new_version %}New version content{% else %}Version draft{% endif %}</h3>
         {% for field in content_form %}
         <div class="aligned-field{% if field.name == 'content_html' %} document-content-field{% endif %}">
             <label>{{ field.label }}</label>
@@ -88,6 +119,13 @@
 
     <div class="form-actions">
         <button type="submit" class="btn-primary">Save draft</button>
+        {% if prepare_new_version %}
+        <button type="submit" name="action" value="cancel_new_version" class="btn-secondary"
+                formnovalidate
+                onclick="return confirm('Cancel without creating a draft?');">
+            Cancel
+        </button>
+        {% endif %}
         {% if can_publish and document %}
         <a href="{% url 'documents:manage_publish' document.pk %}" class="btn-secondary"
            onclick="return confirm('Publish this draft?');">Publish draft</a>
@@ -97,9 +135,60 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+(function() {
+    function moveSelected(fromSelect, toSelect) {
+        Array.prototype.slice.call(fromSelect.selectedOptions).forEach(function(opt) {
+            toSelect.appendChild(opt);
+            opt.selected = false;
+        });
+        sortOptions(toSelect);
+    }
+    function moveAll(fromSelect, toSelect) {
+        Array.prototype.slice.call(fromSelect.options).forEach(function(opt) {
+            toSelect.appendChild(opt);
+            opt.selected = false;
+        });
+        sortOptions(toSelect);
+    }
+    function sortOptions(select) {
+        var opts = Array.prototype.slice.call(select.options);
+        opts.sort(function(a, b) {
+            return a.textContent.localeCompare(b.textContent, undefined, { sensitivity: 'base' });
+        });
+        opts.forEach(function(opt) { select.appendChild(opt); });
+    }
+    function initDualList(root) {
+        if (root.dataset.dualListReady === '1') return;
+        root.dataset.dualListReady = '1';
+        var available = root.querySelector('.dual-list-available');
+        var selected = root.querySelector('.dual-list-selected');
+        if (!available || !selected) return;
+        var addBtn = root.querySelector('.dual-list-add');
+        var removeBtn = root.querySelector('.dual-list-remove');
+        var addAllBtn = root.querySelector('.dual-list-add-all');
+        var removeAllBtn = root.querySelector('.dual-list-remove-all');
+        if (addBtn) addBtn.addEventListener('click', function() { moveSelected(available, selected); });
+        if (removeBtn) removeBtn.addEventListener('click', function() { moveSelected(selected, available); });
+        if (addAllBtn) addAllBtn.addEventListener('click', function() { moveAll(available, selected); });
+        if (removeAllBtn) removeAllBtn.addEventListener('click', function() { moveAll(selected, available); });
+        available.addEventListener('dblclick', function() { moveSelected(available, selected); });
+        selected.addEventListener('dblclick', function() { moveSelected(selected, available); });
+        var form = root.closest('form');
+        if (form) {
+            form.addEventListener('submit', function() {
+                Array.prototype.forEach.call(selected.options, function(opt) { opt.selected = true; });
+            });
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('[data-dual-list]').forEach(initDualList);
+    });
+})();
+</script>
 <script>window.DOCUMENT_EDITOR_IMAGE_UPLOAD_URL = "{% url 'documents:upload_editor_image' %}";</script>
 {% include "documents/includes/wysiwyg.html" %}
-{% if document %}
+{% if document and not prepare_new_version %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('#document-draft-form input[name=csrfmiddlewaretoken]').value;

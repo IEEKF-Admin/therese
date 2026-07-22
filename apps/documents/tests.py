@@ -24,6 +24,81 @@ def _create_user(username):
     return user
 
 
+class DocumentManageFormFixesTests(TestCase):
+    def setUp(self):
+        self.user = _create_user('doc-mgr')
+        ct = ContentType.objects.get_for_model(Document)
+        manage = Permission.objects.get(codename='manage_document', content_type=ct)
+        self.user.user_permissions.add(manage)
+        self.category = DocumentCategory.objects.create(name='SOPs')
+        self.other_category = DocumentCategory.objects.create(name='Policies')
+        self.document = Document.objects.create(
+            title='Safety procedure',
+            category=self.category,
+            created_by=self.user,
+        )
+        self.version = DocumentVersion.objects.create(
+            document=self.document,
+            version_number=1,
+            status=DocumentVersion.Status.PUBLISHED,
+            content_html='<p>v1</p>',
+            created_by=self.user,
+        )
+        self.document.current_published_version = self.version
+        self.document.save(update_fields=['current_published_version'])
+
+    def test_tree_select_marks_current_category_selected(self):
+        from apps.documents.forms import DocumentMetaForm
+
+        form = DocumentMetaForm(instance=self.document)
+        html = str(form['category'])
+        self.assertIn(f'value="{self.category.pk}"', html)
+        self.assertIn('selected', html)
+        # The selected option should be the document's category
+        self.assertRegex(
+            html,
+            rf'value="{self.category.pk}"[^>]*selected|selected[^>]*value="{self.category.pk}"',
+        )
+
+    def test_new_version_does_not_create_draft_until_save(self):
+        self.client.login(username='doc-mgr', password='test')
+        response = self.client.get(
+            reverse('documents:manage_new_version', args=[self.document.pk]),
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('prepare_new_version=1', response.url)
+        self.assertIsNone(self.document.latest_draft)
+
+        edit = self.client.get(response.url)
+        self.assertEqual(edit.status_code, 200)
+        self.assertContains(edit, 'No draft is stored until')
+        self.assertIsNone(Document.objects.get(pk=self.document.pk).latest_draft)
+
+        cancel = self.client.post(
+            reverse('documents:manage_edit', args=[self.document.pk]),
+            {'prepare_new_version': '1', 'action': 'cancel_new_version'},
+        )
+        self.assertEqual(cancel.status_code, 302)
+        self.assertIsNone(Document.objects.get(pk=self.document.pk).latest_draft)
+
+    def test_meta_form_allows_empty_targets(self):
+        from apps.documents.forms import DocumentMetaForm
+
+        form = DocumentMetaForm(
+            data={
+                'title': self.document.title,
+                'category': self.category.pk,
+                'requires_read_acknowledgement': False,
+                'audience_match_mode': 'or',
+                'target_users': [],
+                'target_workgroups': [],
+                'target_groups': [],
+            },
+            instance=self.document,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+
 class DocumentAudienceTests(TestCase):
     def setUp(self):
         self.viewer = _create_user('viewer')

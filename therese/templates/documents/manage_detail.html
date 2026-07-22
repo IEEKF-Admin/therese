@@ -10,7 +10,7 @@
         <a href="{% url 'documents:manage_edit' document.pk %}" class="btn-primary">Edit draft</a>
         {% else %}
         <a href="{% url 'documents:manage_new_version' document.pk %}" class="btn-secondary"
-           onclick="return confirm('Start a new draft version? Attachments will be copied from the current version.');">New version</a>
+           title="Opens the editor prefilled from the current version. A draft is only created when you save.">New version</a>
         {% endif %}
         {% if document.current_published_version %}
         <a href="{% url 'documents:detail' document.pk %}" class="btn-secondary">Reader view</a>

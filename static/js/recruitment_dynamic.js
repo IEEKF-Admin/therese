@@ -234,10 +234,30 @@
         return document.querySelector('[data-recruitment-weekly-hours], [name="weekly_hours"]');
     }
 
+    function updateJobHelpText(config) {
+        const helpEl = document.getElementById('recruitment-job-help-text');
+        if (!helpEl) {
+            return;
+        }
+        const jobId = getSelectedJobId();
+        let text = '';
+        if (jobId && config.jobPayscale && config.jobPayscale[jobId]) {
+            text = (config.jobPayscale[jobId].help_text || '').trim();
+        }
+        if (text) {
+            helpEl.textContent = text;
+            helpEl.style.display = '';
+        } else {
+            helpEl.textContent = '';
+            helpEl.style.display = 'none';
+        }
+    }
+
     function applyJobPayscaleDefaults(config) {
         const selects = getPayscaleSelects();
         const salaryInput = getMonthlySalaryInput();
         const jobId = getSelectedJobId();
+        updateJobHelpText(config);
         if (!jobId || !config.jobPayscale) {
             return;
         }

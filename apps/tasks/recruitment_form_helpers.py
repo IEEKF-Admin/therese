@@ -233,6 +233,7 @@ def build_recruitment_template_context():
             'has_fixed_estimate': job.estimated_monthly_salary is not None and not (
                 job.pay_scale_group and job.experience_level is not None
             ),
+            'help_text': (job.help_text or '').strip(),
         }
 
     current = PayScale.get_current()

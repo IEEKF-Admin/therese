@@ -1,0 +1,47 @@
+.dual-list-widget {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.65rem;
+    align-items: stretch;
+    max-width: 100%;
+}
+
+.dual-list-panel {
+    min-width: 0;
+}
+
+.dual-list-heading {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.3rem;
+}
+
+.dual-list-widget select {
+    width: 100%;
+    min-height: 9rem;
+}
+
+.dual-list-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.35rem;
+    padding-top: 1.2rem;
+}
+
+.dual-list-actions button {
+    min-width: 2.4rem;
+    padding: 0.25rem 0.4rem;
+}
+
+@media (max-width: 700px) {
+    .dual-list-widget {
+        grid-template-columns: 1fr;
+    }
+    .dual-list-actions {
+        flex-direction: row;
+        padding-top: 0;
+        justify-content: center;
+    }
+}

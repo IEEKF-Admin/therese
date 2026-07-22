@@ -308,33 +308,107 @@ def manage_document_create(request):
 def manage_document_edit(request, pk):
     document = get_object_or_404(Document, pk=pk)
     draft = document.latest_draft
-    if not draft:
+    prepare_new_version = (
+        request.GET.get('prepare_new_version') == '1'
+        or request.POST.get('prepare_new_version') == '1'
+    )
+
+    # Cancel preparing a new version without creating a draft.
+    if request.method == 'POST' and request.POST.get('action') == 'cancel_new_version':
+        return redirect('documents:manage_detail', pk=pk)
+
+    if not draft and not prepare_new_version:
         messages.info(request, 'No draft version exists. Start a new version to edit content.')
         return redirect('documents:manage_detail', pk=pk)
 
+    source = None
+    if not draft and prepare_new_version:
+        source = (
+            document.current_published_version
+            or document.versions.order_by('-version_number').first()
+        )
+        if not source:
+            messages.error(request, 'No version to copy from.')
+            return redirect('documents:manage_detail', pk=pk)
+
     if request.method == 'POST':
         meta_form = DocumentMetaForm(request.POST, instance=document)
-        content_form = DocumentVersionDraftForm(request.POST, instance=draft)
-        attachment_formset = DocumentAttachmentFormSet(
-            request.POST, request.FILES, instance=draft
-        )
-        if _save_document_forms(request, document, draft, meta_form, content_form, attachment_formset):
-            messages.success(request, 'Draft saved.')
-            return redirect('documents:manage_edit', pk=pk)
+        if draft:
+            content_form = DocumentVersionDraftForm(request.POST, instance=draft)
+            attachment_formset = DocumentAttachmentFormSet(
+                request.POST, request.FILES, instance=draft
+            )
+            if _save_document_forms(
+                request, document, draft, meta_form, content_form, attachment_formset
+            ):
+                messages.success(request, 'Draft saved.')
+                return redirect('documents:manage_edit', pk=pk)
+        else:
+            # First save of a prepared new version: create the draft only now.
+            content_form = DocumentVersionDraftForm(request.POST)
+            attachment_formset = DocumentAttachmentFormSet(
+                request.POST, request.FILES, instance=DocumentVersion()
+            )
+            if meta_form.is_valid() and content_form.is_valid():
+                meta_form.save()
+                new_version = create_next_version(
+                    document, request.user, copy_from_version=source,
+                )
+                # Overwrite copied content with the form data (user may have edited).
+                new_version.content_html = content_form.cleaned_data.get('content_html', '')
+                new_version.change_summary = content_form.cleaned_data.get('change_summary', '')
+                new_version.save(update_fields=[
+                    'content_html', 'change_summary', 'updated_at',
+                ])
+                attachment_formset = DocumentAttachmentFormSet(
+                    request.POST, request.FILES, instance=new_version
+                )
+                if attachment_formset.is_valid():
+                    # Drop auto-copied attachments if formset replaces them cleanly
+                    # (formset extra rows only add; keep copies from create_next_version)
+                    attachment_formset.save()
+                else:
+                    messages.warning(
+                        request,
+                        'Draft created. Please review attachments on the edit page.',
+                    )
+                messages.success(
+                    request,
+                    f'Created {new_version.version_label} as draft and saved.',
+                )
+                return redirect('documents:manage_edit', pk=pk)
+            else:
+                attachment_formset = DocumentAttachmentFormSet(
+                    request.POST, request.FILES, instance=DocumentVersion()
+                )
     else:
         meta_form = DocumentMetaForm(instance=document)
-        content_form = DocumentVersionDraftForm(instance=draft)
-        attachment_formset = DocumentAttachmentFormSet(instance=draft)
+        if draft:
+            content_form = DocumentVersionDraftForm(instance=draft)
+            attachment_formset = DocumentAttachmentFormSet(instance=draft)
+        else:
+            content_form = DocumentVersionDraftForm(initial={
+                'content_html': source.content_html if source else '',
+                'change_summary': '',
+            })
+            # Show source attachments as read-only context (copied on first save)
+            attachment_formset = DocumentAttachmentFormSet(instance=DocumentVersion())
 
     return render(request, 'documents/manage_form.html', {
-        'title': f'Edit Draft — {document.title}',
+        'title': (
+            f'New version (draft not saved yet) — {document.title}'
+            if prepare_new_version and not draft
+            else f'Edit Draft — {document.title}'
+        ),
         'document': document,
         'version': draft,
         'meta_form': meta_form,
         'content_form': content_form,
         'attachment_formset': attachment_formset,
-        'can_publish': True,
+        'can_publish': draft is not None,
         'can_new_version': False,
+        'prepare_new_version': prepare_new_version and not draft,
+        'source_version': source if prepare_new_version and not draft else None,
     })
 
 
@@ -432,6 +506,12 @@ def manage_document_publish(request, pk):
 @login_required
 @permission_required('documents.manage_document', raise_exception=True)
 def manage_document_new_version(request, pk):
+    """
+    Open the editor prefilled from the current version without creating a draft.
+
+    The draft is only created when the user saves. Cancel returns to detail
+    with no draft left behind.
+    """
     document = get_object_or_404(Document, pk=pk)
     if document.latest_draft:
         messages.warning(request, 'A draft already exists. Publish or edit it first.')
@@ -440,9 +520,9 @@ def manage_document_new_version(request, pk):
     if not source:
         messages.error(request, 'No version to copy from.')
         return redirect('documents:manage_detail', pk=pk)
-    new_version = create_next_version(document, request.user, copy_from_version=source)
-    messages.success(request, f'Created {new_version.version_label} as draft.')
-    return redirect('documents:manage_edit', pk=pk)
+    return redirect(
+        f"{reverse('documents:manage_edit', kwargs={'pk': pk})}?prepare_new_version=1"
+    )
 
 
 @login_required

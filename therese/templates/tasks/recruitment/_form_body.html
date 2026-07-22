@@ -25,22 +25,36 @@
             <small class="field-hint-de">Erfahrungsstufe</small>
         </div>
     </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="monthly_salary">
-        <label>{{ form.monthly_salary.label }}</label>
-        {% if can_edit_fields|default:True %}{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_estimated_monthly_salary|default:"—" }}</span>{% endif %}
-        <small class="field-hint-de">Monatsgehalt — bei TV-L-Auswahl automatisch, sonst manuell eingeben</small>
-        <p class="field-hint-de" style="margin-top:0.35rem;" id="recruitment-monthly-costs-hint"
-           data-true-cost-multiplicator="{{ true_cost_multiplicator|default:'1.3' }}">
-            Monthly Costs (salary × true-cost multiplicator):
-            <strong id="recruitment-monthly-costs-value">
-                {% if task.get_estimated_monthly_costs %}{{ task.get_estimated_monthly_costs }} €{% else %}—{% endif %}
-            </strong>
-        </p>
-    </div>
     <div class="aligned-field recruitment-field" data-recruitment-field="weekly_hours">
         <label>{{ form.weekly_hours.label }}</label>
         {% if can_edit_fields|default:True %}{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.weekly_hours|default:"—" }}</span>{% endif %}
         <small class="field-hint-de">Wochenarbeitszeit (Vertrag)</small>
+        <p class="field-hint-de" style="margin-top:0.35rem;" id="recruitment-workload-hint">
+            Workload vs full-time
+            (<span id="recruitment-default-weekly-hours">{{ default_weekly_hours|default:"39.00" }}</span> h):
+            <strong id="recruitment-workload-percent">—</strong>
+        </p>
+    </div>
+    <div class="aligned-field recruitment-field" data-recruitment-field="monthly_salary">
+        <label>{{ form.monthly_salary.label }}</label>
+        {% if can_edit_fields|default:True %}{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_estimated_monthly_salary|default:"—" }}</span>{% endif %}
+        <small class="field-hint-de">Theoretisches Monatsgehalt bei 100 % — TV-L/geschätztes Job-Gehalt oder manuell</small>
+        <div id="recruitment-monthly-costs-hint"
+             data-true-cost-multiplicator="{{ true_cost_multiplicator|default:'1.3' }}"
+             data-default-weekly-hours="{{ default_weekly_hours|default:'39.00' }}"
+             style="margin-top:0.85rem; padding:0.85rem 1rem; border-radius:8px; background:#ecfdf5; border:1px solid #6ee7b7;">
+            <div style="font-size:0.85rem; color:#065f46; font-weight:600; margin-bottom:0.25rem;">
+                Estimated Monthly Costs
+            </div>
+            <div id="recruitment-monthly-costs-value"
+                 style="font-size:1.65rem; font-weight:800; color:#047857; line-height:1.2;">
+                {% if task.get_estimated_monthly_costs %}{{ task.get_estimated_monthly_costs }} €{% else %}—{% endif %}
+            </div>
+            <div style="font-size:0.8rem; color:#047857; margin-top:0.35rem;">
+                Theoretical 100% salary × workload% × true-cost multiplicator
+                <span class="field-hint-de">· Theoretisches Gehalt × Stellenanteil × Nebenkostenfaktor</span>
+            </div>
+        </div>
     </div>
 </div>
 

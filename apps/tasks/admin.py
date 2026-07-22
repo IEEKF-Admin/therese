@@ -209,7 +209,10 @@ class RecruitmentFundingInline(admin.TabularInline):
 
 @admin.register(RecruitmentJob, site=therese_admin)
 class RecruitmentJobAdmin(admin.ModelAdmin):
-    list_display = ('name', 'pay_scale_group', 'experience_level', 'is_active')
+    list_display = (
+        'name', 'pay_scale_group', 'experience_level',
+        'estimated_monthly_salary', 'is_active',
+    )
     search_fields = ('name', 'pay_scale_group')
 
 

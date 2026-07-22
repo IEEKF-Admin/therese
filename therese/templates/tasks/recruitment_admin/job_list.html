@@ -27,6 +27,8 @@
             <td>
                 {% if job.pay_scale_group and job.experience_level %}
                     {{ job.pay_scale_group }} / {{ job.experience_level }}
+                {% elif job.estimated_monthly_salary is not None %}
+                    ~ {{ job.estimated_monthly_salary }} €
                 {% else %}—{% endif %}
             </td>
             <td>{% if job.is_active %}<span style="color:#059669;">Active</span>{% else %}<span style="color:#b45309;">Inactive</span>{% endif %}</td>

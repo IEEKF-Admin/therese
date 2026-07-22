@@ -230,6 +230,9 @@ def build_recruitment_template_context():
             'pay_scale_group': job.pay_scale_group or '',
             'experience_level': job.experience_level,
             'estimated_salary': str(salary) if salary is not None else None,
+            'has_fixed_estimate': job.estimated_monthly_salary is not None and not (
+                job.pay_scale_group and job.experience_level is not None
+            ),
         }
 
     current = PayScale.get_current()
@@ -253,6 +256,7 @@ def build_recruitment_template_context():
         'recruitment_job_payscale_json': job_payscale,
         'recruitment_payscale_data_json': payscale_data,
         'true_cost_multiplicator': GlobalSetting.get_true_cost_multiplicator(),
+        'default_weekly_hours': GlobalSetting.get_default_weekly_hours(),
     }
 
 

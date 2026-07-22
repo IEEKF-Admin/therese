@@ -274,6 +274,9 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         _configure_personnel_assignee_field(self)
 
         if 'monthly_salary' in self.fields:
+            self.fields['monthly_salary'].label = (
+                'Theoretical Monthly Salary for 100% Workload'
+            )
             self.fields['monthly_salary'].widget.attrs.update({
                 'data-recruitment-monthly-salary': 'true',
                 'step': '0.01',
@@ -285,6 +288,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 'class': 'form-control',
                 'step': '0.01',
                 'min': '0',
+                'data-recruitment-weekly-hours': 'true',
             })
 
     def clean_experience_level(self):
@@ -363,19 +367,32 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
 # Recruitment catalog (jobs and limitation reasons)
 # ---------------------------------------------------------------------------
 class RecruitmentJobForm(forms.ModelForm):
-    """Admin form for recruitment job catalog entries (pay scale + experience level)."""
+    """Admin form for recruitment job catalog (TV-L or fixed estimated salary)."""
 
     class Meta:
         model = RecruitmentJob
-        fields = ['name', 'pay_scale_group', 'experience_level', 'is_active']
+        fields = [
+            'name',
+            'pay_scale_group',
+            'experience_level',
+            'estimated_monthly_salary',
+            'is_active',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'estimated_monthly_salary': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'id': 'job-estimated-salary',
+            }),
         }
         labels = {
             'name': 'Job name',
             'pay_scale_group': 'Pay scale group',
             'experience_level': 'Experience level',
+            'estimated_monthly_salary': 'Estimated monthly salary (100% workload)',
             'is_active': 'Active',
         }
 
@@ -411,6 +428,32 @@ class RecruitmentJobForm(forms.ModelForm):
         if value in (None, ''):
             return None
         return int(value)
+
+    def clean(self):
+        cleaned = super().clean()
+        group = cleaned.get('pay_scale_group') or ''
+        level = cleaned.get('experience_level')
+        estimated = cleaned.get('estimated_monthly_salary')
+        has_group = bool(group)
+        has_level = level is not None
+        has_tvl = has_group or has_level
+        has_estimate = estimated is not None
+        if has_group != has_level:
+            message = 'Please select both pay scale group and experience level, or leave both empty.'
+            if not has_group:
+                self.add_error('pay_scale_group', message)
+            if not has_level:
+                self.add_error('experience_level', message)
+        if has_tvl and has_estimate:
+            message = 'Provide either TV-L defaults or an estimated monthly salary, not both.'
+            self.add_error('estimated_monthly_salary', message)
+            self.add_error('pay_scale_group', message)
+        elif has_tvl:
+            cleaned['estimated_monthly_salary'] = None
+        elif has_estimate:
+            cleaned['pay_scale_group'] = ''
+            cleaned['experience_level'] = None
+        return cleaned
 
 
 class LimitationReasonForm(forms.ModelForm):

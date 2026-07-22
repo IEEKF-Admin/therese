@@ -27,19 +27,33 @@
         </div>
     </div>
 
-    <h3>TV-L defaults</h3>
-    <p class="helptext" style="margin-bottom: 1rem;">Optional pay scale defaults used for estimated salary in recruitment and pre-fill when creating an employee.</p>
-    <div class="psp-two-col" style="margin-bottom: 1.5rem;">
+    <h3>Salary default (TV-L <em>or</em> estimated)</h3>
+    <p class="helptext" style="margin-bottom: 1rem;">
+        Provide either TV-L group/level <strong>or</strong> a fixed estimated monthly salary for 100% workload — not both.
+        Used to pre-fill recruitment tasks and estimated monthly costs.
+    </p>
+    {% if form.non_field_errors %}
+    <div class="text-danger" style="margin-bottom:1rem;">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="psp-two-col" style="margin-bottom: 1rem;">
         <div class="aligned-field">
             <label for="{{ form.pay_scale_group.id_for_label }}">{{ form.pay_scale_group.label }}</label>
             {{ form.pay_scale_group }}
-            <small class="field-hint-de">Entgeltgruppe</small>
+            {% if form.pay_scale_group.errors %}<div class="text-danger">{{ form.pay_scale_group.errors }}</div>{% endif %}
+            <small class="field-hint-de">Entgeltgruppe (TV-L)</small>
         </div>
         <div class="aligned-field">
             <label for="{{ form.experience_level.id_for_label }}">{{ form.experience_level.label }}</label>
             {{ form.experience_level }}
+            {% if form.experience_level.errors %}<div class="text-danger">{{ form.experience_level.errors }}</div>{% endif %}
             <small class="field-hint-de">Erfahrungsstufe</small>
         </div>
+    </div>
+    <div class="aligned-field" style="margin-bottom: 1.5rem; max-width: 22rem;">
+        <label for="{{ form.estimated_monthly_salary.id_for_label }}">{{ form.estimated_monthly_salary.label }}</label>
+        {{ form.estimated_monthly_salary }}
+        {% if form.estimated_monthly_salary.errors %}<div class="text-danger">{{ form.estimated_monthly_salary.errors }}</div>{% endif %}
+        <small class="field-hint-de">Geschätztes Monatsgehalt bei 100 % — Alternative zu TV-L</small>
     </div>
 
     <h3>Field rules per job</h3>
@@ -131,10 +145,57 @@
     }
 
     const groupSelect = document.getElementById('job-pay-scale-group');
+    const levelSelect = document.getElementById('job-experience-level');
+    const estimatedInput = document.getElementById('job-estimated-salary');
+
+    function syncSalaryMode() {
+        if (!estimatedInput || !groupSelect || !levelSelect) return;
+        const hasTvl = Boolean(groupSelect.value || levelSelect.value);
+        const hasEstimate = Boolean(String(estimatedInput.value || '').trim());
+        if (hasTvl) {
+            estimatedInput.value = '';
+            estimatedInput.disabled = true;
+        } else {
+            estimatedInput.disabled = false;
+        }
+        if (hasEstimate && !hasTvl) {
+            groupSelect.value = '';
+            levelSelect.innerHTML = '<option value="">— Select group first —</option>';
+            levelSelect.value = '';
+        }
+    }
+
     if (groupSelect) {
-        groupSelect.addEventListener('change', updateJobExperienceLevels);
+        groupSelect.addEventListener('change', function() {
+            if (groupSelect.value && estimatedInput) {
+                estimatedInput.value = '';
+            }
+            updateJobExperienceLevels();
+            syncSalaryMode();
+        });
         updateJobExperienceLevels();
     }
+    if (levelSelect) {
+        levelSelect.addEventListener('change', function() {
+            if (levelSelect.value && estimatedInput) {
+                estimatedInput.value = '';
+            }
+            syncSalaryMode();
+        });
+    }
+    if (estimatedInput) {
+        estimatedInput.addEventListener('input', function() {
+            if (String(estimatedInput.value || '').trim()) {
+                if (groupSelect) groupSelect.value = '';
+                if (levelSelect) {
+                    levelSelect.innerHTML = '<option value="">— Select group first —</option>';
+                    levelSelect.value = '';
+                }
+            }
+            syncSalaryMode();
+        });
+    }
+    syncSalaryMode();
 
     function toggleDurationGroups() {
         document.querySelectorAll('.rule-visibility-mode').forEach(function(select) {

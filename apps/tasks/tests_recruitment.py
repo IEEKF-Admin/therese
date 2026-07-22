@@ -67,6 +67,67 @@ class RecruitmentJobSalaryTests(TestCase):
         job = RecruitmentJob.objects.create(name='Intern')
         self.assertIsNone(job.get_estimated_monthly_salary())
 
+    def test_fixed_estimated_monthly_salary_on_job(self):
+        from decimal import Decimal
+
+        job = RecruitmentJob.objects.create(
+            name='Postdoc fixed',
+            estimated_monthly_salary=Decimal('3200.00'),
+        )
+        self.assertEqual(job.get_estimated_monthly_salary(), Decimal('3200.00'))
+
+    def test_job_rejects_tvl_and_estimate_together(self):
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+
+        job = RecruitmentJob(
+            name='Conflict',
+            pay_scale_group='E13',
+            experience_level=1,
+            estimated_monthly_salary=Decimal('1000.00'),
+        )
+        with self.assertRaises(ValidationError):
+            job.full_clean()
+
+    def test_task_monthly_costs_pro_rata_weekly_hours(self):
+        from datetime import date
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting
+        from apps.tasks.models import PersonnelRecruitmentTask
+
+        GlobalSetting.objects.filter(pk=1).delete()
+        GlobalSetting.objects.create(
+            pk=1,
+            default_weekly_hours=Decimal('40.00'),
+            true_cost_multiplicator=Decimal('1.300'),
+        )
+        job = RecruitmentJob.objects.create(
+            name='Half time job',
+            estimated_monthly_salary=Decimal('4000.00'),
+        )
+        task = PersonnelRecruitmentTask(
+            job=job,
+            monthly_salary=Decimal('4000.00'),
+            weekly_hours=Decimal('20.00'),
+            first_name='A',
+            last_name='B',
+            street='S',
+            house_number='1',
+            postal_code='1',
+            city='C',
+            date_of_birth=date(1990, 1, 1),
+            country_of_origin='DE',
+            place_of_birth='X',
+            valid_from=date(2026, 1, 1),
+            valid_until=date(2026, 12, 31),
+        )
+        # 4000 * 0.5 * 1.3 = 2600
+        self.assertEqual(task.get_estimated_monthly_costs(), Decimal('2600.00'))
+        task.weekly_hours = None
+        # 4000 * 1.0 * 1.3 = 5200
+        self.assertEqual(task.get_estimated_monthly_costs(), Decimal('5200.00'))
+
 
 class LimitationReasonFilterTests(TestCase):
     def setUp(self):

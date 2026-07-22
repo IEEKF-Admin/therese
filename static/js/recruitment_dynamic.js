@@ -230,14 +230,37 @@
         return match ? match.monthly_salary : null;
     }
 
+    function getWeeklyHoursInput() {
+        return document.querySelector('[data-recruitment-weekly-hours], [name="weekly_hours"]');
+    }
+
     function applyJobPayscaleDefaults(config) {
         const selects = getPayscaleSelects();
+        const salaryInput = getMonthlySalaryInput();
         const jobId = getSelectedJobId();
-        if (!selects.group || !selects.level || !jobId || !config.jobPayscale) {
+        if (!jobId || !config.jobPayscale) {
             return;
         }
         const jobData = config.jobPayscale[jobId];
         if (!jobData) {
+            return;
+        }
+
+        // Fixed estimated salary on job (no TV-L): fill monthly salary, clear TV-L.
+        if (jobData.has_fixed_estimate && jobData.estimated_salary) {
+            if (selects.group) {
+                selects.group.value = '';
+            }
+            if (selects.level) {
+                rebuildExperienceLevelOptions(config, '', '');
+            }
+            if (salaryInput && !salaryInput.value) {
+                salaryInput.value = jobData.estimated_salary;
+            }
+            return;
+        }
+
+        if (!selects.group || !selects.level) {
             return;
         }
         if (!selects.group.value && jobData.pay_scale_group) {
@@ -251,17 +274,52 @@
         }
     }
 
+    function updateWorkloadPercentHint() {
+        const hoursInput = getWeeklyHoursInput();
+        const percentEl = document.getElementById('recruitment-workload-percent');
+        const hintEl = document.getElementById('recruitment-monthly-costs-hint');
+        if (!percentEl) {
+            return;
+        }
+        const defaultHours = parseFloat(
+            (hintEl && hintEl.getAttribute('data-default-weekly-hours'))
+            || (document.getElementById('recruitment-default-weekly-hours') || {}).textContent
+            || '39'
+        );
+        if (!hoursInput || !String(hoursInput.value || '').trim()) {
+            percentEl.textContent = '100% (default full-time)';
+            return;
+        }
+        const hours = parseFloat(String(hoursInput.value).replace(',', '.'));
+        if (isNaN(hours) || isNaN(defaultHours) || defaultHours <= 0) {
+            percentEl.textContent = '—';
+            return;
+        }
+        const pct = (hours / defaultHours) * 100;
+        percentEl.textContent = pct.toFixed(1) + '%';
+    }
+
     function updateMonthlyCostsHint() {
         const salaryInput = getMonthlySalaryInput();
+        const hoursInput = getWeeklyHoursInput();
         const valueEl = document.getElementById('recruitment-monthly-costs-value');
         const hintEl = document.getElementById('recruitment-monthly-costs-hint');
         if (!valueEl || !hintEl) {
             return;
         }
         const mult = parseFloat(hintEl.getAttribute('data-true-cost-multiplicator') || '1.3');
+        const defaultHours = parseFloat(hintEl.getAttribute('data-default-weekly-hours') || '39');
         const salary = salaryInput ? parseFloat(String(salaryInput.value).replace(',', '.')) : NaN;
+        let fraction = 1;
+        if (hoursInput && String(hoursInput.value || '').trim()) {
+            const hours = parseFloat(String(hoursInput.value).replace(',', '.'));
+            if (!isNaN(hours) && !isNaN(defaultHours) && defaultHours > 0) {
+                fraction = hours / defaultHours;
+            }
+        }
+        updateWorkloadPercentHint();
         if (!isNaN(salary) && !isNaN(mult)) {
-            valueEl.textContent = (salary * mult).toFixed(2) + ' €';
+            valueEl.textContent = (salary * fraction * mult).toFixed(2) + ' €';
         } else {
             valueEl.textContent = '—';
         }
@@ -270,11 +328,11 @@
     function syncMonthlySalaryField(config) {
         const salaryInput = getMonthlySalaryInput();
         const selects = getPayscaleSelects();
-        if (!salaryInput || !selects.group || !selects.level) {
+        if (!salaryInput) {
             updateMonthlyCostsHint();
             return;
         }
-        if (payscaleSelectionComplete(selects)) {
+        if (selects.group && selects.level && payscaleSelectionComplete(selects)) {
             const salary = lookupSalary(
                 config,
                 selects.group.value,
@@ -349,7 +407,10 @@
                     applyJobFieldRules(config);
                 }
             }
-            if (event.target.matches('[data-recruitment-monthly-salary], [name="monthly_salary"]')) {
+            if (event.target.matches(
+                '[data-recruitment-monthly-salary], [name="monthly_salary"], '
+                + '[data-recruitment-weekly-hours], [name="weekly_hours"]'
+            )) {
                 updateMonthlyCostsHint();
             }
         });

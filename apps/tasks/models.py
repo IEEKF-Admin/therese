@@ -359,6 +359,17 @@ class RecruitmentJob(BaseModel):
         blank=True,
         verbose_name="Experience Level",
     )
+    estimated_monthly_salary = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Estimated monthly salary (€)",
+        help_text=(
+            "Fixed theoretical monthly salary for 100% workload when no TV-L "
+            "group/level is set. Mutually exclusive with TV-L defaults."
+        ),
+    )
 
     class Meta:
         verbose_name = "Recruitment Job"
@@ -371,20 +382,39 @@ class RecruitmentJob(BaseModel):
     def __str__(self):
         return self.name
 
-    def get_estimated_monthly_salary(self):
-        if not self.pay_scale_group or self.experience_level is None:
-            return None
-        from apps.finances.models import PayScale
+    def clean(self):
+        from django.core.exceptions import ValidationError
 
-        return (
-            PayScale.get_current()
-            .filter(
-                pay_scale_group=self.pay_scale_group,
-                experience_level=self.experience_level,
+        has_group = bool(self.pay_scale_group)
+        has_level = self.experience_level is not None
+        has_tvl = has_group or has_level
+        has_estimate = self.estimated_monthly_salary is not None
+        if has_group != has_level:
+            raise ValidationError(
+                'Please set both pay scale group and experience level, or leave both empty.'
             )
-            .values_list('monthly_salary', flat=True)
-            .first()
-        )
+        if has_tvl and has_estimate:
+            raise ValidationError(
+                'Provide either TV-L defaults or an estimated monthly salary, not both.'
+            )
+
+    def get_estimated_monthly_salary(self):
+        """Theoretical monthly salary at 100% workload from TV-L or fixed estimate."""
+        if self.pay_scale_group and self.experience_level is not None:
+            from apps.finances.models import PayScale
+
+            salary = (
+                PayScale.get_current()
+                .filter(
+                    pay_scale_group=self.pay_scale_group,
+                    experience_level=self.experience_level,
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+            if salary is not None:
+                return salary
+        return self.estimated_monthly_salary
 
 
 class RecruitmentJobFieldRule(BaseModel):
@@ -521,7 +551,7 @@ class PersonnelRecruitmentTask(Task):
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="Monthly Salary (€)",
+        verbose_name="Theoretical Monthly Salary for 100% Workload",
     )
     weekly_hours = models.DecimalField(
         max_digits=5,
@@ -560,6 +590,7 @@ class PersonnelRecruitmentTask(Task):
         verbose_name = "Personnel Recruitment Task"
 
     def get_estimated_monthly_salary(self):
+        """Theoretical monthly salary for 100% workload."""
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
 
@@ -580,7 +611,27 @@ class PersonnelRecruitmentTask(Task):
             return self.job.get_estimated_monthly_salary()
         return None
 
+    def get_workload_fraction(self):
+        """Weekly hours / default full-time hours; missing weekly hours ⇒ 100%."""
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting
+
+        if self.weekly_hours is None:
+            return Decimal('1')
+        default_hours = GlobalSetting.get_default_weekly_hours()
+        if not default_hours or default_hours <= 0:
+            return Decimal('1')
+        return (Decimal(self.weekly_hours) / Decimal(default_hours)).quantize(
+            Decimal('0.0001')
+        )
+
     def get_estimated_monthly_costs(self):
+        """
+        Pro-rata monthly costs:
+        theoretical 100% salary × (weekly_hours / default_weekly_hours) × true-cost factor.
+        Without weekly hours, full-time (100%) is assumed.
+        """
         from decimal import Decimal
 
         from apps.core.models import GlobalSetting
@@ -589,7 +640,10 @@ class PersonnelRecruitmentTask(Task):
         if salary is None:
             return None
         multiplicator = GlobalSetting.get_true_cost_multiplicator()
-        return (Decimal(salary) * Decimal(multiplicator)).quantize(Decimal('0.01'))
+        fraction = self.get_workload_fraction()
+        return (
+            Decimal(salary) * fraction * Decimal(multiplicator)
+        ).quantize(Decimal('0.01'))
 
 
 class RecruitmentFundingAllocation(BaseModel):

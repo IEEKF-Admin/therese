@@ -27,6 +27,13 @@
         </div>
     </div>
 
+    <div class="aligned-field" style="margin-bottom: 1.5rem;">
+        <label for="{{ form.help_text.id_for_label }}">{{ form.help_text.label }}</label>
+        {{ form.help_text }}
+        {% if form.help_text.errors %}<div class="text-danger">{{ form.help_text.errors }}</div>{% endif %}
+        <small class="field-hint-de">Hilfetext — wird im Recruitment-Task unter der Job-Auswahl angezeigt</small>
+    </div>
+
     <h3>Salary default (TV-L <em>or</em> estimated)</h3>
     <p class="helptext" style="margin-bottom: 1rem;">
         Provide either TV-L group/level <strong>or</strong> a fixed estimated monthly salary for 100% workload — not both.

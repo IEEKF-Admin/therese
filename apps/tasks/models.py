@@ -18,6 +18,14 @@ PURCHASE_STATUSES = [
     ('not_yet_processed', 'Not yet processed'),
     ('in_coordination', 'In coordination'),
     ('sent_to_administration', 'Sent to administration'),
+    ('delivered', 'Delivered'),
+]
+
+# Status values users may set manually on the PO form (delivered is automatic only).
+MANUAL_PURCHASE_STATUSES = [
+    ('not_yet_processed', 'Not yet processed'),
+    ('in_coordination', 'In coordination'),
+    ('sent_to_administration', 'Sent to administration'),
 ]
 
 # Note: 'coordination_completed' status has been removed as per streamlined workflow.
@@ -135,6 +143,9 @@ class Task(BaseModel):
 
     def get_status_display(self):
         """Human readable status depending on task type"""
+        if self.task_type == 'purchase_order':
+            mapping = dict(PURCHASE_STATUSES)
+            return mapping.get(self.status, self.status)
         if self.task_type == 'generic_text':
             mapping = dict(GENERIC_STATUSES)
             return mapping.get(self.status, self.status)
@@ -144,7 +155,6 @@ class Task(BaseModel):
         if self.task_type in ('personnel_reallocation', 'personnel_contract_extension'):
             mapping = dict(PERSONNEL_STATUSES)
             return mapping.get(self.status, self.status)
-        # Fallback for purchase orders and unknown types
         return self.status
 
 
@@ -311,6 +321,36 @@ class PurchaseItem(BaseModel):
     )
     product_name = models.CharField(max_length=255, verbose_name="Product Name")
     product_description = models.TextField(blank=True, verbose_name="Product Description")
+    cas_number = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        verbose_name='CAS number',
+        help_text='Optional. If a hazardous CAS is entered, a chemical inventory draft is created.',
+    )
+    is_dangerous = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Hazardous substance (Gefahrstoff)',
+        help_text='Set automatically from free chemical databases and institute threshold.',
+    )
+    delivered = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Delivered',
+        help_text='True when delivered_number equals quantity (fully delivered).',
+    )
+    delivered_number = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Delivered number',
+        help_text='Cumulative quantity received so far (partial deliveries allowed).',
+    )
+    delivered_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Delivered at',
+        help_text='First time a positive delivery was recorded.',
+    )
     link_to_product = models.URLField(blank=True, verbose_name="Link to Product")
     order_number = models.CharField(max_length=50, blank=True, verbose_name="Order Number")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Unit Price")
@@ -319,6 +359,10 @@ class PurchaseItem(BaseModel):
     @property
     def total_price(self):
         return self.unit_price * self.quantity
+
+    @property
+    def remaining_quantity(self) -> int:
+        return max(0, int(self.quantity or 0) - int(self.delivered_number or 0))
 
     def __str__(self):
         return f"{self.product_name} × {self.quantity}"

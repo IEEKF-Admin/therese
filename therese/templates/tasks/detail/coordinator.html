@@ -4,6 +4,19 @@
 {% block order_info %}
 <div class="form-section">
     <h3>Order Information</h3>
+    {% if form.non_field_errors %}
+    <div class="alert alert-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% if form.errors %}
+    <div class="alert alert-error">
+        Please correct the highlighted fields.
+        <ul style="margin:0.35rem 0 0; padding-left:1.2rem;">
+            {% for field, errs in form.errors.items %}
+            <li><strong>{{ field }}:</strong> {{ errs|striptags }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     
     <div class="aligned-field">
         <label>Supplier <span style="color:#ef4444;">*</span></label>
@@ -14,6 +27,7 @@
             <div class="form-control-static">{{ task.supplier }}</div>
             {{ form.supplier.as_hidden }}
         {% endif %}
+        {{ form.supplier.errors }}
     </div>
     
     <div class="aligned-field">
@@ -24,21 +38,28 @@
     <div class="aligned-field">
         <label>Assigned to</label>
         {{ form.assignee|add_class:"form-control" }}
+        {{ form.assignee.errors }}
     </div>
     
     <div class="aligned-field">
         <label>Priority</label>
         {{ form.priority|add_class:"form-control" }}
+        {{ form.priority.errors }}
     </div>
     
     <div class="aligned-field">
         <label>WBS Element <span style="color:#ef4444;">*</span></label>
         {{ form.wbs_element|add_class:"form-control" }}
+        {{ form.wbs_element.errors }}
+        <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">
+            Active PSPs with material costs only.
+        </small>
     </div>
 
     <div class="aligned-field">
         <label>AT - Beleg Nummer</label>
         {{ form.at_beleg_nummer|add_class:"form-control" }}
+        {{ form.at_beleg_nummer.errors }}
     </div>
 </div>
 {% endblock %}
@@ -46,6 +67,15 @@
 {% block status_section %}
 <div class="form-section">
     <h3>Current Status</h3>
+    {% if task.status == 'delivered' %}
+    <div class="status-badge delivered" style="display:inline-block;padding:0.4rem 0.75rem;background:#bbf7d0;color:#166534;border-radius:6px;">
+        Delivered
+    </div>
+    <p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem;">
+        Set automatically when all line items are marked delivered. Not available as a manual choice.
+    </p>
+    <input type="hidden" name="status" value="delivered">
+    {% else %}
     <div class="status-radios">
         {% for choice in form.status.field.choices %}
             <label class="status-radio">
@@ -57,6 +87,11 @@
             </label>
         {% endfor %}
     </div>
+    <p style="color:#64748b;font-size:0.8rem;margin-top:0.5rem;">
+        Status “Delivered” is set automatically when all items are fully delivered
+        (see Ordering → Undelivered Items / partial deliveries).
+    </p>
+    {% endif %}
 </div>
 {% endblock %}
 

@@ -172,6 +172,9 @@ def annotate_employees_for_list(employees: list[Employee], *, as_of: date | None
         current = select_contract_as_of(emp.contracts.all(), as_of)
         emp.list_current_contract = current
         emp.list_valid_until = display_contract_valid_until(current, contracts, as_of=as_of)
+        emp.list_contract_check_needed = any(
+            getattr(c, 'check_needed', False) for c in contracts
+        )
         if archive_mode:
             emp.list_expiry_warning = False
             emp.list_expiry_tooltip = ''

@@ -48,6 +48,15 @@
 {% block status_section %}
 <div class="form-section">
     <h3>Current Status</h3>
+    {% if task.status == 'delivered' %}
+    <div class="status-badge delivered" style="display:inline-block;padding:0.4rem 0.75rem;background:#bbf7d0;color:#166534;border-radius:6px;">
+        Delivered
+    </div>
+    <p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem;">
+        Set automatically when all line items are marked delivered.
+    </p>
+    <input type="hidden" name="status" value="delivered">
+    {% else %}
     <div class="status-radios">
         {% for value, label in form.status.field.choices %}
             <label class="status-radio">
@@ -59,6 +68,10 @@
             </label>
         {% endfor %}
     </div>
+    <p style="color:#64748b;font-size:0.8rem;margin-top:0.5rem;">
+        Status “Delivered” is set automatically when all items are fully delivered.
+    </p>
+    {% endif %}
 </div>
 {% endblock %}
 

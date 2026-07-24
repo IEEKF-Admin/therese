@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'apps.tasks',
     'apps.documents',
     'apps.checklists',
+    'apps.chemicals',
     'widget_tweaks',
 ]
 

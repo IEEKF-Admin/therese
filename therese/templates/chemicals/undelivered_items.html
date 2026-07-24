@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Undelivered Order Items - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Undelivered Order Items</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← My Tasks</a>
+    </div>
+</div>
+
+<p style="color:#64748b;margin-bottom:1rem;">
+    All undelivered purchase order lines (not only chemicals).
+    Mark lines as delivered; when <strong>all</strong> lines of an order are delivered,
+    the purchase order status becomes <strong>Delivered</strong> automatically.
+</p>
+
+<div class="card list-panel">
+    <div class="search-toolbar" style="margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+        <input type="text" id="undelivered-search" class="form-control"
+               placeholder="Search ordered by, date, supplier, AT/Referenz/Einkaufsbeleg, product…"
+               autocomplete="off"
+               style="max-width:36rem;">
+        <span id="undelivered-count" style="color:#64748b;font-size:0.9rem;"></span>
+    </div>
+
+    <form method="post" id="undelivered-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mark_delivered">
+        <table class="table" id="undelivered-table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" id="undelivered-select-all" title="Select all visible">
+                    </th>
+                    <th>Ordered by</th>
+                    <th>Ordered at</th>
+                    <th>Supplier</th>
+                    <th>AT - Belegnummer</th>
+                    <th>Referenzbeleg-Nr</th>
+                    <th>Einkaufsbeleg-Nr</th>
+                    <th>Product</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="undelivered-row"
+                    data-ordered-by="{{ item.purchase_task.creator.get_full_name|default:item.purchase_task.creator|default:''|lower }}"
+                    data-ordered-at="{{ item.purchase_task.created_at|date:'d.m.Y' }} {{ item.purchase_task.created_at|date:'Y-m-d' }}"
+                    data-supplier="{{ item.purchase_task.supplier|default:''|lower }}"
+                    data-at-beleg="{{ item.purchase_task.at_beleg_nummer|default:''|lower }}"
+                    data-referenz="{{ item.purchase_task.referenzbeleg_nr|default:''|lower }}"
+                    data-einkauf="{{ item.purchase_task.einkaufsbeleg_nr|default:''|lower }}"
+                    data-product="{{ item.product_name|default:''|lower }}">
+                    <td class="table-checkbox-col">
+                        <input type="checkbox" name="selected_ids" value="{{ item.pk }}" class="undelivered-check">
+                    </td>
+                    <td>
+                        {% if item.purchase_task.creator %}
+                        {{ item.purchase_task.creator.get_full_name|default:item.purchase_task.creator }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ item.purchase_task.created_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <a href="{% url 'tasks:task_detail' item.purchase_task_id %}">
+                            {{ item.purchase_task.supplier|default:item.purchase_task.order_display_name|default:"—" }}
+                        </a>
+                    </td>
+                    <td>{{ item.purchase_task.at_beleg_nummer|default:"—" }}</td>
+                    <td>{{ item.purchase_task.referenzbeleg_nr|default:"—" }}</td>
+                    <td>{{ item.purchase_task.einkaufsbeleg_nr|default:"—" }}</td>
+                    <td>{{ item.product_name }}</td>
+                </tr>
+                {% empty %}
+                <tr id="undelivered-empty-static">
+                    <td colspan="8" class="empty-state">No undelivered order items.</td>
+                </tr>
+                {% endfor %}
+                <tr id="undelivered-no-match" style="display:none;">
+                    <td colspan="8" class="empty-state">No matching items (checked rows stay visible).</td>
+                </tr>
+            </tbody>
+        </table>
+        {% if items %}
+        <div class="table-bulk-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary"
+                    onclick="return confirm('Mark selected items as delivered?');">
+                Mark selected as delivered
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var input = document.getElementById('undelivered-search');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#undelivered-table tbody tr.undelivered-row'));
+    var noMatch = document.getElementById('undelivered-no-match');
+    var countEl = document.getElementById('undelivered-count');
+    var selectAll = document.getElementById('undelivered-select-all');
+
+    function isChecked(row) {
+        var box = row.querySelector('.undelivered-check');
+        return box && box.checked;
+    }
+
+    function rowSearchText(row) {
+        return [
+            row.getAttribute('data-ordered-by') || '',
+            row.getAttribute('data-ordered-at') || '',
+            row.getAttribute('data-supplier') || '',
+            row.getAttribute('data-at-beleg') || '',
+            row.getAttribute('data-referenz') || '',
+            row.getAttribute('data-einkauf') || '',
+            row.getAttribute('data-product') || '',
+        ].join(' ').toLowerCase();
+    }
+
+    function matchesQuery(row, q) {
+        if (!q) return true;
+        var hay = rowSearchText(row);
+        var parts = q.split(/\s+/).filter(Boolean);
+        return parts.every(function(p) { return hay.indexOf(p) !== -1; });
+    }
+
+    function filterRows() {
+        var q = (input && input.value || '').trim().toLowerCase();
+        var visible = 0;
+        rows.forEach(function(row) {
+            var show = matchesQuery(row, q) || isChecked(row);
+            row.style.display = show ? '' : 'none';
+            if (show) visible += 1;
+        });
+        if (noMatch) {
+            noMatch.style.display = (rows.length && visible === 0) ? '' : 'none';
+        }
+        if (countEl) {
+            if (!rows.length) {
+                countEl.textContent = '';
+            } else if (q) {
+                countEl.textContent = visible + ' of ' + rows.length + ' shown'
+                    + ' (selected rows always stay visible)';
+            } else {
+                countEl.textContent = rows.length + ' undelivered item(s)';
+            }
+        }
+        if (selectAll) {
+            var visibleBoxes = rows.filter(function(r) {
+                return r.style.display !== 'none';
+            }).map(function(r) { return r.querySelector('.undelivered-check'); }).filter(Boolean);
+            selectAll.checked = visibleBoxes.length > 0 && visibleBoxes.every(function(b) { return b.checked; });
+            selectAll.indeterminate = visibleBoxes.some(function(b) { return b.checked; }) && !selectAll.checked;
+        }
+    }
+
+    if (input) {
+        input.addEventListener('input', filterRows);
+        input.addEventListener('keyup', filterRows);
+    }
+
+    document.querySelectorAll('.undelivered-check').forEach(function(box) {
+        box.addEventListener('change', filterRows);
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            rows.forEach(function(row) {
+                if (row.style.display === 'none') return;
+                var box = row.querySelector('.undelivered-check');
+                if (box) box.checked = selectAll.checked;
+            });
+            filterRows();
+        });
+    }
+
+    filterRows();
+})();
+</script>
+{% endblock %}

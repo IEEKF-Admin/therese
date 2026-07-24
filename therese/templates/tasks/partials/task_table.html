@@ -34,6 +34,7 @@
                   onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this task to your archive?{% endif %}');">
                 {% csrf_token %}
                 <input type="hidden" name="archive_task" value="{{ task.pk }}">
+                <input type="hidden" name="archive_submit" value="1">
                 {% if is_archive_view %}
                     <input type="hidden" name="action" value="unarchive">
                     <button type="submit" class="btn-icon" title="Remove from archive">📤</button>

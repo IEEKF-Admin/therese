@@ -23,6 +23,9 @@ from .locations import (
     RoomCreateView,
     RoomDeleteView,
     RoomUpdateView,
+    RoomStorageItemCreateView,
+    RoomStorageItemDeleteView,
+    RoomStorageItemUpdateView,
 )
 from .profile import MyProfileView
 from .workgroups import (
@@ -52,4 +55,7 @@ __all__ = [
     'PhoneNumberCreateView',
     'PhoneNumberUpdateView',
     'PhoneNumberDeleteView',
+    'RoomStorageItemCreateView',
+    'RoomStorageItemUpdateView',
+    'RoomStorageItemDeleteView',
 ]

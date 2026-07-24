@@ -310,44 +310,52 @@
         {% endif %}{# end plan.import_scopes.psp and not stub #}
 
         {% if plan.import_scopes.personnel and parent.personnel_checks %}
-        <h4>Personalkosten checks (Kostenart 60003000)</h4>
+        <h4>Personalkosten (Lohn/Gehalt)</h4>
         <p class="text-muted" style="font-size:0.85rem;">
-            Latest Belegdatum per employee number. Compared:
-            monthly salary × true-cost multiplicator × allocation % vs Excel Personalkosten (±2.5%).
-            Match or “Adjust salary” sets <strong>Funding allocation → Import completed</strong>.
-            Unbekannte Personalnummern oder fehlende Funding Allocations <strong>blockieren den Import</strong>,
-            bis angelegt oder explizit ignoriert.
+            Neuester <strong>Buchungsmonat</strong> pro Personalnummer.
+            Kostenarten: <strong>Lohn/Gehalt</strong> (z. B. 60003000 DA&nbsp;03, 60003500 DA&nbsp;35, 60013000 DA&nbsp;13).
+            Nicht: Sozialabgaben, Altersversorgung, Jahressonderzahlung.
+            Erwartet: True Costs (100%-Gehalt + Zulagen × Stundenanteil × Multiplikator) × FA-%.
+            Toleranz: Global Settings (Default ±2,5 %; <strong>Januar ±4 %</strong>).
+            Nur der Personal-Teil wird bei offenen Punkten blockiert.
         </p>
+
+        {# —— Case a: plausibility —— #}
+        {% with checks=parent.personnel_checks %}
+        <h5 style="margin-top:1rem;">a) Plausibilität (FA vorhanden)</h5>
         <table class="table" style="width:100%; font-size:0.85rem;">
             <thead>
                 <tr>
                     <th>Personalnr.</th>
                     <th>Employee</th>
+                    <th>Buchung</th>
                     <th class="text-right">Excel</th>
                     <th class="text-right">Expected</th>
                     <th class="text-right">Δ %</th>
                     <th>Status</th>
-                    <th>Import completed (now)</th>
+                    <th>Import completed</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                {% for check in parent.personnel_checks %}
+                {% for check in checks %}
+                {% if check.case == 'a' %}
                 <tr {% if check.requires_resolution %}style="background:#fff7ed;"{% endif %}>
                     <td><code>{{ check.personalnummer }}</code></td>
-                    <td>{{ check.employee_name|default:"—" }}</td>
+                    <td>
+                        {% if check.employee_pk %}
+                        <a href="{% url 'hr:employee_update' check.employee_pk %}" target="_blank" rel="noopener">{{ check.employee_name }}</a>
+                        {% else %}{{ check.employee_name|default:"—" }}{% endif %}
+                    </td>
+                    <td>{{ check.booking_date|default:"—" }}</td>
                     <td class="text-right">{{ check.excel_amount }} €</td>
                     <td class="text-right">{{ check.expected_amount|default:"—" }}{% if check.expected_amount %} €{% endif %}</td>
                     <td class="text-right">{{ check.delta_pct|default:"—" }}{% if check.delta_pct %}%{% endif %}</td>
                     <td>
                         {% if check.status == 'match' %}
-                        <span style="color:#047857;">Match → will set Yes</span>
+                        <span style="color:#047857;">Match → set Yes</span>
                         {% elif check.status == 'mismatch' %}
                         <span style="color:#b45309;">Mismatch</span>
-                        {% elif check.status == 'no_employee' %}
-                        <span style="color:#b91c1c;">Mitarbeiter fehlt</span>
-                        {% elif check.status == 'no_allocation' %}
-                        <span style="color:#b91c1c;">Funding Allocation fehlt</span>
                         {% else %}
                         <span class="text-muted">{{ check.status }}</span>
                         {% endif %}
@@ -357,60 +365,120 @@
                     <td>
                         {% if check.status == 'mismatch' %}
                         <select name="personnel_action__{{ check.decision_key }}" class="form-select form-select-sm">
-                            <option value="ignore">Ignore (keep import_completed as is)</option>
+                            <option value="ignore">Ignore</option>
                             <option value="adjust_salary">
-                                Adjust monthly salary to {{ check.suggested_monthly_salary }} € and set Yes
+                                Adjust base salary (100%) to {{ check.suggested_monthly_salary }} € + set Yes
                             </option>
                         </select>
+                        {% if check.employee_pk %}
+                        <a class="btn-secondary" style="display:inline-block; margin-top:0.35rem; font-size:0.78rem; padding:0.25rem 0.4rem;"
+                           target="_blank" rel="noopener"
+                           href="{% url 'hr:employee_update' check.employee_pk %}">Employee edit</a>
+                        {% endif %}
                         {% elif check.status == 'match' %}
                         <em>Auto</em>
-                        {% elif check.status == 'no_employee' %}
-                        <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:12rem;">
-                            <a class="btn-secondary"
-                               style="text-align:center; font-size:0.8rem; padding:0.35rem 0.5rem;"
-                               target="_blank" rel="noopener"
-                               href="{% url 'hr:employee_create' %}?employee_number={{ check.personalnummer|urlencode }}&amp;next={% url 'finances:third_party_funding_import_preview' %}">
-                                Den Mitarbeiter anlegen
-                            </a>
-                            <label style="display:flex; gap:0.35rem; align-items:flex-start; font-size:0.8rem; cursor:pointer;">
-                                <input type="checkbox"
-                                       name="personnel_action__{{ check.decision_key }}"
-                                       value="ignore">
-                                <span>Diesen Mitarbeiter ignorieren</span>
-                            </label>
-                        </div>
-                        {% elif check.status == 'no_allocation' and check.employee_pk %}
-                        <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:12rem;">
-                            <a class="btn-secondary"
-                               style="text-align:center; font-size:0.8rem; padding:0.35rem 0.5rem;"
-                               target="_blank" rel="noopener"
-                               href="{% url 'hr:employee_update' check.employee_pk %}?add_funding_wbs={{ parent.wbs_code|urlencode }}&amp;next={% url 'finances:third_party_funding_import_preview' %}#funding">
-                                Funding Allocation anlegen
-                            </a>
-                            <label style="display:flex; gap:0.35rem; align-items:flex-start; font-size:0.8rem; cursor:pointer;">
-                                <input type="checkbox"
-                                       name="personnel_action__{{ check.decision_key }}"
-                                       value="ignore">
-                                <span>Diesen Mitarbeiter ignorieren</span>
-                            </label>
-                        </div>
                         {% else %}
                         <em>—</em>
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
+                {% empty %}
+                <tr><td colspan="9" class="text-muted">—</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <h5 style="margin-top:1rem;">b) Fehlende FA (PSP + Buchungsmonat)</h5>
+        <table class="table" style="width:100%; font-size:0.85rem;">
+            <thead>
+                <tr>
+                    <th>Personalnr.</th>
+                    <th>Employee</th>
+                    <th>Buchung</th>
+                    <th class="text-right">Excel</th>
+                    <th>Hinweis</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in checks %}
+                {% if check.case == 'b' %}
+                <tr style="background:#fff7ed;">
+                    <td><code>{{ check.personalnummer }}</code></td>
+                    <td>
+                        {% if check.employee_pk %}
+                        <a href="{% url 'hr:employee_update' check.employee_pk %}" target="_blank" rel="noopener">{{ check.employee_name }}</a>
+                        {% else %}{{ check.employee_name|default:"—" }}{% endif %}
+                    </td>
+                    <td>{{ check.booking_date|default:"—" }}</td>
+                    <td class="text-right">{{ check.excel_amount }} €</td>
+                    <td>
+                        <span class="text-muted" style="font-size:0.78rem;">{{ check.message }}</span>
+                        {% if check.will_split_contract %}
+                        <br><strong>Contract-Split</strong> (aktuelle FA-Summe 100 %)
+                        {% endif %}
+                    </td>
+                    <td>
+                        <select name="personnel_action__{{ check.decision_key }}" class="form-select form-select-sm">
+                            <option value="">— bitte wählen —</option>
+                            <option value="create_fa">FA anlegen (1 %, heute–morgen){% if check.will_split_contract %} + neuer Contract{% endif %}</option>
+                            <option value="ignore">Ignorieren</option>
+                        </select>
+                        {% if check.employee_pk %}
+                        <a class="btn-secondary" style="display:inline-block; margin-top:0.35rem; font-size:0.78rem; padding:0.25rem 0.4rem;"
+                           target="_blank" rel="noopener"
+                           href="{% url 'hr:employee_update' check.employee_pk %}">Employee edit</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h5 style="margin-top:1rem;">c) Unbekannte Personalnummer</h5>
+        <table class="table" style="width:100%; font-size:0.85rem;">
+            <thead>
+                <tr>
+                    <th>Personalnr.</th>
+                    <th>Buchungstext → Name</th>
+                    <th>Buchung</th>
+                    <th class="text-right">Excel</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in checks %}
+                {% if check.case == 'c' %}
+                <tr style="background:#fff7ed;">
+                    <td><code>{{ check.personalnummer }}</code></td>
+                    <td><span class="text-muted" style="font-size:0.78rem;">{{ check.buchungstext|default:"—" }}</span></td>
+                    <td>{{ check.booking_date|default:"—" }}</td>
+                    <td class="text-right">{{ check.excel_amount }} €</td>
+                    <td>
+                        <select name="personnel_action__{{ check.decision_key }}" class="form-select form-select-sm">
+                            <option value="">— bitte wählen —</option>
+                            <option value="create_employee">Pending-Mitarbeiter + Contract + FA (1 %) anlegen</option>
+                            <option value="ignore">Ignorieren</option>
+                        </select>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endwith %}
         {% endif %}
     </div>
     {% endfor %}
 
     {% if plan.import_scopes.personnel and plan.requires_personnel_resolution %}
     <div class="alert alert-warning" style="margin-bottom: 1rem;">
-        <strong>Personalkosten blockieren den Import.</strong>
-        Lege fehlende Mitarbeiter bzw. Funding Allocations an (Links öffnen in neuem Tab),
-        dann „Status neu prüfen“ — oder setze „Diesen Mitarbeiter ignorieren“ für Buchungsfehler.
+        <strong>Personalkosten blockieren den Personal-Import.</strong>
+        Bitte in den Abschnitten b/c eine Aktion wählen (anlegen oder ignorieren),
+        oder über „Employee edit“ manuell nachpflegen und „Status neu prüfen“.
+        Der PSP-Import ist davon unabhängig.
     </div>
     {% endif %}
 

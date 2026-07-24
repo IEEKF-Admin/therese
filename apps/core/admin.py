@@ -18,8 +18,14 @@ from .models import DataImportLog, GlobalSetting, StoredFile
 
 @admin.register(GlobalSetting, site=therese_admin)
 class GlobalSettingAdmin(admin.ModelAdmin):
-    list_display = ['default_weekly_hours', 'true_cost_multiplicator', 'updated_at']
-    fields = ['default_weekly_hours', 'true_cost_multiplicator', 'updated_at']
+    list_display = [
+        'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
+        'irresponsible', 'chemical_hazard_threshold', 'updated_at',
+    ]
+    fields = [
+        'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
+        'irresponsible', 'chemical_hazard_threshold', 'updated_at',
+    ]
     readonly_fields = ['updated_at']
 
 

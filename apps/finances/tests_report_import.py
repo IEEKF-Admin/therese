@@ -21,6 +21,13 @@ from apps.finances.models import (
 )
 from apps.finances.report_import.parsers.personalkosten import extract_beleg_date_range
 from apps.finances.report_import.parsers.uebersicht import UebersichtPspParser
+from apps.core.import_tracking import (
+    is_report_older_than_last_import,
+    record_data_import,
+    remaining_scopes_for_hash,
+    sha256_bytes,
+)
+from apps.core.models import DataImportLog
 from apps.finances.report_import.service import (
     analyze_uploaded_files,
     apply_import_plan,
@@ -154,6 +161,70 @@ def _build_workbook_with_personalkosten() -> bytes:
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def _build_sap_personalkosten_only_workbook():
+    """Real SAP column order including Buchungstext + Buchungsdatum + Personalkosten."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    # Minimal Übersicht so detect_and_parse does not fail hard
+    ws = wb.active
+    ws.title = 'Übersicht'
+    ws['B12'] = 'S-100.0001'
+    ws['C12'] = '0001/991000'
+
+    pk = wb.create_sheet('Personalkosten')
+    pk['B2'] = 'PSP'
+    pk['C2'] = 'Kostenart'
+    pk['D2'] = 'KOA Bezeichnung'
+    pk['E2'] = 'Buchungstext'
+    pk['F2'] = 'Buchungs-\ndatum'
+    pk['G2'] = 'Beleg-\ndatum'
+    pk['H2'] = 'Personal-\nnummer'
+    pk['I2'] = 'Personalkosten'
+    pk['B3'] = 'S-100.0001.2'
+    pk['C3'] = '60003000'
+    pk['D3'] = 'Lohn/Gehalt DA 03'
+    pk['E3'] = 'MUSTERSCHMIDT ANNA - Für-Periode 06 - 2026'
+    pk['F3'] = '30.06.2026'
+    pk['G3'] = '22.06.2026'
+    pk['H3'] = '50999001'
+    pk['I3'] = 1234.56
+    pk['B4'] = 'S-100.0001.2'
+    pk['C4'] = '60003500'
+    pk['E4'] = 'OTHER PERSON - Für-Periode 06 - 2026'
+    pk['F4'] = '30.06.2026'
+    pk['H4'] = '50999002'
+    pk['I4'] = 9999.00  # DA 35 base salary — included
+    pk['B5'] = 'S-100.0001.2'
+    pk['C5'] = '61003500'
+    pk['E5'] = 'OTHER PERSON - social'
+    pk['F5'] = '30.06.2026'
+    pk['H5'] = '50999002'
+    pk['I5'] = 500.00  # Sozialabgaben — ignored
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+class SapPersonalkostenLayoutTests(TestCase):
+    def test_parses_sap_layout_with_amount_column(self):
+        from apps.finances.report_import.parsers.personalkosten import (
+            parse_personalkosten_sheet,
+        )
+
+        data = _build_sap_personalkosten_only_workbook()
+        entries = parse_personalkosten_sheet(data, 'sap.xlsx')
+        by_pn = {e.personalnummer: e for e in entries}
+        self.assertEqual(set(by_pn), {'50999001', '50999002'})
+        self.assertEqual(by_pn['50999001'].personalkosten, Decimal('1234.56'))
+        self.assertEqual(by_pn['50999001'].buchungsdatum, date(2026, 6, 30))
+        self.assertIn('MUSTERSCHMIDT', by_pn['50999001'].buchungstext)
+        # DA 35 included; social contribution not used instead
+        self.assertEqual(by_pn['50999002'].kostenart, '60003500')
+        self.assertEqual(by_pn['50999002'].personalkosten, Decimal('9999.00'))
 
 
 class BelegDateRangeTests(TestCase):
@@ -316,6 +387,85 @@ class ReportImportServiceTests(TestCase):
         summary = apply_import_plan(plan)
         self.assertEqual(summary['psp_created'], 0)
         self.assertFalse(WBSElement.objects.filter(wbs_code='T-100.0001').exists())
+
+    def test_same_file_hash_blocks_already_imported_scopes(self):
+        data = _build_sample_workbook()
+        file_hash = sha256_bytes(data)
+        record_data_import(
+            kind=DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            uploaded_by=None,
+            original_filename='prev.xlsx',
+            file_sha256=file_hash,
+            file_size=len(data),
+            report_created_on=date(2026, 1, 15),
+            status=DataImportLog.Status.COMPLETED,
+            summary='scopes=psp,personnel; test prior full import',
+        )
+        already, remaining, requested = remaining_scopes_for_hash(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            file_hash,
+            {'psp': True, 'personnel': True},
+        )
+        self.assertEqual(already, {'psp', 'personnel'})
+        self.assertEqual(remaining, set())
+
+        upload = SimpleUploadedFile('sample.xlsx', data)
+        plan = analyze_uploaded_files([upload], import_year=2026)
+        self.assertTrue(plan['has_duplicate_files'])
+        self.assertTrue(plan['upload_meta'][0]['is_duplicate'])
+
+    def test_partial_scope_reimport_allowed_for_same_hash(self):
+        data = _build_sample_workbook()
+        file_hash = sha256_bytes(data)
+        record_data_import(
+            kind=DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            uploaded_by=None,
+            original_filename='prev.xlsx',
+            file_sha256=file_hash,
+            file_size=len(data),
+            report_created_on=date(2026, 1, 15),
+            status=DataImportLog.Status.COMPLETED,
+            summary='scopes=psp; only psp before',
+        )
+        upload = SimpleUploadedFile('sample.xlsx', data)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': True},
+        )
+        self.assertFalse(plan['has_duplicate_files'])
+        self.assertEqual(plan['upload_meta'][0]['scopes_already_imported'], ['psp'])
+        self.assertIn('personnel', plan['upload_meta'][0]['scopes_remaining'])
+
+    def test_older_report_creation_date_is_blocked(self):
+        record_data_import(
+            kind=DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            uploaded_by=None,
+            original_filename='newer.xlsx',
+            file_sha256='a' * 64,
+            report_created_on=date(2026, 6, 1),
+            status=DataImportLog.Status.COMPLETED,
+            summary='scopes=psp,personnel',
+        )
+        is_older, upload_date, prior, prior_date = is_report_older_than_last_import(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            report_created_on=date(2026, 3, 1),
+        )
+        self.assertTrue(is_older)
+        self.assertEqual(upload_date, date(2026, 3, 1))
+        self.assertEqual(prior_date, date(2026, 6, 1))
+
+        is_ok, _, _, _ = is_report_older_than_last_import(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            report_created_on=date(2026, 6, 1),
+        )
+        self.assertFalse(is_ok)
+
+        is_newer, _, _, _ = is_report_older_than_last_import(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            report_created_on=date(2026, 7, 1),
+        )
+        self.assertFalse(is_newer)
 
     def test_lifetime_plan_overwrites_single_row_not_import_year_key(self):
         """Re-import updates the one lifetime row even if technical year ≠ import year."""

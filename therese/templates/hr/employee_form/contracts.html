@@ -60,7 +60,13 @@
                 <div class="contract-fields-grid">
                     <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
-                    <div class="inline-field"><label>Monthly Salary</label>{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}</div>
+                    <div class="inline-field">
+                        <label title="Monatsgehalt bei 100% Arbeitszeit">
+                            Monthly Salary (100% workload)
+                        </label>
+                        {% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}
+                        <small class="field-hint-de">Monatsgehalt, das die Person bei 100% Arbeitszeit erhalten würde. Zulagen und Teilzeit fließen in die True Costs ein.</small>
+                    </div>
                     <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
@@ -68,6 +74,15 @@
                     <div class="inline-field"><label>Active</label>
                         <div class="active-toggle-wrap">{{ form.is_active }}</div>
                     </div>
+                    <div class="inline-field">
+                        <label title="Manuelle Prüfung nach Import">Check needed</label>
+                        <div class="active-toggle-wrap">{{ form.check_needed }}</div>
+                    </div>
+                    {% if form.instance.check_needed %}
+                    <div class="inline-field full">
+                        <span class="badge badge-archived" style="background:#f59e0b;color:#111;">Check needed — bitte prüfen und Flag entfernen</span>
+                    </div>
+                    {% endif %}
                     <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
                 </div>
 
@@ -234,12 +249,19 @@
             <div class="contract-fields-grid">
                 <div class="inline-field"><label>Pay Scale Group</label>{{ empty_contract_form.pay_scale_group|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Experience Level</label>{{ empty_contract_form.experience_level|add_class:"form-control" }}</div>
-                <div class="inline-field"><label>Monthly Salary</label>{{ empty_contract_form.monthly_salary|add_class:"form-control" }}</div>
+                <div class="inline-field">
+                    <label title="Monatsgehalt bei 100% Arbeitszeit">
+                        Monthly Salary (100% workload)
+                    </label>
+                    {{ empty_contract_form.monthly_salary|add_class:"form-control" }}
+                    <small class="field-hint-de">Monatsgehalt, das die Person bei 100% Arbeitszeit erhalten würde. Zulagen und Teilzeit fließen in die True Costs ein.</small>
+                </div>
                 <div class="inline-field"><label>Job Number</label>{{ empty_contract_form.job_number|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Weekly Hours</label>{{ empty_contract_form.weekly_hours|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Valid From</label>{{ empty_contract_form.valid_from }}</div>
                 <div class="inline-field"><label>Valid Until</label>{{ empty_contract_form.valid_until }}</div>
                 <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_contract_form.is_active }}</div></div>
+                <div class="inline-field"><label>Check needed</label><div class="active-toggle-wrap">{{ empty_contract_form.check_needed }}</div></div>
                 <div class="inline-field full"><label>Comments</label>{{ empty_contract_form.comments }}</div>
             </div>
             <div class="funding-block" data-fa-prefix="fa_n__prefix__">

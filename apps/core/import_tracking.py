@@ -172,6 +172,89 @@ def remaining_scopes_for_hash(
     return already & requested, remaining, requested
 
 
+def effective_report_creation_date(
+    *,
+    report_created_on: date | None = None,
+    file_created_at: datetime | None = None,
+) -> date | None:
+    """
+    Business creation date of a funding report.
+
+    Prefer the sheet date (``angelegt am`` / report_created_on); fall back to
+    the OOXML document created timestamp when the sheet date is missing.
+    """
+    if report_created_on is not None:
+        return report_created_on
+    if file_created_at is not None:
+        if timezone.is_aware(file_created_at):
+            return timezone.localtime(file_created_at).date()
+        return file_created_at.date()
+    return None
+
+
+def effective_creation_date_from_log(log: DataImportLog) -> date | None:
+    return effective_report_creation_date(
+        report_created_on=log.report_created_on,
+        file_created_at=log.file_created_at,
+    )
+
+
+def latest_completed_report_creation_date(kind: str) -> tuple[date | None, DataImportLog | None]:
+    """
+    Latest report creation date among completed imports of ``kind``.
+
+    Reports are cumulative (start of PSP → pull date), so only newer (or equal)
+    reports should be accepted after an earlier successful import.
+    """
+    if not kind:
+        return None, None
+    logs = (
+        DataImportLog.objects.filter(
+            kind=kind,
+            status=DataImportLog.Status.COMPLETED,
+        )
+        .select_related('uploaded_by')
+        .order_by('-created_at')
+    )
+    best_date: date | None = None
+    best_log: DataImportLog | None = None
+    for log in logs.iterator(chunk_size=200):
+        d = effective_creation_date_from_log(log)
+        if d is None:
+            continue
+        if best_date is None or d > best_date:
+            best_date = d
+            best_log = log
+    return best_date, best_log
+
+
+def is_report_older_than_last_import(
+    kind: str,
+    *,
+    report_created_on: date | None = None,
+    file_created_at: datetime | None = None,
+) -> tuple[bool, date | None, DataImportLog | None, date | None]:
+    """
+    True when this upload's creation date is strictly older than the latest
+    completed import for the same kind.
+
+    Returns ``(is_older, upload_date, prior_log, prior_date)``.
+    If the upload date cannot be determined, returns False (no block).
+    """
+    upload_date = effective_report_creation_date(
+        report_created_on=report_created_on,
+        file_created_at=file_created_at,
+    )
+    if upload_date is None:
+        return False, None, None, None
+    prior_date, prior_log = latest_completed_report_creation_date(kind)
+    if prior_date is None:
+        return False, upload_date, None, None
+    if upload_date < prior_date:
+        return True, upload_date, prior_log, prior_date
+    return False, upload_date, prior_log, prior_date
+
+
 def record_data_import(
     *,
     kind: str,

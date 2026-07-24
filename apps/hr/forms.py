@@ -25,7 +25,7 @@ from django import forms
 from django.forms.models import inlineformset_factory
 
 from .models import (
-    Employee, Building, Room, PhoneNumber, Contract,
+    Employee, Building, Room, PhoneNumber, RoomStorageItem, Contract,
     FundingAllocation, SalarySupplement, Workgroup
 )
 from .workgroup_groups import sync_auth_group_for_workgroup
@@ -40,6 +40,7 @@ EMPLOYEE_MANAGE_FIELDS = [
     'email_professional', 'email_private', 'google_account', 'private_phone_number',
     'room', 'phone_number', 'street', 'house_number', 'postal_code', 'city', 'country',
     'website', 'job',
+    'is_pending', 'check_needed',
     # monthly_salary / cost_center / scan_of_contract / profile_picture intentionally omitted
 ]
 
@@ -175,7 +176,8 @@ class ContractForm(forms.ModelForm):
         fields = [
             'pay_scale_group', 'experience_level', 'monthly_salary',
             'job_number',
-            'weekly_hours', 'valid_from', 'valid_until', 'is_active', 'comments',
+            'weekly_hours', 'valid_from', 'valid_until', 'is_active',
+            'check_needed', 'comments',
         ]
         widgets = {
             'valid_from': forms.DateInput(attrs={
@@ -189,6 +191,9 @@ class ContractForm(forms.ModelForm):
                 'placeholder': 'TT.MM.JJJJ'
             }),
             'is_active': forms.CheckboxInput(attrs={
+                'class': 'is-active-toggle',
+            }),
+            'check_needed': forms.CheckboxInput(attrs={
                 'class': 'is-active-toggle',
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
@@ -229,19 +234,33 @@ class ContractForm(forms.ModelForm):
         )
 
         self.fields['job_number'].label = 'Job Number'
-        self.fields['monthly_salary'].label = 'Monthly Salary'
+        self.fields['monthly_salary'].label = 'Monthly Salary (100% workload)'
+        self.fields['monthly_salary'].help_text = (
+            'Monthly salary at 100% working time (full-time reference). '
+            'Part-time hours and salary supplements are applied when calculating true costs.'
+        )
         self.fields['monthly_salary'].required = False
         self.fields['monthly_salary'].widget.attrs.update({
             'class': 'form-control contract-monthly-salary',
             'step': '0.01',
             'min': '0',
             'data-contract-monthly-salary': 'true',
+            'title': (
+                'Monatsgehalt bei 100% Arbeitszeit / '
+                'Monthly salary the person would receive at 100% working time'
+            ),
         })
         if 'is_active' in self.fields:
             self.fields['is_active'].label = 'Active'
             self.fields['is_active'].required = False
             if not getattr(self.instance, 'pk', None):
                 self.fields['is_active'].initial = True
+        if 'check_needed' in self.fields:
+            self.fields['check_needed'].label = 'Check needed'
+            self.fields['check_needed'].required = False
+            self.fields['check_needed'].help_text = (
+                'Clear after reviewing a contract created/flagged by import.'
+            )
 
         # When payscale is set, show TV-L salary as read-only (enforced again in clean).
         instance = getattr(self, 'instance', None)
@@ -404,11 +423,12 @@ class BuildingForm(forms.ModelForm):
 class RoomForm(forms.ModelForm):
     class Meta:
         model = Room
-        fields = ['building', 'room_number', 'colloquial_name', 'comment']
+        fields = ['building', 'room_number', 'colloquial_name', 'chemical', 'comment']
         widgets = {
             'building': forms.Select(attrs={'class': 'form-control'}),
             'room_number': forms.TextInput(attrs={'class': 'form-control'}),
             'colloquial_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'chemical': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
 
@@ -420,4 +440,16 @@ class PhoneNumberForm(forms.ModelForm):
         widgets = {
             'room': forms.Select(attrs={'class': 'form-control'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class RoomStorageItemForm(forms.ModelForm):
+    class Meta:
+        model = RoomStorageItem
+        fields = ['room', 'name', 'storage_type', 'comment']
+        widgets = {
+            'room': forms.Select(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'storage_type': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'cabinet, fridge, …'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }

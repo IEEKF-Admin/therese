@@ -384,6 +384,15 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 instance = form.save()
                 formset.instance = instance
                 formset.save()
+                # Hazardous CAS lines get ChemicalItem drafts via signal; apply inventory fields
+                try:
+                    from apps.chemicals.services import apply_chemical_fields_from_item_formset
+                    apply_chemical_fields_from_item_formset(formset)
+                except Exception:
+                    import logging
+                    logging.getLogger(__name__).exception(
+                        'Applying chemical item fields after PO create failed'
+                    )
                 return self._redirect_after_create(
                     instance,
                     message='✅ Purchase Order created successfully.',

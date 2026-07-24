@@ -29,7 +29,7 @@
         <!-- Order Items -->
         <div class="form-section">
             <h3>Order Items</h3>
-            <table class="purchase-items-table" style="width: 100%; min-width: 900px;">
+            <table class="purchase-items-table" style="width: 100%; min-width: 1000px;">
                 <thead>
                     <tr>
                         {% if show_standard_checkboxes %}
@@ -37,8 +37,10 @@
                         {% endif %}
                         <th class="text-left col-order">Order #</th>
                         <th class="text-left col-product">Product</th>
+                        <th class="text-left col-cas">CAS</th>
                         <th class="text-left col-description">Description</th>
                         <th class="text-left col-link">Link</th>
+                        <th class="text-right">Delivered</th>
                         <th class="text-right col-price">Unit Price</th>
                         <th class="text-right col-qty">Qty</th>
                         <th class="text-right col-total">Total</th>
@@ -64,20 +66,44 @@
                         {% endif %}
                         <td class="text-left col-order">{{ item.order_number|default:"—" }}</td>
                         <td class="text-left col-product">{{ item.product_name }}</td>
+                        <td class="text-left col-cas">
+                            {{ item.cas_number|default:"—" }}
+                            {% if item.is_dangerous %}
+                            <span title="Hazardous substance" style="color:#b91c1c;font-size:0.75rem;">⚠</span>
+                            {% endif %}
+                            {% if item.chemical_item_id %}
+                            <div style="margin-top:0.25rem;">
+                                <a href="{% url 'chemicals:chemical_item_edit' item.chemical_item.pk %}"
+                                   style="font-size:0.8rem;">
+                                    Chemical item
+                                    {% if item.chemical_item.status == 'draft' %}(Draft){% endif %}
+                                </a>
+                            </div>
+                            {% elif item.is_dangerous %}
+                            <div style="margin-top:0.25rem;color:#b45309;font-size:0.75rem;">
+                                Inventory draft missing — re-save or check Chemicals
+                            </div>
+                            {% endif %}
+                        </td>
                         <td class="text-left col-description">{{ item.product_description|default:"—" }}</td>
                         <td class="text-left col-link">{% if item.link_to_product %}<a href="{{ item.link_to_product }}" target="_blank">Link</a>{% else %}—{% endif %}</td>
+                        <td class="text-right">
+                            {{ item.delivered_number|default:0 }}/{{ item.quantity }}
+                            {% if item.delivered %}<span style="color:#166534;" title="Fully delivered">✓</span>{% endif %}
+                        </td>
                         <td class="text-right col-price">{{ item.unit_price|floatformat:2 }} €</td>
                         <td class="text-right col-qty">{{ item.quantity|floatformat:0 }}</td>
                         <td class="text-right col-total"><strong>{{ item.total_price|floatformat:2 }} €</strong></td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="{% if show_standard_checkboxes %}8{% else %}7{% endif %}">No items added yet.</td></tr>
+                    <tr><td colspan="{% if show_standard_checkboxes %}10{% else %}9{% endif %}">No items added yet.</td></tr>
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="6" class="text-right" style="font-weight: 600;">Total</td>
-                        <td class="text-right"><strong>{{ task.total_price|floatformat:2 }} €</strong></td>
+                        <td colspan="{% if show_standard_checkboxes %}8{% else %}7{% endif %}" class="text-right" style="font-weight: 600;">Total</td>
+                        <td class="text-right col-qty"></td>
+                        <td class="text-right col-total"><strong>{{ task.total_price|floatformat:2 }} €</strong></td>
                     </tr>
                 </tfoot>
             </table>
@@ -87,7 +113,7 @@
         {% include "tasks/detail/_task_new_message_field.html" %}
         {% endif %}
 
-        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit %}
+        {% include "tasks/detail/_task_timeline.html" %}
 
         <!-- Buttons -->
         <div class="form-actions">
@@ -103,22 +129,24 @@
             {% endif %}
 
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
-
-            {% if employee %}
-            <form method="post" style="margin-top: 0.75rem; display: inline-block;"
-                  onsubmit="return confirm('{% if is_archived_by_user %}Remove from your archive?{% else %}Move this task to your archive?{% endif %}');">
-                {% csrf_token %}
-                <input type="hidden" name="archive_task" value="{{ task.pk }}">
-                {% if is_archived_by_user %}
-                    <input type="hidden" name="action" value="unarchive">
-                    <button type="submit" class="btn-secondary btn-small">📤 Remove from my archive</button>
-                {% else %}
-                    <button type="submit" class="btn-secondary btn-small">📦 Move to my archive</button>
-                {% endif %}
-            </form>
-            {% endif %}
         </div>
     </form>
+
+    {% if employee %}
+    {# Separate form (must not nest inside the main save form — browsers merge fields). #}
+    <form method="post" style="margin-top: 0.75rem;"
+          onsubmit="return confirm('{% if is_archived_by_user %}Remove from your archive?{% else %}Move this task to your archive?{% endif %}');">
+        {% csrf_token %}
+        <input type="hidden" name="archive_task" value="{{ task.pk }}">
+        <input type="hidden" name="archive_submit" value="1">
+        {% if is_archived_by_user %}
+            <input type="hidden" name="action" value="unarchive">
+            <button type="submit" class="btn-secondary btn-small">📤 Remove from my archive</button>
+        {% else %}
+            <button type="submit" class="btn-secondary btn-small">📦 Move to my archive</button>
+        {% endif %}
+    </form>
+    {% endif %}
 </div>
 {% endblock %}
 

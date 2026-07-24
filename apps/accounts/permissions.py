@@ -49,6 +49,14 @@ class GroupNames:
     DOCUMENTS_ASSISTANT = "Documents - Assistant"
     DOCUMENTS_SUPERASSISTANT = "Documents - Superassistant"
 
+    # Chemicals module
+    CHEMICALS_VIEW_OWN = "Chemicals - View Own Items"
+    CHEMICALS_VIEW_WORKGROUP = "Chemicals - View Workgroup Items"
+    CHEMICALS_VIEW_ALL = "Chemicals - View All"
+    CHEMICALS_MANAGE_OWN = "Chemicals - Manage Own Items"
+    CHEMICALS_MANAGE_WORKGROUP = "Chemicals - Manage Workgroup Items"
+    CHEMICALS_MANAGE_ALL = "Chemicals - Manage All"
+
     CHECKLISTS_MANAGE = "Checklists - Manage"
     CHECKLISTS_WORKGROUP_PROGRESS = "Checklists - Workgroup Progress"
     CHECKLISTS_INSTITUTE_PROGRESS = "Checklists - Institute Progress"
@@ -79,6 +87,12 @@ NEW_GROUPS = [
     GroupNames.FINANCES_SUPERASSISTANT,
     GroupNames.DOCUMENTS_ASSISTANT,
     GroupNames.DOCUMENTS_SUPERASSISTANT,
+    GroupNames.CHEMICALS_VIEW_OWN,
+    GroupNames.CHEMICALS_VIEW_WORKGROUP,
+    GroupNames.CHEMICALS_VIEW_ALL,
+    GroupNames.CHEMICALS_MANAGE_OWN,
+    GroupNames.CHEMICALS_MANAGE_WORKGROUP,
+    GroupNames.CHEMICALS_MANAGE_ALL,
     GroupNames.CHECKLISTS_MANAGE,
     GroupNames.CHECKLISTS_WORKGROUP_PROGRESS,
     GroupNames.CHECKLISTS_INSTITUTE_PROGRESS,
@@ -402,6 +416,89 @@ def assign_permissions_to_groups():
     # Documents: no workgroup scope on manage yet — both can manage
     safe_add(GroupNames.DOCUMENTS_ASSISTANT, view_doc, manage_doc)
     safe_add(GroupNames.DOCUMENTS_SUPERASSISTANT, view_doc, manage_doc)
+
+    # Chemicals (clear "Chemicals" naming on groups; Employee baseline manages own items)
+    from apps.chemicals.models import Chemical, ChemicalItem
+
+    view_own_ci = get_perm('view_own_chemical_items', ChemicalItem)
+    manage_own_ci = get_perm('manage_own_chemical_items', ChemicalItem)
+    view_wg_ci = get_perm('view_workgroup_chemical_items', ChemicalItem)
+    manage_wg_ci = get_perm('manage_workgroup_chemical_items', ChemicalItem)
+    view_all_ci = get_perm('view_all_chemical_items', ChemicalItem)
+    manage_all_ci = get_perm('manage_all_chemical_items', ChemicalItem)
+    view_chem_wg = get_perm('view_chemical_workgroup', Chemical)
+    manage_chem_wg = get_perm('manage_chemical_workgroup', Chemical)
+    view_all_chem = get_perm('view_all_chemicals', Chemical)
+    manage_all_chem = get_perm('manage_all_chemicals', Chemical)
+
+    # Employee: always can manage own chemical inventory items (orderer)
+    safe_add(
+        GroupNames.EMPLOYEE,
+        create_po,
+        view_std,
+        view_doc,
+        view_own_ci,
+        manage_own_ci,
+    )
+    # PI inherits Employee baseline + chemicals own
+    safe_add(
+        GroupNames.PI,
+        create_po,
+        view_std,
+        view_doc,
+        create_personnel,
+        manage_doc,
+        view_cl,
+        wg_cl,
+        view_own_ci,
+        manage_own_ci,
+    )
+
+    safe_add(
+        GroupNames.CHEMICALS_VIEW_OWN,
+        view_own_ci,
+    )
+    safe_add(
+        GroupNames.CHEMICALS_MANAGE_OWN,
+        view_own_ci,
+        manage_own_ci,
+    )
+    safe_add(
+        GroupNames.CHEMICALS_VIEW_WORKGROUP,
+        view_own_ci,
+        view_wg_ci,
+        view_chem_wg,
+    )
+    safe_add(
+        GroupNames.CHEMICALS_MANAGE_WORKGROUP,
+        view_own_ci,
+        manage_own_ci,
+        view_wg_ci,
+        manage_wg_ci,
+        view_chem_wg,
+        manage_chem_wg,
+    )
+    safe_add(
+        GroupNames.CHEMICALS_VIEW_ALL,
+        view_own_ci,
+        view_wg_ci,
+        view_all_ci,
+        view_chem_wg,
+        view_all_chem,
+    )
+    safe_add(
+        GroupNames.CHEMICALS_MANAGE_ALL,
+        view_own_ci,
+        manage_own_ci,
+        view_wg_ci,
+        manage_wg_ci,
+        view_all_ci,
+        manage_all_ci,
+        view_chem_wg,
+        manage_chem_wg,
+        view_all_chem,
+        manage_all_chem,
+    )
 
     if assigned_count:
         print(f"  [Permissions] Assigned/updated permissions for {assigned_count} group(s).")

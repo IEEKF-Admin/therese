@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Chemicals (CAS) - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Chemicals <small class="field-hint-de">Substances / CAS masters</small></h1>
+    <div class="page-header-actions">
+        {% if can_create %}
+        <a href="{% url 'chemicals:chemical_create' %}" class="btn-primary">+ New Chemical</a>
+        {% endif %}
+        <a href="{% url 'chemicals:chemical_item_list' %}" class="btn-secondary">Chemical Items</a>
+    </div>
+</div>
+
+<div class="card list-panel">
+    <form method="get" class="search-toolbar" style="margin-bottom:1rem;">
+        <input type="text" name="q" value="{{ search_query }}" class="form-control"
+               placeholder="Search CAS or name…" style="max-width:28rem; display:inline-block;">
+        <button type="submit" class="btn-primary">Search</button>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>CAS number</th>
+                <th>Name</th>
+                <th>Hazardous</th>
+                <th>Shelf life</th>
+                <th>GHS signal</th>
+                <th>H-codes</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr {% if row.show_incomplete %}style="background:#fff7ed;"{% endif %}>
+                <td>{{ row.chemical.cas_number }}</td>
+                <td>{{ row.chemical.name|default:"—" }}
+                    {% if row.show_incomplete %}<span title="Incomplete master data" style="color:#ea580c;">⚠</span>{% endif %}
+                </td>
+                <td>
+                    {% if row.chemical.is_hazardous %}
+                    <span class="status-badge" style="background:#fecaca;color:#991b1b;">Yes</span>
+                    {% else %}
+                    No
+                    {% endif %}
+                </td>
+                <td>{% if row.chemical.shelf_life_months %}{{ row.chemical.shelf_life_months }} mo{% else %}—{% endif %}</td>
+                <td>{{ row.chemical.ghs_signal_word|default:"—" }}</td>
+                <td style="max-width:14rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                    title="{{ row.chemical.ghs_hazard_codes }}">
+                    {{ row.chemical.ghs_hazard_codes|default:"—" }}
+                </td>
+                <td>
+                    <a href="{% url 'chemicals:chemical_edit' row.chemical.pk %}" class="action-icon edit"
+                       title="{% if row.can_edit %}Edit{% else %}View{% endif %}">
+                        <i class="fas fa-{% if row.can_edit %}edit{% else %}eye{% endif %}"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="empty-state">No chemicals found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{# Chemical inventory fields — shown when CAS live-check marks the line as hazardous. #}
+<div class="chemical-item-inline" style="display:none; margin-top:0.75rem; padding:0.75rem 1rem; border:1px solid #fecaca; border-radius:8px; background:#fff7ed;">
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+        <strong style="color:#9a3412;">Chemical item (inventory)</strong>
+        <span style="font-size:0.75rem; color:#9a3412;">Gefahrstoff — draft will be created on save</span>
+    </div>
+    <div class="item-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+        <div class="item-field">
+            <label>Quantity range</label>
+            {{ form.chem_quantity_range }}
+            <small style="color:#64748b; font-size:0.7rem;">Mengenbereich</small>
+        </div>
+        <div class="item-field">
+            <label>Work area</label>
+            {{ form.chem_work_area }}
+            <small style="color:#64748b; font-size:0.7rem;">Räume mit Chemical = ja</small>
+        </div>
+        <div class="item-field">
+            <label>Storage room</label>
+            {{ form.chem_storage_room }}
+            <small style="color:#64748b; font-size:0.7rem;">Nur Räume mit Storage Location</small>
+        </div>
+        <div class="item-field">
+            <label>Storage location</label>
+            {{ form.chem_storage_item }}
+            <small style="color:#64748b; font-size:0.7rem;">Schrank / Regal …</small>
+        </div>
+        <div class="item-field" style="grid-column: 1 / -1;">
+            <label>Notes</label>
+            {{ form.chem_notes }}
+        </div>
+    </div>
+</div>

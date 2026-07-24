@@ -47,8 +47,14 @@ class SalarySupplementForm(django_forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['percentage'].label = 'Percentage (%)'
+        self.fields['percentage'].help_text = (
+            'Of the contract 100% monthly salary. Added before true-cost scaling.'
+        )
         self.fields['percentage'].required = False
         self.fields['fixed_amount'].label = 'Fixed amount (€)'
+        self.fields['fixed_amount'].help_text = (
+            'Monthly amount at 100% workload; scaled with weekly hours in true costs.'
+        )
         self.fields['fixed_amount'].required = False
         self.fields['comment'].required = False
 

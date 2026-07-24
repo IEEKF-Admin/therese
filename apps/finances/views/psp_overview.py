@@ -43,9 +43,11 @@ ZERO = Decimal('0.00')
 
 def calculate_funding_cost(allocation, period_start, period_end):
     """
-    Calculate total personnel cost for a FundingAllocation over the given period,
-    using contract monthly costs (salary × true-cost multiplicator) and the
-    allocation's percentage of workhours.
+    Calculate total personnel cost for a FundingAllocation over the given period.
+
+    Uses contract true monthly costs:
+    (100% monthly salary + supplements) × (weekly_hours / default) × multiplicator,
+    then multiplies by the allocation's percentage of workhours and overlapping months.
     """
     if not period_start:
         period_start = allocation.start_date
@@ -113,7 +115,7 @@ def _build_personnel_rows(allocations, period_start, period_end, *, year_start=N
     (Actual column / detail list).
 
     ``total_not_booked`` always uses the selected calendar year
-    (``year_start``–``year_end``): salary × true-cost multiplicator ×
+    (``year_start``–``year_end``): contract true monthly costs ×
     workhours % × months overlapping the year and the allocation dates.
     Only funding allocations with import_completed=False are included.
     """

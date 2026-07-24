@@ -10,7 +10,9 @@
         {% endfor %}
     </ul>
 
-    {% if standalone_message_form %}
+    {# Standalone message form only when the main task form is not editable
+       (Django 6 disallows expressions like "not can_edit" on the include tag). #}
+    {% if not can_edit and not can_edit_coordinator_steps %}
     <form method="post" class="task-timeline-message-form" style="margin-top: 1rem;">
         {% csrf_token %}
         <input type="hidden" name="add_message_only" value="1">

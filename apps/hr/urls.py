@@ -9,6 +9,7 @@ from .views.employee import (
     RoomCreateView, RoomUpdateView,
     PhoneNumberCreateView, PhoneNumberUpdateView,
     BuildingDeleteView, RoomDeleteView, PhoneNumberDeleteView,
+    RoomStorageItemCreateView, RoomStorageItemUpdateView, RoomStorageItemDeleteView,
 )
 from .views.ajax import ajax_rooms_by_building, ajax_phonenumbers_by_room
 from .views.documents import (
@@ -58,5 +59,9 @@ urlpatterns = [
     path('locations/phones/new/', PhoneNumberCreateView.as_view(), name='phone_create'),
     path('locations/phones/<int:pk>/edit/', PhoneNumberUpdateView.as_view(), name='phone_update'),
     path('locations/phones/<int:pk>/delete/', PhoneNumberDeleteView.as_view(), name='phone_delete'),
+    # Room storage (cabinets, fridges, …) for chemicals inventory
+    path('locations/storage/new/', RoomStorageItemCreateView.as_view(), name='storage_create'),
+    path('locations/storage/<int:pk>/edit/', RoomStorageItemUpdateView.as_view(), name='storage_update'),
+    path('locations/storage/<int:pk>/delete/', RoomStorageItemDeleteView.as_view(), name='storage_delete'),
 ]
 

@@ -3,6 +3,9 @@ apps/hr/signals.py
 
 Robust automatic creation of CustomUser for new Employees.
 New employees' users are added to the baseline "Employee" group.
+
+Pending / check_needed employees (e.g. from funding-report import) do not
+get a login user until those flags are cleared.
 """
 
 from django.contrib.auth.models import Group
@@ -26,9 +29,27 @@ def ensure_employee_group_membership(user):
     user.groups.add(group)
 
 
+def _should_create_login_user(employee: Employee) -> bool:
+    """Login users only when the employee is not pending and not check_needed."""
+    if getattr(employee, 'is_pending', False):
+        return False
+    if getattr(employee, 'check_needed', False):
+        return False
+    return True
+
+
 @receiver(post_save, sender=Employee)
 def create_user_for_employee(sender, instance, created, **kwargs):
     if not created:
+        # When flags are cleared later, do not auto-create a user here —
+        # linking/creating login users remains a deliberate admin action.
+        return
+
+    if not _should_create_login_user(instance):
+        logger.info(
+            "Skipping auto user for pending/check_needed employee %s",
+            instance.employee_number,
+        )
         return
 
     try:

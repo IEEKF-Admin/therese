@@ -153,6 +153,13 @@ def employee_list(request):
     elif not archive_mode and list_filter == 'no_followup':
         # Same set as warning for now (warning encodes no seamless follow-up / gap)
         employee_list = [e for e in employee_list if e.list_expiry_warning]
+    elif not archive_mode and list_filter == 'check_needed':
+        employee_list = [
+            e for e in employee_list
+            if e.check_needed or getattr(e, 'list_contract_check_needed', False)
+        ]
+    elif not archive_mode and list_filter == 'pending':
+        employee_list = [e for e in employee_list if e.is_pending]
 
     # Per-row manage right for row click (scoped managers)
     if can_manage:
@@ -184,19 +191,53 @@ def employee_list(request):
         if not can_manage:
             messages.error(request, "You do not have permission to delete employees.")
             return redirect('hr:employee_list')
+        from django.db.models.deletion import ProtectedError, RestrictedError
+
         ids = request.POST.getlist('selected_ids')
         deleted = 0
+        skipped_perm = 0
+        blocked = []
         for eid in ids:
             try:
                 emp = Employee.objects.get(pk=eid)
-                if not user_can_manage_employee(request.user, emp):
-                    continue
+            except (Employee.DoesNotExist, ValueError, TypeError):
+                continue
+            if not user_can_manage_employee(request.user, emp):
+                skipped_perm += 1
+                continue
+            label = f'{emp.get_full_name()} ({emp.employee_number})'
+            try:
                 emp.delete()
                 deleted += 1
-            except Exception:
-                pass
+            except (ProtectedError, RestrictedError) as exc:
+                # Collect human-readable blockers (e.g. Workgroup.pi)
+                reasons = []
+                protected_objects = getattr(exc, 'protected_objects', None) or []
+                for obj in protected_objects:
+                    reasons.append(f'{obj.__class__.__name__}: {obj}')
+                detail = '; '.join(reasons) if reasons else str(exc)
+                blocked.append(f'{label} — {detail}')
+            except Exception as exc:  # noqa: BLE001
+                blocked.append(f'{label} — {exc}')
         if deleted:
-            messages.success(request, f"{deleted} employees deleted.")
+            messages.success(request, f'{deleted} employee(s) deleted.')
+        if skipped_perm:
+            messages.warning(
+                request,
+                f'{skipped_perm} employee(s) skipped (no manage permission).',
+            )
+        if blocked:
+            messages.error(
+                request,
+                'Could not delete '
+                + f'{len(blocked)} employee(s) because other records still reference them: '
+                + ' | '.join(blocked[:5])
+                + (' …' if len(blocked) > 5 else '')
+                + ' Typical cause: employee is Principal Investigator of a workgroup '
+                '(change or delete the workgroup first).',
+            )
+        if not deleted and not blocked and not skipped_perm:
+            messages.info(request, 'No employees were selected for deletion.')
         return redirect('hr:employee_list')
 
     return render(request, 'hr/employee_list.html', context)

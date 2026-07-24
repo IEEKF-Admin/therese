@@ -102,14 +102,14 @@ class DataImportLog(BaseModel):
         verbose_name='Report created on',
         help_text='Business report creation date from file content (e.g. angelegt am).',
     )
-    # Estimated coverage from Personalkosten "Belegdatum" column (min/max)
+    # Min/max Belegdatum on Personalkosten sheet (informational; reports are cumulative)
     beleg_from = models.DateField(
         null=True,
         blank=True,
         verbose_name='Beleg period from',
         help_text=(
             'Earliest Belegdatum found on the Personalkosten sheet '
-            '(heuristic coverage start).'
+            '(informational only; funding reports cover PSP start → report pull date).'
         ),
     )
     beleg_to = models.DateField(
@@ -118,7 +118,7 @@ class DataImportLog(BaseModel):
         verbose_name='Beleg period to',
         help_text=(
             'Latest Belegdatum found on the Personalkosten sheet '
-            '(heuristic coverage end).'
+            '(informational only; funding reports cover PSP start → report pull date).'
         ),
     )
     status = models.CharField(
@@ -183,7 +183,47 @@ class GlobalSetting(models.Model):
         decimal_places=3,
         default=1.300,
         verbose_name="True-Cost Multiplicator",
-        help_text="Monthly costs = monthly salary × this factor (default 1.3).",
+        help_text=(
+            "True costs = (100% monthly salary + supplements) × "
+            "(weekly hours / default weekly hours) × this factor (default 1.3)."
+        ),
+    )
+    personnel_import_tolerance = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=0.0250,
+        verbose_name="Personnel import amount tolerance",
+        help_text=(
+            "Relative tolerance for Personalkosten vs expected true costs "
+            "(e.g. 0.025 = ±2.5%). January always uses 4% instead."
+        ),
+    )
+    irresponsible = models.BooleanField(
+        default=False,
+        verbose_name="Irresponsible mode",
+        help_text=(
+            "When enabled, the third-party funding import UI shows an option to "
+            "force re-import of files that were already uploaded or are older "
+            "than the latest imported report. Use only for recovery/admin."
+        ),
+    )
+    CHEMICAL_HAZARD_THRESHOLD_CHOICES = [
+        ('any_ghs', 'Any GHS signal, H-code, or pictogram'),
+        ('signal_warning_or_danger', 'GHS signal Warning or Danger'),
+        ('signal_danger_only', 'GHS signal Danger only'),
+        ('any_pictogram', 'Any GHS pictogram'),
+        ('any_h_code', 'Any GHS H-code'),
+        ('never', 'Never auto-classify (manual only)'),
+    ]
+    chemical_hazard_threshold = models.CharField(
+        max_length=40,
+        choices=CHEMICAL_HAZARD_THRESHOLD_CHOICES,
+        default='any_ghs',
+        verbose_name='Chemical hazard threshold (Gefahrstoff)',
+        help_text=(
+            'When a CAS number is looked up (free PubChem data), chemicals meeting '
+            'this threshold are treated as hazardous substances.'
+        ),
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -209,5 +249,17 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_true_cost_multiplicator(cls):
         return cls.get_solo().true_cost_multiplicator
+
+    @classmethod
+    def get_personnel_import_tolerance(cls):
+        return cls.get_solo().personnel_import_tolerance
+
+    @classmethod
+    def get_irresponsible(cls) -> bool:
+        return bool(cls.get_solo().irresponsible)
+
+    @classmethod
+    def get_chemical_hazard_threshold(cls):
+        return cls.get_solo().chemical_hazard_threshold
 
 

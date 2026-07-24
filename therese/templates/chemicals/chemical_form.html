@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'chemicals:chemical_list' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-section">
+            <h3>Identification</h3>
+            <div class="aligned-field">
+                <label>CAS number</label>
+                {{ form.cas_number|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Name</label>
+                {{ form.name|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>IUPAC name</label>
+                {{ form.iupac_name|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Molecular formula</label>
+                {{ form.molecular_formula|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Shelf life (months)</label>
+                {{ form.shelf_life_months|add_class:"form-control" }}
+                <small style="color:#64748b;">
+                    Used to auto-calculate MHD on inventory items (delivery date + shelf life).
+                    Leave empty if unknown.
+                </small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Hazard classification (free PubChem data)</h3>
+            <div class="aligned-field">
+                <label>GHS signal word</label>
+                {{ form.ghs_signal_word|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>GHS hazard codes</label>
+                {{ form.ghs_hazard_codes|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>GHS pictograms</label>
+                {{ form.ghs_pictograms|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label style="display:flex;align-items:center;gap:0.5rem;">
+                    {{ form.is_hazardous }} Hazardous substance (Gefahrstoff)
+                </label>
+            </div>
+            <div class="aligned-field">
+                <label>Classification notes</label>
+                {{ form.hazard_classification_notes|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Safety data sheet</h3>
+            <div class="aligned-field">
+                <label>Local SDS file</label>
+                {{ form.safety_data_sheet }}
+            </div>
+            <div class="aligned-field">
+                <label>SDS / source URL</label>
+                {{ form.sds_source_url|add_class:"form-control" }}
+            </div>
+            {% if chemical.pubchem_cid %}
+            <p style="color:#64748b;font-size:0.85rem;">
+                PubChem CID {{ chemical.pubchem_cid }}
+                — <a href="https://pubchem.ncbi.nlm.nih.gov/compound/{{ chemical.pubchem_cid }}" target="_blank" rel="noopener">Open PubChem</a>
+            </p>
+            {% endif %}
+            {% if chemical.lookup_error %}
+            <div class="alert alert-warning">Last lookup note: {{ chemical.lookup_error }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            {% if can_edit %}
+            <button type="submit" class="btn-primary" name="action" value="save">Save</button>
+            {% if show_refresh_lookup %}
+            <button type="submit" class="btn-secondary" name="action" value="refresh_lookup"
+                    onclick="return confirm('Refresh name/GHS data from PubChem? Your shelf life and notes are kept if the form is not saved yet — only database lookup fields are updated.');">
+                <i class="fas fa-sync"></i> Refresh from PubChem
+            </button>
+            {% endif %}
+            {% endif %}
+            <a href="{% url 'chemicals:chemical_list' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

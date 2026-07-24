@@ -144,9 +144,14 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
                             </div>
                             <div class="item-field">
-                                <label>Description / CAS - Number</label>
+                                <label>Description</label>
                                 {{ item_form.product_description|add_class:"form-control" }}
-                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung</small>
+                            </div>
+                            <div class="item-field">
+                                <label>CAS number</label>
+                                {{ item_form.cas_number|add_class:"form-control cas-number-input" }}
+                                <small class="cas-check-hint" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">CAS-Nummer (optional)</small>
                             </div>
                             <div class="item-field">
                                 <label>Link <span style="color:#ef4444;">*</span></label>
@@ -169,6 +174,7 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
                         </div>
+                        {% include "tasks/partials/purchase_chemical_inline.html" with form=item_form %}
                         <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
                     </div>
                     {% endfor %}
@@ -185,9 +191,14 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Produktname</small>
                             </div>
                             <div class="item-field">
-                                <label>Description / CAS - Number</label>
+                                <label>Description</label>
                                 {{ item_formset.empty_form.product_description|add_class:"form-control" }}
-                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung / CAS - Nummer</small>
+                                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung</small>
+                            </div>
+                            <div class="item-field">
+                                <label>CAS number</label>
+                                {{ item_formset.empty_form.cas_number|add_class:"form-control cas-number-input" }}
+                                <small class="cas-check-hint" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">CAS-Nummer (optional)</small>
                             </div>
                             <div class="item-field">
                                 <label>Link <span style="color:#ef4444;">*</span></label>
@@ -210,6 +221,7 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
                         </div>
+                        {% include "tasks/partials/purchase_chemical_inline.html" with form=item_formset.empty_form %}
                         <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
                     </div>
                 </div>
@@ -491,6 +503,123 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = !checkbox.checked;
     }
 });
+
+// Live CAS / hazard check + chemical item inline panel
+(function() {
+    var casCheckUrl = "{% url 'chemicals:cas_check' %}";
+    var timers = new WeakMap();
+
+    function setHint(input, text, color) {
+        var field = input.closest('.item-field');
+        var hint = field ? field.querySelector('.cas-check-hint') : null;
+        if (!hint) return;
+        hint.textContent = text;
+        hint.style.color = color || '#64748b';
+    }
+
+    function setChemicalInlineVisible(row, visible) {
+        if (!row) return;
+        var panel = row.querySelector('.chemical-item-inline');
+        if (!panel) return;
+        panel.style.display = visible ? 'block' : 'none';
+        if (!visible) {
+            panel.querySelectorAll('input, select, textarea').forEach(function(el) {
+                if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                else el.value = '';
+            });
+        }
+    }
+
+    function filterStorageItems(roomSelect) {
+        var row = roomSelect.closest('.purchase-item') || roomSelect.closest('.chemical-item-inline');
+        if (!row) return;
+        var storageSelect = (roomSelect.closest('.purchase-item') || document)
+            .querySelector('.chem-storage-item');
+        // Prefer storage select within same purchase-item
+        var item = roomSelect.closest('.purchase-item');
+        if (item) storageSelect = item.querySelector('.chem-storage-item');
+        if (!storageSelect) return;
+        var roomId = (roomSelect.value || '').toString();
+        var current = storageSelect.value;
+        Array.prototype.forEach.call(storageSelect.options, function(opt) {
+            if (!opt.value) {
+                opt.hidden = false;
+                return;
+            }
+            var optRoom = (opt.getAttribute('data-room') || '').toString();
+            var show = !roomId || optRoom === roomId;
+            opt.hidden = !show;
+            opt.disabled = !show;
+        });
+        if (current) {
+            var selected = storageSelect.options[storageSelect.selectedIndex];
+            if (selected && selected.disabled) storageSelect.value = '';
+        }
+    }
+
+    function runCheck(input) {
+        var row = input.closest('.purchase-item');
+        var raw = (input.value || '').trim();
+        if (!raw) {
+            setHint(input, 'CAS-Nummer (optional)', '#64748b');
+            setChemicalInlineVisible(row, false);
+            return;
+        }
+        setHint(input, 'Checking…', '#64748b');
+        fetch(casCheckUrl + '?cas=' + encodeURIComponent(raw), {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.valid_cas) {
+                setHint(input, data.message || 'Not a CAS number', '#64748b');
+                setChemicalInlineVisible(row, false);
+                return;
+            }
+            if (data.is_dangerous) {
+                var msg = '⚠ Gefahrstoff';
+                if (data.name) msg += ' — ' + data.name;
+                if (data.signal_word) msg += ' (' + data.signal_word + ')';
+                setHint(input, msg, '#b91c1c');
+                setChemicalInlineVisible(row, true);
+            } else {
+                var ok = data.name ? data.name + ' — ' : '';
+                setHint(input, ok + (data.message || 'Not hazardous under current threshold'), '#166534');
+                setChemicalInlineVisible(row, false);
+            }
+        })
+        .catch(function() {
+            setHint(input, 'Lookup unavailable', '#b45309');
+            setChemicalInlineVisible(row, false);
+        });
+    }
+
+    function onCasInput(e) {
+        var input = e.target;
+        if (!input || !input.classList || !input.classList.contains('cas-number-input')) return;
+        if (timers.has(input)) clearTimeout(timers.get(input));
+        timers.set(input, setTimeout(function() { runCheck(input); }, 450));
+    }
+
+    function onRoomChange(e) {
+        var el = e.target;
+        if (!el || !el.classList || !el.classList.contains('chem-storage-room')) return;
+        filterStorageItems(el);
+    }
+
+    document.addEventListener('input', onCasInput);
+    document.addEventListener('change', onCasInput);
+    document.addEventListener('change', onRoomChange);
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.cas-number-input').forEach(function(el) {
+            if ((el.value || '').trim()) runCheck(el);
+        });
+        document.querySelectorAll('.chem-storage-room').forEach(function(el) {
+            filterStorageItems(el);
+        });
+    });
+})();
 </script>
 {% endblock %}
 

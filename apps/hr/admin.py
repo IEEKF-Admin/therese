@@ -19,6 +19,7 @@ from .models import (
     FundingAllocation,
     PhoneNumber,
     Room,
+    RoomStorageItem,
     SalarySupplement,
     Workgroup,
 )
@@ -277,16 +278,25 @@ class BuildingAdmin(admin.ModelAdmin):
 
 @admin.register(Room, site=therese_admin)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ('room_number', 'building', 'colloquial_name')
-    list_filter = ('building',)
+    list_display = ('room_number', 'building', 'colloquial_name', 'chemical')
+    list_filter = ('building', 'chemical')
     search_fields = ('room_number', 'colloquial_name', 'building__number', 'building__name')
     autocomplete_fields = ('building',)
+    list_editable = ('chemical',)
 
 
 @admin.register(PhoneNumber, site=therese_admin)
 class PhoneNumberAdmin(admin.ModelAdmin):
     list_display = ('phone_number', 'room')
     search_fields = ('phone_number', 'room__room_number')
+    autocomplete_fields = ('room',)
+
+
+@admin.register(RoomStorageItem, site=therese_admin)
+class RoomStorageItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'storage_type', 'room')
+    search_fields = ('name', 'storage_type', 'room__room_number')
+    list_filter = ('storage_type',)
     autocomplete_fields = ('room',)
 
 
@@ -322,6 +332,7 @@ class ContractAdmin(admin.ModelAdmin):
         'valid_from',
         'valid_until',
         'is_active',
+        'check_needed',
         'comments',
     )
     inlines = [FundingAllocationInline, SalarySupplementInline]

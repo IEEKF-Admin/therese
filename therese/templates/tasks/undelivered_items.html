@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Undelivered Order Items - THERESE{% endblock %}
+
+{% block extrastyle %}
+<style>
+    #undelivered-table .undelivered-group-main td {
+        border-bottom: none;
+        padding-bottom: 0.25rem;
+        vertical-align: middle;
+    }
+    #undelivered-table .undelivered-group-detail td {
+        border-top: none;
+        padding-top: 0.25rem;
+        padding-bottom: 0.85rem;
+        vertical-align: middle;
+        background: #f8fafc;
+    }
+    #undelivered-table .undelivered-group-detail .detail-label {
+        font-size: 0.72rem;
+        color: #64748b;
+        display: block;
+        margin-bottom: 0.15rem;
+        font-weight: 500;
+    }
+    #undelivered-table .product-cell {
+        font-weight: 600;
+    }
+    #undelivered-table .partial-delivery-cell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Undelivered Order Items</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← My Tasks</a>
+    </div>
+</div>
+
+<p style="color:#64748b;margin-bottom:1rem;">
+    All undelivered purchase order lines. Enter a <strong>cumulative</strong> delivered quantity
+    (0–ordered) and click <strong>Teillieferung</strong>. Full delivery is when delivered number
+    equals ordered quantity; the PO becomes <strong>Delivered</strong> when every line is complete.
+</p>
+
+<div class="card list-panel">
+    <div class="search-toolbar" style="margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+        <input type="text" id="undelivered-search" class="form-control"
+               placeholder="Search ordered by, date, supplier, AT/Referenz/Einkaufsbeleg, product…"
+               autocomplete="off"
+               style="max-width:36rem;">
+        <span id="undelivered-count" style="color:#64748b;font-size:0.9rem;"></span>
+    </div>
+
+    <form method="post" id="undelivered-bulk-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mark_delivered">
+        <table class="table" id="undelivered-table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col" rowspan="2" style="vertical-align:middle;">
+                        <input type="checkbox" id="undelivered-select-all" title="Select all visible">
+                    </th>
+                    <th>Ordered by</th>
+                    <th>Ordered at</th>
+                    <th>Supplier</th>
+                    <th>AT - Belegnummer</th>
+                    <th>Referenzbeleg-Nr</th>
+                    <th>Einkaufsbeleg-Nr</th>
+                </tr>
+                <tr class="undelivered-subhead">
+                    <th colspan="3">Product</th>
+                    <th>Ordered qty</th>
+                    <th colspan="2">Delivered (cumulative)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="undelivered-row undelivered-group-main"
+                    data-group="{{ item.pk }}"
+                    data-ordered-by="{{ item.purchase_task.creator.get_full_name|default:item.purchase_task.creator|default:''|lower }}"
+                    data-ordered-at="{{ item.purchase_task.created_at|date:'d.m.Y' }} {{ item.purchase_task.created_at|date:'Y-m-d' }}"
+                    data-supplier="{{ item.purchase_task.supplier|default:''|lower }}"
+                    data-at-beleg="{{ item.purchase_task.at_beleg_nummer|default:''|lower }}"
+                    data-referenz="{{ item.purchase_task.referenzbeleg_nr|default:''|lower }}"
+                    data-einkauf="{{ item.purchase_task.einkaufsbeleg_nr|default:''|lower }}"
+                    data-product="{{ item.product_name|default:''|lower }}">
+                    <td class="table-checkbox-col" rowspan="2" style="vertical-align:middle;">
+                        <input type="checkbox" name="selected_ids" value="{{ item.pk }}" class="undelivered-check"
+                               form="undelivered-bulk-form">
+                    </td>
+                    <td>
+                        {% if item.purchase_task.creator %}
+                        {{ item.purchase_task.creator.get_full_name|default:item.purchase_task.creator }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ item.purchase_task.created_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <a href="{% url 'tasks:task_detail' item.purchase_task_id %}">
+                            {{ item.purchase_task.supplier|default:item.purchase_task.order_display_name|default:"—" }}
+                        </a>
+                    </td>
+                    <td>{{ item.purchase_task.at_beleg_nummer|default:"—" }}</td>
+                    <td>{{ item.purchase_task.referenzbeleg_nr|default:"—" }}</td>
+                    <td>{{ item.purchase_task.einkaufsbeleg_nr|default:"—" }}</td>
+                </tr>
+                <tr class="undelivered-row undelivered-group-detail" data-group="{{ item.pk }}">
+                    <td colspan="3" class="product-cell">
+                        <span class="detail-label">Product</span>
+                        {{ item.product_name }}
+                    </td>
+                    <td>
+                        <span class="detail-label">Ordered qty</span>
+                        <strong>{{ item.quantity }}</strong>
+                    </td>
+                    <td colspan="2">
+                        <span class="detail-label">Delivered (cumulative)</span>
+                        <div class="partial-delivery-cell"
+                             data-item-id="{{ item.pk }}"
+                             data-qty="{{ item.quantity }}"
+                             data-current="{{ item.delivered_number|default:0 }}">
+                            <input type="number"
+                                   class="form-control form-control-sm partial-delivery-input"
+                                   min="0"
+                                   max="{{ item.quantity }}"
+                                   step="1"
+                                   value="{{ item.delivered_number|default:0 }}"
+                                   style="width:5.5rem;"
+                                   title="Cumulative delivered quantity (0–{{ item.quantity }})">
+                            <span class="partial-hint" style="font-size:0.8rem;color:#64748b;">/ {{ item.quantity }}</span>
+                            <button type="button"
+                                    class="btn-primary btn-small partial-delivery-btn"
+                                    style="display:none;"
+                                    title="Save cumulative delivered number">
+                                Teillieferung
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="undelivered-empty-static">
+                    <td colspan="7" class="empty-state">No undelivered order items.</td>
+                </tr>
+                {% endfor %}
+                <tr id="undelivered-no-match" style="display:none;">
+                    <td colspan="7" class="empty-state">No matching items (checked rows stay visible).</td>
+                </tr>
+            </tbody>
+        </table>
+        {% if items %}
+        <div class="table-bulk-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-secondary"
+                    onclick="return confirm('Mark selected items as fully delivered (delivered = ordered qty)?');">
+                Mark selected as fully delivered
+            </button>
+        </div>
+        {% endif %}
+    </form>
+
+    <form method="post" id="partial-delivery-form" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="partial_delivery">
+        <input type="hidden" name="item_id" id="partial-item-id" value="">
+        <input type="hidden" name="delivered_number" id="partial-delivered-number" value="">
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var input = document.getElementById('undelivered-search');
+    var mainRows = Array.prototype.slice.call(
+        document.querySelectorAll('#undelivered-table tbody tr.undelivered-group-main')
+    );
+    var noMatch = document.getElementById('undelivered-no-match');
+    var countEl = document.getElementById('undelivered-count');
+    var selectAll = document.getElementById('undelivered-select-all');
+    var partialForm = document.getElementById('partial-delivery-form');
+    var partialItemId = document.getElementById('partial-item-id');
+    var partialNumber = document.getElementById('partial-delivered-number');
+
+    function detailRowFor(mainRow) {
+        var group = mainRow.getAttribute('data-group');
+        return document.querySelector(
+            '#undelivered-table tbody tr.undelivered-group-detail[data-group="' + group + '"]'
+        );
+    }
+
+    function isChecked(mainRow) {
+        var box = mainRow.querySelector('.undelivered-check');
+        return box && box.checked;
+    }
+
+    function rowSearchText(mainRow) {
+        return [
+            mainRow.getAttribute('data-ordered-by') || '',
+            mainRow.getAttribute('data-ordered-at') || '',
+            mainRow.getAttribute('data-supplier') || '',
+            mainRow.getAttribute('data-at-beleg') || '',
+            mainRow.getAttribute('data-referenz') || '',
+            mainRow.getAttribute('data-einkauf') || '',
+            mainRow.getAttribute('data-product') || '',
+        ].join(' ').toLowerCase();
+    }
+
+    function matchesQuery(mainRow, q) {
+        if (!q) return true;
+        var hay = rowSearchText(mainRow);
+        var parts = q.split(/\s+/).filter(Boolean);
+        return parts.every(function(p) { return hay.indexOf(p) !== -1; });
+    }
+
+    function setGroupVisible(mainRow, show) {
+        mainRow.style.display = show ? '' : 'none';
+        var detail = detailRowFor(mainRow);
+        if (detail) detail.style.display = show ? '' : 'none';
+    }
+
+    function filterRows() {
+        var q = (input && input.value || '').trim().toLowerCase();
+        var visible = 0;
+        mainRows.forEach(function(row) {
+            var show = matchesQuery(row, q) || isChecked(row);
+            setGroupVisible(row, show);
+            if (show) visible += 1;
+        });
+        if (noMatch) {
+            noMatch.style.display = (mainRows.length && visible === 0) ? '' : 'none';
+        }
+        if (countEl) {
+            if (!mainRows.length) {
+                countEl.textContent = '';
+            } else if (q) {
+                countEl.textContent = visible + ' of ' + mainRows.length + ' shown'
+                    + ' (selected rows always stay visible)';
+            } else {
+                countEl.textContent = mainRows.length + ' undelivered item(s)';
+            }
+        }
+        if (selectAll) {
+            var visibleBoxes = mainRows.filter(function(r) {
+                return r.style.display !== 'none';
+            }).map(function(r) { return r.querySelector('.undelivered-check'); }).filter(Boolean);
+            selectAll.checked = visibleBoxes.length > 0 && visibleBoxes.every(function(b) { return b.checked; });
+            selectAll.indeterminate = visibleBoxes.some(function(b) { return b.checked; }) && !selectAll.checked;
+        }
+    }
+
+    function updatePartialButton(cell) {
+        var qty = parseInt(cell.getAttribute('data-qty'), 10);
+        var current = parseInt(cell.getAttribute('data-current'), 10) || 0;
+        var inp = cell.querySelector('.partial-delivery-input');
+        var btn = cell.querySelector('.partial-delivery-btn');
+        if (!inp || !btn) return;
+        var raw = (inp.value || '').trim();
+        var n = parseInt(raw, 10);
+        var valid = raw !== '' && !isNaN(n) && n >= 0 && n <= qty && Number.isInteger(n);
+        var changed = valid && n !== current;
+        btn.style.display = (valid && changed) ? '' : 'none';
+        inp.style.borderColor = (raw !== '' && !valid) ? '#b91c1c' : '';
+    }
+
+    document.querySelectorAll('.partial-delivery-cell').forEach(function(cell) {
+        var inp = cell.querySelector('.partial-delivery-input');
+        var btn = cell.querySelector('.partial-delivery-btn');
+        if (inp) {
+            inp.addEventListener('input', function() { updatePartialButton(cell); });
+            inp.addEventListener('change', function() { updatePartialButton(cell); });
+            updatePartialButton(cell);
+        }
+        if (btn) {
+            btn.addEventListener('click', function() {
+                var n = parseInt((inp.value || '').trim(), 10);
+                var qty = parseInt(cell.getAttribute('data-qty'), 10);
+                if (isNaN(n) || n < 0 || n > qty) {
+                    alert('Please enter a whole number between 0 and ' + qty + '.');
+                    return;
+                }
+                partialItemId.value = cell.getAttribute('data-item-id');
+                partialNumber.value = String(n);
+                partialForm.submit();
+            });
+        }
+    });
+
+    if (input) {
+        input.addEventListener('input', filterRows);
+        input.addEventListener('keyup', filterRows);
+    }
+
+    document.querySelectorAll('.undelivered-check').forEach(function(box) {
+        box.addEventListener('change', filterRows);
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            mainRows.forEach(function(row) {
+                if (row.style.display === 'none') return;
+                var box = row.querySelector('.undelivered-check');
+                if (box) box.checked = selectAll.checked;
+            });
+            filterRows();
+        });
+    }
+
+    filterRows();
+})();
+</script>
+{% endblock %}

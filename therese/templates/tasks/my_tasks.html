@@ -93,6 +93,7 @@ Do not remove any existing requirements from this header without explicit instru
                                       onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this order to your archive?{% endif %}');">
                                     {% csrf_token %}
                                     <input type="hidden" name="archive_po" value="{{ task.pk }}">
+                                    <input type="hidden" name="archive_submit" value="1">
                                     {% if is_archive_view %}
                                         <input type="hidden" name="action" value="unarchive">
                                         <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
@@ -140,6 +141,7 @@ Do not remove any existing requirements from this header without explicit instru
                                       onsubmit="return confirm('{% if is_archive_view %}Remove from your archive?{% else %}Move this order to your archive?{% endif %}');">
                                     {% csrf_token %}
                                     <input type="hidden" name="archive_po" value="{{ task.pk }}">
+                                    <input type="hidden" name="archive_submit" value="1">
                                     {% if is_archive_view %}
                                         <input type="hidden" name="action" value="unarchive">
                                         <button type="submit" class="btn-icon" title="Remove from archive">📤</button>
@@ -248,7 +250,9 @@ Do not remove any existing requirements from this header without explicit instru
     'psp_elements': "{% url 'finances:psp_elements' %}",
     'workgroup_list': "{% url 'hr:workgroup_list' %}",
     'location_management': "{% url 'hr:location_management' %}",
-    'my_checklists': "{% url 'checklists:my_list' %}"
+    'my_checklists': "{% url 'checklists:my_list' %}",
+    'chemical_items': "{% url 'chemicals:chemical_item_list' %}",
+    'chemical_undelivered': "{% url 'orders:undelivered_items' %}"
   };
   var current = 0;
   var modal = document.getElementById('login-popup-modal');

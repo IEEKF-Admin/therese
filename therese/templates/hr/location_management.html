@@ -72,6 +72,7 @@
                     <th>Building</th>
                     <th>Room Number</th>
                     <th>Colloquial Name</th>
+                    <th>Chemical work area</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -82,6 +83,7 @@
                     <td>{{ r.building.number }}</td>
                     <td>{{ r.room_number }}</td>
                     <td>{{ r.colloquial_name|default:"-" }}</td>
+                    <td>{% if r.chemical %}✓{% else %}—{% endif %}</td>
                     <td>
                         <a href="{% url 'hr:room_update' r.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
                         <a href="{% url 'hr:room_delete' r.pk %}" class="action-icon delete"
@@ -89,7 +91,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5">No rooms.</td></tr>
+                <tr><td colspan="6">No rooms.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -140,6 +142,52 @@
         {% if phones %}
         <div class="table-bulk-actions">
             <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected phone numbers?');">Delete selected</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<div class="page-section">
+    <div class="section-toolbar">
+        <h2>Storage Locations <small style="font-weight:400;color:#64748b;">(cabinets, fridges, shelves…)</small></h2>
+        <a href="{% url 'hr:storage_create' %}" class="btn-primary">+ New Storage Location</a>
+    </div>
+    <form method="post" id="bulk-delete-storage" class="list-panel">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_selected">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_storage" title="Select all">
+                    </th>
+                    <th>Room</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in storage_items %}
+                <tr>
+                    <td class="table-checkbox-col"><input type="checkbox" name="selected_storage" value="{{ s.pk }}"></td>
+                    <td>{{ s.room }}</td>
+                    <td>{{ s.name }}</td>
+                    <td>{{ s.storage_type|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'hr:storage_update' s.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'hr:storage_delete' s.pk %}" class="action-icon delete"
+                           onclick="return confirm('Delete this storage location?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No storage locations.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if storage_items %}
+        <div class="table-bulk-actions">
+            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected storage locations?');">Delete selected</button>
         </div>
         {% endif %}
     </form>

@@ -50,6 +50,14 @@ class LoginPopupConfig(models.Model):
         ),
         ('login_after_datetime', 'Login after specific date/time'),
         ('checklist_assigned', 'New checklist assigned to the user'),
+        (
+            'chemical_item_incomplete',
+            'Chemicals: own chemical item missing required inventory data',
+        ),
+        (
+            'chemical_item_delivered',
+            'Chemicals: own chemical item was delivered (complete inventory data)',
+        ),
     ]
 
     REACTION_CHOICES = [
@@ -66,6 +74,8 @@ class LoginPopupConfig(models.Model):
         ('workgroup_list', 'Working Groups'),
         ('location_management', 'Manage Locations'),
         ('my_checklists', 'My Checklists'),
+        ('chemical_items', 'Chemicals - My Chemical Items'),
+        ('chemical_undelivered', 'Undelivered Order Items (all POs)'),
     ]
 
     AUDIENCE_MATCH_CHOICES = [

@@ -7,8 +7,9 @@
     <div>
         <h1>Import Third-party Funding Reports</h1>
         <p class="text-muted" style="margin:0.35rem 0 0;">
-            Upload one or more Excel Drittmittelbericht files. Choose which areas to update,
-            then review a summary before any data is written.
+            Upload one or more Excel Drittmittelbericht files. Reports are
+            <strong>cumulative</strong> (from PSP start until the report was pulled).
+            Choose which areas to update, then review a summary before any data is written.
         </p>
     </div>
     <div class="page-header-actions">
@@ -77,8 +78,30 @@
         <input type="file" name="report_files" id="report_files" class="form-control"
                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                multiple required>
-        <span class="helptext">You may select multiple files; they are analyzed together.</span>
+        <span class="helptext">
+            You may select multiple files; they are analyzed together.<br>
+            <strong>Safety rules:</strong>
+            (1) The same file content cannot be imported again for scopes already completed
+            (partial re-import of remaining scopes is still allowed).
+            (2) A report whose creation date is <em>older</em> than the latest successfully
+            imported report is blocked.
+        </span>
     </div>
+    {% if irresponsible_mode %}
+    <div class="form-field" style="border:1px solid #f59e0b; background:#fffbeb; border-radius:0.5rem; padding:0.85rem 1rem;">
+        <label style="display:flex; gap:0.55rem; align-items:flex-start; cursor:pointer;">
+            <input type="checkbox" name="allow_reimport" value="on">
+            <span>
+                <strong style="color:#b45309;">Allow re-import of already uploaded / older reports</strong>
+                <span class="helptext" style="display:block; margin-top:0.25rem;">
+                    Visible only because <code>GlobalSetting.irresponsible</code> is enabled.
+                    Bypasses duplicate-file and “report too old” safety checks for this run.
+                    Use only for recovery / testing.
+                </span>
+            </span>
+        </label>
+    </div>
+    {% endif %}
     <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:0.5rem;">
         <button type="submit" class="btn-primary">Analyze files</button>
         <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">Cancel</a>

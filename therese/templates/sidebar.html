@@ -40,7 +40,19 @@
     </a>
     {% endif %}
 
-    {% if perms.tasks.create_purchase_order or perms.tasks.manage_standard_order or perms.tasks.view_standard_order %}
+    {% if perms.chemicals.view_own_chemical_items or perms.chemicals.manage_own_chemical_items or perms.chemicals.view_workgroup_chemical_items or perms.chemicals.manage_workgroup_chemical_items or perms.chemicals.view_all_chemical_items or perms.chemicals.manage_all_chemical_items or perms.chemicals.view_all_chemicals or perms.chemicals.manage_all_chemicals or user.is_superuser %}
+    <div class="sidebar-heading">Chemicals</div>
+    <a href="{% url 'chemicals:chemical_item_list' %}"
+       class="{% if '/chemicals/' in request.path and '/chemicals/substances' not in request.path and '/chemicals/undelivered' not in request.path %}active{% endif %}">
+        <i class="fas fa-flask"></i> Chemical Items
+    </a>
+    <a href="{% url 'chemicals:chemical_list' %}"
+       class="{% if '/chemicals/substances' in request.path %}active{% endif %}">
+        <i class="fas fa-atom"></i> Substances (CAS)
+    </a>
+    {% endif %}
+
+    {% if perms.tasks.create_purchase_order or perms.tasks.manage_standard_order or perms.tasks.view_standard_order or perms.tasks.view_all_purchase_orders or perms.tasks.change_wbs_on_purchase_order or perms.tasks.approve_purchase_order or user.is_superuser %}
     <div class="sidebar-heading">Ordering</div>
 
     {% if perms.tasks.create_purchase_order %}
@@ -51,6 +63,13 @@
     <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;variant=quote"
        class="{% if 'variant=quote' in request.get_full_path %}active{% endif %}">
         <i class="fas fa-file-pdf"></i> Order with Quote
+    </a>
+    {% endif %}
+
+    {% if perms.tasks.view_all_purchase_orders or perms.tasks.change_wbs_on_purchase_order or perms.tasks.approve_purchase_order or user.is_superuser %}
+    <a href="{% url 'orders:undelivered_items' %}"
+       class="{% if '/orders/undelivered' in request.path %}active{% endif %}">
+        <i class="fas fa-truck"></i> Undelivered Items
     </a>
     {% endif %}
 

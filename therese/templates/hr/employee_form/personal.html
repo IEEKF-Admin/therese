@@ -9,6 +9,20 @@
     <div class="aligned-field"><label>{{ form.date_of_birth.label }}</label>{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.country_of_origin.label }}</label>{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.place_of_birth.label }}</label>{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}</div>
+    {% if form.is_pending %}
+    <div class="aligned-field">
+        <label>{{ form.is_pending.label }}</label>
+        <div class="active-toggle-wrap">{{ form.is_pending }}</div>
+        <small class="field-hint-de">Aus Import erzeugt — noch in Prüfung (Pending).</small>
+    </div>
+    {% endif %}
+    {% if form.check_needed %}
+    <div class="aligned-field">
+        <label>{{ form.check_needed.label }}</label>
+        <div class="active-toggle-wrap">{{ form.check_needed }}</div>
+        <small class="field-hint-de">Manuelle Prüfung nötig. Login-User erst nach Entfernen dieses Flags.</small>
+    </div>
+    {% endif %}
 </div>
 
 

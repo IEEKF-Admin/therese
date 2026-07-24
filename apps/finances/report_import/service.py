@@ -14,8 +14,10 @@ from typing import Any
 from django.db import transaction
 
 from apps.core.import_tracking import (
+    effective_report_creation_date,
     extract_xlsx_document_timestamps,
     find_completed_import_by_hash,
+    is_report_older_than_last_import,
     parse_scopes_from_import_summary,
     record_data_import,
     remaining_scopes_for_hash,
@@ -208,6 +210,7 @@ def analyze_uploaded_files(
             'global_warnings': [],
             'has_blocking_errors': True,
             'has_duplicate_files': False,
+            'has_stale_report_files': False,
             'requires_year_confirmation': False,
             'requires_snapshot_update_option': False,
             'requires_personnel_decisions': False,
@@ -249,9 +252,11 @@ def analyze_uploaded_files(
             'file_created_at': file_created_at.isoformat() if file_created_at else None,
             'file_modified_at': file_modified_at.isoformat() if file_modified_at else None,
             'is_duplicate': is_duplicate,
+            'is_stale_report': False,
             'scopes_already_imported': sorted(already_scopes),
             'scopes_remaining': sorted(remaining_scopes),
             'prior_import': None,
+            'stale_vs_prior': None,
         }
         if prior:
             meta['prior_import'] = {
@@ -268,11 +273,37 @@ def analyze_uploaded_files(
         parsed_dict = parsed.to_dict()
         # Prefer report_created_on from first parent in this file
         report_created_on = None
+        report_created_on_date = None
         for parent in parsed.parents:
             if parent.report_created_on:
+                report_created_on_date = parent.report_created_on
                 report_created_on = parent.report_created_on.isoformat()
                 break
         meta['report_created_on'] = report_created_on
+
+        # Reports are cumulative (PSP start → pull date). Reject older pulls
+        # than the newest already-imported report of this kind.
+        is_older, upload_date, prior_by_date, prior_date = is_report_older_than_last_import(
+            kind,
+            report_created_on=report_created_on_date,
+            file_created_at=file_created_at,
+        )
+        meta['effective_creation_date'] = upload_date.isoformat() if upload_date else None
+        if is_older and prior_date is not None:
+            meta['is_stale_report'] = True
+            meta['stale_vs_prior'] = {
+                'upload_date': upload_date.isoformat() if upload_date else None,
+                'prior_date': prior_date.isoformat(),
+                'prior_import_id': prior_by_date.pk if prior_by_date else None,
+                'prior_filename': (
+                    prior_by_date.original_filename if prior_by_date else ''
+                ),
+                'prior_uploaded_by': (
+                    str(prior_by_date.uploaded_by)
+                    if prior_by_date and prior_by_date.uploaded_by_id
+                    else 'unknown'
+                ),
+            }
 
         # Personalkosten sheet (salary matching against funding allocations)
         pk_entries = parse_personalkosten_sheet(raw, filename)
@@ -282,12 +313,17 @@ def analyze_uploaded_files(
                 'kostenart': e.kostenart,
                 'personalkosten': str(e.personalkosten),
                 'belegdatum': e.belegdatum.isoformat() if e.belegdatum else None,
+                'buchungsdatum': (
+                    e.buchungsdatum.isoformat() if e.buchungsdatum else None
+                ),
+                'buchungstext': e.buchungstext or '',
                 'psp_code': e.psp_code,
                 'parent_psp_code': e.parent_psp_code,
                 'source_filename': e.source_filename,
             }
             for e in pk_entries
         ]
+        meta['personalkosten_entry_count'] = len(pk_entries)
         # Heuristic coverage window: min/max Belegdatum on Personalkosten sheet
         beleg_from, beleg_to = extract_beleg_date_range(raw)
         meta['beleg_from'] = beleg_from.isoformat() if beleg_from else None
@@ -303,6 +339,7 @@ def analyze_uploaded_files(
     global_warnings = []
     has_blocking_errors = any(bool(f.get('errors')) for f in file_results)
     duplicate_files = [m for m in upload_meta if m.get('is_duplicate')]
+    stale_files = [m for m in upload_meta if m.get('is_stale_report')]
 
     # Scope summary for the user
     active = []
@@ -315,6 +352,11 @@ def analyze_uploaded_files(
     global_warnings.append(
         'Import-Bereiche: ' + (', '.join(active) if active else '—')
         + '. Nicht gewählte Bereiche werden nicht geschrieben.'
+    )
+    global_warnings.append(
+        'Funding reports are cumulative (PSP start → report pull date). '
+        'The same file content cannot be re-imported for scopes already done; '
+        'reports older than the latest imported report creation date are blocked.'
     )
 
     for parent in parents:
@@ -357,8 +399,23 @@ def analyze_uploaded_files(
 
     if scopes[SCOPE_PERSONNEL]:
         _attach_personnel_checks(plan_shell, snapshot_date)
+        # Surface empty Personalkosten results (e.g. only Kostenart 60003500)
+        total_pk = sum(
+            int(m.get('personalkosten_entry_count') or 0)
+            for m in upload_meta
+        )
+        if total_pk == 0:
+            global_warnings.append(
+                'Keine Personalkosten-Zeilen mit Lohn/Gehalt-Kostenarten '
+                '(6000xxxx / 6001xxxx, z. B. 60003000 DA 03, 60003500 DA 35) '
+                'gefunden. Sozialabgaben, Altersversorgung und Jahressonderzahlung '
+                'werden für den Personal-Match nicht verwendet.'
+            )
     else:
         plan_shell['personnel_checks'] = []
+        plan_shell['personnel_checks_a'] = []
+        plan_shell['personnel_checks_b'] = []
+        plan_shell['personnel_checks_c'] = []
         plan_shell['requires_personnel_decisions'] = False
         plan_shell['requires_personnel_resolution'] = False
         plan_shell['blocking_personnel_checks'] = []
@@ -405,10 +462,24 @@ def analyze_uploaded_files(
         )
         has_blocking_errors = True
 
+    if stale_files:
+        for meta in stale_files:
+            stale = meta.get('stale_vs_prior') or {}
+            global_warnings.append(
+                f'Report too old: "{meta.get("filename")}" '
+                f'(creation date {stale.get("upload_date") or "unknown"}) is older than the '
+                f'latest imported report ({stale.get("prior_date")}, '
+                f'file "{stale.get("prior_filename") or "—"}"). '
+                'Only reports with the same or a newer creation date may be uploaded.'
+            )
+        has_blocking_errors = True
+
     # Partial re-upload: same file, new scope(s) still open
     partial_reuploads = [
         m for m in upload_meta
-        if not m.get('is_duplicate') and m.get('scopes_already_imported')
+        if not m.get('is_duplicate')
+        and not m.get('is_stale_report')
+        and m.get('scopes_already_imported')
     ]
     for meta in partial_reuploads:
         already = ', '.join(meta.get('scopes_already_imported') or []) or '—'
@@ -434,11 +505,15 @@ def analyze_uploaded_files(
         'global_warnings': global_warnings,
         'has_blocking_errors': has_blocking_errors,
         'has_duplicate_files': bool(duplicate_files),
+        'has_stale_report_files': bool(stale_files),
         'requires_year_confirmation': bool(year_conflict_parents),
         'requires_snapshot_update_option': bool(snapshot_conflicts),
         'requires_personnel_decisions': plan_shell.get('requires_personnel_decisions', False),
         'requires_personnel_resolution': plan_shell.get('requires_personnel_resolution', False),
         'blocking_personnel_checks': plan_shell.get('blocking_personnel_checks', []),
+        'personnel_checks_a': plan_shell.get('personnel_checks_a', []),
+        'personnel_checks_b': plan_shell.get('personnel_checks_b', []),
+        'personnel_checks_c': plan_shell.get('personnel_checks_c', []),
     }
 
 
@@ -482,30 +557,33 @@ def _attach_personnel_checks(plan: dict, snapshot_date: date | None = None) -> d
 
     if personnel_mismatches:
         kept_warnings.append(
-            f'{len(personnel_mismatches)} Personalkosten-Zeile(n) weichen von '
-            f'Monatsgehalt × Multiplikator × % um mehr als ±2,5 % ab. '
-            f'Pro Zeile „Ignore“ oder „Adjust salary“ wählen '
-            f'(Adjust setzt ebenfalls import_completed).'
+            f'{len(personnel_mismatches)} Personalkosten-Zeile(n) weichen von den '
+            f'erwarteten True Costs ab (Toleranz aus Global Settings; Januar ±4 %). '
+            f'Pro Zeile „Ignore“ oder „Adjust base salary“ wählen '
+            f'(Adjust setzt import_completed).'
         )
     if blocking:
         no_emp = sum(1 for c in blocking if c.get('status') == 'no_employee')
         no_alloc = sum(1 for c in blocking if c.get('status') == 'no_allocation')
         parts = []
         if no_emp:
-            parts.append(f'{no_emp} unbekannte Personalnummer(n)')
+            parts.append(f'{no_emp} unbekannte Personalnummer(n) (anlegen oder ignorieren)')
         if no_alloc:
-            parts.append(f'{no_alloc} ohne aktuelle Funding Allocation')
+            parts.append(f'{no_alloc} ohne FA im Buchungsmonat (FA anlegen oder ignorieren)')
         kept_warnings.append(
-            'Personalkosten: Import blockiert wegen '
+            'Personalkosten: Personal-Import blockiert wegen '
             + ' und '.join(parts)
-            + '. Bitte Mitarbeiter/FA anlegen und „Status neu prüfen“, '
-            'oder „Diesen Mitarbeiter ignorieren“ wählen.'
+            + '.'
         )
 
     plan['global_warnings'] = kept_warnings
     plan['requires_personnel_decisions'] = bool(personnel_mismatches)
     plan['requires_personnel_resolution'] = bool(blocking)
     plan['blocking_personnel_checks'] = blocking
+    # Grouped views for preview sections
+    plan['personnel_checks_a'] = [c for c in personnel_checks if c.get('case') == 'a']
+    plan['personnel_checks_b'] = [c for c in personnel_checks if c.get('case') == 'b']
+    plan['personnel_checks_c'] = [c for c in personnel_checks if c.get('case') == 'c']
     return plan
 
 
@@ -514,6 +592,9 @@ def refresh_personnel_checks(plan: dict) -> dict:
     plan = deepcopy(plan)
     if not scope_enabled(plan, SCOPE_PERSONNEL):
         plan['personnel_checks'] = []
+        plan['personnel_checks_a'] = []
+        plan['personnel_checks_b'] = []
+        plan['personnel_checks_c'] = []
         plan['requires_personnel_decisions'] = False
         plan['requires_personnel_resolution'] = False
         plan['blocking_personnel_checks'] = []
@@ -783,22 +864,28 @@ def merge_user_decisions(plan: dict, post_data) -> tuple[dict, list[str]]:
 
             if status in BLOCKING_PERSONNEL_STATUSES:
                 raw = (post_data.get(form_key) or '').strip()
-                if raw != 'ignore':
-                    pn = check.get('personalnummer') or '?'
-                    if status == 'no_employee':
-                        errors.append(
-                            f'Der Mitarbeiter mit der Personalnummer {pn} existiert noch nicht '
-                            f'im System. Bitte lege ihn an oder wähle '
-                            f'„Diesen Mitarbeiter ignorieren“.'
-                        )
+                pn = check.get('personalnummer') or '?'
+                if status == 'no_employee':
+                    if raw == 'ignore':
+                        personnel_decisions[dkey] = 'ignore'
+                    elif raw == 'create_employee':
+                        personnel_decisions[dkey] = 'create_employee'
                     else:
                         errors.append(
-                            f'Keine aktuelle Funding Allocation für Personalnummer {pn} '
-                            f'auf PSP {check.get("parent_psp_code")}. '
-                            f'Bitte lege eine FA an oder wähle „Diesen Mitarbeiter ignorieren“.'
+                            f'Der Mitarbeiter mit der Personalnummer {pn} existiert noch nicht. '
+                            f'Bitte „Pending-Mitarbeiter anlegen“ oder „Ignorieren“ wählen.'
                         )
-                else:
-                    personnel_decisions[dkey] = 'ignore'
+                else:  # no_allocation
+                    if raw == 'ignore':
+                        personnel_decisions[dkey] = 'ignore'
+                    elif raw == 'create_fa':
+                        personnel_decisions[dkey] = 'create_fa'
+                    else:
+                        errors.append(
+                            f'Keine Funding Allocation für Personalnummer {pn} '
+                            f'auf PSP {check.get("parent_psp_code")} im Buchungsmonat. '
+                            f'Bitte „FA anlegen“ oder „Ignorieren“ wählen.'
+                        )
                 continue
 
             if status != 'mismatch':
@@ -869,10 +956,32 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
 
     # Scope-aware duplicate check: same file bytes may be re-imported only for
     # scopes not yet completed for that hash.
+    # Also reject reports older than the latest already-imported report
+    # (reports are cumulative from PSP start to pull date).
+    # ``allow_reimport`` (GlobalSetting.irresponsible + UI checkbox) bypasses both.
+    allow_reimport = bool(plan.get('allow_reimport'))
     effective_scopes = dict(plan['import_scopes'])
     for meta in plan.get('upload_meta') or []:
         file_hash = meta.get('file_sha256') or ''
+        report_created_on = _date(meta.get('report_created_on'))
+        file_created_at = _datetime(meta.get('file_created_at'))
+        is_older, upload_date, prior_by_date, prior_date = is_report_older_than_last_import(
+            kind,
+            report_created_on=report_created_on,
+            file_created_at=file_created_at,
+        )
+        if is_older and prior_date is not None and not allow_reimport:
+            raise ValueError(
+                f'Report "{meta.get("filename")}" creation date '
+                f'{upload_date or "unknown"} is older than the latest imported report '
+                f'({prior_date}'
+                f'{f", file {prior_by_date.original_filename}" if prior_by_date else ""}'
+                f'). Upload blocked.'
+            )
         if not file_hash:
+            continue
+        if allow_reimport:
+            # Re-apply all requested scopes even if already logged for this hash.
             continue
         already, remaining, requested = remaining_scopes_for_hash(
             kind, file_hash, effective_scopes,

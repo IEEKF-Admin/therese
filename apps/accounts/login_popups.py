@@ -248,6 +248,40 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                 show = True
                 ack_reference_keys = unacked_refs
 
+        elif config.trigger == 'chemical_item_incomplete' and employee:
+            from apps.chemicals.models import ChemicalItem
+
+            qs = ChemicalItem.objects.filter(
+                ordered_by=employee,
+            ).exclude(status=ChemicalItem.Status.ARCHIVED).select_related('chemical')
+            incomplete = [item for item in qs if item.is_incomplete]
+            unacked_refs = [
+                f'chemical_item:{item.pk}'
+                for item in incomplete
+                if f'chemical_item:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
+        elif config.trigger == 'chemical_item_delivered' and employee:
+            from apps.chemicals.models import ChemicalItem
+
+            qs = ChemicalItem.objects.filter(
+                ordered_by=employee,
+                status=ChemicalItem.Status.ACTIVE,
+            ).select_related('chemical')
+            if user.last_login:
+                qs = qs.filter(delivered_at__gt=user.last_login)
+            unacked_refs = [
+                f'chemical_delivered:{item.pk}'
+                for item in qs.order_by('-delivered_at')
+                if f'chemical_delivered:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
         if show:
             popups.append({
                 'text': render_popup_text(config.text, user, employee, contract=contract_for_text),

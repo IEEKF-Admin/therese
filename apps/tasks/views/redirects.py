@@ -20,8 +20,16 @@ def try_handle_archive_post(request):
     """
     Handle archive / unarchive POST from task detail pages.
     Returns a redirect response, or None if this POST is not an archive action.
+
+    Important: only react when the archive button was used (``archive_submit``).
+    Nested/invalid HTML used to leave ``archive_task`` in the main save POST and
+    then archive instead of saving assignee / WBS / status.
     """
     if request.method != 'POST':
+        return None
+
+    # Require explicit archive submit so normal "Save Changes" is never hijacked.
+    if not request.POST.get('archive_submit'):
         return None
 
     task_id = request.POST.get('archive_task') or request.POST.get('archive_po')

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'chemicals:chemical_list' %}" class="btn-secondary">← Back to list</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-section">
+        <h3>1. CAS number lookup</h3>
+        <p style="color:#64748b;margin-bottom:1rem;">
+            Enter a CAS number and look up free data from PubChem (name, formula, GHS).
+            You can then review, edit and save the chemical.
+        </p>
+        <form method="post" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:end;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="lookup">
+            <div class="aligned-field" style="margin-bottom:0; min-width:16rem;">
+                <label>CAS number</label>
+                {{ lookup_form.cas_number }}
+                {% if lookup_form.cas_number.errors %}
+                <div class="alert alert-error" style="margin-top:0.35rem;">{{ lookup_form.cas_number.errors }}</div>
+                {% endif %}
+                {% if lookup_form.cas_number.help_text %}
+                <small style="color:#64748b;">{{ lookup_form.cas_number.help_text }}</small>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-search"></i> Lookup
+            </button>
+        </form>
+        {% if lookup_info %}
+        <div class="alert alert-info" style="margin-top:1rem;">{{ lookup_info }}</div>
+        {% endif %}
+        {% if lookup_meta and lookup_meta.pubchem_cid %}
+        <p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem;">
+            PubChem CID {{ lookup_meta.pubchem_cid }}
+            — <a href="https://pubchem.ncbi.nlm.nih.gov/compound/{{ lookup_meta.pubchem_cid }}" target="_blank" rel="noopener">Open PubChem</a>
+        </p>
+        {% endif %}
+    </div>
+
+    {% if form %}
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save">
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-section">
+            <h3>2. Review &amp; edit</h3>
+            <div class="aligned-field">
+                <label>CAS number</label>
+                {{ form.cas_number|add_class:"form-control" }}
+                {% if form.cas_number.errors %}<div class="field-error">{{ form.cas_number.errors }}</div>{% endif %}
+            </div>
+            <div class="aligned-field">
+                <label>Name</label>
+                {{ form.name|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>IUPAC name</label>
+                {{ form.iupac_name|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Molecular formula</label>
+                {{ form.molecular_formula|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Shelf life (months)</label>
+                {{ form.shelf_life_months|add_class:"form-control" }}
+                <small style="color:#64748b;">Used to auto-calculate MHD on inventory items.</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Hazard classification</h3>
+            <div class="aligned-field">
+                <label>GHS signal word</label>
+                {{ form.ghs_signal_word|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>GHS hazard codes</label>
+                {{ form.ghs_hazard_codes|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>GHS pictograms</label>
+                {{ form.ghs_pictograms|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label style="display:flex;align-items:center;gap:0.5rem;">
+                    {{ form.is_hazardous }} Hazardous substance (Gefahrstoff)
+                </label>
+            </div>
+            <div class="aligned-field">
+                <label>Classification notes</label>
+                {{ form.hazard_classification_notes|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Safety data sheet</h3>
+            <div class="aligned-field">
+                <label>Local SDS file</label>
+                {{ form.safety_data_sheet }}
+            </div>
+            <div class="aligned-field">
+                <label>SDS / source URL</label>
+                {{ form.sds_source_url|add_class:"form-control" }}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save chemical</button>
+            <a href="{% url 'chemicals:chemical_list' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -12,8 +12,8 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, TemplateView, UpdateView
 from django.views.generic.edit import DeleteView
 
-from ...forms import BuildingForm, PhoneNumberForm, RoomForm
-from ...models import Building, PhoneNumber, Room
+from ...forms import BuildingForm, PhoneNumberForm, RoomForm, RoomStorageItemForm
+from ...models import Building, PhoneNumber, Room, RoomStorageItem
 
 
 class LocationManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
@@ -27,6 +27,9 @@ class LocationManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateVi
         context['buildings'] = Building.objects.all().order_by('number')
         context['rooms'] = Room.objects.all().order_by('building__number', 'room_number')
         context['phones'] = PhoneNumber.objects.all().order_by('room__building__number', 'room__room_number')
+        context['storage_items'] = RoomStorageItem.objects.select_related(
+            'room', 'room__building',
+        ).order_by('room__building__number', 'room__room_number', 'name')
         return context
 
     def post(self, request, *args, **kwargs):
@@ -51,6 +54,13 @@ class LocationManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateVi
             for pk in request.POST.getlist('selected_phones'):
                 try:
                     PhoneNumber.objects.get(pk=pk).delete()
+                    deleted += 1
+                except Exception:
+                    errors += 1
+
+            for pk in request.POST.getlist('selected_storage'):
+                try:
+                    RoomStorageItem.objects.get(pk=pk).delete()
                     deleted += 1
                 except Exception:
                     errors += 1
@@ -240,4 +250,65 @@ class PhoneNumberDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
             return response
         except ProtectedError:
             messages.error(request, f'Phone number "{display}" could not be deleted.')
+            return redirect(self.success_url)
+
+
+class RoomStorageItemCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = RoomStorageItem
+    form_class = RoomStorageItemForm
+    template_name = 'hr/location_form.html'
+    success_url = reverse_lazy('hr:location_management')
+
+    def test_func(self):
+        return self.request.user.has_perm('hr.manage_location')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'New Storage Location'
+        context['cancel_url'] = reverse_lazy('hr:location_management')
+        return context
+
+
+class RoomStorageItemUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = RoomStorageItem
+    form_class = RoomStorageItemForm
+    template_name = 'hr/location_form.html'
+    success_url = reverse_lazy('hr:location_management')
+
+    def test_func(self):
+        return self.request.user.has_perm('hr.manage_location')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Storage Location'
+        context['cancel_url'] = reverse_lazy('hr:location_management')
+        return context
+
+
+class RoomStorageItemDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = RoomStorageItem
+    template_name = 'hr/location_confirm_delete.html'
+    success_url = reverse_lazy('hr:location_management')
+
+    def test_func(self):
+        return self.request.user.has_perm('hr.manage_location')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['item_type'] = 'Storage Location'
+        context['item_display'] = str(self.object)
+        return context
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        display = str(obj)
+        try:
+            response = super().delete(request, *args, **kwargs)
+            messages.success(request, f'Storage location "{display}" was deleted.')
+            return response
+        except ProtectedError:
+            messages.error(
+                request,
+                f'Storage location "{display}" could not be deleted (chemical items may still reference it).',
+            )
             return redirect(self.success_url)

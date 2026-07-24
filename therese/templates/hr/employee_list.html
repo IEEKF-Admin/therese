@@ -35,6 +35,18 @@
                title="Contract ending within 3 months without seamless follow-up, or gap today">
                 Expiring soon / gaps
             </a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}filter=check_needed&amp;sort={{ current_sort }}&amp;dir={{ current_dir }}"
+               class="btn-subtle{% if list_filter == 'check_needed' %} is-active{% endif %}"
+               style="{% if list_filter == 'check_needed' %}font-weight:600;{% endif %}"
+               title="Employee or contract needs review (import)">
+                Check needed
+            </a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}filter=pending&amp;sort={{ current_sort }}&amp;dir={{ current_dir }}"
+               class="btn-subtle{% if list_filter == 'pending' %} is-active{% endif %}"
+               style="{% if list_filter == 'pending' %}font-weight:600;{% endif %}"
+               title="Created from funding-report import, still pending">
+                Pending
+            </a>
         </div>
         {% endif %}
     </form>
@@ -87,6 +99,12 @@
                     {% endif %}
                     <td>
                         <strong>{{ employee.get_full_name }}</strong>
+                        {% if employee.is_pending %}
+                        <span class="badge" style="background:#6366f1;color:#fff;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Pending import review">Pending</span>
+                        {% endif %}
+                        {% if employee.check_needed or employee.list_contract_check_needed %}
+                        <span class="badge" style="background:#f59e0b;color:#111;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Check needed">Check needed</span>
+                        {% endif %}
                         {% if employee.list_expiry_warning %}
                         <span class="employee-expiry-warning"
                               title="{{ employee.list_expiry_tooltip }}"

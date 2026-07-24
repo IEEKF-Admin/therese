@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 
 from django.core.exceptions import PermissionDenied
 
-from apps.core.models import DataImportLog
+from apps.core.models import DataImportLog, GlobalSetting
 from apps.finances.import_access import (
     import_history_kinds_for_user,
     user_can_import_third_party_funding,
@@ -65,6 +65,41 @@ def third_party_funding_import(request):
             import_scopes=scopes,
         )
 
+        # Force re-import of already-uploaded / older reports only when
+        # GlobalSetting.irresponsible is on and the user checked the option.
+        allow_reimport = (
+            GlobalSetting.get_irresponsible()
+            and request.POST.get('allow_reimport') == 'on'
+        )
+        if allow_reimport:
+            plan['allow_reimport'] = True
+            plan['has_duplicate_files'] = False
+            plan['has_stale_report_files'] = False
+            for meta in plan.get('upload_meta') or []:
+                meta['is_duplicate'] = False
+                meta['is_stale_report'] = False
+                meta['reimport_forced'] = True
+            # Drop only the duplicate/stale global warnings; keep others.
+            plan['global_warnings'] = [
+                w for w in (plan.get('global_warnings') or [])
+                if 'Duplicate file' not in w
+                and 'Report too old' not in w
+                and 'already imported' not in (w or '').lower()
+            ]
+            plan['global_warnings'].insert(
+                0,
+                '⚠ Forced re-import enabled (irresponsible mode): '
+                'duplicate file hashes and older report creation dates are allowed '
+                'for this run.',
+            )
+            # has_blocking_errors may have been set only due to dup/stale —
+            # clear if no other hard parse errors remain.
+            parse_errors = any(
+                bool(f.get('errors')) for f in (plan.get('files') or [])
+            )
+            if not parse_errors:
+                plan['has_blocking_errors'] = False
+
         if plan.get('scope_error'):
             messages.error(request, plan['scope_error'])
             return redirect('finances:third_party_funding_import')
@@ -74,13 +109,35 @@ def third_party_funding_import(request):
                 if not meta.get('is_duplicate'):
                     continue
                 prior = meta.get('prior_import') or {}
+                already = ', '.join(meta.get('scopes_already_imported') or []) or '—'
                 messages.error(
                     request,
                     (
                         f'Duplicate file blocked: "{meta.get("filename")}". '
-                        f'Already imported on {str(prior.get("created_at", ""))[:19]} '
+                        f'Selected areas already imported ({already}) on '
+                        f'{str(prior.get("created_at", ""))[:19]} '
                         f'by {prior.get("uploaded_by", "unknown")} '
-                        f'(SHA-256 {str(meta.get("file_sha256", ""))[:12]}…).'
+                        f'(SHA-256 {str(meta.get("file_sha256", ""))[:12]}…). '
+                        f'You may re-upload only for remaining scopes.'
+                    ),
+                )
+            return redirect('finances:third_party_funding_import')
+
+        if plan.get('has_stale_report_files'):
+            for meta in plan.get('upload_meta') or []:
+                if not meta.get('is_stale_report'):
+                    continue
+                stale = meta.get('stale_vs_prior') or {}
+                messages.error(
+                    request,
+                    (
+                        f'Report too old: "{meta.get("filename")}" '
+                        f'(creation date {stale.get("upload_date") or "unknown"}) is older '
+                        f'than the latest imported report '
+                        f'({stale.get("prior_date")}, '
+                        f'"{stale.get("prior_filename") or "—"}" by '
+                        f'{stale.get("prior_uploaded_by", "unknown")}). '
+                        f'Only reports with the same or a newer creation date may be uploaded.'
                     ),
                 )
             return redirect('finances:third_party_funding_import')
@@ -116,6 +173,7 @@ def third_party_funding_import(request):
     return render(request, 'finances/report_import_upload.html', {
         'default_import_year': current_year,
         'default_scopes': normalize_import_scopes(None),
+        'irresponsible_mode': GlobalSetting.get_irresponsible(),
     })
 
 

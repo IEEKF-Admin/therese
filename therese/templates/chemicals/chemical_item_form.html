@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'chemicals:chemical_item_list' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-section" style="margin-bottom:1rem;">
+        <h3>Linked chemical</h3>
+        <p>
+            <strong>CAS:</strong> {{ item.chemical.cas_number }}
+            {% if item.chemical.is_hazardous %}
+            <span class="status-badge" style="background:#fecaca;color:#991b1b;">Gefahrstoff</span>
+            {% endif %}
+            &nbsp;·&nbsp;
+            <strong>Name:</strong> {{ item.chemical.name|default:"—" }}
+            &nbsp;·&nbsp;
+            <a href="{% url 'chemicals:chemical_edit' item.chemical.pk %}">Open substance</a>
+        </p>
+        <p style="color:#64748b;font-size:0.9rem;">
+            Orderer: {% if item.ordered_by %}{{ item.ordered_by.get_full_name|default:item.ordered_by }}{% else %}—{% endif %}
+            · Work group: {{ item.workgroup|default:"—" }}
+            · Ordered: {{ item.ordered_at|date:"d.m.Y"|default:"—" }}
+            · Delivered: {{ item.delivered_at|date:"d.m.Y"|default:"—" }}
+            {% if item.chemical.shelf_life_months %}
+            · Shelf life: {{ item.chemical.shelf_life_months }} months
+            {% endif %}
+            {% if item.purchase_item_id %}
+            · <a href="{% url 'tasks:task_detail' item.purchase_item.purchase_task_id %}">Purchase order</a>
+            {% endif %}
+        </p>
+        {% if item.is_incomplete %}
+        <div class="alert alert-warning">
+            Incomplete inventory data: {{ item.missing_info_fields|join:", " }}
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-section">
+            <h3>Inventory data</h3>
+            <div class="aligned-field">
+                <label>Product / trade name</label>
+                {{ form.product_name|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Quantity range in use</label>
+                {{ form.quantity_range|add_class:"form-select" }}
+            </div>
+            <div class="aligned-field">
+                <label>Work area / exposure area</label>
+                {{ form.work_area|add_class:"form-select" }}
+                <small style="color:#64748b;">
+                    Rooms marked as Chemical work areas (label: building / room).
+                    GefStoffV §6 exposure area.
+                </small>
+            </div>
+            <div class="aligned-field">
+                <label>Storage room</label>
+                {{ form.storage_room|add_class:"form-select" }}
+                <small style="color:#64748b;">
+                    Only rooms that have a storage location (cabinet/shelf/…).
+                </small>
+            </div>
+            <div class="aligned-field">
+                <label>Storage location (cabinet / shelf / …)</label>
+                {{ form.storage_item|add_class:"form-select" }}
+            </div>
+            <div class="aligned-field">
+                <label>MHD (best before)</label>
+                {{ form.mhd|add_class:"form-control date-picker" }}
+                <small style="color:#64748b;">
+                    Auto-calculated from delivery date + chemical shelf life when empty.
+                    You can override manually.
+                </small>
+            </div>
+            <div class="aligned-field">
+                <label>Notes</label>
+                {{ form.notes|add_class:"form-control" }}
+            </div>
+            <div class="aligned-field">
+                <label>Status</label>
+                {{ form.status|add_class:"form-select" }}
+                <small style="color:#64748b;">
+                    Draft → Active is set automatically when the purchase line is marked delivered.
+                </small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            {% if can_edit %}
+            <button type="submit" class="btn-primary">Save</button>
+            {% endif %}
+            <a href="{% url 'chemicals:chemical_item_list' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

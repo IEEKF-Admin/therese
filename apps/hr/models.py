@@ -49,6 +49,15 @@ class Room(BaseModel):
     room_number = models.CharField(max_length=50, verbose_name="Room Number")
     colloquial_name = models.CharField(max_length=100, blank=True, verbose_name="Colloquial Name")
     comment = models.TextField(blank=True, verbose_name="Comment")
+    chemical = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Chemical (work area)',
+        help_text=(
+            'If set, this room can be selected as a chemical work area / exposure area '
+            'on chemical inventory items.'
+        ),
+    )
 
     class Meta:
         verbose_name = "Room"
@@ -57,9 +66,27 @@ class Room(BaseModel):
         ordering = ['building__number', 'room_number']
 
     def __str__(self):
+        building = self.building.number if self.building_id else '?'
         if self.colloquial_name:
-            return f"{self.colloquial_name} ({self.room_number})"
-        return self.room_number
+            return f'{building} / {self.colloquial_name} ({self.room_number})'
+        return f'{building} / {self.room_number}'
+
+    @classmethod
+    def chemical_work_area_qs(cls):
+        """Rooms selectable as chemical work areas."""
+        return cls.objects.filter(chemical=True).select_related('building').order_by(
+            'building__number', 'room_number',
+        )
+
+    @classmethod
+    def with_storage_qs(cls):
+        """Rooms that have at least one storage location (cabinet/shelf/…)."""
+        return (
+            cls.objects.filter(storage_items__isnull=False)
+            .select_related('building')
+            .distinct()
+            .order_by('building__number', 'room_number')
+        )
 
 
 class PhoneNumber(BaseModel):
@@ -78,6 +105,41 @@ class PhoneNumber(BaseModel):
 
     def __str__(self):
         return self.phone_number
+
+
+class RoomStorageItem(BaseModel):
+    """
+    Storage location within a room (cabinet, fridge, shelf, …).
+
+    Used by Chemicals inventory items similarly to phone numbers for rooms.
+    """
+
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.CASCADE,
+        related_name='storage_items',
+        verbose_name='Room',
+    )
+    name = models.CharField(max_length=120, verbose_name='Storage name')
+    storage_type = models.CharField(
+        max_length=80,
+        blank=True,
+        verbose_name='Type',
+        help_text='e.g. cabinet, fridge, shelf, gas store',
+    )
+    comment = models.TextField(blank=True, verbose_name='Comment')
+
+    class Meta:
+        verbose_name = 'Room storage item'
+        verbose_name_plural = 'Room storage items'
+        ordering = ['room', 'name']
+        unique_together = ('room', 'name')
+
+    def __str__(self):
+        label = self.name
+        if self.storage_type:
+            label = f'{self.name} ({self.storage_type})'
+        return f'{self.room}: {label}'
 
 
 class Employee(BaseModel):
@@ -167,6 +229,23 @@ class Employee(BaseModel):
     )
     website = models.URLField(blank=True, verbose_name="Website")
 
+    is_pending = models.BooleanField(
+        default=False,
+        verbose_name="Pending",
+        help_text=(
+            "Employee was created from a funding-report import and is still "
+            "pending review. Visible in the employee list."
+        ),
+    )
+    check_needed = models.BooleanField(
+        default=False,
+        verbose_name="Check needed",
+        help_text=(
+            "Manual review required. A Django login user may only be linked "
+            "when this flag is No."
+        ),
+    )
+
     class Meta:
         verbose_name = "Employee"
         verbose_name_plural = "Employees"
@@ -197,6 +276,24 @@ class Employee(BaseModel):
     def get_full_name(self):
         prefix = f"{self.prefix} " if self.prefix else ""
         return f"{prefix}{self.first_name} {self.last_name}".strip()
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.user_id and self.check_needed:
+            raise ValidationError({
+                'user': (
+                    'A Django login user can only be linked when '
+                    '“Check needed” is No.'
+                ),
+            })
+        if self.user_id and self.is_pending:
+            raise ValidationError({
+                'user': (
+                    'A Django login user can only be linked when the employee '
+                    'is no longer pending.'
+                ),
+            })
 
     def get_contract_as_of(self, as_of=None):
         """
@@ -249,13 +346,21 @@ class Employee(BaseModel):
 
     def get_monthly_salary(self, as_of=None):
         """
-        Monthly salary for cost calculations and displays.
-        Always taken from the relevant contract (never Employee.monthly_salary).
+        Full-time (100%) base monthly salary from the relevant contract.
+        Always taken from the contract (never Employee.monthly_salary).
+        Does not include supplements; use contract true-cost helpers for costs.
         """
         contract = self.get_contract_as_of(as_of)
         if contract is None:
             return None
         return contract.get_monthly_salary()
+
+    def get_monthly_costs(self, as_of=None):
+        """True monthly personnel costs from the relevant contract (as of date)."""
+        contract = self.get_contract_as_of(as_of)
+        if contract is None:
+            return None
+        return contract.get_monthly_costs()
 
 
 class Contract(BaseModel):
@@ -287,7 +392,12 @@ class Contract(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="Monthly Salary",
+        verbose_name="Monthly Salary (100% workload)",
+        help_text=(
+            "Monthly salary the person would receive at 100% working time "
+            "(full-time reference). Part-time hours are applied only when "
+            "calculating true costs. Salary supplements are added on top."
+        ),
     )
 
     weekly_hours = models.DecimalField(
@@ -308,6 +418,14 @@ class Contract(BaseModel):
         help_text=(
             "Yes/No. Can be set manually. Automatically set to No when "
             "Valid Until is in the past."
+        ),
+    )
+    check_needed = models.BooleanField(
+        default=False,
+        verbose_name="Check needed",
+        help_text=(
+            "Manual review required for this contract "
+            "(e.g. after funding-report import)."
         ),
     )
 
@@ -378,7 +496,12 @@ class Contract(BaseModel):
             pass
 
     def get_monthly_salary(self):
-        """Resolved monthly salary for this contract (stored value, with payscale fallback)."""
+        """
+        Full-time (100% workload) monthly base salary for this contract.
+
+        Stored value first, otherwise current TV-L table for group/level.
+        Does not include salary supplements or part-time scaling.
+        """
         if self.monthly_salary is not None:
             return self.monthly_salary
         if self.pay_scale_group and self.experience_level is not None:
@@ -394,19 +517,121 @@ class Contract(BaseModel):
             )
         return None
 
-    def get_monthly_costs(self):
+    def get_salary_supplements_total(self):
         """
-        True monthly personnel costs: monthly salary × global true-cost multiplicator.
+        Sum of salary supplements on this contract at 100% workload.
+
+        Percentage supplements are taken of the base monthly salary;
+        fixed amounts are added as euro amounts per month.
         """
-        from decimal import Decimal
+        from decimal import Decimal, ROUND_HALF_UP
+
+        base = self.get_monthly_salary()
+        base_dec = Decimal(base) if base is not None else Decimal('0')
+        total = Decimal('0.00')
+        # Prefer prefetched relation when present
+        supplements = self.salary_supplements.all()
+        for ss in supplements:
+            if ss.fixed_amount is not None:
+                total += Decimal(ss.fixed_amount)
+            elif ss.percentage is not None and base is not None:
+                total += base_dec * Decimal(ss.percentage) / Decimal('100')
+        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def get_monthly_salary_with_supplements(self):
+        """
+        Full-time (100%) monthly salary including salary supplements.
+
+        ``base + Σ(percentage of base) + Σ(fixed amounts)``.
+        """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        base = self.get_monthly_salary()
+        supplements = self.get_salary_supplements_total()
+        if base is None and supplements == 0:
+            return None
+        base_dec = Decimal(base) if base is not None else Decimal('0')
+        return (base_dec + Decimal(supplements)).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+
+    def get_workload_fraction(self):
+        """
+        Contract weekly hours / global default full-time hours.
+
+        Missing or invalid default ⇒ 1 (100%). Missing weekly hours ⇒ 1.
+        """
+        from decimal import Decimal, ROUND_HALF_UP
 
         from apps.core.models import GlobalSetting
 
-        salary = self.get_monthly_salary()
+        if self.weekly_hours is None:
+            return Decimal('1')
+        default_hours = GlobalSetting.get_default_weekly_hours()
+        if not default_hours or default_hours <= 0:
+            return Decimal('1')
+        return (Decimal(self.weekly_hours) / Decimal(default_hours)).quantize(
+            Decimal('0.0001'), rounding=ROUND_HALF_UP
+        )
+
+    def get_monthly_costs(self):
+        """
+        True monthly personnel costs for this contract:
+
+        (monthly_salary_100% + supplements) × (weekly_hours / default_weekly_hours)
+        × true_cost_multiplicator
+        """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        from apps.core.models import GlobalSetting
+
+        salary = self.get_monthly_salary_with_supplements()
         if salary is None:
             return None
         multiplicator = GlobalSetting.get_true_cost_multiplicator()
-        return (Decimal(salary) * Decimal(multiplicator)).quantize(Decimal('0.01'))
+        fraction = self.get_workload_fraction()
+        return (
+            Decimal(salary) * fraction * Decimal(multiplicator)
+        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def suggest_base_monthly_salary_for_allocation_amount(
+        self, excel_amount, workhours_percentage
+    ):
+        """
+        Reverse-calculate the 100% base ``monthly_salary`` so that
+
+        (base + supplements(base)) × workload_fraction × multi × (workhours_% / 100)
+        equals ``excel_amount``.
+
+        Percentage supplements are treated as shares of the (unknown) base;
+        fixed supplements are held constant.
+        """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        from apps.core.models import GlobalSetting
+
+        multi = Decimal(GlobalSetting.get_true_cost_multiplicator())
+        fraction = self.get_workload_fraction()
+        share = Decimal(workhours_percentage or 0) / Decimal('100')
+        denom = fraction * multi * share
+        if denom <= 0:
+            return None
+
+        gehalt_100 = Decimal(excel_amount) / denom
+
+        pct_sum = Decimal('0')
+        fixed_sum = Decimal('0')
+        for ss in self.salary_supplements.all():
+            if ss.fixed_amount is not None:
+                fixed_sum += Decimal(ss.fixed_amount)
+            elif ss.percentage is not None:
+                pct_sum += Decimal(ss.percentage)
+
+        factor = Decimal('1') + (pct_sum / Decimal('100'))
+        if factor <= 0:
+            return None
+        base = (gehalt_100 - fixed_sum) / factor
+        return base.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def active_funding_percentage_total(self):
         """Sum of workhours % of active funding allocations on this contract."""
@@ -672,7 +897,10 @@ class SalarySupplement(BaseModel):
         null=True,
         blank=True,
         verbose_name="Percentage (%)",
-        help_text="Percentage of monthly salary. Leave empty if using a fixed amount.",
+        help_text=(
+            "Percentage of the contract's 100% monthly salary. "
+            "Leave empty if using a fixed amount."
+        ),
     )
     fixed_amount = models.DecimalField(
         max_digits=10,
@@ -680,7 +908,11 @@ class SalarySupplement(BaseModel):
         null=True,
         blank=True,
         verbose_name="Fixed amount (€)",
-        help_text="Fixed euro amount per month. Leave empty if using a percentage.",
+        help_text=(
+            "Fixed euro amount per month at 100% workload "
+            "(scaled with weekly hours in true costs). "
+            "Leave empty if using a percentage."
+        ),
     )
     comment = models.TextField(blank=True, verbose_name="Comment")
 

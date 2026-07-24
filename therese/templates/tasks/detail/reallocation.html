@@ -78,7 +78,7 @@
         {% include "tasks/detail/_task_new_message_field.html" %}
         {% endif %}
 
-        {% include "tasks/detail/_task_timeline.html" with standalone_message_form=not can_edit and not can_edit_coordinator_steps %}
+        {% include "tasks/detail/_task_timeline.html" %}
 
         <div class="form-actions">
             {% if can_edit or can_edit_coordinator_steps %}

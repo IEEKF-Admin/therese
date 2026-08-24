@@ -22,6 +22,7 @@ from apps.tasks.models import (
 from apps.tasks.recruitment_form_helpers import (
     add_limitation_reason_template_field,
     apply_recruitment_field_defaults,
+    apply_single_row_workhours_default,
     configure_recruitment_job_field,
     configure_recruitment_payscale_fields,
     strip_limitation_reason_template,
@@ -65,32 +66,29 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         self.empty_permitted = True
         if 'workhours_percentage' in self.fields:
             self.fields['workhours_percentage'].label = 'Percentage of Workhours'
+            self.fields['workhours_percentage'].required = False
         if 'plan_position_number' in self.fields:
             self.fields['plan_position_number'].label = 'Plan Position Number'
             self.fields['plan_position_number'].required = False
         # INTERNAL_FIELDS must not block empty placeholder rows in the formset.
         for field_name, field in self.fields.items():
-            if field_name in self.INTERNAL_FIELDS or field_name == 'plan_position_number':
+            if field_name in self.INTERNAL_FIELDS or field_name in (
+                'plan_position_number', 'workhours_percentage',
+            ):
                 field.required = False
             else:
                 field.required = True
 
     def _is_empty_row(self, cleaned_data=None):
-        """True when funding source and percentage are unset on this inline row."""
+        """True when no funding source is set (percentage may be prefilled)."""
         if cleaned_data is not None:
             if not cleaned_data:
                 return True
-            for field_name, value in cleaned_data.items():
-                if field_name in self.INTERNAL_FIELDS or field_name == 'plan_position_number':
-                    continue
-                if value not in (None, ''):
-                    return False
-            return True
+            return not cleaned_data.get('funding_source')
         if not self.is_bound:
             return not (self.instance and self.instance.pk)
         source = self.data.get(self.add_prefix('funding_source'), '').strip()
-        percentage = self.data.get(self.add_prefix('workhours_percentage'), '').strip()
-        return not source and not percentage
+        return not source
 
     def full_clean(self):
         # Blank extra rows skip validation (same pattern as PurchaseItemForm).
@@ -110,9 +108,7 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         if not cleaned_data.get('funding_source'):
             self.add_error('funding_source', 'PSP element or cost center is required.')
         percentage = cleaned_data.get('workhours_percentage')
-        if percentage in (None, ''):
-            self.add_error('workhours_percentage', 'Percentage of workhours is required.')
-        else:
+        if percentage not in (None, ''):
             try:
                 percentage_value = Decimal(str(percentage))
             except Exception:
@@ -149,6 +145,7 @@ class BaseRecruitmentFundingFormSet(BaseInlineFormSet):
             self.contract_dates,
             is_creation=self.is_creation,
         )
+        apply_single_row_workhours_default(self)
 
 
 RecruitmentFundingFormSet = inlineformset_factory(
@@ -156,9 +153,9 @@ RecruitmentFundingFormSet = inlineformset_factory(
     RecruitmentFundingAllocation,
     form=RecruitmentFundingAllocationForm,
     formset=BaseRecruitmentFundingFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
-    min_num=0,
+    min_num=1,
     validate_min=False,
 )
 
@@ -177,7 +174,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'prefix', 'first_name', 'last_name', 'gender', 'date_of_birth',
             'country_of_origin', 'place_of_birth', 'email_private',
             'private_phone_number', 'street', 'house_number', 'postal_code',
-            'city', 'country', 'job', 'working_as', 'pay_scale_group',
+            'city', 'country', 'qualification', 'job', 'working_as', 'pay_scale_group',
             'experience_level', 'monthly_salary', 'weekly_hours',
             'valid_from', 'valid_until', 'limitation_reason',
             'cv_file', 'latest_degree_certificate_file',
@@ -290,6 +287,17 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 'min': '0',
                 'data-recruitment-weekly-hours': 'true',
             })
+            if self.is_creation and not self.data and not self.initial.get('weekly_hours'):
+                from apps.core.models import GlobalSetting
+                default_hours = GlobalSetting.get_default_weekly_hours()
+                self.fields['weekly_hours'].initial = default_hours
+                self.initial['weekly_hours'] = default_hours
+        if 'qualification' in self.fields:
+            self.fields['qualification'].required = False
+            self.fields['qualification'].widget = forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+            })
 
     def clean_experience_level(self):
         value = self.cleaned_data.get('experience_level')
@@ -374,6 +382,7 @@ class RecruitmentJobForm(forms.ModelForm):
         fields = [
             'name',
             'help_text',
+            'dropdown_help_text',
             'pay_scale_group',
             'experience_level',
             'estimated_monthly_salary',
@@ -386,6 +395,11 @@ class RecruitmentJobForm(forms.ModelForm):
                 'rows': 4,
                 'placeholder': 'Optional guidance shown when this job is selected…',
             }),
+            'dropdown_help_text': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Shown when hovering this job in the recruitment dropdown…',
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'estimated_monthly_salary': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -397,6 +411,7 @@ class RecruitmentJobForm(forms.ModelForm):
         labels = {
             'name': 'Job name',
             'help_text': 'Help text for recruitment form',
+            'dropdown_help_text': 'Dropdown hover text',
             'pay_scale_group': 'Pay scale group',
             'experience_level': 'Experience level',
             'estimated_monthly_salary': 'Estimated monthly salary (100% workload)',
@@ -429,6 +444,11 @@ class RecruitmentJobForm(forms.ModelForm):
                 self.fields['pay_scale_group'].initial = self.instance.pay_scale_group
             if self.instance.experience_level is not None:
                 self.fields['experience_level'].initial = str(self.instance.experience_level)
+        if self.instance and getattr(self.instance, 'is_standard', False):
+            self.fields['name'].disabled = True
+            self.fields['name'].help_text = 'The Standard job cannot be renamed.'
+            self.fields['is_active'].disabled = True
+            self.fields['is_active'].initial = True
 
     def clean_experience_level(self):
         value = self.cleaned_data.get('experience_level')
@@ -460,6 +480,9 @@ class RecruitmentJobForm(forms.ModelForm):
         elif has_estimate:
             cleaned['pay_scale_group'] = ''
             cleaned['experience_level'] = None
+        if self.instance and getattr(self.instance, 'is_standard', False):
+            cleaned['name'] = 'Standard'
+            cleaned['is_active'] = True
         return cleaned
 
 
@@ -486,5 +509,6 @@ class LimitationReasonForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['jobs'].queryset = RecruitmentJob.objects.filter(is_active=True).order_by('name')
+        from apps.tasks.recruitment_config import visible_recruitment_jobs
+        self.fields['jobs'].queryset = visible_recruitment_jobs()
         self.fields['jobs'].required = False

@@ -27,11 +27,25 @@
         </div>
     </div>
 
+    {% if is_standard_job %}
+    <p class="helptext" style="margin-bottom: 1.5rem;">
+        This is the hidden <strong>Standard</strong> job. Other jobs inherit these settings until they override them.
+        It is never shown in recruitment dropdowns or employee job lists.
+    </p>
+    {% endif %}
+
     <div class="aligned-field" style="margin-bottom: 1.5rem;">
         <label for="{{ form.help_text.id_for_label }}">{{ form.help_text.label }}</label>
         {{ form.help_text }}
         {% if form.help_text.errors %}<div class="text-danger">{{ form.help_text.errors }}</div>{% endif %}
         <small class="field-hint-de">Hilfetext — wird im Recruitment-Task unter der Job-Auswahl angezeigt</small>
+    </div>
+
+    <div class="aligned-field" style="margin-bottom: 1.5rem;">
+        <label for="{{ form.dropdown_help_text.id_for_label }}">{{ form.dropdown_help_text.label }}</label>
+        {{ form.dropdown_help_text }}
+        {% if form.dropdown_help_text.errors %}<div class="text-danger">{{ form.dropdown_help_text.errors }}</div>{% endif %}
+        <small class="field-hint-de">Hover-Text im Job-Dropdown beim Erstellen eines Recruitment-Tasks</small>
     </div>
 
     <h3>Salary default (TV-L <em>or</em> estimated)</h3>
@@ -75,6 +89,7 @@
             <span>Visibility condition</span>
             <span>Required</span>
             <span>Required condition</span>
+            <span>Explanation text</span>
         </div>
         {% for row in field_rules %}
         <div class="job-rules-row">
@@ -89,13 +104,25 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="rule-duration-group" data-field="{{ row.field_key }}" data-kind="visibility">
-                <select name="rule_{{ row.field_key }}_visibility_operator" class="form-control form-control-sm">
-                    {% for value, label in duration_operators %}
-                    <option value="{{ value }}" {% if row.visibility_duration_operator == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <input type="number" min="0" name="rule_{{ row.field_key }}_visibility_months" class="form-control form-control-sm" value="{{ row.visibility_duration_months }}" placeholder="Months">
+            <div>
+                <div class="rule-duration-group" data-field="{{ row.field_key }}" data-kind="visibility">
+                    <select name="rule_{{ row.field_key }}_visibility_operator" class="form-control form-control-sm">
+                        {% for value, label in duration_operators %}
+                        <option value="{{ value }}" {% if row.visibility_duration_operator == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" min="0" name="rule_{{ row.field_key }}_visibility_months" class="form-control form-control-sm" value="{{ row.visibility_duration_months }}" placeholder="Months">
+                </div>
+                <div class="rule-trigger-group" data-field="{{ row.field_key }}" data-kind="visibility">
+                    <select name="rule_{{ row.field_key }}_visibility_trigger_field" class="form-control form-control-sm">
+                        <option value="">— Select field —</option>
+                        {% for trigger_key, trigger_en, trigger_de in trigger_fields %}
+                        {% if trigger_key != row.field_key %}
+                        <option value="{{ trigger_key }}" {% if row.visibility_trigger_field == trigger_key %}selected{% endif %}>{{ trigger_en }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div>
                 <select name="rule_{{ row.field_key }}_required_mode" class="form-control form-control-sm rule-required-mode" data-field="{{ row.field_key }}">
@@ -111,6 +138,9 @@
                     {% endfor %}
                 </select>
                 <input type="number" min="0" name="rule_{{ row.field_key }}_required_months" class="form-control form-control-sm" value="{{ row.required_duration_months }}" placeholder="Months">
+            </div>
+            <div>
+                <textarea name="rule_{{ row.field_key }}_help_text" class="form-control form-control-sm" rows="2" placeholder="{% if is_standard_job %}Explanation shown under this field{% else %}Leave empty to use Standard{% endif %}">{{ row.help_text }}</textarea>
             </div>
         </div>
         {% endfor %}
@@ -207,9 +237,13 @@
     function toggleDurationGroups() {
         document.querySelectorAll('.rule-visibility-mode').forEach(function(select) {
             const field = select.dataset.field;
-            const group = document.querySelector('.rule-duration-group[data-field="' + field + '"][data-kind="visibility"]');
-            if (group) {
-                group.style.display = select.value === 'when_duration' ? 'grid' : 'none';
+            const durationGroup = document.querySelector('.rule-duration-group[data-field="' + field + '"][data-kind="visibility"]');
+            const triggerGroup = document.querySelector('.rule-trigger-group[data-field="' + field + '"]');
+            if (durationGroup) {
+                durationGroup.style.display = select.value === 'when_duration' ? 'grid' : 'none';
+            }
+            if (triggerGroup) {
+                triggerGroup.style.display = select.value === 'when_field_set' ? 'block' : 'none';
             }
         });
         document.querySelectorAll('.rule-required-mode').forEach(function(select) {

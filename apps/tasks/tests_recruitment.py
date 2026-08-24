@@ -8,9 +8,12 @@ from apps.tasks.recruitment_config import (
     RequiredMode,
     DurationOperator,
     contract_duration_months,
+    get_effective_rules_for_job,
     is_field_required,
     is_field_visible,
     limitation_reasons_for_job,
+    serialize_all_job_rules,
+    visible_recruitment_jobs,
 )
 
 
@@ -127,6 +130,45 @@ class RecruitmentJobSalaryTests(TestCase):
         task.weekly_hours = None
         # 4000 * 1.0 * 1.3 = 5200
         self.assertEqual(task.get_estimated_monthly_costs(), Decimal('5200.00'))
+
+
+class StandardJobInheritanceTests(TestCase):
+    def test_standard_job_exists_and_is_hidden(self):
+        from apps.tasks.models import RecruitmentJob
+
+        standard = RecruitmentJob.objects.get(is_standard=True)
+        self.assertEqual(standard.name, 'Standard')
+        self.assertNotIn(standard, list(visible_recruitment_jobs()))
+        self.assertNotIn(str(standard.pk), serialize_all_job_rules())
+
+    def test_unset_job_inherits_limitation_when_end_date_set(self):
+        from apps.tasks.models import RecruitmentJob
+
+        job = RecruitmentJob.objects.create(name='Inherited job')
+        rules = get_effective_rules_for_job(job)
+        limitation = rules['limitation_reason']
+        self.assertEqual(limitation.visibility_mode, VisibilityMode.WHEN_FIELD_SET)
+        self.assertEqual(limitation.visibility_trigger_field, 'valid_until')
+        self.assertFalse(is_field_visible(limitation, None, field_values={'valid_until': None}))
+        self.assertTrue(is_field_visible(
+            limitation, None, field_values={'valid_until': date(2026, 12, 31)},
+        ))
+
+    def test_job_override_beats_standard(self):
+        from apps.tasks.models import RecruitmentJob, RecruitmentJobFieldRule
+
+        job = RecruitmentJob.objects.create(name='Override job')
+        RecruitmentJobFieldRule.objects.create(
+            job=job,
+            field_key='limitation_reason',
+            visibility_mode=VisibilityMode.NEVER,
+            required_mode=RequiredMode.NEVER,
+        )
+        rules = get_effective_rules_for_job(job)
+        self.assertEqual(rules['limitation_reason'].visibility_mode, VisibilityMode.NEVER)
+        self.assertFalse(is_field_visible(rules['limitation_reason'], None, field_values={
+            'valid_until': date(2026, 12, 31),
+        }))
 
 
 class LimitationReasonFilterTests(TestCase):

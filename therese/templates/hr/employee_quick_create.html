@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Add new Employee - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Add new Employee</h1>
+    <div class="page-header-actions">
+        <a href="{{ cancel_url }}" class="btn-secondary">← Cancel</a>
+    </div>
+</div>
+
+<div class="card">
+    <p style="color:#64748b; margin-bottom:1.25rem;">
+        Only the fields required to store an employee record.
+        <small class="field-hint-de" style="display:block; margin-top:0.25rem;">Nur die datenbanksseitig erforderlichen Angaben</small>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom:1rem;">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="aligned-field">
+            <label for="{{ form.employee_number.id_for_label }}">{{ form.employee_number.label }} <span style="color:#ef4444;">*</span></label>
+            {% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number }}{% endif %}
+            {{ form.employee_number.errors }}
+            <small class="field-hint-de">Personalnummer</small>
+        </div>
+
+        <div class="aligned-field">
+            <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }} <span style="color:#ef4444;">*</span></label>
+            {% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name }}{% endif %}
+            {{ form.first_name.errors }}
+            <small class="field-hint-de">Vorname</small>
+        </div>
+
+        <div class="aligned-field">
+            <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }} <span style="color:#ef4444;">*</span></label>
+            {% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name }}{% endif %}
+            {{ form.last_name.errors }}
+            <small class="field-hint-de">Nachname</small>
+        </div>
+
+        {% if show_work_group and form.work_group %}
+        <div class="aligned-field">
+            <label for="{{ form.work_group.id_for_label }}">{{ form.work_group.label }} <span style="color:#ef4444;">*</span></label>
+            {% if form.work_group.errors %}{{ form.work_group|add_class:"form-select error" }}{% else %}{{ form.work_group }}{% endif %}
+            {{ form.work_group.errors }}
+            <small class="field-hint-de">Arbeitsgruppe</small>
+        </div>
+        {% endif %}
+
+        <div class="form-actions" style="margin-top:1.5rem;">
+            <button type="submit" class="btn-primary">Create Employee</button>
+            <a href="{{ cancel_url }}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

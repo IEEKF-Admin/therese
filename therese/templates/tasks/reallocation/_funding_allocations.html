@@ -11,7 +11,7 @@
 
     {% if can_edit|default:True %}
         {{ funding_formset.management_form }}
-        <div id="reallocation-funding-container">
+        <div id="reallocation-funding-container" class="funding-percentage-container">
             {% for fform in funding_formset %}
             <div class="inline-form-row funding-row reallocation-funding-row">
                 {{ fform.id }}
@@ -20,7 +20,7 @@
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}
                 </div>
-                <div class="inline-field">
+                <div class="inline-field funding-percentage-field">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control" }}{% endif %}
                 </div>
@@ -48,7 +48,7 @@
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {{ fform.funding_source|add_class:"form-control" }}
                 </div>
-                <div class="inline-field">
+                <div class="inline-field funding-percentage-field">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {{ fform.workhours_percentage|add_class:"form-control" }}
                 </div>
@@ -103,7 +103,13 @@
                 });
                 container.appendChild(clone);
                 totalInput.value = newIndex + 1;
+                if (typeof window.syncFundingPercentageColumns === 'function') {
+                    window.syncFundingPercentageColumns();
+                }
             };
+            if (typeof window.syncFundingPercentageColumns === 'function') {
+                window.syncFundingPercentageColumns();
+            }
         })();
         </script>
     {% else %}

@@ -22,6 +22,11 @@
             <div class="aligned-field">
                 <label>Employee <span style="color:#ef4444;">*</span></label>
                 {{ form.employee|add_class:"form-control" }}
+                {% if show_add_employee_button and add_employee_url %}
+                <a href="{{ add_employee_url }}" class="btn-secondary" style="margin-top:0.5rem; display:inline-block;">
+                    Add new Employee
+                </a>
+                {% endif %}
             </div>
         </div>
 

@@ -210,16 +210,28 @@ class RecruitmentFundingInline(admin.TabularInline):
 @admin.register(RecruitmentJob, site=therese_admin)
 class RecruitmentJobAdmin(admin.ModelAdmin):
     list_display = (
-        'name', 'pay_scale_group', 'experience_level',
+        'name', 'is_standard', 'pay_scale_group', 'experience_level',
         'estimated_monthly_salary', 'is_active',
     )
     search_fields = ('name', 'pay_scale_group')
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if request.GET.get('app_label') == 'hr' or 'autocomplete' in request.path:
+            queryset = queryset.filter(is_standard=False)
+        return queryset, use_distinct
 
 
 @admin.register(LimitationReason, site=therese_admin)
 class LimitationReasonAdmin(admin.ModelAdmin):
     list_display = ('title', 'applies_to_all_jobs', 'is_active')
     filter_horizontal = ('jobs',)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == 'jobs':
+            from apps.tasks.recruitment_config import visible_recruitment_jobs
+            kwargs['queryset'] = visible_recruitment_jobs()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 @admin.register(PersonnelRecruitmentTask, site=therese_admin)

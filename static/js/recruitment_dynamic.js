@@ -33,6 +33,18 @@
         return false;
     }
 
+    function getNamedFieldValue(fieldKey) {
+        const wrapper = document.querySelector(`[data-recruitment-field="${fieldKey}"]`);
+        const input = wrapper
+            ? wrapper.querySelector('input:not([type="hidden"]):not([type="checkbox"]), select, textarea')
+            : document.querySelector(`[name="${fieldKey}"]`);
+        if (!input) return '';
+        if (input.type === 'file') {
+            return input.files && input.files.length ? 'file' : '';
+        }
+        return String(input.value || '').trim();
+    }
+
     function evaluateVisibility(rule, months) {
         if (!rule) return true;
         if (rule.visibility_mode === 'never') return false;
@@ -42,6 +54,11 @@
                 rule.visibility_duration_operator,
                 rule.visibility_duration_months,
             );
+        }
+        if (rule.visibility_mode === 'when_field_set') {
+            const trigger = rule.visibility_trigger_field;
+            if (!trigger) return false;
+            return Boolean(getNamedFieldValue(trigger));
         }
         return true;
     }
@@ -120,6 +137,33 @@
             const required = visible && evaluateRequired(rule, months, fieldKey, defaults);
             setFieldVisibility(fieldKey, visible);
             setFieldRequired(fieldKey, required);
+        });
+        document.querySelectorAll('.form-section').forEach(function(section) {
+            const fields = section.querySelectorAll('[data-recruitment-field]');
+            if (!fields.length) return;
+            const anyVisible = Array.prototype.some.call(fields, function(field) {
+                return field.style.display !== 'none';
+            });
+            section.style.display = anyVisible ? '' : 'none';
+        });
+        updateFieldHelpTexts(config);
+    }
+
+    function updateFieldHelpTexts(config) {
+        const jobId = getSelectedJobId();
+        const jobRules = jobId && config.jobRules && config.jobRules[jobId] ? config.jobRules[jobId] : {};
+        Object.keys(config.allFieldKeys || {}).forEach(function(fieldKey) {
+            const text = ((jobRules[fieldKey] && jobRules[fieldKey].help_text) || '').trim();
+            document.querySelectorAll(`[data-recruitment-field="${fieldKey}"]`).forEach(function(wrapper) {
+                let help = wrapper.querySelector('.field-explanation-text');
+                if (!help) {
+                    help = document.createElement('small');
+                    help.className = 'field-explanation-text';
+                    wrapper.appendChild(help);
+                }
+                help.textContent = text;
+                help.style.display = text ? '' : 'none';
+            });
         });
     }
 
@@ -253,7 +297,8 @@
         }
     }
 
-    function applyJobPayscaleDefaults(config) {
+    function applyJobPayscaleDefaults(config, options) {
+        const force = options && options.force;
         const selects = getPayscaleSelects();
         const salaryInput = getMonthlySalaryInput();
         const jobId = getSelectedJobId();
@@ -274,7 +319,7 @@
             if (selects.level) {
                 rebuildExperienceLevelOptions(config, '', '');
             }
-            if (salaryInput && !salaryInput.value) {
+            if (salaryInput && (force || !salaryInput.value)) {
                 salaryInput.value = jobData.estimated_salary;
             }
             return;
@@ -283,14 +328,22 @@
         if (!selects.group || !selects.level) {
             return;
         }
-        if (!selects.group.value && jobData.pay_scale_group) {
-            selects.group.value = jobData.pay_scale_group;
+        if (force || !selects.group.value) {
+            selects.group.value = jobData.pay_scale_group || '';
         }
         const group = selects.group.value;
-        const preferredLevel = selects.level.value || jobData.experience_level;
+        const preferredLevel = force
+            ? (jobData.experience_level !== null && jobData.experience_level !== undefined
+                ? String(jobData.experience_level)
+                : '')
+            : (selects.level.value || jobData.experience_level);
         rebuildExperienceLevelOptions(config, group, preferredLevel);
-        if (!selects.level.value && jobData.experience_level !== null && jobData.experience_level !== undefined) {
-            selects.level.value = String(jobData.experience_level);
+        if (force || !selects.level.value) {
+            if (jobData.experience_level !== null && jobData.experience_level !== undefined) {
+                selects.level.value = String(jobData.experience_level);
+            } else if (force) {
+                selects.level.value = '';
+            }
         }
     }
 
@@ -388,25 +441,118 @@
         });
     }
 
+    function initJobDropdownHover(config) {
+        const select = document.querySelector('[data-recruitment-job]');
+        if (!select || select.dataset.customDropdown === 'true') {
+            return;
+        }
+        if (!config.jobPayscale) {
+            return;
+        }
+        select.dataset.customDropdown = 'true';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'job-custom-select';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+        select.classList.add('job-native-select');
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'job-select-toggle form-control';
+        toggle.setAttribute('aria-haspopup', 'listbox');
+
+        const menu = document.createElement('ul');
+        menu.className = 'job-select-menu';
+        menu.setAttribute('role', 'listbox');
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'job-hover-tooltip';
+        tooltip.hidden = true;
+
+        function selectedLabel() {
+            const option = select.options[select.selectedIndex];
+            return option ? option.textContent : '— Select job —';
+        }
+
+        function hideTooltip() {
+            tooltip.hidden = true;
+            tooltip.textContent = '';
+        }
+
+        function rebuildMenu() {
+            menu.innerHTML = '';
+            Array.prototype.forEach.call(select.options, function(option) {
+                const item = document.createElement('li');
+                item.setAttribute('role', 'option');
+                item.dataset.value = option.value;
+                item.textContent = option.textContent;
+                const jobData = option.value && config.jobPayscale[option.value];
+                const hoverText = jobData ? (jobData.dropdown_help_text || '').trim() : '';
+                item.dataset.hover = hoverText;
+                if (option.value === select.value) {
+                    item.classList.add('is-selected');
+                }
+                item.addEventListener('mouseenter', function() {
+                    if (hoverText) {
+                        tooltip.textContent = hoverText;
+                        tooltip.hidden = false;
+                    } else {
+                        hideTooltip();
+                    }
+                });
+                item.addEventListener('mouseleave', hideTooltip);
+                item.addEventListener('click', function() {
+                    select.value = option.value;
+                    toggle.textContent = option.textContent;
+                    menu.classList.remove('is-open');
+                    hideTooltip();
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                menu.appendChild(item);
+            });
+            toggle.textContent = selectedLabel();
+        }
+
+        toggle.addEventListener('click', function(event) {
+            event.preventDefault();
+            menu.classList.toggle('is-open');
+        });
+        document.addEventListener('click', function(event) {
+            if (!wrapper.contains(event.target)) {
+                menu.classList.remove('is-open');
+                hideTooltip();
+            }
+        });
+
+        wrapper.appendChild(toggle);
+        wrapper.appendChild(menu);
+        wrapper.appendChild(tooltip);
+        rebuildMenu();
+        select.addEventListener('change', function() {
+            toggle.textContent = selectedLabel();
+        });
+    }
+
     window.initRecruitmentDynamicForm = function(config) {
         if (!config) return;
 
-        function refresh() {
+        function refresh(options) {
             if (config.enableJobRules) {
                 applyJobFieldRules(config);
             }
             if (config.enableLimitationTemplates) {
                 rebuildLimitationTemplateOptions(config);
             }
-            applyJobPayscaleDefaults(config);
+            applyJobPayscaleDefaults(config, options);
             syncMonthlySalaryField(config);
         }
 
         initPayscaleFields(config);
+        initJobDropdownHover(config);
 
         document.addEventListener('change', function(event) {
             if (event.target.matches('[data-recruitment-job]')) {
-                refresh();
+                refresh({ force: true });
             }
             if (event.target.matches('[data-recruitment-payscale-group], [data-recruitment-experience-level]')) {
                 syncMonthlySalaryField(config);
@@ -418,6 +564,9 @@
             }
             if (event.target.matches('[data-limitation-template]')) {
                 applyLimitationTemplate(config);
+            }
+            if (config.enableJobRules && event.target.closest('[data-recruitment-field]')) {
+                applyJobFieldRules(config);
             }
         });
 
@@ -432,6 +581,9 @@
                 + '[data-recruitment-weekly-hours], [name="weekly_hours"]'
             )) {
                 updateMonthlyCostsHint();
+            }
+            if (config.enableJobRules && event.target.closest('[data-recruitment-field]')) {
+                applyJobFieldRules(config);
             }
         });
 

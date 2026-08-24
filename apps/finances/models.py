@@ -107,6 +107,14 @@ class ContactPerson(BaseModel):
 class CostCenter(BaseModel):
     cost_center = models.CharField(max_length=50, unique=True, verbose_name="Cost Center")
     comments = models.TextField(blank=True, verbose_name="Comments")
+    work_group = models.ForeignKey(
+        'hr.Workgroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Work Group",
+        related_name='cost_centers',
+    )
     contact_person = models.ForeignKey(
         ContactPerson,
         on_delete=models.SET_NULL,
@@ -158,7 +166,11 @@ class CostCenter(BaseModel):
         verbose_name_plural = "Cost Centers"
         ordering = ['cost_center']
         permissions = [
-            ("manage_cost_center", "Can manage cost centers"),
+            ("manage_cost_center", "Can manage cost centers in own workgroups"),
+            (
+                "manage_all_cost_centers",
+                "Can manage all cost centers institute-wide (ignore workgroup scope)",
+            ),
         ]
 
     def __str__(self):
@@ -280,7 +292,7 @@ class WBSElement(BaseModel):
 
     class Meta:
         verbose_name = "PSP Element"
-        verbose_name_plural = "PSP Elements"
+        verbose_name_plural = "Funding analysis"
         ordering = ['wbs_code']
         permissions = [
             (

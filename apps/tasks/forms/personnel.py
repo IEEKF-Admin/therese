@@ -46,6 +46,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
         self.empty_permitted = True
         if 'workhours_percentage' in self.fields:
             self.fields['workhours_percentage'].label = 'Percentage of Workhours'
+            self.fields['workhours_percentage'].required = False
         if 'plan_position_number' in self.fields:
             self.fields['plan_position_number'].label = 'Plan Position Number'
             self.fields['plan_position_number'].required = False
@@ -55,6 +56,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
             if field_name in self.INTERNAL_FIELDS or field_name in (
                 'plan_position_number',
                 'notes',
+                'workhours_percentage',
             ):
                 field.required = False
             else:
@@ -64,20 +66,11 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
         if cleaned_data is not None:
             if not cleaned_data:
                 return True
-            for field_name, value in cleaned_data.items():
-                if field_name in self.INTERNAL_FIELDS or field_name in (
-                    'plan_position_number',
-                    'notes',
-                ):
-                    continue
-                if value not in (None, ''):
-                    return False
-            return True
+            return not cleaned_data.get('funding_source')
         if not self.is_bound:
             return not (self.instance and self.instance.pk)
         source = self.data.get(self.add_prefix('funding_source'), '').strip()
-        percentage = self.data.get(self.add_prefix('workhours_percentage'), '').strip()
-        return not source and not percentage
+        return not source
 
     def full_clean(self):
         if self._is_empty_row():
@@ -95,9 +88,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
         if not cleaned_data.get('funding_source'):
             self.add_error('funding_source', 'PSP element or cost center is required.')
         percentage = cleaned_data.get('workhours_percentage')
-        if percentage in (None, ''):
-            self.add_error('workhours_percentage', 'Percentage of workhours is required.')
-        else:
+        if percentage not in (None, ''):
             try:
                 percentage_value = Decimal(str(percentage))
             except Exception:
@@ -128,6 +119,8 @@ class BaseReallocationFundingFormSet(BaseInlineFormSet):
         ]
         if not active:
             raise forms.ValidationError('At least one funding allocation is required.')
+        from apps.tasks.recruitment_form_helpers import apply_single_row_workhours_default
+        apply_single_row_workhours_default(self)
 
 
 ReallocationFundingFormSet = inlineformset_factory(
@@ -135,9 +128,9 @@ ReallocationFundingFormSet = inlineformset_factory(
     ReallocationFundingAllocation,
     form=ReallocationFundingAllocationForm,
     formset=BaseReallocationFundingFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
-    min_num=0,
+    min_num=1,
     validate_min=False,
 )
 

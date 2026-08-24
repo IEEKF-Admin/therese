@@ -7,7 +7,7 @@
 
     {% if can_edit_fields|default:True %}
         {{ funding_formset.management_form }}
-        <div id="recruitment-funding-container">
+        <div id="recruitment-funding-container" class="funding-percentage-container">
             {% for fform in funding_formset %}
             <div class="recruitment-funding-row inline-form-row funding-row">
                 {{ fform.id }}
@@ -17,7 +17,7 @@
                     {% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}
                     <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
-                <div class="inline-field">
+                <div class="inline-field funding-percentage-field">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control" }}{% endif %}
                     <small class="field-hint-de">Prozent der Wochenarbeitszeit</small>
@@ -44,7 +44,7 @@
                     {{ fform.funding_source|add_class:"form-control" }}
                     <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
-                <div class="inline-field">
+                <div class="inline-field funding-percentage-field">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {{ fform.workhours_percentage|add_class:"form-control" }}
                     <small class="field-hint-de">Prozent der Wochenarbeitszeit</small>

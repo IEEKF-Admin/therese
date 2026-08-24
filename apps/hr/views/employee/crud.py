@@ -6,14 +6,17 @@ Do not remove any existing requirements from this module without explicit instru
 
 from datetime import date
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import models
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.generic import CreateView, UpdateView
 
-from ...forms import EmployeeForm
+from ...forms import EmployeeForm, MinimalEmployeeCreateForm
 from ...models import Employee
 from ..employee_form_helpers import (
     ContractFormSet,
@@ -31,7 +34,9 @@ from apps.hr.employee_access import (
     user_can_manage_employee,
     user_can_manage_employees,
     user_can_view_employee_list,
+    user_is_employees_manage_all_group,
 )
+from apps.hr.workgroup_access import get_user_workgroups
 from apps.tasks.utils import can_create_employee_from_recruitment
 from .common import (
     current_payscales_json,
@@ -252,6 +257,13 @@ def _safe_next_url(request, default='/hr/employees/'):
     return default
 
 
+def _url_with_query(url, **params):
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update({key: str(value) for key, value in params.items() if value is not None})
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
 def _is_active_from_post(cform, data, inst):
     is_existing = bool(getattr(inst, 'pk', None))
     if not is_existing:
@@ -446,6 +458,43 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         finalize_recruitment_task(self.request, employee)
         messages.success(self.request, "Employee successfully created.")
         return redirect(_safe_next_url(self.request, self.success_url))
+
+
+class MinimalEmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Create an employee with only employee number and name."""
+
+    model = Employee
+    form_class = MinimalEmployeeCreateForm
+    template_name = 'hr/employee_quick_create.html'
+
+    def test_func(self):
+        return user_can_manage_employees(self.request.user)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
+        context['cancel_url'] = _safe_next_url(self.request, reverse('hr:employee_list'))
+        context['show_work_group'] = user_is_employees_manage_all_group(self.request.user)
+        return context
+
+    def form_valid(self, form):
+        employee = form.save()
+        work_group = form.cleaned_data.get('work_group') if form.show_work_group else None
+        if work_group is None:
+            work_group = get_user_workgroups(self.request.user).order_by('short_name').first()
+        if work_group is not None:
+            work_group.members.add(employee)
+        messages.success(
+            self.request,
+            f'Employee "{employee.get_full_name()}" was created.',
+        )
+        next_url = _safe_next_url(self.request, reverse('hr:employee_list'))
+        return redirect(_url_with_query(next_url, employee=employee.pk))
 
 
 class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):

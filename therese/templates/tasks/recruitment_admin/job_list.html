@@ -23,7 +23,10 @@
     <tbody>
         {% for job in jobs %}
         <tr>
-            <td>{{ job.name }}</td>
+            <td>
+                {{ job.name }}
+                {% if job.is_standard %}<span class="job-standard-badge">Standard</span>{% endif %}
+            </td>
             <td>
                 {% if job.pay_scale_group and job.experience_level %}
                     {{ job.pay_scale_group }} / {{ job.experience_level }}
@@ -35,7 +38,9 @@
             <td>{{ job.field_rules.count }}</td>
             <td>
                 <a href="{% url 'tasks:recruitment_job_update' job.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                {% if not job.is_standard %}
                 <a href="{% url 'tasks:recruitment_job_delete' job.pk %}" class="action-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                {% endif %}
             </td>
         </tr>
         {% empty %}

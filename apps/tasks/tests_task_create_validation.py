@@ -172,6 +172,15 @@ class RecruitmentFundingFormsetTests(TestCase):
         data.update(overrides)
         return data
 
+    def test_single_row_defaults_percentage_to_100(self):
+        data = self._funding_data(**{'funding_allocations-0-workhours_percentage': ''})
+        formset = RecruitmentFundingFormSet(data, is_creation=True)
+        self.assertTrue(formset.is_valid(), formset.errors)
+        self.assertEqual(
+            formset.forms[0].cleaned_data['workhours_percentage'],
+            Decimal('100'),
+        )
+
     def test_formset_does_not_require_id_for_new_allocations(self):
         formset = RecruitmentFundingFormSet(self._funding_data(), is_creation=True)
         self.assertTrue(formset.is_valid(), formset.errors)

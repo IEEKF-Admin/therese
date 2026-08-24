@@ -207,6 +207,14 @@ class GlobalSetting(models.Model):
             "than the latest imported report. Use only for recovery/admin."
         ),
     )
+    show_add_employee_on_reallocation = models.BooleanField(
+        default=True,
+        verbose_name="Show “Add new Employee” on reallocation",
+        help_text=(
+            "When enabled, the personnel reallocation create form shows a button "
+            "to create a new employee with the minimal required fields."
+        ),
+    )
     CHEMICAL_HAZARD_THRESHOLD_CHOICES = [
         ('any_ghs', 'Any GHS signal, H-code, or pictogram'),
         ('signal_warning_or_danger', 'GHS signal Warning or Danger'),
@@ -257,6 +265,10 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_irresponsible(cls) -> bool:
         return bool(cls.get_solo().irresponsible)
+
+    @classmethod
+    def get_show_add_employee_on_reallocation(cls) -> bool:
+        return bool(cls.get_solo().show_add_employee_on_reallocation)
 
     @classmethod
     def get_chemical_hazard_threshold(cls):

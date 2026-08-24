@@ -393,11 +393,22 @@ class RecruitmentJob(BaseModel):
     """Configurable job type for personnel recruitment tasks."""
     name = models.CharField(max_length=200, unique=True, verbose_name="Job Name")
     is_active = models.BooleanField(default=True, verbose_name="Active")
+    is_standard = models.BooleanField(
+        default=False,
+        verbose_name="Standard job",
+        help_text="Hidden template job. Other jobs inherit unset field rules from this job.",
+    )
     help_text = models.TextField(
         blank=True,
         default='',
         verbose_name="Help text",
         help_text="Shown in the recruitment form when this job is selected.",
+    )
+    dropdown_help_text = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Dropdown hover text",
+        help_text="Shown when hovering a job in the recruitment job dropdown.",
     )
     pay_scale_group = models.CharField(
         max_length=50,
@@ -428,12 +439,23 @@ class RecruitmentJob(BaseModel):
         permissions = [
             ("manage_recruitment_job", "Can manage recruitment jobs"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_standard'],
+                condition=models.Q(is_standard=True),
+                name='unique_standard_recruitment_job',
+            ),
+        ]
 
     def __str__(self):
         return self.name
 
     def clean(self):
         from django.core.exceptions import ValidationError
+
+        if self.is_standard:
+            self.name = 'Standard'
+            self.is_active = True
 
         has_group = bool(self.pay_scale_group)
         has_level = self.experience_level is not None
@@ -478,7 +500,7 @@ class RecruitmentJobFieldRule(BaseModel):
     field_key = models.CharField(max_length=50, verbose_name="Field Key")
     visibility_mode = models.CharField(
         max_length=20,
-        choices=VisibilityMode.CHOICES,
+        choices=VisibilityMode.CHOICES_WITH_INHERIT,
         default=VisibilityMode.ALWAYS,
         verbose_name="Visibility",
     )
@@ -493,9 +515,15 @@ class RecruitmentJobFieldRule(BaseModel):
         blank=True,
         verbose_name="Visibility Duration (months)",
     )
+    visibility_trigger_field = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name="Visible when this field is set",
+    )
     required_mode = models.CharField(
         max_length=20,
-        choices=RequiredMode.CHOICES,
+        choices=RequiredMode.CHOICES_WITH_INHERIT,
         default=RequiredMode.NEVER,
         verbose_name="Required",
     )
@@ -509,6 +537,11 @@ class RecruitmentJobFieldRule(BaseModel):
         null=True,
         blank=True,
         verbose_name="Required Duration (months)",
+    )
+    help_text = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Field help text",
     )
 
     class Meta:
@@ -575,6 +608,7 @@ class PersonnelRecruitmentTask(Task):
     postal_code = models.CharField(max_length=10, verbose_name="Postal Code")
     city = models.CharField(max_length=100, verbose_name="City")
     country = models.CharField(max_length=100, default="Germany", verbose_name="Country")
+    qualification = models.TextField(blank=True, verbose_name="Qualification")
     job = models.ForeignKey(
         RecruitmentJob,
         on_delete=models.PROTECT,
@@ -611,7 +645,7 @@ class PersonnelRecruitmentTask(Task):
         verbose_name="Weekly Working Hours",
     )
     valid_from = models.DateField(verbose_name="Contract Start Date")
-    valid_until = models.DateField(verbose_name="Contract End Date")
+    valid_until = models.DateField(null=True, blank=True, verbose_name="Contract End Date")
     limitation_reason = models.TextField(blank=True, verbose_name="Limitation Reason")
     application_file = models.FileField(
         upload_to='recruitment_tasks/application/',

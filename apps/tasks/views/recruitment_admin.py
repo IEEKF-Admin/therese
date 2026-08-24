@@ -54,7 +54,7 @@ class RecruitmentJobListView(AssistingAdminMixin, ListView):
     context_object_name = 'jobs'
 
     def get_queryset(self):
-        return RecruitmentJob.objects.all().order_by('name')
+        return RecruitmentJob.objects.all().order_by('-is_standard', 'name')
 
 
 class RecruitmentJobCreateView(AssistingAdminMixin, CreateView):
@@ -67,9 +67,11 @@ class RecruitmentJobCreateView(AssistingAdminMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Job'
         context['field_rules'] = get_field_rule_context(None)
-        context['visibility_modes'] = VisibilityMode.CHOICES
-        context['required_modes'] = RequiredMode.CHOICES
+        context['visibility_modes'] = VisibilityMode.CHOICES_WITH_INHERIT
+        context['required_modes'] = RequiredMode.CHOICES_WITH_INHERIT
         context['duration_operators'] = DurationOperator.CHOICES
+        context['trigger_fields'] = RECRUITMENT_CONFIGURABLE_FIELDS
+        context['is_standard_job'] = False
         context.update(_job_form_payscale_context())
         return context
 
@@ -90,9 +92,16 @@ class RecruitmentJobUpdateView(AssistingAdminMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Edit Job'
         context['field_rules'] = get_field_rule_context(self.object)
-        context['visibility_modes'] = VisibilityMode.CHOICES
-        context['required_modes'] = RequiredMode.CHOICES
+        is_standard = bool(self.object and self.object.is_standard)
+        context['visibility_modes'] = (
+            VisibilityMode.CHOICES if is_standard else VisibilityMode.CHOICES_WITH_INHERIT
+        )
+        context['required_modes'] = (
+            RequiredMode.CHOICES if is_standard else RequiredMode.CHOICES_WITH_INHERIT
+        )
         context['duration_operators'] = DurationOperator.CHOICES
+        context['trigger_fields'] = RECRUITMENT_CONFIGURABLE_FIELDS
+        context['is_standard_job'] = is_standard
         context.update(_job_form_payscale_context())
         return context
 
@@ -110,6 +119,9 @@ class RecruitmentJobDeleteView(AssistingAdminMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
+        if obj.is_standard:
+            messages.error(request, 'The Standard job cannot be deleted.')
+            return redirect(self.success_url)
         if obj.recruitment_tasks.exists() or obj.employees.exists():
             messages.error(
                 request,

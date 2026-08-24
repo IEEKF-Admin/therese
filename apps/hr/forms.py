@@ -135,6 +135,11 @@ class EmployeeForm(forms.ModelForm):
                 preserved_qs = PhoneNumber.objects.filter(phone_number=phone_to_preserve)
                 phone_field.queryset = (phone_field.queryset | preserved_qs).distinct()
 
+        if 'job' in self.fields:
+            from apps.tasks.recruitment_config import visible_recruitment_jobs
+            include = instance.job if instance and getattr(instance, 'job_id', None) else None
+            self.fields['job'].queryset = visible_recruitment_jobs(include=include)
+
         # Apply form-control styling to all fields
         for field in self.fields.values():
             if 'form-control' not in field.widget.attrs.get('class', ''):
@@ -167,6 +172,44 @@ class EmployeeProfileForm(EmployeeForm):
 
     class Meta(EmployeeForm.Meta):
         fields = EMPLOYEE_PROFILE_FIELDS
+
+
+class MinimalEmployeeCreateForm(forms.ModelForm):
+    """Create an employee with only the database-required identity fields."""
+
+    work_group = forms.ModelChoiceField(
+        queryset=Workgroup.objects.none(),
+        required=False,
+        empty_label='— Select work group —',
+        label='Work group',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    class Meta:
+        model = Employee
+        fields = ['employee_number', 'first_name', 'last_name']
+        widgets = {
+            'employee_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'employee_number': 'Employee number',
+            'first_name': 'First name',
+            'last_name': 'Last name',
+        }
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.hr.employee_access import user_is_employees_manage_all_group
+
+        self.user = user
+        self.show_work_group = user_is_employees_manage_all_group(user)
+        if self.show_work_group:
+            self.fields['work_group'].queryset = Workgroup.objects.order_by('short_name')
+            self.fields['work_group'].required = True
+        else:
+            self.fields.pop('work_group')
 
 
 # = INLINE FORMS =

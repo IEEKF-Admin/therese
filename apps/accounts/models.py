@@ -70,7 +70,7 @@ class LoginPopupConfig(models.Model):
         ('my_profile', 'My Profile'),
         ('my_tasks', 'My Tasks'),
         ('employee_list', 'Employees List'),
-        ('psp_elements', 'PSP Elements'),
+        ('psp_elements', 'Funding analysis'),
         ('workgroup_list', 'Working Groups'),
         ('location_management', 'Manage Locations'),
         ('my_checklists', 'My Checklists'),

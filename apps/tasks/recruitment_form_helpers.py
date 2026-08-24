@@ -12,11 +12,14 @@ from apps.tasks.recruitment_config import (
     FILE_FIELDS,
     RECRUITMENT_CONFIGURABLE_FIELDS,
     contract_duration_months,
-    get_rules_for_job,
+    get_effective_rules_for_job,
+    inherited_job_payscale,
+    inherited_job_text,
     is_field_required,
     is_field_visible,
     limitation_reasons_for_job,
     serialize_limitation_reasons,
+    visible_recruitment_jobs,
 )
 
 
@@ -94,10 +97,12 @@ def configure_recruitment_payscale_fields(form):
 
 
 def configure_recruitment_job_field(form):
-    from apps.tasks.models import RecruitmentJob
-
+    include = None
+    instance = getattr(form, 'instance', None)
+    if instance and getattr(instance, 'job_id', None):
+        include = instance.job
     form.fields['job'] = forms.ModelChoiceField(
-        queryset=RecruitmentJob.objects.filter(is_active=True).order_by('name'),
+        queryset=visible_recruitment_jobs(include=include),
         empty_label='— Select job —',
         label='Job',
         widget=forms.Select(attrs={
@@ -113,6 +118,7 @@ def apply_recruitment_field_defaults(form, *, is_creation):
         'prefix', 'initial_message', 'gender', 'private_phone_number',
         'limitation_reason', 'working_as', 'weekly_hours',
         'pay_scale_group', 'experience_level', 'monthly_salary',
+        'qualification', 'valid_until',
     }
     for field_name, field in form.fields.items():
         if field_name in optional_always:
@@ -135,31 +141,42 @@ def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files
     if not job:
         form.add_error('job', 'Please select a job.')
 
+    rules = get_effective_rules_for_job(job)
+    until_rule = rules.get('valid_until')
+    require_end = is_field_required(
+        until_rule, None, 'valid_until', is_creation=is_creation,
+    ) and is_field_visible(until_rule, None, field_values=cleaned_data)
+
     validate_contract_dates(
         form,
         cleaned_data,
         require_start=True,
-        require_end=True,
+        require_end=require_end,
     )
-
-    text_fields = [
-        'first_name', 'last_name', 'country_of_origin', 'place_of_birth',
-        'email_private', 'street', 'house_number', 'postal_code', 'city', 'country',
-    ]
-    for field_name in text_fields:
-        if field_name in form.fields:
-            require_non_empty_text(form, cleaned_data, field_name)
 
     months = contract_duration_months(
         cleaned_data.get('valid_from'),
         cleaned_data.get('valid_until'),
     )
-    rules = get_rules_for_job(job)
+    text_fields = [
+        'first_name', 'last_name', 'country_of_origin', 'place_of_birth',
+        'email_private', 'street', 'house_number', 'postal_code', 'city', 'country',
+    ]
+    for field_name in text_fields:
+        if field_name not in form.fields:
+            continue
+        rule = rules.get(field_name)
+        if not is_field_visible(rule, months, field_values=cleaned_data):
+            continue
+        if not is_field_required(rule, months, field_name, is_creation=is_creation):
+            continue
+        require_non_empty_text(form, cleaned_data, field_name)
+
     files = files or {}
 
     for field_key, label_en, _label_de in RECRUITMENT_CONFIGURABLE_FIELDS:
         rule = rules.get(field_key)
-        visible = is_field_visible(rule, months)
+        visible = is_field_visible(rule, months, field_values=cleaned_data)
         required = is_field_required(rule, months, field_key, is_creation=is_creation)
 
         if not visible:
@@ -193,7 +210,7 @@ def validate_funding_allocations_required(formset, job, cleaned_data, *, is_crea
         cleaned_data.get('valid_from'),
         cleaned_data.get('valid_until'),
     )
-    rules = get_rules_for_job(job)
+    rules = get_effective_rules_for_job(job)
     rule = rules.get('funding_allocations')
     required = is_field_required(rule, months, 'funding_allocations', is_creation=is_creation)
     if not required:
@@ -209,13 +226,36 @@ def validate_funding_allocations_required(formset, job, cleaned_data, *, is_crea
         raise forms.ValidationError('At least one funding allocation is required.')
 
 
+def apply_single_row_workhours_default(formset):
+    """One funding row: default percentage to 100. Several rows: require a value."""
+    from decimal import Decimal
+
+    active = [
+        item_form for item_form in formset.forms
+        if item_form.cleaned_data
+        and not item_form.cleaned_data.get('DELETE', False)
+        and item_form.cleaned_data.get('funding_source')
+    ]
+    if len(active) == 1:
+        percentage = active[0].cleaned_data.get('workhours_percentage')
+        if percentage in (None, ''):
+            active[0].cleaned_data['workhours_percentage'] = Decimal('100')
+            if hasattr(active[0], 'instance'):
+                active[0].instance.workhours_percentage = Decimal('100')
+        return
+    if len(active) > 1:
+        for item_form in active:
+            percentage = item_form.cleaned_data.get('workhours_percentage')
+            if percentage in (None, ''):
+                item_form.add_error('workhours_percentage', 'Percentage of workhours is required.')
+
+
 def parse_post_date(value):
     return parse_german_date(value)
 
 
 def build_recruitment_template_context():
     from apps.finances.models import PayScale
-    from apps.tasks.models import RecruitmentJob
     from apps.tasks.recruitment_config import (
         RECRUITMENT_CONFIGURABLE_FIELDS,
         serialize_all_job_rules,
@@ -224,16 +264,28 @@ def build_recruitment_template_context():
 
     field_keys = {field_key: True for field_key, _, _ in RECRUITMENT_CONFIGURABLE_FIELDS}
     job_payscale = {}
-    for job in RecruitmentJob.objects.filter(is_active=True):
-        salary = job.get_estimated_monthly_salary()
+    current_payscales = PayScale.get_current()
+    for job in visible_recruitment_jobs():
+        inherited = inherited_job_payscale(job)
+        salary = None
+        if inherited['pay_scale_group'] and inherited['experience_level'] is not None:
+            salary = (
+                current_payscales.filter(
+                    pay_scale_group=inherited['pay_scale_group'],
+                    experience_level=inherited['experience_level'],
+                )
+                .values_list('monthly_salary', flat=True)
+                .first()
+            )
+        if salary is None:
+            salary = inherited['estimated_monthly_salary']
         job_payscale[str(job.pk)] = {
-            'pay_scale_group': job.pay_scale_group or '',
-            'experience_level': job.experience_level,
+            'pay_scale_group': inherited['pay_scale_group'] or '',
+            'experience_level': inherited['experience_level'],
             'estimated_salary': str(salary) if salary is not None else None,
-            'has_fixed_estimate': job.estimated_monthly_salary is not None and not (
-                job.pay_scale_group and job.experience_level is not None
-            ),
-            'help_text': (job.help_text or '').strip(),
+            'has_fixed_estimate': inherited['has_fixed_estimate'],
+            'help_text': inherited_job_text(job, 'help_text'),
+            'dropdown_help_text': inherited_job_text(job, 'dropdown_help_text'),
         }
 
     current = PayScale.get_current()
@@ -282,9 +334,21 @@ def save_field_rules_from_post(job, post_data):
     from apps.tasks.models import RecruitmentJobFieldRule
     from apps.tasks.recruitment_config import DurationOperator, RequiredMode, VisibilityMode
 
+    default_visibility = (
+        VisibilityMode.ALWAYS if getattr(job, 'is_standard', False) else VisibilityMode.INHERIT
+    )
+    default_required = (
+        RequiredMode.NEVER if getattr(job, 'is_standard', False) else RequiredMode.INHERIT
+    )
+
     for field_key, _, _ in RECRUITMENT_CONFIGURABLE_FIELDS:
-        visibility_mode = post_data.get(f'rule_{field_key}_visibility_mode', VisibilityMode.ALWAYS)
-        required_mode = post_data.get(f'rule_{field_key}_required_mode', RequiredMode.NEVER)
+        visibility_mode = post_data.get(f'rule_{field_key}_visibility_mode', default_visibility)
+        required_mode = post_data.get(f'rule_{field_key}_required_mode', default_required)
+        if getattr(job, 'is_standard', False):
+            if visibility_mode == VisibilityMode.INHERIT:
+                visibility_mode = VisibilityMode.ALWAYS
+            if required_mode == RequiredMode.INHERIT:
+                required_mode = default_required
 
         visibility_months = post_data.get(f'rule_{field_key}_visibility_months') or None
         required_months = post_data.get(f'rule_{field_key}_required_months') or None
@@ -299,11 +363,15 @@ def save_field_rules_from_post(job, post_data):
             f'rule_{field_key}_visibility_operator', '',
         ) or DurationOperator.LT
         rule.visibility_duration_months = visibility_months
+        rule.visibility_trigger_field = post_data.get(
+            f'rule_{field_key}_visibility_trigger_field', '',
+        ) or ''
         rule.required_mode = required_mode
         rule.required_duration_operator = post_data.get(
             f'rule_{field_key}_required_operator', '',
         ) or DurationOperator.LT
         rule.required_duration_months = required_months
+        rule.help_text = (post_data.get(f'rule_{field_key}_help_text') or '').strip()
         rule.save()
 
 
@@ -311,6 +379,9 @@ def get_field_rule_context(job):
     from apps.tasks.recruitment_config import DurationOperator, RequiredMode, VisibilityMode
 
     existing = {rule.field_key: rule for rule in job.field_rules.all()} if job and job.pk else {}
+    is_standard = bool(job and getattr(job, 'is_standard', False))
+    default_visibility = VisibilityMode.ALWAYS if is_standard else VisibilityMode.INHERIT
+    default_required = RequiredMode.NEVER if is_standard else RequiredMode.INHERIT
     rows = []
     for field_key, label_en, label_de in RECRUITMENT_CONFIGURABLE_FIELDS:
         rule = existing.get(field_key)
@@ -318,15 +389,13 @@ def get_field_rule_context(job):
             'field_key': field_key,
             'label_en': label_en,
             'label_de': label_de,
-            'visibility_mode': getattr(rule, 'visibility_mode', VisibilityMode.ALWAYS),
+            'visibility_mode': getattr(rule, 'visibility_mode', default_visibility),
             'visibility_duration_operator': getattr(rule, 'visibility_duration_operator', DurationOperator.LT),
             'visibility_duration_months': getattr(rule, 'visibility_duration_months', ''),
-            'required_mode': getattr(
-                rule,
-                'required_mode',
-                RequiredMode.NEVER,
-            ),
+            'visibility_trigger_field': getattr(rule, 'visibility_trigger_field', ''),
+            'required_mode': getattr(rule, 'required_mode', default_required),
             'required_duration_operator': getattr(rule, 'required_duration_operator', DurationOperator.LT),
             'required_duration_months': getattr(rule, 'required_duration_months', ''),
+            'help_text': getattr(rule, 'help_text', '') or '',
         })
     return rows

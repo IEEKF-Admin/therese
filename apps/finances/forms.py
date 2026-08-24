@@ -306,11 +306,13 @@ class CostCenterForm(forms.ModelForm):
         model = CostCenter
         fields = [
             'cost_center',
+            'work_group',
             'comments',
             *PSP_COST_TYPE_FLAG_FIELDS,
         ]
         widgets = {
             'cost_center': forms.TextInput(attrs={'class': 'form-control'}),
+            'work_group': forms.Select(attrs={'class': 'form-select'}),
             'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             **{
                 flag: forms.CheckboxInput(attrs={
@@ -322,12 +324,14 @@ class CostCenterForm(forms.ModelForm):
         }
         labels = {
             'cost_center': 'Cost center',
+            'work_group': 'Work group',
             'comments': 'Comments',
             # Cost centers: no leading .1 / .2 numbers on checkbox labels.
             **bilingual_cost_type_labels(include_code=False),
         }
         help_texts = {
             'cost_center': 'Unique cost center identifier (e.g. 4711/2026).',
+            'work_group': 'Assigned work group.',
             'comments': 'Optional notes.',
         }
 

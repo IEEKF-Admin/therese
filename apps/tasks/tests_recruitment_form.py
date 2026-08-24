@@ -113,6 +113,20 @@ class LimitationReasonTemplateTests(TestCase):
         self.assertIn('weekly_hours', form.fields)
         self.assertFalse(form.fields['weekly_hours'].required)
         self.assertNotIn('plan_position_number', form.fields)
+        self.assertIn('qualification', form.fields)
+
+    def test_weekly_hours_prefilled_with_global_default(self):
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting
+
+        GlobalSetting.objects.filter(pk=1).delete()
+        GlobalSetting.objects.create(pk=1, default_weekly_hours=Decimal('39.00'))
+        form = PersonnelRecruitmentTaskForm(
+            user=CustomUser.objects.create_user('creator-hours', password='test'),
+            is_creation=True,
+        )
+        self.assertEqual(form.fields['weekly_hours'].initial, Decimal('39.00'))
 
     def test_weekly_hours_optional_on_edit(self):
         from apps.tasks.models import PersonnelRecruitmentTask

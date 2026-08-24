@@ -23,8 +23,8 @@ class GroupNames:
     # Granular employee / PSP bundles (still useful next to Assistant roles)
     EMPLOYEES_MANAGE = "Employees - Manage"
     EMPLOYEES_MANAGE_ALL = "Employees - Manage All"
-    PSP_ELEMENTS_MANAGE = "PSP Elements - Manage"
-    PSP_ELEMENTS_MANAGE_ALL = "PSP Elements - Manage All"
+    PSP_ELEMENTS_MANAGE = "Funding analysis - Manage"
+    PSP_ELEMENTS_MANAGE_ALL = "Funding analysis - Manage All"
 
     CONTACT_PERSONS_VIEW = "Contact Persons - View"
     CONTACT_PERSONS_MANAGE = "Contact Persons - Manage"
@@ -165,6 +165,23 @@ def get_or_create_default_groups():
     """
     created_groups = []
 
+    group_renames = {
+        "PSP Elements - Manage": GroupNames.PSP_ELEMENTS_MANAGE,
+        "PSP Elements - Manage All": GroupNames.PSP_ELEMENTS_MANAGE_ALL,
+    }
+    for old_name, new_name in group_renames.items():
+        if old_name == new_name:
+            continue
+        try:
+            existing = Group.objects.get(name=old_name)
+        except Group.DoesNotExist:
+            continue
+        if Group.objects.filter(name=new_name).exists():
+            continue
+        existing.name = new_name
+        existing.save(update_fields=['name'])
+        print(f"  [Groups] Renamed group: {old_name} → {new_name}")
+
     # Create new groups
     for group_name in NEW_GROUPS:
         group, created = Group.objects.get_or_create(name=group_name)
@@ -217,6 +234,7 @@ def user_can_assist(user):
         'finances.manage_psp_element',
         'finances.manage_all_psp_elements',
         'finances.manage_cost_center',
+        'finances.manage_all_cost_centers',
         'documents.manage_document',
     ]
     return any(user.has_perm(perm) for perm in management_perms)
@@ -299,6 +317,7 @@ def assign_permissions_to_groups():
 
     # Cost Centers / locations / workgroups (used by Superassistants; no dedicated groups)
     manage_cc = get_perm("manage_cost_center", CostCenter)
+    manage_all_cc = get_perm("manage_all_cost_centers", CostCenter)
     manage_wg = get_perm("manage_working_group", Workgroup)
     manage_loc = get_perm("manage_location", Building)
 
@@ -383,12 +402,13 @@ def assign_permissions_to_groups():
         manage_loc,
     )
 
-    # Finances Assistant: workgroup-scoped PSP view/manage
+    # Finances Assistant: workgroup-scoped PSP and cost center view/manage
     safe_add(
         GroupNames.FINANCES_ASSISTANT,
         view_overview,
         view_psp,
         manage_psp,
+        manage_cc,
     )
 
     # Finances Superassistant: all PSPs + cost centers + related procurement views
@@ -401,6 +421,7 @@ def assign_permissions_to_groups():
         view_all_psp,
         manage_all_psp,
         manage_cc,
+        manage_all_cc,
         view_all_po,
         manage_std,
     )

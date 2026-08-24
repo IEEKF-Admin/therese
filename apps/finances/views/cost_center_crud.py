@@ -12,9 +12,38 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import DeleteView
 
+from apps.finances.cost_center_access import (
+    cost_center_workgroup_queryset_for_user,
+    filter_cost_centers_for_user,
+    user_can_manage_cost_center,
+    user_manages_all_cost_centers,
+)
+from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import CostCenterForm, CostCenterYearEstimateFormSet
 from ..models import CostCenter
 from ..psp_cost_types import clear_disabled_year_estimate_amounts
+
+
+def _cost_center_manage_queryset(queryset, user):
+    if user_manages_all_cost_centers(user):
+        return queryset
+    return filter_cost_centers_for_user(queryset, user)
+
+
+def _default_workgroup_for_user(user):
+    return get_user_workgroups(user).order_by('short_name').first()
+
+
+def _configure_work_group_field(form, user, *, instance=None):
+    form.fields['work_group'].queryset = cost_center_workgroup_queryset_for_user(
+        user, instance=instance,
+    )
+    form.fields['work_group'].required = True
+    form.fields['work_group'].empty_label = '— Select work group —'
+    if instance is None or not getattr(instance, 'pk', None) or not instance.work_group_id:
+        qs = form.fields['work_group'].queryset
+        if qs.count() == 1:
+            form.initial.setdefault('work_group', qs.first().pk)
 
 
 class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -23,10 +52,11 @@ class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     context_object_name = 'cost_centers'
 
     def get_queryset(self):
-        return CostCenter.objects.all().order_by('cost_center')
+        queryset = CostCenter.objects.select_related('work_group').order_by('cost_center')
+        return _cost_center_manage_queryset(queryset, self.request.user)
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_cost_center')
+        return user_can_manage_cost_center(self.request.user)
 
     def post(self, request, *args, **kwargs):
         if request.POST.get('action') == 'delete_selected':
@@ -39,7 +69,10 @@ class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             protected = 0
             for pk in ids:
                 try:
-                    obj = CostCenter.objects.get(pk=pk)
+                    obj = _cost_center_manage_queryset(
+                        CostCenter.objects.filter(pk=pk),
+                        request.user,
+                    ).get()
                     obj.delete()
                     deleted += 1
                 except CostCenter.DoesNotExist:
@@ -65,7 +98,19 @@ class CostCenterCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('finances:cost_center_manage')
 
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_cost_center')
+        return user_can_manage_cost_center(self.request.user)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        workgroup = _default_workgroup_for_user(self.request.user)
+        if workgroup and get_user_workgroups(self.request.user).count() == 1:
+            initial['work_group'] = workgroup.pk
+        return initial
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        _configure_work_group_field(form, self.request.user)
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,8 +141,20 @@ class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     template_name = 'finances/cost_center_form.html'
     success_url = reverse_lazy('finances:cost_center_manage')
 
+    def get_queryset(self):
+        return _cost_center_manage_queryset(CostCenter.objects.all(), self.request.user)
+
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_cost_center')
+        return user_can_manage_cost_center(self.request.user)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        _configure_work_group_field(
+            form,
+            self.request.user,
+            instance=getattr(form, 'instance', None),
+        )
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -129,8 +186,11 @@ class CostCenterDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     template_name = 'finances/cost_center_confirm_delete.html'
     success_url = reverse_lazy('finances:cost_center_manage')
 
+    def get_queryset(self):
+        return _cost_center_manage_queryset(CostCenter.objects.all(), self.request.user)
+
     def test_func(self):
-        return self.request.user.has_perm('finances.manage_cost_center')
+        return user_can_manage_cost_center(self.request.user)
 
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()

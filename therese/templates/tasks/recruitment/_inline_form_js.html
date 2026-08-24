@@ -69,6 +69,33 @@
         if (totalInput) {
             totalInput.value = newIndex + 1;
         }
+        if (typeof window.syncFundingPercentageColumns === 'function') {
+            window.syncFundingPercentageColumns();
+        }
+    };
+
+    window.syncFundingPercentageColumns = function() {
+        document.querySelectorAll('.funding-percentage-container').forEach(function(container) {
+            const rows = Array.prototype.filter.call(
+                container.querySelectorAll('.funding-row'),
+                function(row) {
+                    if (row.closest('.empty-form-template')) return false;
+                    if (row.style.display === 'none') return false;
+                    return true;
+                }
+            );
+            const show = rows.length > 1;
+            container.classList.toggle('funding-show-percentage', show);
+            rows.forEach(function(row) {
+                const input = row.querySelector('[name$="-workhours_percentage"]');
+                if (!input) return;
+                if (!show) {
+                    input.value = '100';
+                } else if (!String(input.value || '').trim()) {
+                    input.value = '';
+                }
+            });
+        });
     };
 
     document.addEventListener('click', function(e) {
@@ -82,6 +109,15 @@
             row.style.display = 'none';
         } else {
             row.remove();
+        }
+        if (typeof window.syncFundingPercentageColumns === 'function') {
+            window.syncFundingPercentageColumns();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof window.syncFundingPercentageColumns === 'function') {
+            window.syncFundingPercentageColumns();
         }
     });
 })();

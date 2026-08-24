@@ -2099,7 +2099,7 @@ div.year-estimate-row {
 .job-rules-header,
 .job-rules-row {
     display: grid;
-    grid-template-columns: 1.4fr repeat(4, 1fr);
+    grid-template-columns: 1.3fr repeat(4, 1fr) 1.2fr;
     gap: 0.75rem;
     align-items: start;
 }
@@ -2233,4 +2233,111 @@ div.year-estimate-row {
 .checklist-field + .checklist-field,
 .checklist-html-block + .aligned-field {
     margin-top: 0.25rem;
+}
+
+.job-standard-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.field-explanation-text {
+    display: block;
+    margin-top: 0.35rem;
+    color: #1e3a8a;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.rule-trigger-group {
+    margin-top: 0.35rem;
+}
+
+.funding-percentage-container:not(.funding-show-percentage) .funding-percentage-field {
+    display: none;
+}
+
+.job-custom-select {
+    position: relative;
+}
+
+.job-native-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.job-select-toggle {
+    text-align: left;
+    cursor: pointer;
+    background: #fff;
+}
+
+.job-select-menu {
+    display: none;
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.job-select-menu.is-open {
+    display: block;
+}
+
+.job-select-menu li {
+    padding: 0.55rem 0.85rem;
+    cursor: pointer;
+}
+
+.job-select-menu li:hover,
+.job-select-menu li.is-selected {
+    background: #eff6ff;
+}
+
+.job-hover-tooltip {
+    position: absolute;
+    z-index: 41;
+    left: calc(100% + 0.6rem);
+    top: 0;
+    min-width: 14rem;
+    max-width: 22rem;
+    padding: 0.7rem 0.85rem;
+    background: #1e3a8a;
+    color: #eff6ff;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 900px) {
+    .job-hover-tooltip {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(100% + 0.4rem);
+        max-width: none;
+    }
 }

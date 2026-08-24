@@ -58,6 +58,16 @@ def user_manages_all_employees(user) -> bool:
     return user.has_perm('hr.manage_all_employees')
 
 
+def user_is_employees_manage_all_group(user) -> bool:
+    """True when the user is in the Django group Employees - Manage All."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    from apps.accounts.permissions import GroupNames
+    return user.groups.filter(name=GroupNames.EMPLOYEES_MANAGE_ALL).exists()
+
+
 def filter_employees_for_user(queryset, user):
     """
     Restrict employee queryset by workgroup scope unless user has institute-wide rights.

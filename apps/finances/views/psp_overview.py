@@ -464,7 +464,7 @@ def psp_elements(request):
     year_choices = list(range(current_year + 1, current_year - 8, -1))
 
     context = {
-        'title': 'PSP Elements',
+        'title': 'Funding analysis',
         'overviews': overviews,
         'year': year,
         'year_choices': year_choices,

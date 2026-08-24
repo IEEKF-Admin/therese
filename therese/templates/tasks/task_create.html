@@ -254,6 +254,11 @@
                     <label>Employee<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
                     {{ form.employee|add_class:"form-control" }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Mitarbeiter</small>
+                    {% if show_add_employee_button and add_employee_url %}
+                    <a href="{{ add_employee_url }}" class="btn-secondary" style="margin-top:0.5rem; display:inline-block;">
+                        Add new Employee
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="aligned-field">
                     <label>Valid From<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
@@ -395,6 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+{% elif task_type == 'personnel_reallocation' %}
+{% include "tasks/recruitment/_inline_form_js.html" %}
 {% elif task_type == 'personnel_contract_extension' %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
 {{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}

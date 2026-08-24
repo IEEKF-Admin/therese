@@ -13,10 +13,12 @@ Features / Requirements:
 Do not remove any existing requirements from this header without explicit instruction.
 """
 
+from urllib.parse import urlencode
+
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView
 from django.contrib import messages
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.shortcuts import render, redirect
 
 from django.utils import timezone
@@ -272,6 +274,27 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             or self.request.GET.get('variant')
             or ''
         )
+
+        if task_type == 'personnel_reallocation':
+            from apps.core.models import GlobalSetting
+            from apps.hr.employee_access import user_can_manage_employees
+
+            show_button = (
+                GlobalSetting.get_show_add_employee_on_reallocation()
+                and user_can_manage_employees(self.request.user)
+            )
+            context['show_add_employee_button'] = show_button
+            if show_button:
+                reallocation_url = (
+                    reverse('tasks:task_create')
+                    + '?'
+                    + urlencode({'type': 'personnel_reallocation'})
+                )
+                context['add_employee_url'] = (
+                    reverse('hr:employee_quick_create')
+                    + '?'
+                    + urlencode({'next': reallocation_url})
+                )
 
         if task_type == 'purchase_order' and not self._is_quote_order_mode():
             copy_from_pk = self.request.GET.get('copy_from')

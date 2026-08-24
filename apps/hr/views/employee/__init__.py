@@ -11,7 +11,13 @@ Submodules:
 Do not remove any existing requirements from this package without explicit instruction.
 """
 
-from .crud import EmployeeCreateView, EmployeeUpdateView, employee_list, phone_list
+from .crud import (
+    EmployeeCreateView,
+    EmployeeUpdateView,
+    MinimalEmployeeCreateView,
+    employee_list,
+    phone_list,
+)
 from .locations import (
     BuildingCreateView,
     BuildingDeleteView,
@@ -39,6 +45,7 @@ __all__ = [
     'employee_list',
     'phone_list',
     'EmployeeCreateView',
+    'MinimalEmployeeCreateView',
     'EmployeeUpdateView',
     'MyProfileView',
     'WorkgroupListView',

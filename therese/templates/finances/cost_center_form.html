@@ -38,6 +38,11 @@
                     {{ form.cost_center.errors }}
                 </div>
                 <div class="form-field">
+                    <label for="{{ form.work_group.id_for_label }}">{{ form.work_group.label }} *</label>
+                    {% if form.work_group.errors %}{{ form.work_group|add_class:"form-select error" }}{% else %}{{ form.work_group }}{% endif %}
+                    {{ form.work_group.errors }}
+                </div>
+                <div class="form-field">
                     <label for="{{ form.comments.id_for_label }}">{{ form.comments.label }}</label>
                     {% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}
                     {{ form.comments.errors }}

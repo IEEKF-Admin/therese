@@ -15,12 +15,6 @@
         <i class="fas fa-user-edit"></i> My Profile
     </a>
     {% endif %}
-    {% if has_employee or user.is_superuser %}
-    <a href="{% url 'hr:phone_list' %}"
-       class="{% if 'phone-list' in request.path %}active{% endif %}">
-        <i class="fas fa-phone"></i> Phone List
-    </a>
-    {% endif %}
 
     {% if perms.documents.view_document or perms.documents.manage_document %}
     <a href="{% url 'documents:list' %}"
@@ -114,15 +108,29 @@
        class="{% if 'type=personnel_recruitment' in request.get_full_path %}active{% endif %}">
         <i class="fas fa-user-plus"></i> Recruitment
     </a>
+    <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation"
+       class="{% if 'type=personnel_reallocation' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-exchange-alt"></i> Reallocation
+    </a>
+    <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension"
+       class="{% if 'type=personnel_contract_extension' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-file-contract"></i> Extension
+    </a>
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.view_psp_overview or perms.finances.view_all_psp_elements or perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.view_contact_person_list or perms.finances.manage_contact_person or user.is_superuser %}
+    {% if has_employee or user.is_superuser or perms.finances.view_psp_overview or perms.finances.view_all_psp_elements or perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.view_contact_person_list or perms.finances.manage_contact_person %}
     <div class="sidebar-heading">Knowledge</div>
+    {% if has_employee or user.is_superuser %}
+    <a href="{% url 'hr:phone_list' %}"
+       class="{% if 'phone-list' in request.path %}active{% endif %}">
+        <i class="fas fa-phone"></i> Phone List
+    </a>
+    {% endif %}
     {% if perms.finances.view_psp_overview or perms.finances.view_all_psp_elements or perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or user.is_superuser %}
     <a href="{% url 'finances:psp_elements' %}"
        class="{% if 'psp-elements' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram"></i> PSP Elements
+        <i class="fas fa-project-diagram"></i> Funding analysis
     </a>
     {% endif %}
     {% if perms.finances.view_contact_person_list or perms.finances.manage_contact_person or user.is_superuser %}
@@ -133,7 +141,7 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or 'HR - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or 'HR - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if perms.hr.manage_location or user.is_superuser %}
@@ -143,7 +151,7 @@
     </a>
     {% endif %}
 
-    {% if perms.finances.manage_cost_center or user.is_superuser %}
+    {% if perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or user.is_superuser %}
     <a href="{% url 'finances:cost_center_manage' %}"
        class="{% if 'cost-centers/manage' in request.path %}active{% endif %}">
         <i class="fas fa-coins"></i> Cost Centers
@@ -194,7 +202,7 @@
     {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or user.is_superuser %}
     <a href="{% url 'finances:psp_manage' %}"
        class="{% if 'psp/manage' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram"></i> PSP Elements
+        <i class="fas fa-project-diagram"></i> Funding analysis
     </a>
     {% endif %}
 

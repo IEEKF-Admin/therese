@@ -60,7 +60,7 @@ class PayScaleAdmin(admin.ModelAdmin):
 
 @admin.register(CostCenter, site=therese_admin)
 class CostCenterAdmin(admin.ModelAdmin):
-    list_display = ('cost_center', 'contact_person', 'comments')
+    list_display = ('cost_center', 'work_group', 'contact_person', 'comments')
     search_fields = ('cost_center', 'comments')
     list_filter = PSP_COST_TYPE_FLAG_FIELDS
     autocomplete_fields = ['contact_person']
@@ -69,6 +69,7 @@ class CostCenterAdmin(admin.ModelAdmin):
         (None, {
             'fields': (
                 'cost_center',
+                'work_group',
                 'contact_person',
                 'comments',
             ),

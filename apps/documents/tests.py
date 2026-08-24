@@ -98,6 +98,15 @@ class DocumentManageFormFixesTests(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
 
+    def test_dual_list_selected_select_has_hook_class(self):
+        from apps.documents.forms import DocumentMetaForm
+
+        html = str(DocumentMetaForm()['target_users'])
+        self.assertIn('data-dual-list', html)
+        self.assertIn('dual-list-available', html)
+        self.assertIn('dual-list-selected', html)
+        self.assertIn('dual-list-add', html)
+
 
 class DocumentAudienceTests(TestCase):
     def setUp(self):
@@ -304,3 +313,52 @@ class DocumentViewTests(TestCase):
             DocumentPublishPopupAck.objects.filter(user=self.viewer, version=self.version).exists()
         )
         self.assertEqual(len(evaluate_document_publish_popups(self.viewer)), 0)
+
+    def test_new_user_gets_one_popup_for_latest_version_only(self):
+        from apps.documents.popups import evaluate_document_publish_popups, persist_document_publish_popup_acks
+        from apps.documents.utils import publish_version
+
+        v2 = DocumentVersion.objects.create(
+            document=self.document,
+            version_number=2,
+            status=DocumentVersion.Status.DRAFT,
+            content_html='<p>v2</p>',
+            created_by=self.viewer,
+        )
+        publish_version(v2, self.viewer)
+        v3 = DocumentVersion.objects.create(
+            document=self.document,
+            version_number=3,
+            status=DocumentVersion.Status.DRAFT,
+            content_html='<p>v3</p>',
+            created_by=self.viewer,
+        )
+        publish_version(v3, self.viewer)
+        self.document.refresh_from_db()
+        self.assertEqual(self.document.current_published_version_id, v3.pk)
+        self.assertEqual(
+            self.document.versions.filter(status=DocumentVersion.Status.PUBLISHED).count(),
+            3,
+        )
+
+        new_user = _create_user('first-login-reader')
+        view_group, _ = Group.objects.get_or_create(name='Documents & SOPs - View')
+        ct = ContentType.objects.get_for_model(Document)
+        view_group.permissions.add(Permission.objects.get(codename='view_document', content_type=ct))
+        new_user.groups.add(view_group)
+
+        popups = evaluate_document_publish_popups(new_user)
+        self.assertEqual(len(popups), 1)
+        self.assertIn('v3', popups[0]['text'])
+        persist_document_publish_popup_acks(new_user, popups)
+        self.assertEqual(len(evaluate_document_publish_popups(new_user)), 0)
+        self.assertTrue(
+            DocumentPublishPopupAck.objects.filter(user=new_user, version=v3).exists()
+        )
+
+    def test_documents_without_read_ack_do_not_popup(self):
+        from apps.documents.popups import evaluate_document_publish_popups
+
+        self.document.requires_read_acknowledgement = False
+        self.document.save(update_fields=['requires_read_acknowledgement'])
+        self.assertEqual(evaluate_document_publish_popups(self.viewer), [])

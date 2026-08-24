@@ -106,7 +106,9 @@ class DualListSelect(forms.SelectMultiple):
         final_attrs = self.build_attrs(self.attrs, attrs)
         final_attrs['name'] = name
         final_attrs['multiple'] = True
-        final_attrs.setdefault('class', 'form-select dual-list-selected')
+        css_class = final_attrs.get('class') or ''
+        if 'dual-list-selected' not in css_class.split():
+            final_attrs['class'] = f'{css_class} dual-list-selected'.strip()
         final_attrs.setdefault('size', '8')
         selected_values = {str(v) for v in value}
 

@@ -162,7 +162,8 @@
         if (root.dataset.dualListReady === '1') return;
         root.dataset.dualListReady = '1';
         var available = root.querySelector('.dual-list-available');
-        var selected = root.querySelector('.dual-list-selected');
+        var selected = root.querySelector('.dual-list-selected')
+            || root.querySelector('.dual-list-panel:last-child select');
         if (!available || !selected) return;
         var addBtn = root.querySelector('.dual-list-add');
         var removeBtn = root.querySelector('.dual-list-remove');

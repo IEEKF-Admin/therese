@@ -4,9 +4,14 @@ Login popup trigger evaluation and acknowledgement tracking.
 
 from datetime import date, timedelta
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.accounts.models import LoginPopupAcknowledgement, LoginPopupConfig
+from apps.accounts.template_variables import (
+    build_replacement_map,
+    render_placeholders,
+)
 
 CONTRACT_TRIGGERS = frozenset({
     'contract_ending_soon',
@@ -96,36 +101,17 @@ def unacknowledged_contracts(user, config, x_months, employee=None):
     ]
 
 
-def render_popup_text(text, user, employee, contract=None):
-    if not employee:
-        return text
-
-    first = getattr(user, 'first_name', '') or getattr(employee, 'first_name', '')
-    last = getattr(user, 'last_name', '') or getattr(employee, 'last_name', '')
-    full = (first + ' ' + last).strip() or str(employee)
-    emp_no = getattr(employee, 'employee_number', '')
-
-    contract_end = ''
-    if contract and contract.valid_until:
-        contract_end = contract.valid_until.strftime('%d.%m.%Y')
-    else:
-        latest_contract = employee.contracts.filter(valid_until__isnull=False).order_by('-valid_until').first()
-        if latest_contract:
-            contract_end = latest_contract.valid_until.strftime('%d.%m.%Y')
-
-    today_str = date.today().strftime('%d.%m.%Y')
-    replacements = {
-        '{{ first_name }}': first,
-        '{{ last_name }}': last,
-        '{{ full_name }}': full,
-        '{{ employee_number }}': emp_no,
-        '{{ contract_end }}': contract_end,
-        '{{ today }}': today_str,
-        '{{ title }}': 'THERESE',
-    }
-    for placeholder, value in replacements.items():
-        text = text.replace(placeholder, value)
-    return text
+def render_popup_text(text, user, employee, contract=None, **context):
+    replacements = build_replacement_map(
+        user,
+        employee,
+        contract=contract,
+        task=context.get('task'),
+        checklist=context.get('checklist'),
+        chemical_item=context.get('chemical_item'),
+        comment=context.get('comment'),
+    )
+    return render_placeholders(text, replacements, html=False, user=user, employee=employee)
 
 
 def _should_show_global_trigger(user, config, acknowledged):
@@ -149,6 +135,8 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
     )
 
     for config in configs:
+        if not config.show_popup:
+            continue
         if not user_matches_audience(user, config):
             continue
 
@@ -156,6 +144,10 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
         show = False
         ack_reference_keys = []
         contract_for_text = None
+        task_for_text = None
+        checklist_for_text = None
+        chemical_for_text = None
+        comment_for_text = None
 
         if config.trigger == 'first_login':
             if user.first_login_welcome_shown:
@@ -190,6 +182,7 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                     created_at = getattr(task, 'created_at', None)
                     if created_at and created_at > user.last_login:
                         show = True
+                        task_for_text = task
                         ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
                         break
 
@@ -199,6 +192,7 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                     updated_at = getattr(task, 'updated_at', None)
                     if updated_at and updated_at > user.last_login:
                         show = True
+                        task_for_text = task
                         ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
                         break
 
@@ -224,6 +218,19 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                 if unacked_refs:
                     show = True
                     ack_reference_keys = unacked_refs
+                    comment_for_text = (
+                        TaskComment.objects.filter(
+                            task_id__in=task_pks,
+                            entry_type=ENTRY_USER_MESSAGE,
+                            created_at__gt=user.last_login,
+                        )
+                        .exclude(author=employee)
+                        .select_related('task', 'author')
+                        .order_by('-created_at')
+                        .first()
+                    )
+                    if comment_for_text is not None:
+                        task_for_text = comment_for_text.task
 
         elif config.trigger == 'login_after_datetime' and config.trigger_datetime:
             if now > config.trigger_datetime and _should_show_global_trigger(user, config, acknowledged):
@@ -239,14 +246,19 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
             ).select_related('template_version', 'template_version__template')
             if user.last_login:
                 qs = qs.filter(assigned_at__gt=user.last_login)
+            checklist_rows = list(qs.order_by('-assigned_at'))
             unacked_refs = [
                 f'checklist:{inst.pk}'
-                for inst in qs.order_by('-assigned_at')
+                for inst in checklist_rows
                 if f'checklist:{inst.pk}' not in acknowledged
             ]
             if unacked_refs:
                 show = True
                 ack_reference_keys = unacked_refs
+                checklist_for_text = next(
+                    (inst for inst in checklist_rows if f'checklist:{inst.pk}' in unacked_refs),
+                    None,
+                )
 
         elif config.trigger == 'chemical_item_incomplete' and employee:
             from apps.chemicals.models import ChemicalItem
@@ -263,6 +275,10 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
             if unacked_refs:
                 show = True
                 ack_reference_keys = unacked_refs
+                chemical_for_text = next(
+                    (item for item in incomplete if f'chemical_item:{item.pk}' in unacked_refs),
+                    None,
+                )
 
         elif config.trigger == 'chemical_item_delivered' and employee:
             from apps.chemicals.models import ChemicalItem
@@ -273,21 +289,45 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
             ).select_related('chemical')
             if user.last_login:
                 qs = qs.filter(delivered_at__gt=user.last_login)
+            delivered_rows = list(qs.order_by('-delivered_at'))
             unacked_refs = [
                 f'chemical_delivered:{item.pk}'
-                for item in qs.order_by('-delivered_at')
+                for item in delivered_rows
                 if f'chemical_delivered:{item.pk}' not in acknowledged
             ]
             if unacked_refs:
                 show = True
                 ack_reference_keys = unacked_refs
+                chemical_for_text = next(
+                    (
+                        item
+                        for item in delivered_rows
+                        if f'chemical_delivered:{item.pk}' in unacked_refs
+                    ),
+                    None,
+                )
 
         if show:
             popups.append({
-                'text': render_popup_text(config.text, user, employee, contract=contract_for_text),
+                'text': render_popup_text(
+                    config.text,
+                    user,
+                    employee,
+                    contract=contract_for_text,
+                    task=task_for_text,
+                    checklist=checklist_for_text,
+                    chemical_item=chemical_for_text,
+                    comment=comment_for_text,
+                ),
                 'link': config.link_to or '',
                 'config': config,
                 'ack_reference_keys': ack_reference_keys,
+                'show_popup': config.show_popup,
+                'contract': contract_for_text,
+                'task': task_for_text,
+                'checklist': checklist_for_text,
+                'chemical_item': chemical_for_text,
+                'comment': comment_for_text,
             })
 
     return popups
@@ -301,3 +341,32 @@ def persist_popup_acknowledgements(user, popups):
         if config.trigger == 'first_login':
             user.first_login_welcome_shown = True
             user.save(update_fields=['first_login_welcome_shown'])
+
+
+def send_login_trigger_emails(user, popups):
+    """Send emails only for login-time triggers (first login / after datetime)."""
+    from apps.accounts.trigger_emails import LOGIN_TIME_TRIGGERS, deliver_trigger_email
+
+    employee = None
+    try:
+        employee = user.employee
+    except (AttributeError, ObjectDoesNotExist):
+        employee = None
+    for popup in popups:
+        config = popup.get('config')
+        if config is None or not config.send_email:
+            continue
+        if config.trigger not in LOGIN_TIME_TRIGGERS:
+            continue
+        keys = popup.get('ack_reference_keys') or ['global']
+        deliver_trigger_email(
+            config,
+            user,
+            employee,
+            keys[0],
+            contract=popup.get('contract'),
+            task=popup.get('task'),
+            checklist=popup.get('checklist'),
+            chemical_item=popup.get('chemical_item'),
+            comment=popup.get('comment'),
+        )

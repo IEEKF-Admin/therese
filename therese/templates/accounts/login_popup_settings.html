@@ -7,9 +7,10 @@
     <h1>Login Popup Settings</h1>
 </div>
 
-<p style="color:#64748b;margin-bottom:2rem;">Configure popups or notifications shown at login. Only visible to HR Superassistants.</p>
+<p style="color:#64748b;margin-bottom:2rem;">Configure popups and email triggers shown or sent at login. Only visible to HR Superassistants.</p>
 
 {{ configs_data|json_script:"login-popup-configs-data" }}
+{{ variable_catalog|json_script:"login-popup-variable-catalog" }}
 
 <h2 class="section-heading">Existing Configurations</h2>
 <form method="post" id="bulk-delete-configs" class="list-panel">
@@ -24,7 +25,8 @@
                 </th>
                 <th>Name</th>
                 <th>Trigger</th>
-                <th>Reaction</th>
+                <th>Popup</th>
+                <th>Email</th>
                 <th>Link To</th>
                 <th>Audience</th>
                 <th>Enabled</th>
@@ -37,7 +39,8 @@
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
             <td>{{ config.name }}</td>
             <td>{{ config.get_trigger_display }}</td>
-            <td>{{ config.get_reaction_type_display }}</td>
+            <td>{{ config.show_popup|yesno:"Yes,No" }}</td>
+            <td>{{ config.send_email|yesno:"Yes,No" }}</td>
             <td>{{ config.get_link_to_display|default:"-" }}</td>
             <td>
                 {% if config.target_users.exists or config.target_workgroups.exists or config.target_groups.exists %}
@@ -66,7 +69,7 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8">No configurations yet.</td></tr>
+        <tr><td colspan="9">No configurations yet.</td></tr>
         {% endfor %}
         </tbody>
     </table>
@@ -156,12 +159,24 @@
 
     <div class="form-row">
         <div>
-            <label>Reaction Type</label>
-            <select name="reaction_type" id="config-reaction" class="form-control">
-                {% for value, label in reaction_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
+            <label>Reactions</label>
+            <label style="display:block; font-weight:normal; margin-top:0.35rem;">
+                <input type="checkbox" name="show_popup" id="config-show-popup" checked>
+                Show popup
+            </label>
+            <label style="display:block; font-weight:normal; margin-top:0.35rem;">
+                <input type="checkbox" name="send_email" id="config-send-email">
+                Send email
+            </label>
+            <small style="color:#666; display:block; margin-top:0.35rem;">
+                Emails are sent when the trigger event happens; popups appear at the next login.
+                Email subject and HTML body are edited under
+                {% if perms.core.configure_email or user.is_superuser %}
+                <a href="{% url 'core_settings:email_environment' %}">Email environment</a>.
+                {% else %}
+                Email environment (Email - Configure group).
+                {% endif %}
+            </small>
         </div>
         <div>
             <label>Link To (for Popup)</label>
@@ -174,12 +189,11 @@
     </div>
 
     <div>
-        <label>Message Text</label>
-        <textarea name="text" id="config-text" class="form-control" rows="30" style="min-height: 600px; width: 100%; font-family: monospace;" required placeholder="Hello {{ first_name }} {{ last_name }}, your contract ends {{ contract_end }}."></textarea>
-        <small style="color:#666;">Available placeholders:
-            {% for p in placeholders %}
-                <code>{{ p }}</code>{% if not forloop.last %}, {% endif %}
-            {% endfor %}
+        <label>Popup message text</label>
+        <textarea name="text" id="config-text" class="form-control" rows="16" style="min-height: 280px; width: 100%; font-family: monospace;" placeholder="Hello first name, your contract ends …"></textarea>
+        <div id="popup-variable-chips" class="variable-chips" style="margin-top:0.6rem;"></div>
+        <small style="color:#666; display:block; margin-top:0.35rem;">
+            Click a variable to insert it into the popup text. Values are filled when the trigger fires.
         </small>
     </div>
 
@@ -194,21 +208,66 @@
 </form>
 </div>
 
+<style>
+.variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.variable-chip {
+    display:inline-block; border:1px solid #cbd5e1; background:#f8fafc; color:#334155;
+    border-radius:999px; padding:0.15rem 0.6rem; font-size:0.8rem; cursor:pointer;
+}
+.variable-chip:hover { background:#e2e8f0; }
+</style>
 <script>
 var loginPopupConfigsByPk = {};
+var loginPopupVariableCatalog = {};
 (function() {
     var dataEl = document.getElementById('login-popup-configs-data');
-    if (!dataEl) return;
-    var configs = JSON.parse(dataEl.textContent);
-    configs.forEach(function(cfg) {
-        loginPopupConfigsByPk[String(cfg.pk)] = cfg;
-    });
+    if (dataEl) {
+        var configs = JSON.parse(dataEl.textContent);
+        configs.forEach(function(cfg) {
+            loginPopupConfigsByPk[String(cfg.pk)] = cfg;
+        });
+    }
+    var catalogEl = document.getElementById('login-popup-variable-catalog');
+    if (catalogEl) {
+        loginPopupVariableCatalog = JSON.parse(catalogEl.textContent) || {};
+    }
 })();
+
+function insertAtCursor(textarea, text) {
+    if (!textarea) return;
+    var start = textarea.selectionStart || 0;
+    var end = textarea.selectionEnd || 0;
+    var value = textarea.value || '';
+    textarea.value = value.slice(0, start) + text + value.slice(end);
+    var pos = start + text.length;
+    textarea.focus();
+    textarea.setSelectionRange(pos, pos);
+}
+
+function renderPopupVariableChips() {
+    var box = document.getElementById('popup-variable-chips');
+    var triggerEl = document.getElementById('config-trigger');
+    if (!box || !triggerEl) return;
+    var vars = loginPopupVariableCatalog[triggerEl.value] || [];
+    box.innerHTML = '';
+    vars.forEach(function(item) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'variable-chip';
+        btn.textContent = item.token;
+        btn.title = item.label;
+        btn.addEventListener('click', function() {
+            insertAtCursor(document.getElementById('config-text'), item.token);
+        });
+        box.appendChild(btn);
+    });
+}
 
 function toggleFields() {
     var trigger = document.getElementById('config-trigger').value;
     document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
     document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
+    renderPopupVariableChips();
 }
 
 function setMultiSelectValues(selectId, values) {
@@ -227,7 +286,8 @@ function editConfig(pk) {
     document.getElementById('config-pk').value = cfg.pk || '';
     document.getElementById('config-name').value = cfg.name || '';
     document.getElementById('config-trigger').value = cfg.trigger || '';
-    document.getElementById('config-reaction').value = cfg.reaction_type || '';
+    document.getElementById('config-show-popup').checked = cfg.show_popup !== false;
+    document.getElementById('config-send-email').checked = !!cfg.send_email;
     document.getElementById('config-link').value = cfg.link_to || '';
     document.getElementById('config-x-months').value = cfg.x_months != null ? cfg.x_months : '';
     document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
@@ -245,13 +305,14 @@ function editConfig(pk) {
 function resetForm() {
     document.getElementById('config-form').reset();
     document.getElementById('config-pk').value = '';
+    document.getElementById('config-show-popup').checked = true;
+    document.getElementById('config-send-email').checked = false;
     document.getElementById('config-enabled').checked = true;
     document.getElementById('config-audience-match').value = 'or';
     setMultiSelectValues('config-target-users', []);
     setMultiSelectValues('config-target-workgroups', []);
     setMultiSelectValues('config-target-groups', []);
-    document.getElementById('x-months-field').style.display = 'none';
-    document.getElementById('datetime-field').style.display = 'none';
+    toggleFields();
 }
 
 document.addEventListener('DOMContentLoaded', function() {

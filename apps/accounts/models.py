@@ -62,7 +62,6 @@ class LoginPopupConfig(models.Model):
 
     REACTION_CHOICES = [
         ('popup', 'Show Popup'),
-        # ('email', 'Send Email'),  # for future
     ]
 
     LINK_CHOICES = [
@@ -86,7 +85,31 @@ class LoginPopupConfig(models.Model):
     name = models.CharField(max_length=100, unique=True)
     trigger = models.CharField(max_length=50, choices=TRIGGER_CHOICES)
     reaction_type = models.CharField(max_length=20, choices=REACTION_CHOICES, default='popup')
-    text = models.TextField(help_text="Message text for popup or email.")
+    show_popup = models.BooleanField(
+        default=True,
+        verbose_name="Show popup",
+        help_text="Show the popup message at login when this trigger fires.",
+    )
+    send_email = models.BooleanField(
+        default=False,
+        verbose_name="Send email",
+        help_text="Send the email template when this trigger fires. Edit subject and body on Email environment.",
+    )
+    text = models.TextField(
+        blank=True,
+        help_text="Plain-text message for the login popup. Email body is configured separately.",
+    )
+    email_subject = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Email subject",
+        help_text="Subject line. Placeholders such as {{ first_name }} are replaced when sending.",
+    )
+    email_html = models.TextField(
+        blank=True,
+        verbose_name="Email body (HTML)",
+        help_text="HTML email body. Edited on the Email environment page.",
+    )
     link_to = models.CharField(max_length=50, choices=LINK_CHOICES, blank=True, help_text="For popup: where to redirect on OK.")
     x_months = models.PositiveIntegerField(null=True, blank=True, help_text="For 'contract_ending_soon' or 'any_contract_ending_soon' trigger.")
     trigger_datetime = models.DateTimeField(null=True, blank=True, help_text="For 'login_after_datetime' trigger.")
@@ -180,6 +203,36 @@ class LoginPopupAcknowledgement(models.Model):
     @classmethod
     def task_comment_reference(cls, task):
         return f'task_comment:{task.pk}'
+
+
+class TriggerEmailSend(models.Model):
+    """Records that a trigger email was already sent, independent of login popups."""
+
+    config = models.ForeignKey(
+        LoginPopupConfig,
+        on_delete=models.CASCADE,
+        related_name='email_sends',
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='trigger_email_sends',
+    )
+    reference_key = models.CharField(max_length=191)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Trigger Email Send"
+        verbose_name_plural = "Trigger Email Sends"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['config', 'user', 'reference_key'],
+                name='unique_trigger_email_send',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} — {self.config.name} — {self.reference_key}"
 
 
 # Prevent reverse accessor clashes

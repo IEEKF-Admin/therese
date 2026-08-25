@@ -148,7 +148,11 @@ def my_tasks(request):
         'page_title': page_title,
     }
 
-    from apps.accounts.login_popups import evaluate_login_popups, persist_popup_acknowledgements
+    from apps.accounts.login_popups import (
+        evaluate_login_popups,
+        persist_popup_acknowledgements,
+    )
+    from apps.accounts.trigger_emails import send_login_time_trigger_emails
     from apps.documents.popups import (
         evaluate_document_publish_popups,
         persist_document_publish_popup_acks,
@@ -165,12 +169,15 @@ def my_tasks(request):
         assigned_to_me=assigned_to_me,
         my_created=my_created,
     )
+    send_login_time_trigger_emails(request.user, employee)
+    if popup_results:
+        persist_popup_acknowledgements(request.user, popup_results)
+    visible_login_popups = [p for p in popup_results if p.get('show_popup', True)]
     doc_popup_results = evaluate_document_publish_popups(request.user)
     checklist_popup_results = evaluate_checklist_assigned_popups(request.user, employee=employee)
-    all_popup_results = popup_results + doc_popup_results + checklist_popup_results
+    all_popup_results = visible_login_popups + doc_popup_results + checklist_popup_results
 
     if all_popup_results:
-        persist_popup_acknowledgements(request.user, popup_results)
         persist_document_publish_popup_acks(request.user, doc_popup_results)
         persist_checklist_popup_acks(request.user, checklist_popup_results)
         popups = [

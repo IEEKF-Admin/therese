@@ -75,6 +75,8 @@ def _login_popup_config_dict(config):
         'name': config.name,
         'trigger': config.trigger,
         'reaction_type': config.reaction_type,
+        'show_popup': config.show_popup,
+        'send_email': config.send_email,
         'link_to': config.link_to,
         'x_months': config.x_months,
         'trigger_datetime': trigger_dt,
@@ -120,7 +122,9 @@ def login_popup_settings(request):
             config = LoginPopupConfig()
         config.name = request.POST.get('name', '')
         config.trigger = request.POST.get('trigger', '')
-        config.reaction_type = request.POST.get('reaction_type', 'popup')
+        config.reaction_type = 'popup'
+        config.show_popup = bool(request.POST.get('show_popup'))
+        config.send_email = bool(request.POST.get('send_email'))
         config.text = request.POST.get('text', '')
         config.link_to = request.POST.get('link_to', '')
         x = request.POST.get('x_months')
@@ -138,15 +142,9 @@ def login_popup_settings(request):
         .prefetch_related('target_users', 'target_workgroups', 'target_groups')
         .order_by('name')
     )
-    placeholders = [
-        '{{ first_name }}',
-        '{{ last_name }}',
-        '{{ full_name }}',
-        '{{ employee_number }}',
-        '{{ contract_end }}',
-        '{{ today }}',
-        '{{ title }}',
-    ]
+    from apps.accounts.template_variables import catalog_by_trigger
+
+    variable_catalog = catalog_by_trigger()
 
     configs_data = [_login_popup_config_dict(c) for c in configs]
 
@@ -154,10 +152,9 @@ def login_popup_settings(request):
         'configs': configs,
         'configs_data': configs_data,
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
-        'reaction_choices': LoginPopupConfig.REACTION_CHOICES,
         'link_choices': LoginPopupConfig.LINK_CHOICES,
         'audience_match_choices': LoginPopupConfig.AUDIENCE_MATCH_CHOICES,
-        'placeholders': placeholders,
+        'variable_catalog': variable_catalog,
         'all_users': CustomUser.objects.filter(is_active=True).order_by('last_name', 'first_name', 'username'),
         'all_workgroups': Workgroup.objects.order_by('short_name'),
         'all_groups': Group.objects.order_by('name'),

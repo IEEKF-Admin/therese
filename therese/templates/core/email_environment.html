@@ -57,6 +57,7 @@
     </p>
     <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="action" value="send_test">
         <div class="aligned-field">
             <label for="{{ form.recipient.id_for_label }}">{{ form.recipient.label }}</label>
             {{ form.recipient }}
@@ -68,8 +69,87 @@
     </form>
 </div>
 
+{{ variable_catalog|json_script:"email-variable-catalog" }}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Trigger email templates</h2>
+    <p style="color:#64748b; margin-bottom:1rem;">
+        Popup text and email body are independent. Triggers themselves are created under Login Popup Settings.
+        Emails are sent when the event happens (new task, status change, comment, checklist,
+        chemical item, contract saved in the X-months window). Popups still appear at the next login.
+        First login and “login after date/time” emails are sent at login.
+        Time-window contract reminders that nobody edited can be sent daily with
+        <code>python manage.py send_due_trigger_emails</code>.
+        Click a variable chip to insert it into the HTML body. Values are replaced when the email is sent.
+        <small class="field-hint-de" style="display:block; margin-top:0.25rem;">
+            Versand beim Ereignis, nicht erst beim nächsten Login. Empfänger: berufliche E-Mail, sonst Benutzer-E-Mail.
+        </small>
+    </p>
+    {% for config in trigger_configs %}
+    <form method="post" class="card" style="margin-bottom:1rem; box-shadow:none;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_template">
+        <input type="hidden" name="config_pk" value="{{ config.pk }}">
+        <h3 style="margin-bottom:0.35rem;">{{ config.name }}</h3>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:0.75rem;">
+            Trigger: {{ config.get_trigger_display }}
+            {% if not config.enabled %} — disabled{% endif %}
+        </p>
+        <label style="display:block; font-weight:normal; margin-bottom:0.75rem;">
+            <input type="checkbox" name="send_email"{% if config.send_email %} checked{% endif %}>
+            Send this email when the trigger fires
+        </label>
+        <div class="aligned-field" style="margin-bottom:0.75rem;">
+            <label for="email-subject-{{ config.pk }}">Subject</label>
+            <input type="text" name="email_subject" id="email-subject-{{ config.pk }}" class="form-control"
+                   maxlength="200" value="{{ config.email_subject }}"
+                   placeholder="e.g. Welcome, first name">
+        </div>
+        <label for="email-html-{{ config.pk }}">Email body</label>
+        <div class="variable-chips" data-editor-id="email-html-{{ config.pk }}" data-trigger="{{ config.trigger }}"
+             style="margin:0.4rem 0 0.6rem;"></div>
+        <textarea name="email_html" id="email-html-{{ config.pk }}" class="form-control wysiwyg-editor"
+                  data-wysiwyg-height="360" rows="12">{{ config.email_html }}</textarea>
+        <div class="form-actions" style="margin-top:0.85rem;">
+            <button type="submit" class="btn-primary">Save email template</button>
+        </div>
+    </form>
+    {% empty %}
+    <p style="color:#64748b;">No triggers yet. Create them under Login Popup Settings first.</p>
+    {% endfor %}
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Template variables</h2>
+    <p style="color:#64748b; margin-bottom:1rem;">
+        Only variables that match the trigger have values at send time. Others stay empty.
+        List variables insert every matching record the recipient may see (items they archived
+        are omitted). Status-specific lists also work as
+        <code>{% verbatim %}{{ purchase_orders:not_yet_processed }}{% endverbatim %}</code>
+        or <code>{% verbatim %}{{ assigned_tasks:in_progress }}{% endverbatim %}</code>.
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Variable</th>
+                <th>Meaning</th>
+                <th>Group</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in all_template_variables %}
+            <tr>
+                <td><code>{{ item.token }}</code></td>
+                <td>{{ item.label }}</td>
+                <td>{{ item.group_label }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 <div class="card">
-    <h2 class="section-heading">Variables</h2>
+    <h2 class="section-heading">.env variables</h2>
     <table class="table">
         <thead>
             <tr>
@@ -89,4 +169,54 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.variable-chip {
+    display:inline-block; border:1px solid #cbd5e1; background:#f8fafc; color:#334155;
+    border-radius:999px; padding:0.15rem 0.6rem; font-size:0.8rem; cursor:pointer;
+}
+.variable-chip:hover { background:#e2e8f0; }
+</style>
+<script>
+(function() {
+    var catalogEl = document.getElementById('email-variable-catalog');
+    var catalog = catalogEl ? (JSON.parse(catalogEl.textContent) || {}) : {};
+
+    document.querySelectorAll('[data-editor-id]').forEach(function(box) {
+        var editorId = box.getAttribute('data-editor-id');
+        var trigger = box.getAttribute('data-trigger') || '';
+        var vars = catalog[trigger] || [];
+        box.innerHTML = '';
+        vars.forEach(function(item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'variable-chip';
+            btn.textContent = item.token;
+            btn.title = item.label;
+            btn.addEventListener('click', function() {
+                if (typeof tinymce !== 'undefined') {
+                    var editor = tinymce.get(editorId);
+                    if (editor) {
+                        editor.focus();
+                        editor.insertContent(item.token);
+                        return;
+                    }
+                }
+                var ta = document.getElementById(editorId);
+                if (!ta) return;
+                var start = ta.selectionStart || 0;
+                var end = ta.selectionEnd || 0;
+                var value = ta.value || '';
+                ta.value = value.slice(0, start) + item.token + value.slice(end);
+                ta.focus();
+            });
+            box.appendChild(btn);
+        });
+    });
+})();
+</script>
+{% include "documents/includes/wysiwyg.html" %}
 {% endblock %}

@@ -18,6 +18,9 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         import apps.accounts.signals   # Register signals
+        from apps.accounts import trigger_email_signals
+
+        trigger_email_signals.register_task_email_signals()
 
         # Automatische Erstellung der Custom Groups nach jeder Migration
         from django.db.models.signals import post_migrate

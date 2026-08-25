@@ -10,13 +10,9 @@ Used by:
 Uncomment and adjust only what you need.
 """
 
+# Outbound email is configured via .env (see .env.example).
+# Do not put SMTP passwords in this file if it might be copied around.
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# EMAIL_HOST = 'smtp.example.org'
-# EMAIL_PORT = 587
-# EMAIL_HOST_USER = ''
-# EMAIL_HOST_PASSWORD = ''
-# EMAIL_USE_TLS = True
-# DEFAULT_FROM_EMAIL = 'therese@example.org'
 
 # LOGGING = { ... }  # custom log paths, levels
 

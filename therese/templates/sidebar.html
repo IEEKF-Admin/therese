@@ -141,7 +141,7 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or 'HR - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if perms.hr.manage_location or user.is_superuser %}
@@ -189,6 +189,13 @@
     <a href="{% url 'accounts:login_popup_settings' %}"
        class="{% if 'login-popup-settings' in request.path %}active{% endif %}">
         <i class="fas fa-cog"></i> Login Popup Settings
+    </a>
+    {% endif %}
+
+    {% if perms.core.configure_email or user.is_superuser %}
+    <a href="{% url 'core_settings:email_environment' %}"
+       class="{% if 'email-environment' in request.path %}active{% endif %}">
+        <i class="fas fa-envelope"></i> Email environment
     </a>
     {% endif %}
 

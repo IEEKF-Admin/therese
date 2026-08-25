@@ -238,6 +238,9 @@ class GlobalSetting(models.Model):
     class Meta:
         verbose_name = "Global Setting"
         verbose_name_plural = "Global Settings"
+        permissions = [
+            ("configure_email", "Can configure outbound email"),
+        ]
 
     def __str__(self):
         return (

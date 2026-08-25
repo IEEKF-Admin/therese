@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Email environment (.env) - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Email environment</h1>
+    <p class="page-subtitle">How THERESE reads outbound mail settings from <code>.env</code></p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Where settings live</h2>
+    <ul>
+        <li>
+            Secrets belong in the file <code>.env</code> in the project root
+            (same folder as <code>manage.py</code>). That file is gitignored and must not be pushed to GitHub.
+        </li>
+        <li>
+            The generic template is <code>.env.example</code>. It is versioned. Copy it to <code>.env</code>
+            on a new server, then fill in real values:
+            <code>python create_env_template.py</code>
+        </li>
+        <li>
+            After changing <code>.env</code>, restart the application so Django reloads the values.
+        </li>
+    </ul>
+    <p class="field-hint-de">Passwörter nur in der lokalen <code>.env</code>, niemals im Repository.</p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Current process (no secrets)</h2>
+    <table class="table">
+        <tbody>
+            <tr><th>Backend</th><td><code>{{ status.backend }}</code></td></tr>
+            <tr><th>SMTP host</th><td>{{ status.host }}</td></tr>
+            <tr><th>Port</th><td>{{ status.port }}</td></tr>
+            <tr><th>SSL (implicit TLS)</th><td>{{ status.use_ssl|yesno:"Yes,No" }}</td></tr>
+            <tr><th>STARTTLS</th><td>{{ status.use_tls|yesno:"Yes,No" }}</td></tr>
+            <tr><th>SMTP user</th><td>{{ status.host_user }}</td></tr>
+            <tr><th>From address</th><td>{{ status.from_email }}</td></tr>
+            <tr>
+                <th>Password in .env</th>
+                <td>{% if status.password_configured %}Configured (value hidden){% else %}Not set{% endif %}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2 class="section-heading">Variables</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Example (not a real secret)</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in variables %}
+            <tr>
+                <td><code>{{ item.name }}</code></td>
+                <td><code>{{ item.example }}</code></td>
+                <td>{{ item.description }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

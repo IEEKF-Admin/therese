@@ -61,6 +61,8 @@ class GroupNames:
     CHECKLISTS_WORKGROUP_PROGRESS = "Checklists - Workgroup Progress"
     CHECKLISTS_INSTITUTE_PROGRESS = "Checklists - Institute Progress"
 
+    EMAIL_CONFIGURE = "Email - Configure"
+
 
 # All groups as a list (useful for iteration)
 NEW_GROUPS = [
@@ -96,6 +98,7 @@ NEW_GROUPS = [
     GroupNames.CHECKLISTS_MANAGE,
     GroupNames.CHECKLISTS_WORKGROUP_PROGRESS,
     GroupNames.CHECKLISTS_INSTITUTE_PROGRESS,
+    GroupNames.EMAIL_CONFIGURE,
 ]
 
 # Groups removed from the system (deleted by ensure_groups / post_migrate).
@@ -240,6 +243,14 @@ def user_can_assist(user):
     return any(user.has_perm(perm) for perm in management_perms)
 
 
+def user_can_configure_email(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.has_perm('core.configure_email')
+
+
 def user_is_hr_superassistant(user):
     """
     Institute-wide HR admin tools (jobs, limitation reasons, login popup, workflow).
@@ -263,6 +274,7 @@ def assign_permissions_to_groups():
     from django.contrib.contenttypes.models import ContentType
     from apps.hr.models import Employee, Workgroup, Building
     from apps.finances.models import ContactPerson, CostCenter, WBSElement, PayScale
+    from apps.core.models import GlobalSetting
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
     from apps.documents.models import Document
     from apps.checklists.models import ChecklistTemplate
@@ -375,6 +387,9 @@ def assign_permissions_to_groups():
     safe_add(GroupNames.CHECKLISTS_MANAGE, manage_cl, view_cl)
     safe_add(GroupNames.CHECKLISTS_WORKGROUP_PROGRESS, view_cl, wg_cl)
     safe_add(GroupNames.CHECKLISTS_INSTITUTE_PROGRESS, view_cl, inst_cl)
+
+    configure_email = get_perm('configure_email', GlobalSetting)
+    safe_add(GroupNames.EMAIL_CONFIGURE, configure_email)
 
     # PI: Employee baseline + personnel create + docs manage + workgroup checklist progress
     safe_add(

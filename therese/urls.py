@@ -16,6 +16,9 @@ urlpatterns = [
     # Accounts (Login, Logout, etc.)
     path('accounts/', include('apps.accounts.urls')),
 
+    # Server configuration pages (not under /media/)
+    path('settings/', include('apps.core.settings_urls')),
+
     # HR + Finances
     path('hr/', include('apps.hr.urls')),
     path('finances/', include('apps.finances.urls')),

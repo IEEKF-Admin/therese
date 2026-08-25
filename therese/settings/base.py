@@ -32,6 +32,29 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 # Use exact hostnames/IPs. For IP ranges (e.g. 172.26.70.*) a custom patch is needed.
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
+
+def _env_bool(name, default=False):
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    return raw.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# --- Outbound email (SMTP via .env; never commit secrets) ---
+EMAIL_HOST = os.getenv('EMAIL_HOST', '').strip()
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465') or '465')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', True)
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', False)
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '').strip() or EMAIL_HOST_USER or 'noreply@localhost'
+SERVER_EMAIL = os.getenv('SERVER_EMAIL', '').strip() or DEFAULT_FROM_EMAIL
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', '').strip() or (
+    'django.core.mail.backends.smtp.EmailBackend'
+    if EMAIL_HOST
+    else 'django.core.mail.backends.console.EmailBackend'
+)
+
 # Patch to support IP range wildcards like '172.26.70.*' (Django doesn't support natively)
 import django.utils.http as _http_utils
 _original_is_same = _http_utils.is_same_domain

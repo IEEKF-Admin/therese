@@ -30,6 +30,12 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"
+        permissions = [
+            (
+                'reset_user_password',
+                'Can reset user passwords and edit account emails',
+            ),
+        ]
 
     def __str__(self):
         return self.get_full_name() or self.username
@@ -233,6 +239,28 @@ class TriggerEmailSend(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.config.name} — {self.reference_key}"
+
+
+class AccountEmailTemplate(models.Model):
+    """Editable HTML emails for new accounts and password resets."""
+
+    KIND_USER_CREATED = 'user_created'
+    KIND_PASSWORD_RESET = 'password_reset'
+    KIND_CHOICES = [
+        (KIND_USER_CREATED, 'New user account'),
+        (KIND_PASSWORD_RESET, 'Password reset'),
+    ]
+
+    kind = models.CharField(max_length=32, unique=True, choices=KIND_CHOICES)
+    subject = models.CharField(max_length=200)
+    body_html = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Account Email Template"
+        verbose_name_plural = "Account Email Templates"
+
+    def __str__(self):
+        return self.get_kind_display()
 
 
 # Prevent reverse accessor clashes

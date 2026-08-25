@@ -16,6 +16,9 @@
 
 {{ configs_data|json_script:"login-popup-configs-data" }}
 {{ variable_catalog|json_script:"login-popup-variable-catalog" }}
+{% if can_edit_account_emails %}
+{{ account_email_variables|json_script:"account-email-variables" }}
+{% endif %}
 
 <h2 class="section-heading">Existing configurations</h2>
 <form method="post" id="bulk-delete-configs" class="list-panel">
@@ -237,6 +240,39 @@
     </table>
 </details>
 
+{% if can_edit_account_emails %}
+<h2 class="section-heading" id="account-emails">Account emails</h2>
+<p style="color:#64748b; margin-bottom:1rem;">
+    These messages are sent when a login is created or a password is reset.
+    Variables:
+    {% for item in account_email_variables %}
+        <code>{{ item.token }}</code>{% if not forloop.last %}, {% endif %}
+    {% endfor %}.
+</p>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_account_emails">
+    {% for template in account_email_templates %}
+    <div class="card" style="margin-bottom:1rem; box-shadow:none;">
+        <h3 style="margin-bottom:0.75rem;">{{ template.get_kind_display }}</h3>
+        <div class="aligned-field" style="margin-bottom:0.6rem;">
+            <label for="subject_{{ template.kind }}">Subject</label>
+            <input type="text" name="subject_{{ template.kind }}" id="subject_{{ template.kind }}"
+                   class="form-control" maxlength="200" value="{{ template.subject }}">
+        </div>
+        <label for="body_{{ template.kind }}">Email body</label>
+        <div class="variable-chips" data-editor-id="body_{{ template.kind }}"
+             data-account-vars="1" style="margin:0.4rem 0 0.6rem;"></div>
+        <textarea name="body_{{ template.kind }}" id="body_{{ template.kind }}"
+                  class="form-control wysiwyg-editor" data-wysiwyg-height="280" rows="10">{{ template.body_html }}</textarea>
+    </div>
+    {% endfor %}
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save account emails</button>
+    </div>
+</form>
+{% endif %}
+
 {% if can_configure_email %}
 <h2 class="section-heading" id="mail-server">Mail server</h2>
 <div class="card" style="margin-bottom:1.5rem;">
@@ -441,6 +477,33 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleFields();
     var triggerSel = document.getElementById('config-trigger');
     if (triggerSel) triggerSel.addEventListener('change', toggleFields);
+
+    var accountVarsEl = document.getElementById('account-email-variables');
+    var accountVars = accountVarsEl ? (JSON.parse(accountVarsEl.textContent) || []) : [];
+    document.querySelectorAll('[data-account-vars]').forEach(function(box) {
+        var editorId = box.getAttribute('data-editor-id');
+        box.innerHTML = '';
+        accountVars.forEach(function(item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'variable-chip';
+            btn.textContent = item.token;
+            btn.title = item.label;
+            btn.addEventListener('click', function() {
+                if (typeof tinymce !== 'undefined') {
+                    var editor = tinymce.get(editorId);
+                    if (editor) {
+                        editor.focus();
+                        editor.insertContent(item.token);
+                        return;
+                    }
+                }
+                var ta = document.getElementById(editorId);
+                if (ta) insertAtCursor(ta, item.token);
+            });
+            box.appendChild(btn);
+        });
+    });
 });
 </script>
 {% include "documents/includes/wysiwyg.html" %}

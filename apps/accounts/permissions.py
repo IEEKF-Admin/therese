@@ -62,6 +62,7 @@ class GroupNames:
     CHECKLISTS_INSTITUTE_PROGRESS = "Checklists - Institute Progress"
 
     EMAIL_CONFIGURE = "Email - Configure"
+    SYSTEMADMIN = "Systemadmin"
 
 
 # All groups as a list (useful for iteration)
@@ -99,6 +100,7 @@ NEW_GROUPS = [
     GroupNames.CHECKLISTS_WORKGROUP_PROGRESS,
     GroupNames.CHECKLISTS_INSTITUTE_PROGRESS,
     GroupNames.EMAIL_CONFIGURE,
+    GroupNames.SYSTEMADMIN,
 ]
 
 # Groups removed from the system (deleted by ensure_groups / post_migrate).
@@ -264,8 +266,20 @@ def user_is_hr_superassistant(user):
 
 
 def user_can_manage_messaging(user):
-    """Login popups and trigger emails: HR Superassistant or Email - Configure."""
-    return user_is_hr_superassistant(user) or user_can_configure_email(user)
+    """Login popups, trigger emails, and account emails."""
+    return (
+        user_is_hr_superassistant(user)
+        or user_can_configure_email(user)
+        or user_can_reset_user_password(user)
+    )
+
+
+def user_can_reset_user_password(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.has_perm('accounts.reset_user_password')
 
 
 def assign_permissions_to_groups():
@@ -277,6 +291,7 @@ def assign_permissions_to_groups():
         python manage.py ensure_groups
     """
     from django.contrib.contenttypes.models import ContentType
+    from apps.accounts.models import CustomUser
     from apps.hr.models import Employee, Workgroup, Building
     from apps.finances.models import ContactPerson, CostCenter, WBSElement, PayScale
     from apps.core.models import GlobalSetting
@@ -395,6 +410,9 @@ def assign_permissions_to_groups():
 
     configure_email = get_perm('configure_email', GlobalSetting)
     safe_add(GroupNames.EMAIL_CONFIGURE, configure_email)
+
+    reset_password = get_perm('reset_user_password', CustomUser)
+    safe_add(GroupNames.SYSTEMADMIN, reset_password)
 
     # PI: Employee baseline + personnel create + docs manage + workgroup checklist progress
     safe_add(

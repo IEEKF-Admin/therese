@@ -188,7 +188,7 @@
     </a>
     {% endif %}
 
-    {% if 'HR - Superassistant' in user_groups or perms.core.configure_email or user.is_superuser %}
+    {% if 'HR - Superassistant' in user_groups or 'Systemadmin' in user_groups or perms.core.configure_email or perms.accounts.reset_user_password or user.is_superuser %}
     <a href="{% url 'core_settings:messaging' %}"
        class="{% if '/settings/messaging' in request.path or 'login-popups' in request.path or 'email-environment' in request.path %}active{% endif %}">
         <i class="fas fa-comments"></i> Messaging

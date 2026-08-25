@@ -11,8 +11,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 from django.db import models
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, UpdateView
 
@@ -176,6 +177,8 @@ def employee_list(request):
 
     show_actions = can_create_personnel
     show_checkboxes = can_manage
+    from apps.accounts.permissions import user_can_reset_user_password
+    can_reset_passwords = user_can_reset_user_password(request.user)
 
     context = {
         'employees': employee_list,
@@ -190,7 +193,32 @@ def employee_list(request):
         'can_edit_any': can_edit_any,
         'show_actions': show_actions,
         'show_checkboxes': show_checkboxes,
+        'can_reset_passwords': can_reset_passwords,
     }
+
+    if request.method == 'POST' and request.POST.get('action') == 'reset_passwords':
+        if not can_reset_passwords:
+            messages.error(request, 'You do not have permission to reset passwords.')
+            return redirect('hr:employee_list')
+        from apps.accounts.account_emails import reset_passwords_for_employees
+
+        ids = request.POST.getlist('selected_ids')
+        selected = list(Employee.objects.filter(pk__in=ids).select_related('user'))
+        reset_count, skipped = reset_passwords_for_employees(selected)
+        if reset_count:
+            messages.success(
+                request,
+                f'Password reset for {reset_count} employee(s). '
+                'Notification emails are sent with a short pause between messages.',
+            )
+        if skipped:
+            messages.warning(
+                request,
+                f'{skipped} selected employee(s) have no login user and were skipped.',
+            )
+        if not reset_count and not skipped:
+            messages.error(request, 'Select at least one employee.')
+        return redirect('hr:employee_list')
 
     if request.method == 'POST' and request.POST.get('action') == 'delete_selected':
         if not can_manage:
@@ -460,6 +488,38 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect(_safe_next_url(self.request, self.success_url))
 
 
+@login_required
+def employee_reset_password(request, pk):
+    from apps.accounts.account_emails import reset_and_notify
+    from apps.accounts.models import AccountEmailTemplate
+    from apps.accounts.permissions import user_can_reset_user_password
+
+    if request.method != 'POST':
+        return redirect('hr:employee_update', pk=pk)
+    if not user_can_reset_user_password(request.user):
+        raise PermissionDenied
+    employee = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
+    if not employee.user_id:
+        messages.error(request, 'This employee has no login user.')
+        return redirect('hr:employee_update', pk=pk)
+    _password, sent = reset_and_notify(
+        employee.user,
+        employee,
+        kind=AccountEmailTemplate.KIND_PASSWORD_RESET,
+    )
+    if sent:
+        messages.success(
+            request,
+            'A new password was generated and emailed to the user.',
+        )
+    else:
+        messages.warning(
+            request,
+            'A new password was generated, but the notification email could not be sent.',
+        )
+    return redirect('hr:employee_update', pk=pk)
+
+
 class MinimalEmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """Create an employee with only employee number and name."""
 
@@ -536,6 +596,11 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context['current_payscales_json'] = current_payscales_json()
         context.update(employee_document_context(self.request, self.object))
+        from apps.accounts.permissions import user_can_reset_user_password
+        context['show_reset_password'] = (
+            user_can_reset_user_password(self.request.user)
+            and bool(employee.user_id)
+        )
         return context
 
     def form_valid(self, form):
@@ -559,3 +624,35 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def form_invalid(self, form):
         messages.error(self.request, "Please correct the errors below.")
         return self.render_to_response(self.get_context_data(form=form))
+
+
+@login_required
+def employee_reset_password(request, pk):
+    from apps.accounts.account_emails import reset_and_notify
+    from apps.accounts.models import AccountEmailTemplate
+    from apps.accounts.permissions import user_can_reset_user_password
+
+    if request.method != 'POST':
+        return redirect('hr:employee_update', pk=pk)
+    if not user_can_reset_user_password(request.user):
+        raise PermissionDenied
+    employee = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
+    if not employee.user_id:
+        messages.error(request, 'This employee has no login user.')
+        return redirect('hr:employee_update', pk=pk)
+    _password, sent = reset_and_notify(
+        employee.user,
+        employee,
+        kind=AccountEmailTemplate.KIND_PASSWORD_RESET,
+    )
+    if sent:
+        messages.success(
+            request,
+            'A new password was generated and emailed to the user.',
+        )
+    else:
+        messages.warning(
+            request,
+            'A new password was generated, but the notification email could not be sent.',
+        )
+    return redirect('hr:employee_update', pk=pk)

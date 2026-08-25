@@ -217,6 +217,11 @@
 
     {% include "hr/employee_form/base.html" %}
 </form>
+{% if show_reset_password %}
+<form id="employee-reset-password-form" method="post" action="{% url 'hr:employee_reset_password' object.pk %}">
+    {% csrf_token %}
+</form>
+{% endif %}
 {% endblock %}
 
 

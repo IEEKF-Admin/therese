@@ -16,6 +16,7 @@ from .crud import (
     EmployeeUpdateView,
     MinimalEmployeeCreateView,
     employee_list,
+    employee_reset_password,
     phone_list,
 )
 from .locations import (
@@ -43,6 +44,7 @@ from .workgroups import (
 
 __all__ = [
     'employee_list',
+    'employee_reset_password',
     'phone_list',
     'EmployeeCreateView',
     'MinimalEmployeeCreateView',

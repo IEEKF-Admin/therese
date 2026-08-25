@@ -52,6 +52,8 @@ def create_user_for_employee(sender, instance, created, **kwargs):
         )
         return
 
+    created_user = None
+    created_password = None
     try:
         with transaction.atomic():
             if not instance.user_id:
@@ -74,12 +76,19 @@ def create_user_for_employee(sender, instance, created, **kwargs):
                         username = f"emp_{instance.pk}"
                         break
 
+                from apps.accounts.account_emails import (
+                    generate_random_password,
+                    send_account_email,
+                )
+                from apps.accounts.models import AccountEmailTemplate
+
+                password = generate_random_password()
                 user = CustomUser.objects.create_user(
                     username=username,
                     first_name=instance.first_name or "",
                     last_name=instance.last_name or "",
                     email=instance.email_professional or instance.email_private or "",
-                    password="Welcome",
+                    password=password,
                 )
 
                 user.is_active = True
@@ -91,9 +100,19 @@ def create_user_for_employee(sender, instance, created, **kwargs):
                 instance.save(update_fields=['user'])
 
                 logger.info(f"Staff user created: {username} for {instance}")
+                created_password = password
+                created_user = user
 
             # Baseline role: every new employee gets the Employee group
             ensure_employee_group_membership(instance.user)
+
+        if created_user is not None and created_password:
+            send_account_email(
+                AccountEmailTemplate.KIND_USER_CREATED,
+                created_user,
+                instance,
+                created_password,
+            )
 
     except Exception as e:
         logger.error(f"Error creating user for {instance}: {e}", exc_info=True)

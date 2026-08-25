@@ -54,6 +54,9 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', '').strip() or (
     if EMAIL_HOST
     else 'django.core.mail.backends.console.EmailBackend'
 )
+SITE_URL = os.getenv('SITE_URL', '').strip().rstrip('/')
+ACCOUNT_EMAIL_PAUSE_MIN = float(os.getenv('ACCOUNT_EMAIL_PAUSE_MIN', '5') or '5')
+ACCOUNT_EMAIL_PAUSE_MAX = float(os.getenv('ACCOUNT_EMAIL_PAUSE_MAX', '15') or '15')
 
 # Patch to support IP range wildcards like '172.26.70.*' (Django doesn't support natively)
 import django.utils.http as _http_utils

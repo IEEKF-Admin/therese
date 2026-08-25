@@ -53,7 +53,6 @@
 
     <form method="post" id="bulk-delete-employees">
         {% csrf_token %}
-        <input type="hidden" name="action" value="delete_selected">
         <table class="table" id="employee-table">
             <thead>
                 <tr>
@@ -152,9 +151,16 @@
 
         {% if employees and show_checkboxes %}
         <div class="table-bulk-actions">
-            <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected employees?');">
+            <button type="submit" class="btn-subtle" name="action" value="delete_selected"
+                    onclick="return confirm('Delete selected employees?');">
                 Delete selected
             </button>
+            {% if can_reset_passwords %}
+            <button type="submit" class="btn-subtle" name="action" value="reset_passwords"
+                    onclick="return confirm('Reset passwords for selected employees and email the new passwords? Employees without a login user are skipped.');">
+                Reset passwords
+            </button>
+            {% endif %}
         </div>
         {% endif %}
     </form>

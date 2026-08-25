@@ -106,7 +106,15 @@ def login_popup_settings(request):
 def messaging(request):
     from django.core.exceptions import PermissionDenied
 
-    from apps.accounts.permissions import user_can_configure_email, user_can_manage_messaging
+    from apps.accounts.account_emails import (
+        ACCOUNT_EMAIL_VARIABLES,
+        ensure_account_email_templates,
+    )
+    from apps.accounts.permissions import (
+        user_can_configure_email,
+        user_can_manage_messaging,
+        user_can_reset_user_password,
+    )
     from apps.accounts.template_variables import GROUP_LABELS, VARIABLES, catalog_by_trigger, variable_token
     from apps.core.html_sanitize import sanitize_html
     from apps.core.mail import send_therese_test_email
@@ -120,9 +128,25 @@ def messaging(request):
     if not user_can_manage_messaging(request.user):
         raise PermissionDenied
     can_configure_email = user_can_configure_email(request.user)
+    can_edit_account_emails = user_can_reset_user_password(request.user)
 
     if request.method == 'POST':
         action = request.POST.get('action')
+        if action == 'save_account_emails':
+            if not can_edit_account_emails:
+                raise PermissionDenied
+            from apps.accounts.models import AccountEmailTemplate
+
+            ensure_account_email_templates()
+            for kind, _label in AccountEmailTemplate.KIND_CHOICES:
+                template = AccountEmailTemplate.objects.filter(kind=kind).first()
+                if template is None:
+                    continue
+                template.subject = (request.POST.get(f'subject_{kind}') or '')[:200]
+                template.body_html = sanitize_html(request.POST.get(f'body_{kind}') or '')
+                template.save(update_fields=['subject', 'body_html'])
+            messages.success(request, 'Account email templates were saved.')
+            return redirect('core_settings:messaging')
         if action == 'send_test':
             if not can_configure_email:
                 raise PermissionDenied
@@ -210,6 +234,11 @@ def messaging(request):
         'all_workgroups': Workgroup.objects.order_by('short_name'),
         'all_groups': Group.objects.order_by('name'),
         'can_configure_email': can_configure_email,
+        'can_edit_account_emails': can_edit_account_emails,
+        'account_email_templates': (
+            ensure_account_email_templates() if can_edit_account_emails else []
+        ),
+        'account_email_variables': ACCOUNT_EMAIL_VARIABLES if can_edit_account_emails else [],
         'smtp_status': _email_environment_status() if can_configure_email else None,
         'smtp_variables': EMAIL_ENV_VARIABLES if can_configure_email else [],
         'form': test_form,

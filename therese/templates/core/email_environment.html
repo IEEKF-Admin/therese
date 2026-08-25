@@ -46,6 +46,28 @@
     </table>
 </div>
 
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Send a test email</h2>
+    <p style="color:#64748b; margin-bottom:1rem;">
+        Sends one message with the current <code>.env</code> SMTP settings.
+        Check the inbox (and spam folder) of the address below.
+        <small class="field-hint-de" style="display:block; margin-top:0.25rem;">
+            Testet den Versand — keine Passwörter werden angezeigt.
+        </small>
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="aligned-field">
+            <label for="{{ form.recipient.id_for_label }}">{{ form.recipient.label }}</label>
+            {{ form.recipient }}
+            {{ form.recipient.errors }}
+        </div>
+        <div class="form-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary">Send test email</button>
+        </div>
+    </form>
+</div>
+
 <div class="card">
     <h2 class="section-heading">Variables</h2>
     <table class="table">

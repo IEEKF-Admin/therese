@@ -1,4 +1,5 @@
 from django.contrib.auth.models import Group
+from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
@@ -44,3 +45,25 @@ class EmailEnvironmentPageTests(TestCase):
         self.client.login(username='mail-denied', password='test')
         response = self.client.get(reverse('core_settings:email_environment'))
         self.assertEqual(response.status_code, 403)
+
+    def test_group_can_send_test_email(self):
+        self.client.login(username='mail-admin', password='test')
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            response = self.client.post(
+                reverse('core_settings:email_environment'),
+                {'recipient': 'tester@example.org'},
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['tester@example.org'])
+        self.assertIn('THERESE email test', mail.outbox[0].subject)
+
+    def test_denied_user_cannot_send_test_email(self):
+        self.client.login(username='mail-denied', password='test')
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            response = self.client.post(
+                reverse('core_settings:email_environment'),
+                {'recipient': 'tester@example.org'},
+            )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)

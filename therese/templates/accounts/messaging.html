@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block title %}Messaging - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Messaging</h1>
+    <p class="page-subtitle">Login popups and trigger emails</p>
+</div>
+
+<p style="color:#64748b;margin-bottom:2rem;">
+    Each configuration has a trigger, an optional popup, and an optional email.
+    Emails are sent when the event happens; popups appear at the next login
+    (except first login / login after date/time, which send at login).
+</p>
+
+{{ configs_data|json_script:"login-popup-configs-data" }}
+{{ variable_catalog|json_script:"login-popup-variable-catalog" }}
+
+<h2 class="section-heading">Existing configurations</h2>
+<form method="post" id="bulk-delete-configs" class="list-panel">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_configs" title="Select all">
+                </th>
+                <th>Name</th>
+                <th>Trigger</th>
+                <th>Popup</th>
+                <th>Email</th>
+                <th>Link To</th>
+                <th>Audience</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for config in configs %}
+        <tr>
+            <td class="table-checkbox-col"><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
+            <td>{{ config.name }}</td>
+            <td>{{ config.get_trigger_display }}</td>
+            <td>{{ config.show_popup|yesno:"Yes,No" }}</td>
+            <td>{{ config.send_email|yesno:"Yes,No" }}</td>
+            <td>{{ config.get_link_to_display|default:"-" }}</td>
+            <td>
+                {% if config.target_users.exists or config.target_workgroups.exists or config.target_groups.exists %}
+                    <span style="font-size:0.8rem;color:#6b7280;">{{ config.get_audience_match_mode_display }}</span><br>
+                    {% if config.target_users.exists %}Users: {{ config.target_users.count }}{% endif %}
+                    {% if config.target_workgroups.exists %}{% if config.target_users.exists %}, {% endif %}Work groups: {{ config.target_workgroups.count }}{% endif %}
+                    {% if config.target_groups.exists %}{% if config.target_users.exists or config.target_workgroups.exists %}, {% endif %}Groups: {{ config.target_groups.count }}{% endif %}
+                {% else %}
+                    All users
+                {% endif %}
+            </td>
+            <td>{{ config.enabled|yesno:"Yes,No" }}</td>
+            <td>
+                <a href="#"
+                   onclick="editConfig({{ config.pk }}); return false;"
+                   class="action-icon edit"
+                   title="Edit">
+                    <i class="fas fa-edit"></i>
+                </a>
+                <a href="#"
+                   onclick="if(confirm('Delete this config?')) { var f=document.createElement('form'); f.method='post'; f.innerHTML='<input type=hidden name=csrfmiddlewaretoken value=\'{{ csrf_token }}\'><input type=hidden name=delete_pk value={{ config.pk }}>'; document.body.appendChild(f); f.submit(); }"
+                   class="action-icon delete"
+                   title="Delete">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9">No configurations yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if configs %}
+    <div class="table-bulk-actions">
+        <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected configurations?');">
+            Delete selected
+        </button>
+    </div>
+    {% endif %}
+</form>
+
+<h2 class="section-heading" id="message-editor">Add / edit message</h2>
+<div class="card">
+<form method="post" id="config-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_config">
+    <input type="hidden" name="pk" id="config-pk">
+    <div class="form-row">
+        <div>
+            <label>Name</label>
+            <input type="text" name="name" id="config-name" class="form-control" required>
+        </div>
+        <div>
+            <label>Trigger</label>
+            <select name="trigger" id="config-trigger" class="form-control" onchange="toggleFields()">
+                {% for value, label in trigger_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="datetime-field" style="display:none; margin-top: 0.5rem;">
+                <label>Trigger Date/Time (for login after)</label>
+                <input type="datetime-local" name="trigger_datetime" id="config-datetime" class="form-control">
+            </div>
+
+            <div id="x-months-field" style="display:none; margin-top: 0.5rem;">
+                <label>X Months</label>
+                <input type="number" name="x_months" id="config-x-months" class="form-control" min="1">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section" style="margin: 1.5rem 0;">
+        <h3>Audience (optional)</h3>
+        <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 1rem;">
+            Leave all empty to apply to everyone the trigger concerns. If you select targets, choose whether <strong>any</strong> (OR) or <strong>all</strong> (AND) of the selected criteria must match.
+        </p>
+        <div style="margin-bottom: 1rem;">
+            <label>Combine targets with</label>
+            <select name="audience_match_mode" id="config-audience-match" class="form-control" style="max-width: 28rem;">
+                {% for value, label in audience_match_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-row">
+            <div>
+                <label>Target users</label>
+                <select name="target_users" id="config-target-users" class="form-control" multiple size="6">
+                    {% for u in all_users %}
+                    <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Target work groups</label>
+                <select name="target_workgroups" id="config-target-workgroups" class="form-control" multiple size="6">
+                    {% for wg in all_workgroups %}
+                    <option value="{{ wg.pk }}">{{ wg.short_name }} — {{ wg.long_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Target Django groups</label>
+                <select name="target_groups" id="config-target-groups" class="form-control" multiple size="6">
+                    {% for g in all_groups %}
+                    <option value="{{ g.pk }}">{{ g.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>Reactions</label>
+            <label style="display:block; font-weight:normal; margin-top:0.35rem;">
+                <input type="checkbox" name="show_popup" id="config-show-popup" checked>
+                Show popup
+            </label>
+            <label style="display:block; font-weight:normal; margin-top:0.35rem;">
+                <input type="checkbox" name="send_email" id="config-send-email">
+                Send email
+            </label>
+        </div>
+        <div>
+            <label>Link To (for Popup)</label>
+            <select name="link_to" id="config-link" class="form-control">
+                {% for value, label in link_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div style="margin-top:1.25rem;">
+        <h3>Popup text</h3>
+        <textarea name="text" id="config-text" class="form-control" rows="10" style="min-height: 180px; width: 100%; font-family: monospace;" placeholder="Hello first name, your contract ends …"></textarea>
+        <div id="popup-variable-chips" class="variable-chips" style="margin-top:0.6rem;"></div>
+    </div>
+
+    <div style="margin-top:1.5rem;">
+        <h3>Email</h3>
+        <div class="aligned-field" style="margin-bottom:0.6rem;">
+            <label for="config-email-subject">Subject</label>
+            <input type="text" name="email_subject" id="config-email-subject" class="form-control" maxlength="200">
+        </div>
+        <label for="config-email-html">Email body</label>
+        <div id="email-variable-chips" class="variable-chips" data-editor-id="config-email-html" style="margin:0.4rem 0 0.6rem;"></div>
+        <textarea name="email_html" id="config-email-html" class="form-control wysiwyg-editor" data-wysiwyg-height="360" rows="12"></textarea>
+        <small style="color:#666; display:block; margin-top:0.35rem;">
+            Click a variable to insert it. List variables such as
+            <code>{% verbatim %}{{ purchase_orders:not_yet_processed }}{% endverbatim %}</code>
+            insert several records.
+        </small>
+    </div>
+
+    <div style="margin-top:1rem;">
+        <label><input type="checkbox" name="enabled" id="config-enabled" checked> Enabled</label>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save message</button>
+        <button type="button" onclick="resetForm()" class="btn-secondary">Cancel / New</button>
+    </div>
+</form>
+</div>
+
+<details style="margin:1.5rem 0;">
+    <summary style="cursor:pointer;">Template variables</summary>
+    <table class="table" style="margin-top:0.75rem;">
+        <thead>
+            <tr>
+                <th>Variable</th>
+                <th>Meaning</th>
+                <th>Group</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in all_template_variables %}
+            <tr>
+                <td><code>{{ item.token }}</code></td>
+                <td>{{ item.label }}</td>
+                <td>{{ item.group_label }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</details>
+
+{% if can_configure_email %}
+<h2 class="section-heading" id="mail-server">Mail server</h2>
+<div class="card" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:0.75rem;">Current process (no secrets)</h3>
+    <table class="table">
+        <tbody>
+            <tr><th>Backend</th><td><code>{{ smtp_status.backend }}</code></td></tr>
+            <tr><th>SMTP host</th><td>{{ smtp_status.host }}</td></tr>
+            <tr><th>Port</th><td>{{ smtp_status.port }}</td></tr>
+            <tr><th>SSL (implicit TLS)</th><td>{{ smtp_status.use_ssl|yesno:"Yes,No" }}</td></tr>
+            <tr><th>STARTTLS</th><td>{{ smtp_status.use_tls|yesno:"Yes,No" }}</td></tr>
+            <tr><th>SMTP user</th><td>{{ smtp_status.host_user }}</td></tr>
+            <tr><th>From address</th><td>{{ smtp_status.from_email }}</td></tr>
+            <tr>
+                <th>Password in .env</th>
+                <td>{% if smtp_status.password_configured %}Configured (value hidden){% else %}Not set{% endif %}</td>
+            </tr>
+        </tbody>
+    </table>
+    <p style="color:#64748b; margin-top:0.75rem;">
+        Secrets belong in <code>.env</code> (gitignored). Template: <code>.env.example</code>.
+        Restart the application after changing <code>.env</code>.
+        <small class="field-hint-de" style="display:block;">Passwörter nur in der lokalen .env, niemals im Repository.</small>
+    </p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:0.75rem;">Send a test email</h3>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="send_test">
+        <div class="aligned-field">
+            <label for="{{ form.recipient.id_for_label }}">{{ form.recipient.label }}</label>
+            {{ form.recipient }}
+            {{ form.recipient.errors }}
+        </div>
+        <div class="form-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary">Send test email</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom:0.75rem;">.env variables</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Example (not a real secret)</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in smtp_variables %}
+            <tr>
+                <td><code>{{ item.name }}</code></td>
+                <td><code>{{ item.example }}</code></td>
+                <td>{{ item.description }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.variable-chip {
+    display:inline-block; border:1px solid #cbd5e1; background:#f8fafc; color:#334155;
+    border-radius:999px; padding:0.15rem 0.6rem; font-size:0.8rem; cursor:pointer;
+}
+.variable-chip:hover { background:#e2e8f0; }
+</style>
+<script>
+var loginPopupConfigsByPk = {};
+var loginPopupVariableCatalog = {};
+(function() {
+    var dataEl = document.getElementById('login-popup-configs-data');
+    if (dataEl) {
+        var configs = JSON.parse(dataEl.textContent);
+        configs.forEach(function(cfg) {
+            loginPopupConfigsByPk[String(cfg.pk)] = cfg;
+        });
+    }
+    var catalogEl = document.getElementById('login-popup-variable-catalog');
+    if (catalogEl) {
+        loginPopupVariableCatalog = JSON.parse(catalogEl.textContent) || {};
+    }
+})();
+
+function insertAtCursor(textarea, text) {
+    if (!textarea) return;
+    var start = textarea.selectionStart || 0;
+    var end = textarea.selectionEnd || 0;
+    var value = textarea.value || '';
+    textarea.value = value.slice(0, start) + text + value.slice(end);
+    var pos = start + text.length;
+    textarea.focus();
+    textarea.setSelectionRange(pos, pos);
+}
+
+function insertEmailVariable(token) {
+    if (typeof tinymce !== 'undefined') {
+        var editor = tinymce.get('config-email-html');
+        if (editor) {
+            editor.focus();
+            editor.insertContent(token);
+            return;
+        }
+    }
+    insertAtCursor(document.getElementById('config-email-html'), token);
+}
+
+function setEmailHtml(html) {
+    var ta = document.getElementById('config-email-html');
+    if (ta) ta.value = html || '';
+    if (typeof tinymce !== 'undefined') {
+        var editor = tinymce.get('config-email-html');
+        if (editor) editor.setContent(html || '');
+    }
+}
+
+function renderVariableChips(boxId, insertFn) {
+    var box = document.getElementById(boxId);
+    var triggerEl = document.getElementById('config-trigger');
+    if (!box || !triggerEl) return;
+    var vars = loginPopupVariableCatalog[triggerEl.value] || [];
+    box.innerHTML = '';
+    vars.forEach(function(item) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'variable-chip';
+        btn.textContent = item.token;
+        btn.title = item.label;
+        btn.addEventListener('click', function() { insertFn(item.token); });
+        box.appendChild(btn);
+    });
+}
+
+function toggleFields() {
+    var trigger = document.getElementById('config-trigger').value;
+    document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
+    document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
+    renderVariableChips('popup-variable-chips', function(token) {
+        insertAtCursor(document.getElementById('config-text'), token);
+    });
+    renderVariableChips('email-variable-chips', insertEmailVariable);
+}
+
+function setMultiSelectValues(selectId, values) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+    var valueSet = new Set((values || []).map(String));
+    Array.prototype.forEach.call(select.options, function(option) {
+        option.selected = valueSet.has(String(option.value));
+    });
+}
+
+function editConfig(pk) {
+    var cfg = loginPopupConfigsByPk[String(pk)];
+    if (!cfg) return;
+
+    document.getElementById('config-pk').value = cfg.pk || '';
+    document.getElementById('config-name').value = cfg.name || '';
+    document.getElementById('config-trigger').value = cfg.trigger || '';
+    document.getElementById('config-show-popup').checked = cfg.show_popup !== false;
+    document.getElementById('config-send-email').checked = !!cfg.send_email;
+    document.getElementById('config-link').value = cfg.link_to || '';
+    document.getElementById('config-x-months').value = cfg.x_months != null ? cfg.x_months : '';
+    document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
+    document.getElementById('config-text').value = cfg.text || '';
+    document.getElementById('config-email-subject').value = cfg.email_subject || '';
+    setEmailHtml(cfg.email_html || '');
+    document.getElementById('config-enabled').checked = !!cfg.enabled;
+    document.getElementById('config-audience-match').value = cfg.audience_match_mode || 'or';
+    setMultiSelectValues('config-target-users', cfg.target_user_ids);
+    setMultiSelectValues('config-target-workgroups', cfg.target_workgroup_ids);
+    setMultiSelectValues('config-target-groups', cfg.target_group_ids);
+
+    toggleFields();
+    document.getElementById('config-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetForm() {
+    document.getElementById('config-form').reset();
+    document.getElementById('config-pk').value = '';
+    document.getElementById('config-show-popup').checked = true;
+    document.getElementById('config-send-email').checked = false;
+    document.getElementById('config-enabled').checked = true;
+    document.getElementById('config-audience-match').value = 'or';
+    document.getElementById('config-email-subject').value = '';
+    setEmailHtml('');
+    setMultiSelectValues('config-target-users', []);
+    setMultiSelectValues('config-target-workgroups', []);
+    setMultiSelectValues('config-target-groups', []);
+    toggleFields();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleFields();
+    var triggerSel = document.getElementById('config-trigger');
+    if (triggerSel) triggerSel.addEventListener('change', toggleFields);
+});
+</script>
+{% include "documents/includes/wysiwyg.html" %}
+{% endblock %}

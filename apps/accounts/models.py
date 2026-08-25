@@ -93,7 +93,7 @@ class LoginPopupConfig(models.Model):
     send_email = models.BooleanField(
         default=False,
         verbose_name="Send email",
-        help_text="Send the email template when this trigger fires. Edit subject and body on Email environment.",
+        help_text="Send the email template when this trigger fires. Edit subject and body on Messaging.",
     )
     text = models.TextField(
         blank=True,
@@ -108,7 +108,7 @@ class LoginPopupConfig(models.Model):
     email_html = models.TextField(
         blank=True,
         verbose_name="Email body (HTML)",
-        help_text="HTML email body. Edited on the Email environment page.",
+        help_text="HTML email body. Edited on the Messaging page.",
     )
     link_to = models.CharField(max_length=50, choices=LINK_CHOICES, blank=True, help_text="For popup: where to redirect on OK.")
     x_months = models.PositiveIntegerField(null=True, blank=True, help_text="For 'contract_ending_soon' or 'any_contract_ending_soon' trigger.")

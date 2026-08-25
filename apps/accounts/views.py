@@ -45,6 +45,7 @@ class ThereseLoginView(LoginView):
 
 from datetime import datetime
 
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.utils import timezone as dj_timezone
 
@@ -81,6 +82,8 @@ def _login_popup_config_dict(config):
         'x_months': config.x_months,
         'trigger_datetime': trigger_dt,
         'text': config.text,
+        'email_subject': config.email_subject or '',
+        'email_html': config.email_html or '',
         'enabled': config.enabled,
         'audience_match_mode': config.audience_match_mode,
         'target_user_ids': list(config.target_users.values_list('pk', flat=True)),
@@ -96,68 +99,120 @@ def _set_popup_audience(config, post_data):
 
 
 def login_popup_settings(request):
-    from apps.accounts.permissions import user_is_hr_superassistant
-    if not user_is_hr_superassistant(request.user):
-        return redirect('tasks:my_tasks')
+    return redirect('core_settings:messaging')
+
+
+@login_required
+def messaging(request):
+    from django.core.exceptions import PermissionDenied
+
+    from apps.accounts.permissions import user_can_configure_email, user_can_manage_messaging
+    from apps.accounts.template_variables import GROUP_LABELS, VARIABLES, catalog_by_trigger, variable_token
+    from apps.core.html_sanitize import sanitize_html
+    from apps.core.mail import send_therese_test_email
+    from apps.core.views import (
+        EMAIL_ENV_VARIABLES,
+        TestEmailForm,
+        _default_test_recipient,
+        _email_environment_status,
+    )
+
+    if not user_can_manage_messaging(request.user):
+        raise PermissionDenied
+    can_configure_email = user_can_configure_email(request.user)
+
     if request.method == 'POST':
-        if request.POST.get('action') == 'delete_selected':
-            for pk in request.POST.getlist('selected_configs'):
+        action = request.POST.get('action')
+        if action == 'send_test':
+            if not can_configure_email:
+                raise PermissionDenied
+            form = TestEmailForm(request.POST)
+            if form.is_valid():
+                recipient = form.cleaned_data['recipient']
                 try:
-                    LoginPopupConfig.objects.get(pk=pk).delete()
-                except:
-                    pass
-            return redirect('accounts:login_popup_settings')
-
-        if request.POST.get('delete_pk'):
-            try:
-                LoginPopupConfig.objects.get(pk=request.POST['delete_pk']).delete()
-            except:
-                pass
-            return redirect('accounts:login_popup_settings')
-
-        pk = request.POST.get('pk')
-        if pk:
-            config = LoginPopupConfig.objects.get(pk=pk)
+                    send_therese_test_email(
+                        recipient,
+                        requested_by=request.user.get_username(),
+                    )
+                except Exception as exc:
+                    messages.error(request, f'Test email could not be sent: {exc}')
+                else:
+                    messages.success(
+                        request,
+                        f'Test email was handed to the mail server for {recipient}.',
+                    )
+                    return redirect('core_settings:messaging')
+            test_form = form
         else:
-            config = LoginPopupConfig()
-        config.name = request.POST.get('name', '')
-        config.trigger = request.POST.get('trigger', '')
-        config.reaction_type = 'popup'
-        config.show_popup = bool(request.POST.get('show_popup'))
-        config.send_email = bool(request.POST.get('send_email'))
-        config.text = request.POST.get('text', '')
-        config.link_to = request.POST.get('link_to', '')
-        x = request.POST.get('x_months')
-        config.x_months = int(x) if x else None
-        config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
-        config.enabled = bool(request.POST.get('enabled'))
-        match_mode = request.POST.get('audience_match_mode', 'or')
-        config.audience_match_mode = match_mode if match_mode in ('or', 'and') else 'or'
-        config.save()
-        _set_popup_audience(config, request.POST)
-        return redirect('accounts:login_popup_settings')
+            test_form = TestEmailForm(initial={'recipient': _default_test_recipient(request.user)})
+            if action == 'delete_selected':
+                for pk in request.POST.getlist('selected_configs'):
+                    try:
+                        LoginPopupConfig.objects.get(pk=pk).delete()
+                    except LoginPopupConfig.DoesNotExist:
+                        pass
+                return redirect('core_settings:messaging')
+
+            if request.POST.get('delete_pk'):
+                try:
+                    LoginPopupConfig.objects.get(pk=request.POST['delete_pk']).delete()
+                except LoginPopupConfig.DoesNotExist:
+                    pass
+                return redirect('core_settings:messaging')
+
+            pk = request.POST.get('pk')
+            if pk:
+                config = LoginPopupConfig.objects.get(pk=pk)
+            else:
+                config = LoginPopupConfig()
+            config.name = request.POST.get('name', '')
+            config.trigger = request.POST.get('trigger', '')
+            config.reaction_type = 'popup'
+            config.show_popup = bool(request.POST.get('show_popup'))
+            config.send_email = bool(request.POST.get('send_email'))
+            config.text = request.POST.get('text', '')
+            config.email_subject = (request.POST.get('email_subject') or '')[:200]
+            config.email_html = sanitize_html(request.POST.get('email_html') or '')
+            config.link_to = request.POST.get('link_to', '')
+            x = request.POST.get('x_months')
+            config.x_months = int(x) if x else None
+            config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
+            config.enabled = bool(request.POST.get('enabled'))
+            match_mode = request.POST.get('audience_match_mode', 'or')
+            config.audience_match_mode = match_mode if match_mode in ('or', 'and') else 'or'
+            config.save()
+            _set_popup_audience(config, request.POST)
+            return redirect('core_settings:messaging')
+    else:
+        test_form = TestEmailForm(initial={'recipient': _default_test_recipient(request.user)})
 
     configs = (
         LoginPopupConfig.objects.all()
         .prefetch_related('target_users', 'target_workgroups', 'target_groups')
         .order_by('name')
     )
-    from apps.accounts.template_variables import catalog_by_trigger
-
-    variable_catalog = catalog_by_trigger()
-
-    configs_data = [_login_popup_config_dict(c) for c in configs]
-
-    return render(request, 'accounts/login_popup_settings.html', {
+    return render(request, 'accounts/messaging.html', {
         'configs': configs,
-        'configs_data': configs_data,
+        'configs_data': [_login_popup_config_dict(c) for c in configs],
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
         'link_choices': LoginPopupConfig.LINK_CHOICES,
         'audience_match_choices': LoginPopupConfig.AUDIENCE_MATCH_CHOICES,
-        'variable_catalog': variable_catalog,
+        'variable_catalog': catalog_by_trigger(),
+        'all_template_variables': [
+            {
+                **item,
+                'token': variable_token(item['key']),
+                'group_label': GROUP_LABELS[item['group']],
+            }
+            for item in VARIABLES
+        ],
         'all_users': CustomUser.objects.filter(is_active=True).order_by('last_name', 'first_name', 'username'),
         'all_workgroups': Workgroup.objects.order_by('short_name'),
         'all_groups': Group.objects.order_by('name'),
+        'can_configure_email': can_configure_email,
+        'smtp_status': _email_environment_status() if can_configure_email else None,
+        'smtp_variables': EMAIL_ENV_VARIABLES if can_configure_email else [],
+        'form': test_form,
     })
 
 

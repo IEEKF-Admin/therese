@@ -253,7 +253,7 @@ def user_can_configure_email(user):
 
 def user_is_hr_superassistant(user):
     """
-    Institute-wide HR admin tools (jobs, limitation reasons, login popup, workflow).
+    Institute-wide HR admin tools (jobs, limitation reasons, messaging, workflow).
     Superusers and members of HR - Superassistant.
     """
     if not user or not user.is_authenticated:
@@ -261,6 +261,11 @@ def user_is_hr_superassistant(user):
     if user.is_superuser:
         return True
     return user.groups.filter(name=GroupNames.HR_SUPERASSISTANT).exists()
+
+
+def user_can_manage_messaging(user):
+    """Login popups and trigger emails: HR Superassistant or Email - Configure."""
+    return user_is_hr_superassistant(user) or user_can_configure_email(user)
 
 
 def assign_permissions_to_groups():

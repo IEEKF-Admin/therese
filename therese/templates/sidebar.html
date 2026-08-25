@@ -176,7 +176,7 @@
     </a>
     {% endif %}
 
-    {# Jobs / Limitation / Login popup / Workflow: HR Superassistant (institute-wide HR admin) #}
+    {# Jobs / Limitation / Workflow: HR Superassistant (institute-wide HR admin) #}
     {% if 'HR - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'tasks:recruitment_job_manage' %}"
        class="{% if '/tasks/admin/jobs' in request.path %}active{% endif %}">
@@ -186,16 +186,12 @@
        class="{% if '/tasks/admin/limitation-reasons' in request.path %}active{% endif %}">
         <i class="fas fa-file-signature"></i> Limitation Reasons
     </a>
-    <a href="{% url 'accounts:login_popup_settings' %}"
-       class="{% if 'login-popup-settings' in request.path %}active{% endif %}">
-        <i class="fas fa-cog"></i> Login Popup Settings
-    </a>
     {% endif %}
 
-    {% if perms.core.configure_email or user.is_superuser %}
-    <a href="{% url 'core_settings:email_environment' %}"
-       class="{% if 'email-environment' in request.path %}active{% endif %}">
-        <i class="fas fa-envelope"></i> Email environment
+    {% if 'HR - Superassistant' in user_groups or perms.core.configure_email or user.is_superuser %}
+    <a href="{% url 'core_settings:messaging' %}"
+       class="{% if '/settings/messaging' in request.path or 'login-popups' in request.path or 'email-environment' in request.path %}active{% endif %}">
+        <i class="fas fa-comments"></i> Messaging
     </a>
     {% endif %}
 

@@ -374,11 +374,35 @@ class EmailTemplateSettingsTests(TestCase):
 
     def test_page_lists_trigger_templates(self):
         self.client.login(username='mail-admin', password='test')
-        response = self.client.get(reverse('core_settings:email_environment'))
+        response = self.client.get(reverse('core_settings:messaging'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Trigger email templates')
+        self.assertContains(response, 'Messaging')
         self.assertContains(response, 'Contract mail')
+        self.assertContains(response, 'New task assigned to the user')
+        self.assertContains(response, 'First login (welcome / profile completion)')
+        self.assertContains(response, 'Email body')
         self.assertContains(response, '{{ first_name }}')
+
+    def test_group_can_create_template_for_trigger(self):
+        self.client.login(username='mail-admin', password='test')
+        response = self.client.post(
+            reverse('core_settings:messaging'),
+            {
+                'action': 'save_config',
+                'trigger': 'new_task_assigned',
+                'name': 'Assigned task mail',
+                'send_email': 'on',
+                'email_subject': 'New task {{ task_title }}',
+                'email_html': '<p>Assigned {{ task_title }}</p>',
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        created = LoginPopupConfig.objects.get(name='Assigned task mail')
+        self.assertEqual(created.trigger, 'new_task_assigned')
+        self.assertTrue(created.send_email)
+        self.assertFalse(created.show_popup)
+        self.assertEqual(created.email_subject, 'New task {{ task_title }}')
+        self.assertIn('Assigned {{ task_title }}', created.email_html)
 
     def test_login_popup_settings_shows_reaction_checkboxes(self):
         assistant = CustomUser.objects.create_user('hr-super', password='test')
@@ -387,19 +411,22 @@ class EmailTemplateSettingsTests(TestCase):
         assistant.groups.add(Group.objects.get(name=GroupNames.HR_SUPERASSISTANT))
         client = Client()
         client.login(username='hr-super', password='test')
-        response = client.get(reverse('accounts:login_popup_settings'))
+        response = client.get(reverse('accounts:login_popup_settings'), follow=True)
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Messaging')
         self.assertContains(response, 'Show popup')
         self.assertContains(response, 'Send email')
-        self.assertContains(response, 'Popup message text')
+        self.assertContains(response, 'Popup text')
 
     def test_group_can_save_template(self):
         self.client.login(username='mail-admin', password='test')
         response = self.client.post(
-            reverse('core_settings:email_environment'),
+            reverse('core_settings:messaging'),
             {
-                'action': 'save_template',
-                'config_pk': str(self.config.pk),
+                'action': 'save_config',
+                'pk': str(self.config.pk),
+                'name': self.config.name,
+                'trigger': self.config.trigger,
                 'send_email': 'on',
                 'email_subject': 'Hello {{ first_name }}',
                 'email_html': '<p>Hi {{ first_name }}</p><script>alert(1)</script>',

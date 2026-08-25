@@ -19,7 +19,6 @@ urlpatterns = [
      views.ForcePasswordChangeView.as_view(), 
      name='force_password_change'),
 
-    # Login Popup Settings (for staff)
     path('settings/login-popups/', views.login_popup_settings, name='login_popup_settings'),
 ]
 

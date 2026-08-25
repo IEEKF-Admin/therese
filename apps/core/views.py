@@ -1,21 +1,10 @@
 from django import forms
 from django.conf import settings
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect, render
-
-from apps.accounts.models import LoginPopupConfig
-from apps.accounts.template_variables import (
-    GROUP_LABELS,
-    VARIABLES,
-    catalog_by_trigger,
-    variable_token,
-)
-from apps.core.html_sanitize import sanitize_html
+from django.shortcuts import render
 
 from .file_service import ThereseFileService
-from .mail import send_therese_test_email
 from .media_access import user_can_access_stored_file
 
 
@@ -109,62 +98,3 @@ def _default_test_recipient(user):
     if employee is not None:
         return (getattr(employee, 'email_professional', '') or '').strip()
     return ''
-
-
-def _save_trigger_email_template(request):
-    config = get_object_or_404(LoginPopupConfig, pk=request.POST.get('config_pk'))
-    config.send_email = bool(request.POST.get('send_email'))
-    config.email_subject = (request.POST.get('email_subject') or '')[:200]
-    config.email_html = sanitize_html(request.POST.get('email_html') or '')
-    config.save(update_fields=['send_email', 'email_subject', 'email_html', 'updated_at'])
-    messages.success(request, f'Email template for “{config.name}” was saved.')
-    return redirect('core_settings:email_environment')
-
-
-@login_required
-@permission_required('core.configure_email', raise_exception=True)
-def email_environment(request):
-    """Describe .env email settings without exposing secrets. Allow a test send."""
-    action = request.POST.get('action') or 'send_test'
-    if request.method == 'POST' and action == 'save_template':
-        return _save_trigger_email_template(request)
-
-    form = TestEmailForm(
-        request.POST or None if request.method == 'POST' and action == 'send_test' else None,
-        initial={'recipient': _default_test_recipient(request.user)},
-    )
-    if request.method == 'POST' and action == 'send_test':
-        if form.is_valid():
-            recipient = form.cleaned_data['recipient']
-            try:
-                send_therese_test_email(
-                    recipient,
-                    requested_by=request.user.get_username(),
-                )
-            except Exception as exc:
-                messages.error(
-                    request,
-                    f'Test email could not be sent: {exc}',
-                )
-            else:
-                messages.success(
-                    request,
-                    f'Test email was handed to the mail server for {recipient}.',
-                )
-                return redirect('core_settings:email_environment')
-    trigger_configs = LoginPopupConfig.objects.order_by('name')
-    return render(request, 'core/email_environment.html', {
-        'variables': EMAIL_ENV_VARIABLES,
-        'status': _email_environment_status(),
-        'form': form,
-        'trigger_configs': trigger_configs,
-        'variable_catalog': catalog_by_trigger(),
-        'all_template_variables': [
-            {
-                **item,
-                'token': variable_token(item['key']),
-                'group_label': GROUP_LABELS[item['group']],
-            }
-            for item in VARIABLES
-        ],
-    })

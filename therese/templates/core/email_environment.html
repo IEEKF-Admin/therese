@@ -5,7 +5,121 @@
 {% block content %}
 <div class="page-header">
     <h1>Email environment</h1>
-    <p class="page-subtitle">How THERESE reads outbound mail settings from <code>.env</code></p>
+    <p class="page-subtitle">Trigger email texts and SMTP settings from <code>.env</code></p>
+</div>
+
+{{ variable_catalog|json_script:"email-variable-catalog" }}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="section-heading">Trigger email templates</h2>
+    <p style="color:#64748b; margin-bottom:1rem;">
+        Each popup trigger has its own email text. Write subject and body here; they are independent from the popup message.
+        Enable <strong>Send this email when the trigger fires</strong> for the triggers you want.
+        Event triggers (new task, status change, comment, checklist, chemicals, contract in the X-months window) send immediately.
+        First login and login after date/time send at login.
+        <small class="field-hint-de" style="display:block; margin-top:0.25rem;">
+            Pro Trigger ein eigener E-Mail-Text. Versand beim Ereignis, nicht erst beim nächsten Login
+            (außer Erstes Login / Login nach Datum).
+        </small>
+    </p>
+
+    {% for group in trigger_groups %}
+    <section id="trigger-{{ group.trigger }}" style="margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid #e2e8f0;">
+        <h3 style="margin-bottom:0.5rem;">{{ group.label }}</h3>
+
+        {% for config in group.configs %}
+        <form method="post" class="card" style="margin-bottom:0.85rem; box-shadow:none;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_template">
+            <input type="hidden" name="config_pk" value="{{ config.pk }}">
+            <div class="aligned-field" style="margin-bottom:0.6rem;">
+                <label for="email-name-{{ config.pk }}">Template name</label>
+                <input type="text" name="name" id="email-name-{{ config.pk }}" class="form-control"
+                       value="{{ config.name }}" required>
+            </div>
+            <label style="display:block; font-weight:normal; margin-bottom:0.6rem;">
+                <input type="checkbox" name="send_email"{% if config.send_email %} checked{% endif %}>
+                Send this email when the trigger fires
+            </label>
+            {% if group.needs_x_months %}
+            <div class="aligned-field" style="margin-bottom:0.6rem;">
+                <label for="email-x-months-{{ config.pk }}">X months</label>
+                <input type="number" name="x_months" id="email-x-months-{{ config.pk }}" class="form-control"
+                       min="1" value="{{ config.x_months|default:6 }}">
+            </div>
+            {% endif %}
+            {% if group.needs_datetime %}
+            <div class="aligned-field" style="margin-bottom:0.6rem;">
+                <label for="email-datetime-{{ config.pk }}">Trigger date/time</label>
+                <input type="datetime-local" name="trigger_datetime" id="email-datetime-{{ config.pk }}"
+                       class="form-control"
+                       value="{% if config.trigger_datetime %}{{ config.trigger_datetime|date:'Y-m-d' }}T{{ config.trigger_datetime|time:'H:i' }}{% endif %}">
+            </div>
+            {% endif %}
+            <div class="aligned-field" style="margin-bottom:0.6rem;">
+                <label for="email-subject-{{ config.pk }}">Subject</label>
+                <input type="text" name="email_subject" id="email-subject-{{ config.pk }}" class="form-control"
+                       maxlength="200" value="{{ config.email_subject }}">
+            </div>
+            <label for="email-html-{{ config.pk }}">Email body</label>
+            <div class="variable-chips" data-editor-id="email-html-{{ config.pk }}" data-trigger="{{ group.trigger }}"
+                 style="margin:0.4rem 0 0.6rem;"></div>
+            <textarea name="email_html" id="email-html-{{ config.pk }}" class="form-control wysiwyg-editor"
+                      data-wysiwyg-height="320" rows="10">{{ config.email_html }}</textarea>
+            <div class="form-actions" style="margin-top:0.85rem;">
+                <button type="submit" class="btn-primary">Save email template</button>
+            </div>
+        </form>
+        {% endfor %}
+
+        <details{% if not group.configs %} open{% endif %} style="margin-top:0.35rem;">
+            <summary style="cursor:pointer; color:#334155;">
+                {% if group.configs %}Add another email for this trigger{% else %}Create email text for this trigger{% endif %}
+            </summary>
+            <form method="post" class="card" style="margin-top:0.75rem; box-shadow:none;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_template">
+                <input type="hidden" name="trigger" value="{{ group.trigger }}">
+                <div class="aligned-field" style="margin-bottom:0.6rem;">
+                    <label for="email-new-name-{{ group.trigger }}">Template name</label>
+                    <input type="text" name="name" id="email-new-name-{{ group.trigger }}" class="form-control"
+                           value="{{ group.label }}" required>
+                </div>
+                <label style="display:block; font-weight:normal; margin-bottom:0.6rem;">
+                    <input type="checkbox" name="send_email" checked>
+                    Send this email when the trigger fires
+                </label>
+                {% if group.needs_x_months %}
+                <div class="aligned-field" style="margin-bottom:0.6rem;">
+                    <label for="email-new-x-months-{{ group.trigger }}">X months</label>
+                    <input type="number" name="x_months" id="email-new-x-months-{{ group.trigger }}"
+                           class="form-control" min="1" value="6">
+                </div>
+                {% endif %}
+                {% if group.needs_datetime %}
+                <div class="aligned-field" style="margin-bottom:0.6rem;">
+                    <label for="email-new-datetime-{{ group.trigger }}">Trigger date/time</label>
+                    <input type="datetime-local" name="trigger_datetime"
+                           id="email-new-datetime-{{ group.trigger }}" class="form-control">
+                </div>
+                {% endif %}
+                <div class="aligned-field" style="margin-bottom:0.6rem;">
+                    <label for="email-new-subject-{{ group.trigger }}">Subject</label>
+                    <input type="text" name="email_subject" id="email-new-subject-{{ group.trigger }}"
+                           class="form-control" maxlength="200">
+                </div>
+                <label for="email-html-new-{{ group.trigger }}">Email body</label>
+                <div class="variable-chips" data-editor-id="email-html-new-{{ group.trigger }}"
+                     data-trigger="{{ group.trigger }}" style="margin:0.4rem 0 0.6rem;"></div>
+                <textarea name="email_html" id="email-html-new-{{ group.trigger }}"
+                          class="form-control wysiwyg-editor" data-wysiwyg-height="280" rows="8"></textarea>
+                <div class="form-actions" style="margin-top:0.85rem;">
+                    <button type="submit" class="btn-primary">Create email template</button>
+                </div>
+            </form>
+        </details>
+    </section>
+    {% endfor %}
 </div>
 
 <div class="card" style="margin-bottom:1.5rem;">
@@ -67,56 +181,6 @@
             <button type="submit" class="btn-primary">Send test email</button>
         </div>
     </form>
-</div>
-
-{{ variable_catalog|json_script:"email-variable-catalog" }}
-
-<div class="card" style="margin-bottom:1.5rem;">
-    <h2 class="section-heading">Trigger email templates</h2>
-    <p style="color:#64748b; margin-bottom:1rem;">
-        Popup text and email body are independent. Triggers themselves are created under Login Popup Settings.
-        Emails are sent when the event happens (new task, status change, comment, checklist,
-        chemical item, contract saved in the X-months window). Popups still appear at the next login.
-        First login and “login after date/time” emails are sent at login.
-        Time-window contract reminders that nobody edited can be sent daily with
-        <code>python manage.py send_due_trigger_emails</code>.
-        Click a variable chip to insert it into the HTML body. Values are replaced when the email is sent.
-        <small class="field-hint-de" style="display:block; margin-top:0.25rem;">
-            Versand beim Ereignis, nicht erst beim nächsten Login. Empfänger: berufliche E-Mail, sonst Benutzer-E-Mail.
-        </small>
-    </p>
-    {% for config in trigger_configs %}
-    <form method="post" class="card" style="margin-bottom:1rem; box-shadow:none;">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_template">
-        <input type="hidden" name="config_pk" value="{{ config.pk }}">
-        <h3 style="margin-bottom:0.35rem;">{{ config.name }}</h3>
-        <p style="color:#64748b; font-size:0.9rem; margin-bottom:0.75rem;">
-            Trigger: {{ config.get_trigger_display }}
-            {% if not config.enabled %} — disabled{% endif %}
-        </p>
-        <label style="display:block; font-weight:normal; margin-bottom:0.75rem;">
-            <input type="checkbox" name="send_email"{% if config.send_email %} checked{% endif %}>
-            Send this email when the trigger fires
-        </label>
-        <div class="aligned-field" style="margin-bottom:0.75rem;">
-            <label for="email-subject-{{ config.pk }}">Subject</label>
-            <input type="text" name="email_subject" id="email-subject-{{ config.pk }}" class="form-control"
-                   maxlength="200" value="{{ config.email_subject }}"
-                   placeholder="e.g. Welcome, first name">
-        </div>
-        <label for="email-html-{{ config.pk }}">Email body</label>
-        <div class="variable-chips" data-editor-id="email-html-{{ config.pk }}" data-trigger="{{ config.trigger }}"
-             style="margin:0.4rem 0 0.6rem;"></div>
-        <textarea name="email_html" id="email-html-{{ config.pk }}" class="form-control wysiwyg-editor"
-                  data-wysiwyg-height="360" rows="12">{{ config.email_html }}</textarea>
-        <div class="form-actions" style="margin-top:0.85rem;">
-            <button type="submit" class="btn-primary">Save email template</button>
-        </div>
-    </form>
-    {% empty %}
-    <p style="color:#64748b;">No triggers yet. Create them under Login Popup Settings first.</p>
-    {% endfor %}
 </div>
 
 <div class="card" style="margin-bottom:1.5rem;">

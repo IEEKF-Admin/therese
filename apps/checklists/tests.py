@@ -201,6 +201,20 @@ class ChecklistManageUITests(TestCase):
         self.assertTrue(
             ChecklistInstance.objects.filter(subject=employee, template_version=published).exists()
         )
+        again = self.client.get(url)
+        self.assertEqual(again.status_code, 200)
+        self.assertRegex(
+            again.content.decode(),
+            rf'value="{employee.pk}"[^>]*selected|selected[^>]*value="{employee.pk}"',
+        )
+        self.client.post(url, {
+            'template_version': str(published.pk),
+            'employees': [str(employee.pk)],
+        })
+        self.assertEqual(
+            ChecklistInstance.objects.filter(subject=employee, template_version=published).count(),
+            1,
+        )
 
     def test_assign_requires_published_version(self):
         template = ChecklistTemplate.objects.create(slug='draft-only', name_en='Draft', name_de='Entwurf')

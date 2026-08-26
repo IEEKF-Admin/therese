@@ -43,6 +43,11 @@
                 <label>{{ form.employees.label }}</label>
                 {{ form.employees }}
                 {{ form.employees.errors }}
+                {% if lock_version %}
+                <small class="field-hint">Employees who already have this checklist appear under Selected.
+                    <span class="field-hint-de">Bereits zugewiesene Mitarbeiter stehen unter Selected.</span>
+                </small>
+                {% endif %}
             </div>
             {{ form.non_field_errors }}
         </div>

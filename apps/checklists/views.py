@@ -535,21 +535,62 @@ def manage_assign(request, pk=None):
             )
             return redirect('checklists:manage_template_detail', pk=template.pk)
 
-    form = ChecklistAssignForm(
-        request.POST or None,
-        published_versions=published_versions,
-        lock_version=lock_version,
-    )
+    already_assigned_ids = []
+    if lock_version:
+        already_assigned_ids = list(
+            ChecklistInstance.objects.filter(
+                template_version=lock_version,
+            )
+            .exclude(status=ChecklistInstance.Status.CANCELLED)
+            .values_list('subject_id', flat=True)
+            .distinct()
+        )
+
+    form_kwargs = {
+        'published_versions': published_versions,
+        'lock_version': lock_version,
+    }
+    if request.method == 'POST':
+        form = ChecklistAssignForm(request.POST, **form_kwargs)
+    else:
+        form = ChecklistAssignForm(
+            initial={'employees': already_assigned_ids} if already_assigned_ids else None,
+            **form_kwargs,
+        )
     if request.method == 'POST' and form.is_valid():
         version = form.cleaned_data['template_version']
+        existing_ids = set(
+            ChecklistInstance.objects.filter(
+                template_version=version,
+                subject_id__in=[e.pk for e in form.cleaned_data['employees']],
+            )
+            .exclude(status=ChecklistInstance.Status.CANCELLED)
+            .values_list('subject_id', flat=True)
+        )
         created = 0
+        skipped = 0
         for employee in form.cleaned_data['employees']:
+            if employee.pk in existing_ids:
+                skipped += 1
+                continue
             assign_instance(employee, version, assigned_by=request.user)
             created += 1
-        messages.success(
-            request,
-            f'Assigned checklist to {created} employee(s). / Checkliste {created} Mitarbeiter(n) zugewiesen.',
-        )
+        if created and skipped:
+            messages.success(
+                request,
+                f'Assigned to {created} new employee(s); {skipped} already had this checklist. '
+                f'/ {created} neu zugewiesen, {skipped} hatten die Checkliste bereits.',
+            )
+        elif created:
+            messages.success(
+                request,
+                f'Assigned checklist to {created} employee(s). / Checkliste {created} Mitarbeiter(n) zugewiesen.',
+            )
+        else:
+            messages.info(
+                request,
+                'All selected employees already have this checklist. / Alle ausgewählten Mitarbeiter haben diese Checkliste bereits.',
+            )
         if template:
             return redirect('checklists:manage_template_assign', pk=template.pk)
         return redirect('checklists:manage_assign')

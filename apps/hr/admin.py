@@ -63,6 +63,7 @@ class FundingAllocationInline(admin.TabularInline):
         'funding_source',
         'workhours_percentage',
         'plan_position_number',
+        'job_number',
         'start_date',
         'end_date',
         'is_active',
@@ -347,6 +348,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'funding_target_label',
         'workhours_percentage',
         'plan_position_number',
+        'job_number',
         'start_date',
         'end_date',
         'is_active',
@@ -360,6 +362,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'wbs_element__wbs_code',
         'cost_center__cost_center',
         'plan_position_number',
+        'job_number',
     )
     autocomplete_fields = ('employee', 'contract')
     fields = (
@@ -368,6 +371,7 @@ class FundingAllocationAdmin(admin.ModelAdmin):
         'funding_source',
         'workhours_percentage',
         'plan_position_number',
+        'job_number',
         'start_date',
         'end_date',
         'is_active',

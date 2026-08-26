@@ -114,6 +114,7 @@
                             <div class="inline-field"><label>PSP / Cost Center</label>{% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}</div>
                             <div class="inline-field"><label>% of Workhours</label>{% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error fa-pct" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control fa-pct" }}{% endif %}</div>
                             <div class="inline-field"><label>Plan Position</label>{% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+                            <div class="inline-field"><label>Job Number</label>{% if fform.job_number.errors %}{{ fform.job_number|add_class:"form-control error" }}{% else %}{{ fform.job_number|add_class:"form-control" }}{% endif %}</div>
                             <div class="inline-field"><label>Valid From</label>{% if fform.start_date.errors %}{{ fform.start_date|add_class:"form-control error" }}{% else %}{{ fform.start_date }}{% endif %}</div>
                             <div class="inline-field"><label>Valid Until</label>{% if fform.end_date.errors %}{{ fform.end_date|add_class:"form-control error" }}{% else %}{{ fform.end_date }}{% endif %}</div>
                             <div class="inline-field"><label>Active</label>
@@ -143,6 +144,7 @@
                                 · Active: {% if fa.is_active %}Yes{% else %}No{% endif %}
                             </p>
                             {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
+                            {% if fa.job_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Job: {{ fa.job_number }}</p>{% endif %}
                         </div>
                         {% empty %}
                         <p class="text-muted" style="font-size:0.85rem;">No funding allocations.</p>
@@ -313,6 +315,7 @@
         <div class="inline-field"><label>PSP / Cost Center</label>{{ empty_funding_form.funding_source|add_class:"form-control" }}</div>
         <div class="inline-field"><label>% of Workhours</label>{{ empty_funding_form.workhours_percentage|add_class:"form-control fa-pct" }}</div>
         <div class="inline-field"><label>Plan Position</label>{{ empty_funding_form.plan_position_number|add_class:"form-control" }}</div>
+        <div class="inline-field"><label>Job Number</label>{{ empty_funding_form.job_number|add_class:"form-control" }}</div>
         <div class="inline-field"><label>Valid From</label>{{ empty_funding_form.start_date }}</div>
         <div class="inline-field"><label>Valid Until</label>{{ empty_funding_form.end_date }}</div>
         <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_funding_form.is_active }}</div></div>

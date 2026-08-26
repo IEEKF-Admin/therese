@@ -11,6 +11,7 @@ from .views.dashboard import my_tasks
 from .views.create import TaskCreateView, choose_task_type
 from .views.delete import task_delete
 from .views.router import task_detail
+from .views.detail.personnel.apply import apply_reallocation_funding_view
 from .views.personnel_documents import (
     personnel_task_document_download,
     personnel_task_documents_zip,
@@ -52,6 +53,11 @@ urlpatterns = [
     path('<int:pk>/quote/download/', purchase_order_quote_download, name='purchase_order_quote_download'),
     path('<int:pk>/quote/replace/', purchase_order_quote_replace, name='purchase_order_quote_replace'),
     path('<int:pk>/', task_detail, name='task_detail'),
+    path(
+        '<int:pk>/apply-funding/',
+        apply_reallocation_funding_view,
+        name='apply_reallocation_funding',
+    ),
     path('<int:pk>/documents/download-all/', personnel_task_documents_zip, name='personnel_task_documents_zip'),
     path('<int:pk>/documents/<slug:doc_key>/', personnel_task_document_download, name='personnel_task_document_download'),
     path('<int:pk>/delete/', task_delete, name='task_delete'),

@@ -84,14 +84,207 @@
             {% if can_edit or can_edit_coordinator_steps %}
                 <button type="submit" class="btn-primary">💾 Save Changes</button>
             {% endif %}
+            {% if can_apply_reallocation %}
+                <button type="button" class="btn-primary" id="reallocation-apply-open">Apply</button>
+            {% endif %}
             <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to Overview</a>
         </div>
+        {% if can_apply_reallocation %}
+        <p class="text-muted" style="font-size:0.85rem; margin:0.5rem 0 0;">
+            Apply writes the saved funding allocations onto the employee. Save changes first if you edited the rows.
+        </p>
+        {% endif %}
     </form>
 </div>
+
+{% if can_apply_reallocation %}
+{{ apply_preview|json_script:"reallocation-apply-preview" }}
+<div id="reallocation-apply-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:9999; align-items:center; justify-content:center; padding:1.5rem;">
+    <div style="background:#fff; border-radius:12px; max-width:640px; width:100%; max-height:90vh; overflow:auto; padding:1.5rem; box-shadow:0 20px 50px rgba(15,23,42,0.25);">
+        <h2 style="margin-top:0;">Apply funding allocations</h2>
+        <p id="reallocation-apply-summary" style="color:#475569; line-height:1.5;"></p>
+        <form method="post" action="{% url 'tasks:apply_reallocation_funding' task.pk %}" id="reallocation-apply-form">
+            {% csrf_token %}
+            <div id="reallocation-apply-job-numbers"></div>
+            <div id="reallocation-apply-conflicts"></div>
+            <div id="reallocation-apply-warning-link" style="margin:0.75rem 0;"></div>
+            <div class="form-actions" style="margin-top:1.25rem;">
+                <button type="submit" class="btn-primary" id="reallocation-apply-submit">Apply</button>
+                <button type="button" class="btn-secondary" id="reallocation-apply-cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 {% include "tasks/detail/_personnel_documents.html" %}
 {% endblock %}
 
 {% block extra_js %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
+{% if can_apply_reallocation %}
+<script>
+(function() {
+    var previewEl = document.getElementById('reallocation-apply-preview');
+    var modal = document.getElementById('reallocation-apply-modal');
+    var openBtn = document.getElementById('reallocation-apply-open');
+    var cancelBtn = document.getElementById('reallocation-apply-cancel');
+    var form = document.getElementById('reallocation-apply-form');
+    if (!previewEl || !modal || !openBtn || !form) return;
+
+    var preview = JSON.parse(previewEl.textContent || '{}');
+
+    function jobNumberFromForm(allocationId) {
+        var rows = document.querySelectorAll('.reallocation-funding-row');
+        for (var i = 0; i < rows.length; i++) {
+            var idInput = rows[i].querySelector('input[name$="-id"]');
+            var jobInput = rows[i].querySelector('input[name$="-job_number"]');
+            if (idInput && jobInput && String(idInput.value) === String(allocationId)) {
+                return (jobInput.value || '').trim();
+            }
+        }
+        return '';
+    }
+
+    function addText(parent, tag, text, styles) {
+        var el = document.createElement(tag);
+        el.textContent = text;
+        if (styles) Object.keys(styles).forEach(function(key) { el.style[key] = styles[key]; });
+        parent.appendChild(el);
+        return el;
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    function openModal() {
+        var summary = document.getElementById('reallocation-apply-summary');
+        var jobsWrap = document.getElementById('reallocation-apply-job-numbers');
+        var conflictsWrap = document.getElementById('reallocation-apply-conflicts');
+        var warningLink = document.getElementById('reallocation-apply-warning-link');
+        var submitBtn = document.getElementById('reallocation-apply-submit');
+        jobsWrap.innerHTML = '';
+        conflictsWrap.innerHTML = '';
+        warningLink.innerHTML = '';
+        submitBtn.style.display = '';
+
+        if (!preview.has_contract) {
+            alert('No contract is open on the reallocation start date. Create or extend a contract before applying funding.');
+            return;
+        }
+        if (preview.exceeds_contract) {
+            summary.textContent = preview.exceeds_contract_message;
+            submitBtn.style.display = 'none';
+            if (preview.employee_url) {
+                var link = document.createElement('a');
+                link.href = preview.employee_url;
+                link.className = 'btn-secondary';
+                link.textContent = 'Open employee record to create a follow-on contract';
+                warningLink.appendChild(link);
+            }
+            modal.style.display = 'flex';
+            return;
+        }
+        if (!preview.allocations || !preview.allocations.length) {
+            alert('Save at least one funding allocation before applying.');
+            return;
+        }
+
+        var untilText = preview.valid_until ? (' to ' + preview.valid_until) : ' (no end date)';
+        summary.textContent = 'Create ' + preview.allocations.length +
+            ' funding allocation(s) for ' + preview.employee_name +
+            ' from ' + preview.valid_from + untilText +
+            ' on the contract that is open on the start date.';
+
+        preview.allocations.forEach(function(row) {
+            var value = jobNumberFromForm(row.id) || row.job_number || '';
+            var label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.margin = '0.75rem 0';
+            addText(label, 'span', 'Job number for ' + row.label + ' (' + row.percentage + '%)', {
+                display: 'block', fontWeight: '600', marginBottom: '0.25rem'
+            });
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control';
+            input.name = 'apply_job_number-' + row.id;
+            input.value = value;
+            input.required = true;
+            input.maxLength = 50;
+            label.appendChild(input);
+            jobsWrap.appendChild(label);
+        });
+
+        if (preview.conflicts && preview.conflicts.length) {
+            var heading = document.createElement('h3');
+            heading.textContent = 'Existing allocations that run longer';
+            heading.style.marginTop = '1.25rem';
+            conflictsWrap.appendChild(heading);
+            var intro = document.createElement('p');
+            intro.style.color = '#475569';
+            intro.style.fontSize = '0.9rem';
+            intro.textContent = preview.can_resume
+                ? 'These allocations are still running after the reallocation ends. Choose whether each one should stop the day before the reallocation starts, or continue afterwards as before.'
+                : 'This reallocation has no end date. Existing allocations that overlap it will end the day before it starts.';
+            conflictsWrap.appendChild(intro);
+
+            preview.conflicts.forEach(function(item) {
+                var box = document.createElement('div');
+                box.style.border = '1px solid #e2e8f0';
+                box.style.borderRadius = '8px';
+                box.style.padding = '0.85rem';
+                box.style.margin = '0.75rem 0';
+                var endLabel = item.end ? item.end : 'open';
+                addText(
+                    box,
+                    'p',
+                    item.label + ' · ' + item.percentage + '% · ' + item.start + ' – ' + endLabel,
+                    {margin: '0 0 0.5rem', fontWeight: '600'}
+                );
+
+                function addChoice(value, text, required) {
+                    var opt = document.createElement('label');
+                    opt.style.display = 'block';
+                    opt.style.margin = '0.35rem 0';
+                    var radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'apply_existing_choice-' + item.id;
+                    radio.value = value;
+                    radio.required = !!required;
+                    opt.appendChild(radio);
+                    opt.appendChild(document.createTextNode(' ' + text));
+                    box.appendChild(opt);
+                    return radio;
+                }
+
+                var endRadio = addChoice(
+                    'end',
+                    'End this allocation the day before the reallocation starts',
+                    true
+                );
+                if (preview.can_resume) {
+                    addChoice(
+                        'resume',
+                        'Resume this allocation after the reallocation ends, as before',
+                        true
+                    );
+                } else {
+                    endRadio.checked = true;
+                }
+                conflictsWrap.appendChild(box);
+            });
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    openBtn.addEventListener('click', openModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) closeModal();
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

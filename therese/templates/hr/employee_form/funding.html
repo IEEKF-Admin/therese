@@ -15,6 +15,7 @@
             <div class="inline-field"><label>PSP / Cost Center</label>{% if form.funding_source.errors %}{{ form.funding_source|add_class:"form-control error" }}{% else %}{{ form.funding_source|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Percentage of Workhours</label>{% if form.workhours_percentage.errors %}{{ form.workhours_percentage|add_class:"form-control error" }}{% else %}{{ form.workhours_percentage|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Plan Position Number</label>{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Valid From</label>{% if form.start_date.errors %}{{ form.start_date|add_class:"form-control error" }}{% else %}{{ form.start_date }}{% endif %}</div>
             <div class="inline-field"><label>Valid Until</label>{% if form.end_date.errors %}{{ form.end_date|add_class:"form-control error" }}{% else %}{{ form.end_date }}{% endif %}</div>
             <div class="inline-field"><label>Active</label>
@@ -43,6 +44,7 @@
             <div class="inline-field"><label>PSP / Cost Center</label>{% if form.funding_source.errors %}{{ form.funding_source|add_class:"form-control error" }}{% else %}{{ form.funding_source|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Percentage of Workhours</label>{% if form.workhours_percentage.errors %}{{ form.workhours_percentage|add_class:"form-control error" }}{% else %}{{ form.workhours_percentage|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Plan Position Number</label>{% if form.plan_position_number.errors %}{{ form.plan_position_number|add_class:"form-control error" }}{% else %}{{ form.plan_position_number|add_class:"form-control" }}{% endif %}</div>
+            <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
             <div class="inline-field"><label>Valid From</label>{{ form.start_date }}</div>
             <div class="inline-field"><label>Valid Until</label>{{ form.end_date }}</div>
             <div class="inline-field"><label>Active</label>

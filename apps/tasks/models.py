@@ -827,6 +827,11 @@ class ReallocationFundingAllocation(BaseModel):
         blank=True,
         verbose_name="Plan Position Number",
     )
+    job_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Job Number",
+    )
     notes = models.TextField(blank=True, verbose_name="Notes")
 
     class Meta:

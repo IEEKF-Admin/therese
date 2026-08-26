@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 from apps.accounts.models import CustomUser
-from apps.finances.models import WBSElement
+from apps.finances.models import CostCenter, WBSElement
 from apps.hr.models import Employee
 from apps.tasks.forms import (
     GenericTextTaskForm,
@@ -14,9 +14,14 @@ from apps.tasks.forms import (
     PersonnelReallocationTaskForm,
     PurchaseItemForm,
     PurchaseOrderTaskForm,
+    ReallocationFundingFormSet,
     RecruitmentFundingFormSet,
 )
-from apps.tasks.models import PurchaseOrderTask
+from apps.tasks.models import (
+    PersonnelReallocationTask,
+    PurchaseOrderTask,
+    ReallocationFundingAllocation,
+)
 from apps.tasks.forms import PurchaseItemFormSet
 
 
@@ -228,6 +233,85 @@ class RecruitmentFundingFormsetTests(TestCase):
         formset = RecruitmentFundingFormSet(data, is_creation=True)
         self.assertTrue(formset.is_valid(), formset.errors)
         self.assertEqual([dict(f.errors) for f in formset.forms], [{}, {}])
+
+
+class ReallocationFundingFormsetEditTests(TestCase):
+    def setUp(self):
+        self.creator = Employee.objects.create(
+            employee_number='E-REAL-CRE',
+            first_name='Creator',
+            last_name='User',
+        )
+        self.employee = Employee.objects.create(
+            employee_number='E-REAL-EMP',
+            first_name='Reallocated',
+            last_name='Person',
+        )
+        self.wbs = WBSElement.objects.create(
+            wbs_code='979890',
+            title='Reallocation PSP',
+        )
+        self.cost_center = CostCenter.objects.create(cost_center='D-018.0040')
+        self.task = PersonnelReallocationTask.objects.create(
+            task_type='personnel_reallocation',
+            creator=self.creator,
+            employee=self.employee,
+            valid_from=date(2026, 1, 1),
+            valid_until=date(2026, 12, 31),
+        )
+        self.allocation_wbs = ReallocationFundingAllocation.objects.create(
+            reallocation_task=self.task,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('50.00'),
+            plan_position_number='50137218',
+        )
+        self.allocation_cc = ReallocationFundingAllocation.objects.create(
+            reallocation_task=self.task,
+            cost_center=self.cost_center,
+            workhours_percentage=Decimal('50.00'),
+            plan_position_number='50081402',
+        )
+
+    def _edit_data(self):
+        return {
+            'funding_allocations-TOTAL_FORMS': '2',
+            'funding_allocations-INITIAL_FORMS': '2',
+            'funding_allocations-MIN_NUM_FORMS': '0',
+            'funding_allocations-MAX_NUM_FORMS': '1000',
+            'funding_allocations-0-id': str(self.allocation_wbs.pk),
+            'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
+            'funding_allocations-0-workhours_percentage': '50.00',
+            'funding_allocations-0-plan_position_number': '50137218',
+            'funding_allocations-0-notes': '',
+            'funding_allocations-1-id': str(self.allocation_cc.pk),
+            'funding_allocations-1-funding_source': f'cc:{self.cost_center.pk}',
+            'funding_allocations-1-workhours_percentage': '50.00',
+            'funding_allocations-1-plan_position_number': '50081402',
+            'funding_allocations-1-notes': '',
+        }
+
+    def test_unchanged_existing_allocations_are_valid_on_edit(self):
+        formset = ReallocationFundingFormSet(self._edit_data(), instance=self.task)
+        self.assertTrue(formset.is_valid(), formset.non_form_errors() or formset.errors)
+        self.assertEqual(len(formset.non_form_errors()), 0)
+
+    def test_empty_edit_formset_still_requires_an_allocation(self):
+        data = {
+            'funding_allocations-TOTAL_FORMS': '1',
+            'funding_allocations-INITIAL_FORMS': '0',
+            'funding_allocations-MIN_NUM_FORMS': '0',
+            'funding_allocations-MAX_NUM_FORMS': '1000',
+            'funding_allocations-0-funding_source': '',
+            'funding_allocations-0-workhours_percentage': '',
+            'funding_allocations-0-plan_position_number': '',
+            'funding_allocations-0-notes': '',
+        }
+        formset = ReallocationFundingFormSet(data, instance=self.task)
+        self.assertFalse(formset.is_valid())
+        self.assertIn(
+            'At least one funding allocation is required.',
+            formset.non_form_errors(),
+        )
 
 
 class GenericRequestValidationTests(TestCase):

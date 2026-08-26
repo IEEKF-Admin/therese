@@ -100,6 +100,7 @@
                 <th>PSP / Cost Center</th>
                 <th>% of Workhours</th>
                 <th>Plan Position</th>
+                <th>Job Number</th>
                 <th>Valid From</th>
                 <th>Valid Until</th>
                 <th>Active</th>
@@ -111,6 +112,7 @@
                 <td>{{ f.funding_target_label }}</td>
                 <td>{{ f.workhours_percentage }}%</td>
                 <td>{{ f.plan_position_number|default:"—" }}</td>
+                <td>{{ f.job_number|default:"—" }}</td>
                 <td>{{ f.start_date }}</td>
                 <td>{{ f.end_date|default:"open" }}</td>
                 <td>{% if f.is_active %}Yes{% else %}No{% endif %}</td>

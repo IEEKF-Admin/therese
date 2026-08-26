@@ -30,7 +30,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
 
     class Meta:
         model = ReallocationFundingAllocation
-        fields = ['workhours_percentage', 'plan_position_number', 'notes']
+        fields = ['workhours_percentage', 'plan_position_number', 'job_number', 'notes']
         widgets = {
             'workhours_percentage': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -38,23 +38,30 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
                 'min': '0',
             }),
             'plan_position_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'job_number': forms.TextInput(attrs={'class': 'form-control'}),
             'notes': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.empty_permitted = True
+        # Extra rows may be left blank; existing allocations must still validate
+        # when the user only changes assignee/status.
+        self.empty_permitted = not bool(self.instance and self.instance.pk)
         if 'workhours_percentage' in self.fields:
             self.fields['workhours_percentage'].label = 'Percentage of Workhours'
             self.fields['workhours_percentage'].required = False
         if 'plan_position_number' in self.fields:
             self.fields['plan_position_number'].label = 'Plan Position Number'
             self.fields['plan_position_number'].required = False
+        if 'job_number' in self.fields:
+            self.fields['job_number'].label = 'Job Number'
+            self.fields['job_number'].required = False
         if 'notes' in self.fields:
             self.fields['notes'].required = False
         for field_name, field in self.fields.items():
             if field_name in self.INTERNAL_FIELDS or field_name in (
                 'plan_position_number',
+                'job_number',
                 'notes',
                 'workhours_percentage',
             ):
@@ -77,6 +84,9 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
             self.cleaned_data = {}
             self._errors = {}
             return
+        # Django skips cleaning when empty_permitted and the row is unchanged.
+        # Existing allocations would then look empty and fail formset.clean().
+        self.empty_permitted = False
         super().full_clean()
 
     def clean(self):
@@ -105,7 +115,7 @@ class BaseReallocationFundingFormSet(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for form in self.forms:
-            form.empty_permitted = True
+            form.empty_permitted = not bool(form.instance and form.instance.pk)
 
     def clean(self):
         super().clean()

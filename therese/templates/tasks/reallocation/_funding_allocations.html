@@ -28,6 +28,10 @@
                     <label>Plan Position Number</label>
                     {% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}
                 </div>
+                <div class="inline-field">
+                    <label>Job Number</label>
+                    {% if fform.job_number.errors %}{{ fform.job_number|add_class:"form-control error" }}{% else %}{{ fform.job_number|add_class:"form-control" }}{% endif %}
+                </div>
                 <div class="inline-field full">
                     <label>Notes</label>
                     {% if fform.notes.errors %}{{ fform.notes|add_class:"form-control error" }}{% else %}{{ fform.notes|add_class:"form-control" }}{% endif %}
@@ -55,6 +59,10 @@
                 <div class="inline-field">
                     <label>Plan Position Number</label>
                     {{ fform.plan_position_number|add_class:"form-control" }}
+                </div>
+                <div class="inline-field">
+                    <label>Job Number</label>
+                    {{ fform.job_number|add_class:"form-control" }}
                 </div>
                 <div class="inline-field full">
                     <label>Notes</label>
@@ -120,6 +128,7 @@
                     <th>PSP / Cost Center</th>
                     <th>Percentage of Workhours</th>
                     <th>Plan Position Number</th>
+                    <th>Job Number</th>
                     <th>Notes</th>
                 </tr>
             </thead>
@@ -129,6 +138,7 @@
                     <td>{{ allocation.funding_target_label }}</td>
                     <td>{{ allocation.workhours_percentage }}%</td>
                     <td>{{ allocation.plan_position_number|default:"—" }}</td>
+                    <td>{{ allocation.job_number|default:"—" }}</td>
                     <td>{{ allocation.notes|default:"—" }}</td>
                 </tr>
                 {% endfor %}

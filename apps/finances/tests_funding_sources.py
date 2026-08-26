@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django.test import TestCase
 
@@ -9,7 +10,7 @@ from apps.finances.funding_sources import (
 )
 from apps.finances.models import CostCenter, WBSElement
 from apps.hr.forms import FundingAllocationForm
-from apps.hr.models import Employee, FundingAllocation
+from apps.hr.models import Contract, Employee, FundingAllocation
 
 
 class FundingSourceChoicesTests(TestCase):
@@ -47,8 +48,14 @@ class FundingSourceChoicesTests(TestCase):
             'comments': '',
         })
         self.assertTrue(form.is_valid(), form.errors)
+        contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2026, 1, 1),
+            is_active=True,
+        )
         allocation = form.save(commit=False)
-        allocation.employee = self.employee
+        allocation.contract = contract
         allocation.save()
 
         saved = FundingAllocation.objects.get(pk=allocation.pk)

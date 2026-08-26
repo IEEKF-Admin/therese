@@ -370,6 +370,7 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             'funding_source',
             'workhours_percentage',
             'plan_position_number',
+            'job_number',
             'start_date',
             'end_date',
             'is_active',
@@ -382,6 +383,7 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
                 'min': '0',
             }),
             'plan_position_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'job_number': forms.TextInput(attrs={'class': 'form-control'}),
             'start_date': forms.DateInput(attrs={
                 'type': 'text',
                 'class': 'form-control date-picker',
@@ -405,6 +407,9 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         if 'plan_position_number' in self.fields:
             self.fields['plan_position_number'].label = 'Plan Position Number'
             self.fields['plan_position_number'].required = False
+        if 'job_number' in self.fields:
+            self.fields['job_number'].label = 'Job Number'
+            self.fields['job_number'].required = False
         if 'is_active' in self.fields:
             self.fields['is_active'].label = 'Active'
             self.fields['is_active'].required = False

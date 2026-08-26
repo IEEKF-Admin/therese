@@ -13,7 +13,8 @@ from ....forms import (
     ReallocationFundingFormSet,
 )
 from ....recruitment_form_helpers import build_recruitment_template_context
-from ....utils import is_personnel_coordinator
+from ....reallocation_apply import build_apply_preview
+from ....utils import is_personnel_approver, is_personnel_coordinator
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
 from ....task_protocol import extract_new_message, record_task_update
@@ -38,6 +39,10 @@ def handle_standard_personnel_detail(request, task):
     )
     can_edit_coordinator_steps = is_coordinator or coordinator_fallback
     can_set_assignee = is_coordinator or coordinator_fallback
+    can_apply_reallocation = (
+        task_type == 'personnel_reallocation'
+        and is_personnel_approver(request.user)
+    )
 
     if task_type == 'personnel_reallocation':
         form_class = PersonnelReallocationTaskForm
@@ -103,6 +108,7 @@ def handle_standard_personnel_detail(request, task):
         'can_edit': can_edit,
         'can_edit_coordinator_steps': can_edit_coordinator_steps,
         'can_set_assignee': can_set_assignee,
+        'can_apply_reallocation': can_apply_reallocation,
         'is_creator': is_creator,
         'is_coordinator': is_coordinator,
         'coordinator_fallback': coordinator_fallback,
@@ -110,6 +116,8 @@ def handle_standard_personnel_detail(request, task):
         'employee': employee,
         'is_archived_by_user': is_archived_by_user,
     }
+    if task_type == 'personnel_reallocation':
+        context['apply_preview'] = build_apply_preview(task)
     if task_type == 'personnel_contract_extension':
         context.update(build_recruitment_template_context())
     context.update(personnel_documents_context(request, task))

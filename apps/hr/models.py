@@ -756,7 +756,12 @@ class FundingAllocation(BaseModel):
         blank=True,
         verbose_name="Plan Position Number",
     )
-    
+    job_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Job Number",
+    )
+
     start_date = models.DateField(verbose_name="Valid From")
     end_date = models.DateField(
         null=True,
@@ -838,19 +843,14 @@ class FundingAllocation(BaseModel):
             self.employee_id = contract.employee_id
             if not contract.is_active:
                 self.is_active = False
-        elif self.contract and getattr(self.contract, 'employee_id', None):
-            self.employee_id = self.contract.employee_id
-            if not self.contract.is_active:
-                self.is_active = False
 
     def save(self, *args, **kwargs):
         # Keep date order sane; soft overlap rule lives in validity helpers.
-        if self.contract_id or getattr(self, 'contract', None):
+        if self.contract_id:
             contract = self.contract
-            if contract is not None:
-                self.employee_id = contract.employee_id
-                if not contract.is_active:
-                    self.is_active = False
+            self.employee_id = contract.employee_id
+            if not contract.is_active:
+                self.is_active = False
         self.full_clean()
         super().save(*args, **kwargs)
 

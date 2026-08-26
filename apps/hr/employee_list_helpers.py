@@ -223,6 +223,11 @@ def employee_list_search_q(search_query: str, *, as_of: date | None = None) -> Q
             & open_contract
             & open_fa
         )
+        | (
+            Q(contracts__funding_allocations__job_number__icontains=q)
+            & open_contract
+            & open_fa
+        )
     )
 
 

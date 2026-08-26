@@ -63,7 +63,9 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.empty_permitted = True
+        # Extra rows may be left blank; existing allocations must still validate
+        # when the user only changes assignee/status.
+        self.empty_permitted = not bool(self.instance and self.instance.pk)
         if 'workhours_percentage' in self.fields:
             self.fields['workhours_percentage'].label = 'Percentage of Workhours'
             self.fields['workhours_percentage'].required = False
@@ -96,6 +98,9 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             self.cleaned_data = {}
             self._errors = {}
             return
+        # Django skips cleaning when empty_permitted and the row is unchanged.
+        # Existing allocations would then look empty and fail formset.clean().
+        self.empty_permitted = False
         super().full_clean()
 
     def clean(self):
@@ -130,7 +135,7 @@ class BaseRecruitmentFundingFormSet(BaseInlineFormSet):
         self.is_creation = is_creation
         super().__init__(*args, **kwargs)
         for form in self.forms:
-            form.empty_permitted = True
+            form.empty_permitted = not bool(form.instance and form.instance.pk)
 
     def clean(self):
         super().clean()

@@ -8,6 +8,7 @@ from django.urls import NoReverseMatch, reverse
 
 from apps.hr.models import FundingAllocation
 
+COMPLETED_STATUS = 'completed'
 CHOICE_END = 'end'
 CHOICE_RESUME = 'resume'
 VALID_CHOICES = {CHOICE_END, CHOICE_RESUME}
@@ -84,7 +85,7 @@ def is_reallocation_period_row(allocation, task):
 
 
 def longer_running_conflicts(task):
-    """Existing FAs that overlap and outlast the reallocation (need a choice)."""
+    """Existing FAs that overlap and outlast the reallocation (will be split)."""
     conflicts = []
     for allocation in overlapping_employee_allocations(
         task.employee, task.valid_from, task.valid_until,
@@ -182,10 +183,23 @@ def _resume_after_reallocation(allocation, original_end, task):
     )
 
 
-def _adjust_existing_allocation(allocation, task, choice):
-    """End an overlapping FA before the reallocation; optionally resume after."""
+def _should_resume(allocation, task):
+    """True when the old FA still has a period after the reallocation."""
+    return (
+        task.valid_until is not None
+        and allocation_runs_longer(allocation, task.valid_until)
+    )
+
+
+def _adjust_existing_allocation(allocation, task):
+    """
+    Split an overlapping FA around the reallocation.
+
+    The original row ends the day before Valid From. If it would have continued
+    after Valid Until, a copy starts the day after the reallocation.
+    """
     original_end = allocation.end_date
-    resume = choice == CHOICE_RESUME and task.valid_until is not None
+    resume = _should_resume(allocation, task)
     if allocation.start_date >= task.valid_from:
         if resume:
             allocation.start_date = task.valid_until + timedelta(days=1)
@@ -208,8 +222,13 @@ def apply_reallocation_funding(task, *, job_numbers, continuation_choices):
     Write reallocation funding rows onto the employee's open contract.
 
     ``job_numbers`` maps reallocation-row pk (str or int) → job number.
-    ``continuation_choices`` maps existing employee-FA pk → ``end`` or ``resume``.
+    ``continuation_choices`` is accepted for older callers and ignored;
+    overlapping FAs that run longer are always split around the reallocation.
     """
+    if task.status != COMPLETED_STATUS:
+        raise ApplyReallocationError(
+            'Funding can only be applied when the task status is Completed.'
+        )
     if not task.funding_allocations.exists():
         raise ApplyReallocationError('At least one funding allocation is required.')
 
@@ -223,10 +242,6 @@ def apply_reallocation_funding(task, *, job_numbers, continuation_choices):
         raise ApplyReallocationError(contract_extension_required_message(task, contract))
 
     job_numbers = {str(key): (value or '').strip() for key, value in (job_numbers or {}).items()}
-    continuation_choices = {
-        str(key): (value or '').strip()
-        for key, value in (continuation_choices or {}).items()
-    }
 
     source_rows = list(task.funding_allocations.all())
     for row in source_rows:
@@ -239,32 +254,13 @@ def apply_reallocation_funding(task, *, job_numbers, continuation_choices):
                 f'Job number is required for {row.funding_target_label}.'
             )
 
-    conflicts = longer_running_conflicts(task)
-    can_resume = task.valid_until is not None
-    for existing in conflicts:
-        choice = continuation_choices.get(str(existing.pk), '')
-        if choice not in VALID_CHOICES:
-            raise ApplyReallocationError(
-                'Please choose whether each existing funding allocation that '
-                'runs longer than this reallocation should end or resume afterwards.'
-            )
-        if choice == CHOICE_RESUME and not can_resume:
-            raise ApplyReallocationError(
-                'This reallocation has no end date, so an existing allocation '
-                'cannot resume afterwards. Choose to end it instead.'
-            )
-
-    conflict_ids = {item.pk for item in conflicts}
     overlapping = list(
         overlapping_employee_allocations(task.employee, task.valid_from, task.valid_until)
     )
     for existing in overlapping:
         if is_reallocation_period_row(existing, task):
             continue
-        choice = continuation_choices.get(str(existing.pk), CHOICE_END)
-        if existing.pk not in conflict_ids:
-            choice = CHOICE_END
-        _adjust_existing_allocation(existing, task, choice)
+        _adjust_existing_allocation(existing, task)
 
     created = 0
     for row in source_rows:

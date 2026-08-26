@@ -22,6 +22,10 @@ class AccountsConfig(AppConfig):
 
         trigger_email_signals.register_task_email_signals()
 
+        from apps.accounts.scheduler import start_contract_email_scheduler
+
+        start_contract_email_scheduler()
+
         # Automatische Erstellung der Custom Groups nach jeder Migration
         from django.db.models.signals import post_migrate
         from apps.accounts.permissions import (

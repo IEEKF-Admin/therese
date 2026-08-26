@@ -4,7 +4,7 @@ from apps.accounts.login_popups import get_acknowledged_reference_keys
 from apps.checklists.models import ChecklistInstance
 
 
-def evaluate_checklist_assigned_popups(user, *, employee=None):
+def evaluate_checklist_assigned_popups(user, *, employee=None, since=None):
     """Return login popups for new checklist assignments since last login."""
     if not employee:
         return []
@@ -14,8 +14,9 @@ def evaluate_checklist_assigned_popups(user, *, employee=None):
         status__in=ChecklistInstance.ACTIVE_STATUSES,
     ).select_related('template_version', 'template_version__template')
 
-    if user.last_login:
-        qs = qs.filter(assigned_at__gt=user.last_login)
+    event_since = since if since is not None else user.last_login
+    if event_since:
+        qs = qs.filter(assigned_at__gt=event_since)
 
     instances = list(qs.order_by('-assigned_at'))
     if not instances:

@@ -37,6 +37,10 @@ def apply_reallocation_funding_view(request, pk):
         messages.error(request, "You don't have permission to apply reallocation funding.")
         return redirect('tasks:task_detail', pk=task.pk)
 
+    if task.status != 'completed':
+        messages.error(request, 'Funding can only be applied when the task status is Completed.')
+        return redirect('tasks:task_detail', pk=task.pk)
+
     job_numbers = _posted_map(request.POST, 'apply_job_number-')
     continuation_choices = _posted_map(request.POST, 'apply_existing_choice-')
     try:

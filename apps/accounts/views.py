@@ -42,6 +42,12 @@ class ThereseLoginView(LoginView):
     redirect_authenticated_user = True
     success_url = reverse_lazy('tasks:my_tasks')   # ← Namespace korrigiert
 
+    def form_valid(self, form):
+        from apps.accounts.login_popups import store_popup_since
+
+        store_popup_since(self.request, form.get_user())
+        return super().form_valid(form)
+
 
 from datetime import datetime
 

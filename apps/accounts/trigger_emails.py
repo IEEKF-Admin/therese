@@ -144,6 +144,8 @@ def send_login_time_trigger_emails(user, employee=None):
         if config.trigger_datetime and now > config.trigger_datetime:
             deliver_trigger_email(config, user, employee, 'global')
 
+    send_due_contract_emails_for_user(user, employee)
+
 
 def notify_audience(trigger, reference_key, **context):
     """Send a trigger email to every active user in the config audience."""
@@ -311,6 +313,57 @@ def notify_contract_ending(contract):
                 reference_key,
                 contract=contract,
             )
+
+
+def send_due_contract_emails_for_user(user, employee=None):
+    """
+    Send contract-window emails to this user only.
+
+    Covers the case where no daily ``send_due_trigger_emails`` job is running:
+    the next login of a matching user still delivers the mail (deduped).
+    """
+    from apps.hr.models import Contract
+
+    if user is None:
+        return 0
+    today = date.today()
+    sent = 0
+    if employee is not None:
+        own_contracts = Contract.objects.filter(
+            employee=employee,
+            valid_until__isnull=False,
+            valid_until__gte=today,
+        )
+        for config in enabled_email_configs('contract_ending_soon'):
+            if not config.x_months:
+                continue
+            cutoff = today + timedelta(days=config.x_months * 30)
+            for contract in own_contracts:
+                if contract.valid_until > cutoff:
+                    continue
+                if deliver_trigger_email(
+                    config, user, employee, f'contract:{contract.pk}', contract=contract
+                ):
+                    sent += 1
+    for config in enabled_email_configs('any_contract_ending_soon'):
+        if not config.x_months:
+            continue
+        cutoff = today + timedelta(days=config.x_months * 30)
+        contracts = Contract.objects.filter(
+            valid_until__isnull=False,
+            valid_until__gte=today,
+            valid_until__lte=cutoff,
+        )
+        for contract in contracts:
+            if deliver_trigger_email(
+                config,
+                user,
+                employee,
+                f'contract:{contract.pk}',
+                contract=contract,
+            ):
+                sent += 1
+    return sent
 
 
 def send_due_contract_emails():

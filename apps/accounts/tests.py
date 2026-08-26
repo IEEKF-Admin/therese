@@ -2,15 +2,19 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.login_popups import (
     acknowledge_popup,
     evaluate_login_popups,
+    popup_since_from_session,
     user_matches_audience,
 )
 from apps.accounts.models import CustomUser, LoginPopupAcknowledgement, LoginPopupConfig
 from apps.hr.models import Contract, Employee, Workgroup
+from apps.tasks.models import PurchaseOrderTask
 
 
 class LoginPopupAudienceTests(TestCase):
@@ -148,6 +152,8 @@ class LoginPopupContractTriggerTests(TestCase):
             self.config,
             [LoginPopupAcknowledgement.contract_reference(old_contract)],
         )
+        old_contract.is_active = False
+        old_contract.save(update_fields=['is_active'])
 
         new_end = date.today() + timedelta(days=90)
         self._add_contract(new_end)
@@ -155,3 +161,62 @@ class LoginPopupContractTriggerTests(TestCase):
         popups = evaluate_login_popups(self.user, employee=self.employee)
         self.assertEqual(len(popups), 1)
         self.assertIn(new_end.strftime('%d.%m.%Y'), popups[0]['text'])
+
+
+class LoginPopupPreviousSessionTests(TestCase):
+    def setUp(self):
+        self.user = CustomUser.objects.create_user('popup_since', password='test')
+        self.user.password_changed = True
+        self.user.save(update_fields=['password_changed'])
+        self.employee = Employee.objects.create(
+            employee_number='E-POP',
+            first_name='Pat',
+            last_name='Popup',
+            user=self.user,
+        )
+        self.config = LoginPopupConfig.objects.create(
+            name='New PO popup',
+            trigger='purchase_order_created',
+            text='New order {{ supplier }}',
+            enabled=True,
+            show_popup=True,
+        )
+
+    def test_event_popup_uses_previous_login_not_current_last_login(self):
+        po = PurchaseOrderTask.objects.create(
+            creator=self.employee,
+            assignee=self.employee,
+            task_type='purchase_order',
+            supplier='Since GmbH',
+        )
+        PurchaseOrderTask.objects.filter(pk=po.pk).update(
+            created_at=timezone.now() - timedelta(days=1),
+        )
+        self.user.last_login = timezone.now()
+        self.user.save(update_fields=['last_login'])
+
+        self.assertEqual(
+            evaluate_login_popups(self.user, employee=self.employee),
+            [],
+        )
+        popups = evaluate_login_popups(
+            self.user,
+            employee=self.employee,
+            since=timezone.now() - timedelta(days=2),
+        )
+        self.assertEqual(len(popups), 1)
+        self.assertIn('Since GmbH', popups[0]['text'])
+
+    def test_login_stores_previous_last_login_in_session(self):
+        previous = timezone.now() - timedelta(days=3)
+        self.user.last_login = previous
+        self.user.save(update_fields=['last_login'])
+        client = Client()
+        response = client.post(
+            reverse('accounts:login'),
+            {'username': 'popup_since', 'password': 'test'},
+        )
+        self.assertIn(response.status_code, (302, 303))
+        stored = popup_since_from_session(client.session)
+        self.assertIsNotNone(stored)
+        self.assertAlmostEqual(stored.timestamp(), previous.timestamp(), delta=1)

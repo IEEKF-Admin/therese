@@ -2,10 +2,13 @@
 Login popup trigger evaluation and acknowledgement tracking.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+
+POPUP_SINCE_SESSION_KEY = 'therese_popup_since'
+_SINCE_UNSET = object()
 
 from apps.accounts.models import LoginPopupAcknowledgement, LoginPopupConfig
 from apps.accounts.template_variables import (
@@ -36,6 +39,27 @@ def _user_matches_target_workgroups(user, config):
     if not employee:
         return False
     return config.target_workgroups.filter(members=employee).exists()
+
+
+def store_popup_since(request, user):
+    """Remember last_login from before Django overwrites it on this login."""
+    previous = getattr(user, 'last_login', None)
+    request.session[POPUP_SINCE_SESSION_KEY] = previous.isoformat() if previous else ''
+
+
+def popup_since_from_session(request_or_session):
+    """Previous login time, or None on first login / missing session."""
+    session = getattr(request_or_session, 'session', request_or_session)
+    raw = session.get(POPUP_SINCE_SESSION_KEY)
+    if not raw:
+        return None
+    try:
+        value = datetime.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return None
+    if timezone.is_naive(value):
+        return timezone.make_aware(value, timezone.get_current_timezone())
+    return value
 
 
 def user_matches_audience(user, config):
@@ -118,14 +142,26 @@ def _should_show_global_trigger(user, config, acknowledged):
     return LoginPopupAcknowledgement.GLOBAL_REFERENCE not in acknowledged
 
 
-def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_created=None):
+def evaluate_login_popups(
+    user,
+    *,
+    employee=None,
+    assigned_to_me=None,
+    my_created=None,
+    since=_SINCE_UNSET,
+):
     """
     Evaluate enabled popup configs for a user after login.
     Returns list of dicts: {'text', 'link', 'config', 'ack_reference_keys'}.
+
+    ``since`` is the previous login time (before Django set last_login to now).
+    Omit it in tests to fall back to ``user.last_login``. Pass ``None`` for a
+    first login so event-since-last-session popups are skipped.
     """
     assigned_to_me = assigned_to_me or []
     my_created = my_created or []
     now = timezone.now()
+    event_since = user.last_login if since is _SINCE_UNSET else since
     popups = []
 
     configs = (
@@ -177,46 +213,65 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                 ]
 
         elif config.trigger in ('purchase_order_created', 'personnel_task_created'):
-            if user.last_login:
+            if event_since:
                 from apps.tasks.models import PERSONNEL_TASK_TYPES, PurchaseOrderTask, Task
 
                 if config.trigger == 'purchase_order_created':
                     created_qs = PurchaseOrderTask.objects.filter(
-                        created_at__gt=user.last_login,
+                        created_at__gt=event_since,
                     )
+                    ref_prefix = 'po_created'
                 else:
                     created_qs = Task.objects.filter(
                         task_type__in=PERSONNEL_TASK_TYPES,
-                        created_at__gt=user.last_login,
+                        created_at__gt=event_since,
                     )
-                latest = created_qs.order_by('-created_at').first()
-                if latest and _should_show_global_trigger(user, config, acknowledged):
+                    ref_prefix = 'personnel_created'
+                rows = list(created_qs.order_by('-created_at'))
+                unacked_refs = [
+                    f'{ref_prefix}:{task.pk}'
+                    for task in rows
+                    if f'{ref_prefix}:{task.pk}' not in acknowledged
+                ]
+                if unacked_refs:
                     show = True
-                    task_for_text = latest
-                    ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
+                    ack_reference_keys = unacked_refs
+                    task_for_text = next(
+                        (
+                            task for task in rows
+                            if f'{ref_prefix}:{task.pk}' in unacked_refs
+                        ),
+                        None,
+                    )
 
         elif config.trigger == 'new_task_assigned' and employee:
-            if user.last_login and _should_show_global_trigger(user, config, acknowledged):
+            if event_since:
+                unacked = []
                 for task in assigned_to_me:
                     created_at = getattr(task, 'created_at', None)
-                    if created_at and created_at > user.last_login:
-                        show = True
-                        task_for_text = task
-                        ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
-                        break
+                    ref = f'task_assigned:{task.pk}'
+                    if created_at and created_at > event_since and ref not in acknowledged:
+                        unacked.append((task, ref))
+                if unacked:
+                    show = True
+                    task_for_text = unacked[0][0]
+                    ack_reference_keys = [ref for _task, ref in unacked]
 
         elif config.trigger == 'task_status_changed' and employee:
-            if user.last_login and _should_show_global_trigger(user, config, acknowledged):
+            if event_since:
+                unacked = []
                 for task in my_created:
                     updated_at = getattr(task, 'updated_at', None)
-                    if updated_at and updated_at > user.last_login:
-                        show = True
-                        task_for_text = task
-                        ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
-                        break
+                    ref = f'task_status:{task.pk}:{task.status}'
+                    if updated_at and updated_at > event_since and ref not in acknowledged:
+                        unacked.append((task, ref))
+                if unacked:
+                    show = True
+                    task_for_text = unacked[0][0]
+                    ack_reference_keys = [ref for _task, ref in unacked]
 
         elif config.trigger == 'task_comment_on_created_task' and employee:
-            if user.last_login:
+            if event_since:
                 from apps.tasks.models import TaskComment
                 from apps.tasks.task_protocol import ENTRY_USER_MESSAGE
 
@@ -224,7 +279,7 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                     TaskComment.objects.filter(
                         task__creator=employee,
                         entry_type=ENTRY_USER_MESSAGE,
-                        created_at__gt=user.last_login,
+                        created_at__gt=event_since,
                     )
                     .exclude(author=employee)
                     .values_list('task_id', flat=True)
@@ -241,7 +296,7 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                         TaskComment.objects.filter(
                             task_id__in=task_pks,
                             entry_type=ENTRY_USER_MESSAGE,
-                            created_at__gt=user.last_login,
+                            created_at__gt=event_since,
                         )
                         .exclude(author=employee)
                         .select_related('task', 'author')
@@ -256,15 +311,15 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                 show = True
                 ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
 
-        elif config.trigger == 'checklist_assigned' and employee:
+        elif config.trigger == 'checklist_assigned' and employee and event_since:
             from apps.checklists.models import ChecklistInstance
 
             qs = ChecklistInstance.objects.filter(
                 subject=employee,
                 status__in=ChecklistInstance.ACTIVE_STATUSES,
             ).select_related('template_version', 'template_version__template')
-            if user.last_login:
-                qs = qs.filter(assigned_at__gt=user.last_login)
+            if event_since:
+                qs = qs.filter(assigned_at__gt=event_since)
             checklist_rows = list(qs.order_by('-assigned_at'))
             unacked_refs = [
                 f'checklist:{inst.pk}'
@@ -299,15 +354,15 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                     None,
                 )
 
-        elif config.trigger == 'chemical_item_delivered' and employee:
+        elif config.trigger == 'chemical_item_delivered' and employee and event_since:
             from apps.chemicals.models import ChemicalItem
 
             qs = ChemicalItem.objects.filter(
                 ordered_by=employee,
                 status=ChemicalItem.Status.ACTIVE,
             ).select_related('chemical')
-            if user.last_login:
-                qs = qs.filter(delivered_at__gt=user.last_login)
+            if event_since:
+                qs = qs.filter(delivered_at__gt=event_since)
             delivered_rows = list(qs.order_by('-delivered_at'))
             unacked_refs = [
                 f'chemical_delivered:{item.pk}'

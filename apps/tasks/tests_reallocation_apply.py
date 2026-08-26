@@ -64,6 +64,8 @@ class ReallocationApplyTests(TestCase):
             valid_from=date(2026, 7, 1),
             valid_until=date(2026, 12, 31),
         )
+        self.task.status = 'completed'
+        self.task.save(update_fields=['status'])
         self.row = ReallocationFundingAllocation.objects.create(
             reallocation_task=self.task,
             wbs_element=self.wbs_new,
@@ -79,11 +81,11 @@ class ReallocationApplyTests(TestCase):
         self.assertEqual(len(preview['conflicts']), 1)
         self.assertEqual(preview['conflicts'][0]['id'], self.existing.pk)
 
-    def test_end_choice_truncates_existing_and_creates_new(self):
+    def test_inserted_reallocation_splits_existing_allocation(self):
         created = apply_reallocation_funding(
             self.task,
             job_numbers={str(self.row.pk): 'J-NEW'},
-            continuation_choices={str(self.existing.pk): 'end'},
+            continuation_choices={},
         )
         self.assertEqual(created, 1)
         self.existing.refresh_from_db()
@@ -100,19 +102,6 @@ class ReallocationApplyTests(TestCase):
         self.assertEqual(new_fa.start_date, date(2026, 7, 1))
         self.assertEqual(new_fa.end_date, date(2026, 12, 31))
         self.assertEqual(new_fa.job_number, 'J-NEW')
-        self.assertEqual(
-            FundingAllocation.objects.filter(employee=self.person, start_date=date(2027, 1, 1)).count(),
-            0,
-        )
-
-    def test_resume_choice_splits_existing_allocation(self):
-        apply_reallocation_funding(
-            self.task,
-            job_numbers={str(self.row.pk): 'J-NEW'},
-            continuation_choices={str(self.existing.pk): 'resume'},
-        )
-        self.existing.refresh_from_db()
-        self.assertEqual(self.existing.end_date, date(2026, 6, 30))
         resumed = FundingAllocation.objects.get(
             employee=self.person,
             wbs_element=self.wbs_old,
@@ -130,13 +119,18 @@ class ReallocationApplyTests(TestCase):
                 continuation_choices={str(self.existing.pk): 'end'},
             )
 
-    def test_missing_continuation_choice_is_rejected(self):
-        with self.assertRaises(ApplyReallocationError):
+    def test_apply_rejected_when_status_is_not_completed(self):
+        self.task.status = 'not_yet_processed'
+        self.task.save(update_fields=['status'])
+        with self.assertRaises(ApplyReallocationError) as ctx:
             apply_reallocation_funding(
                 self.task,
                 job_numbers={str(self.row.pk): 'J-NEW'},
                 continuation_choices={},
             )
+        self.assertIn('Completed', str(ctx.exception))
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.end_date, date(2027, 12, 31))
 
     def test_reallocation_past_contract_end_is_blocked(self):
         self.contract.valid_until = date(2026, 9, 30)
@@ -194,7 +188,7 @@ class ReallocationApplyTests(TestCase):
         apply_reallocation_funding(
             self.task,
             job_numbers={str(self.row.pk): 'J-NEW'},
-            continuation_choices={str(self.existing.pk): 'end'},
+            continuation_choices={},
         )
         short.refresh_from_db()
         self.assertEqual(short.end_date, date(2026, 6, 30))
@@ -264,7 +258,57 @@ class ReallocationApplyViewTests(TestCase):
             job_number='J-1',
         )
 
+    def test_approver_cannot_apply_before_completed(self):
+        self.client.login(username='approver', password=self.password)
+        response = self.client.post(
+            reverse('tasks:apply_reallocation_funding', args=[self.task.pk]),
+            {'apply_job_number-' + str(self.row.pk): 'J-1'},
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertFalse(
+            FundingAllocation.objects.filter(
+                employee=self.person,
+                wbs_element=self.wbs,
+            ).exists()
+        )
+
+    def test_save_and_apply_saves_then_applies(self):
+        self.task.status = 'completed'
+        self.task.save(update_fields=['status'])
+        self.client.login(username='approver', password=self.password)
+        response = self.client.post(
+            reverse('tasks:task_detail', args=[self.task.pk]),
+            {
+                'save_and_apply': '1',
+                'status': 'completed',
+                'valid_from': '01.03.2026',
+                'valid_until': '31.08.2026',
+                'funding_allocations-TOTAL_FORMS': '1',
+                'funding_allocations-INITIAL_FORMS': '1',
+                'funding_allocations-MIN_NUM_FORMS': '0',
+                'funding_allocations-MAX_NUM_FORMS': '1000',
+                'funding_allocations-0-id': str(self.row.pk),
+                'funding_allocations-0-funding_source': f'wbs:{self.wbs.pk}',
+                'funding_allocations-0-workhours_percentage': '100.00',
+                'funding_allocations-0-plan_position_number': '',
+                'funding_allocations-0-job_number': 'J-SAVED',
+                'funding_allocations-0-notes': '',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.row.refresh_from_db()
+        self.assertEqual(self.row.job_number, 'J-SAVED')
+        self.assertTrue(
+            FundingAllocation.objects.filter(
+                employee=self.person,
+                wbs_element=self.wbs,
+                job_number='J-SAVED',
+            ).exists()
+        )
+
     def test_approver_can_apply(self):
+        self.task.status = 'completed'
+        self.task.save(update_fields=['status'])
         self.client.login(username='approver', password=self.password)
         response = self.client.post(
             reverse('tasks:apply_reallocation_funding', args=[self.task.pk]),

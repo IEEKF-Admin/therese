@@ -151,6 +151,7 @@ def my_tasks(request):
     from apps.accounts.login_popups import (
         evaluate_login_popups,
         persist_popup_acknowledgements,
+        popup_since_from_session,
     )
     from apps.accounts.trigger_emails import send_login_time_trigger_emails
     from apps.documents.popups import (
@@ -163,18 +164,22 @@ def my_tasks(request):
     )
 
     employee = getattr(request.user, 'employee', None)
+    popup_since = popup_since_from_session(request)
     popup_results = evaluate_login_popups(
         request.user,
         employee=employee,
         assigned_to_me=assigned_to_me,
         my_created=my_created,
+        since=popup_since,
     )
     send_login_time_trigger_emails(request.user, employee)
     if popup_results:
         persist_popup_acknowledgements(request.user, popup_results)
     visible_login_popups = [p for p in popup_results if p.get('show_popup', True)]
     doc_popup_results = evaluate_document_publish_popups(request.user)
-    checklist_popup_results = evaluate_checklist_assigned_popups(request.user, employee=employee)
+    checklist_popup_results = evaluate_checklist_assigned_popups(
+        request.user, employee=employee, since=popup_since,
+    )
     all_popup_results = visible_login_popups + doc_popup_results + checklist_popup_results
 
     if all_popup_results:

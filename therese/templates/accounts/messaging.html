@@ -12,6 +12,13 @@
     Each configuration has a trigger, an optional popup, and an optional email.
     Emails are sent when the event happens; popups appear at the next login
     (except first login / login after date/time, which send at login).
+    Leave audience empty to include every active user the trigger applies to.
+</p>
+<p style="color:#64748b;margin-bottom:2rem;">
+    Contract-ending emails are sent when a matching user logs in, and also
+    automatically about once an hour while the THERESE server is running
+    (no Windows Task Scheduler needed). People who never log in are covered
+    as long as the server stays up.
 </p>
 
 {{ configs_data|json_script:"login-popup-configs-data" }}

@@ -5,7 +5,7 @@ Do not remove any existing requirements from this module without explicit instru
 """
 
 from django.contrib import messages
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from ....forms import (
     PersonnelContractExtensionTaskForm,
@@ -13,7 +13,7 @@ from ....forms import (
     ReallocationFundingFormSet,
 )
 from ....recruitment_form_helpers import build_recruitment_template_context
-from ....reallocation_apply import build_apply_preview
+from ....reallocation_apply import ApplyReallocationError, apply_reallocation_funding, build_apply_preview
 from ....utils import is_personnel_approver, is_personnel_coordinator
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
@@ -43,6 +43,7 @@ def handle_standard_personnel_detail(request, task):
         task_type == 'personnel_reallocation'
         and is_personnel_approver(request.user)
     )
+    apply_reallocation_enabled = can_apply_reallocation and task.status == 'completed'
 
     if task_type == 'personnel_reallocation':
         form_class = PersonnelReallocationTaskForm
@@ -87,6 +88,11 @@ def handle_standard_personnel_detail(request, task):
                 employee,
                 new_message=extract_new_message(request),
             )
+            if (
+                task_type == 'personnel_reallocation'
+                and request.POST.get('save_and_apply')
+            ):
+                return _save_and_apply_reallocation(request, saved, employee=employee)
             messages.success(request, "Task updated successfully.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")
@@ -109,6 +115,7 @@ def handle_standard_personnel_detail(request, task):
         'can_edit_coordinator_steps': can_edit_coordinator_steps,
         'can_set_assignee': can_set_assignee,
         'can_apply_reallocation': can_apply_reallocation,
+        'apply_reallocation_enabled': apply_reallocation_enabled,
         'is_creator': is_creator,
         'is_coordinator': is_coordinator,
         'coordinator_fallback': coordinator_fallback,
@@ -122,3 +129,39 @@ def handle_standard_personnel_detail(request, task):
         context.update(build_recruitment_template_context())
     context.update(personnel_documents_context(request, task))
     return render(request, template, context)
+
+
+def _save_and_apply_reallocation(request, task, *, employee):
+    """After a successful save, apply funding rows onto the employee record."""
+    if not is_personnel_approver(request.user):
+        messages.success(request, "Task updated successfully.")
+        return redirect_to_my_tasks()
+    task.refresh_from_db()
+    if task.status != 'completed':
+        messages.success(request, "Task updated successfully.")
+        messages.error(request, 'Funding can only be applied when the task status is Completed.')
+        return redirect('tasks:task_detail', pk=task.pk)
+    try:
+        created = apply_reallocation_funding(
+            task,
+            job_numbers={},
+            continuation_choices={},
+        )
+    except ApplyReallocationError as exc:
+        messages.success(request, "Task updated successfully.")
+        messages.error(request, exc.message)
+        return redirect('tasks:task_detail', pk=task.pk)
+    if employee:
+        record_task_update(
+            task,
+            employee,
+            new_message=(
+                f'Applied funding allocations to {task.employee.get_full_name()} '
+                f'({created} new allocation(s)).'
+            ),
+        )
+    messages.success(
+        request,
+        'Task updated and funding allocations were applied to the employee.',
+    )
+    return redirect('tasks:task_detail', pk=task.pk)

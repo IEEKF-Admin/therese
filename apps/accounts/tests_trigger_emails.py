@@ -19,6 +19,7 @@ from apps.accounts.template_variables import (
     catalog_for_trigger,
     render_placeholders,
 )
+from apps.accounts.scheduler import should_start_scheduler
 from apps.accounts.trigger_emails import send_due_contract_emails, send_login_time_trigger_emails
 from apps.hr.models import Contract, Employee
 from apps.tasks.models import GenericTextTask, PersonnelReallocationTask, PurchaseOrderTask, TaskComment
@@ -417,6 +418,46 @@ class TriggerEmailSendTests(TestCase):
         self.config.save(update_fields=['send_email'])
         send_due_contract_emails()
         self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_login_sends_window_contract_without_daily_job(self):
+        self.config.trigger = 'contract_ending_soon'
+        self.config.x_months = 6
+        self.config.send_email = False
+        self.config.email_html = '<p>Ends {{ contract_end }}</p>'
+        self.config.email_subject = 'Login {{ contract_end }}'
+        self.config.save(update_fields=[
+            'trigger', 'x_months', 'send_email', 'email_html', 'email_subject',
+        ])
+        end_date = date.today() + timedelta(days=40)
+        Contract.objects.create(
+            employee=self.employee,
+            pay_scale_group='E13',
+            experience_level=3,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date.today() - timedelta(days=365),
+            valid_until=end_date,
+        )
+        self.assertEqual(len(mail.outbox), 0)
+        self.config.send_email = True
+        self.config.save(update_fields=['send_email'])
+        send_login_time_trigger_emails(self.user, self.employee)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(end_date.strftime('%d.%m.%Y'), mail.outbox[0].subject)
+
+
+class ContractEmailSchedulerTests(TestCase):
+    def test_scheduler_does_not_start_during_tests(self):
+        self.assertFalse(should_start_scheduler(['manage.py', 'test']))
+
+    def test_scheduler_starts_for_runserver_child(self):
+        self.assertFalse(should_start_scheduler(['manage.py', 'runserver']))
+        with patch.dict('os.environ', {'RUN_MAIN': 'true'}):
+            self.assertTrue(should_start_scheduler(['manage.py', 'runserver']))
+
+    def test_scheduler_can_be_disabled(self):
+        with patch.dict('os.environ', {'THERESE_DISABLE_SCHEDULER': '1', 'RUN_MAIN': 'true'}):
+            self.assertFalse(should_start_scheduler(['manage.py', 'runserver']))
 
 
 class EmailTemplateSettingsTests(TestCase):

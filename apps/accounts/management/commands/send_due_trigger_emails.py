@@ -12,8 +12,9 @@ from apps.accounts.trigger_emails import send_due_contract_emails
 class Command(BaseCommand):
     help = (
         'Send trigger emails for contracts currently ending within the configured '
-        'X-months window. Event-based triggers (tasks, comments, checklists, chemicals) '
-        'are sent immediately and are not handled here.'
+        'X-months window. The web server already runs this about once an hour; '
+        'this command is a manual fallback. Event-based triggers (tasks, comments, '
+        'checklists, chemicals) are sent immediately and are not handled here.'
     )
 
     def handle(self, *args, **options):

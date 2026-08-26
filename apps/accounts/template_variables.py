@@ -18,7 +18,8 @@ GROUP_LABELS = {
 
 LIST_MAX_ROWS = 50
 LIST_PARAM_RE = re.compile(
-    r'\{\{\s*(purchase_orders|my_purchase_orders|assigned_tasks):([a-z0-9_]+)\s*\}\}'
+    r'\{\{\s*(purchase_orders|my_purchase_orders|assigned_tasks|'
+    r'personnel_tasks|my_personnel_tasks):([a-z0-9_]+)\s*\}\}'
 )
 
 VARIABLES = [
@@ -56,6 +57,18 @@ VARIABLES = [
     {'key': 'task_assignee', 'label': 'Task assignee', 'group': 'task'},
     {'key': 'task_creator', 'label': 'Task creator', 'group': 'task'},
     {'key': 'supplier', 'label': 'Supplier (purchase order)', 'group': 'task'},
+    {'key': 'personnel_employee_name', 'label': 'Personnel task employee name', 'group': 'task'},
+    {'key': 'personnel_employee_number', 'label': 'Personnel task employee number', 'group': 'task'},
+    {'key': 'personnel_valid_from', 'label': 'Personnel task valid from', 'group': 'task'},
+    {'key': 'personnel_valid_until', 'label': 'Personnel task valid until', 'group': 'task'},
+    {'key': 'personnel_plan_position', 'label': 'Personnel task plan position', 'group': 'task'},
+    {'key': 'personnel_limitation_reason', 'label': 'Personnel task limitation reason', 'group': 'task'},
+    {'key': 'recruitment_name', 'label': 'Recruitment candidate name', 'group': 'task'},
+    {'key': 'recruitment_email', 'label': 'Recruitment candidate private email', 'group': 'task'},
+    {'key': 'recruitment_job', 'label': 'Recruitment job', 'group': 'task'},
+    {'key': 'recruitment_working_as', 'label': 'Recruitment working as', 'group': 'task'},
+    {'key': 'recruitment_pay_scale_group', 'label': 'Recruitment pay scale group', 'group': 'task'},
+    {'key': 'recruitment_weekly_hours', 'label': 'Recruitment weekly hours', 'group': 'task'},
     {'key': 'comment_author', 'label': 'Comment author', 'group': 'task'},
     {'key': 'comment_text', 'label': 'Comment text', 'group': 'task'},
     {'key': 'checklist_name', 'label': 'Checklist name (EN)', 'group': 'checklist'},
@@ -124,6 +137,96 @@ VARIABLES = [
         'group': 'lists',
     },
     {
+        'key': 'personnel_tasks',
+        'label': 'Visible unarchived personnel tasks',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_not_yet_processed',
+        'label': 'Visible unarchived personnel tasks — Not yet processed',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_sent_to_hr',
+        'label': 'Visible unarchived personnel tasks — Sent to HR',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_hr_processing',
+        'label': 'Visible unarchived personnel tasks — Processing by HR',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_works_council',
+        'label': 'Visible unarchived personnel tasks — Works Council',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_completed',
+        'label': 'Visible unarchived personnel tasks — Completed',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks',
+        'label': 'Personnel tasks assigned to you (unarchived)',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_not_yet_processed',
+        'label': 'Your assigned personnel tasks — Not yet processed',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_sent_to_hr',
+        'label': 'Your assigned personnel tasks — Sent to HR',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_hr_processing',
+        'label': 'Your assigned personnel tasks — Processing by HR',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_works_council',
+        'label': 'Your assigned personnel tasks — Works Council',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_completed',
+        'label': 'Your assigned personnel tasks — Completed',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_coordination_completed',
+        'label': 'Visible unarchived personnel tasks — Coordination completed',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_sent_to_administration',
+        'label': 'Visible unarchived personnel tasks — Sent to administration',
+        'group': 'lists',
+    },
+    {
+        'key': 'personnel_tasks_recruitment_completed',
+        'label': 'Visible unarchived personnel tasks — Recruitment completed',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_coordination_completed',
+        'label': 'Your assigned personnel tasks — Coordination completed',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_sent_to_administration',
+        'label': 'Your assigned personnel tasks — Sent to administration',
+        'group': 'lists',
+    },
+    {
+        'key': 'my_personnel_tasks_recruitment_completed',
+        'label': 'Your assigned personnel tasks — Recruitment completed',
+        'group': 'lists',
+    },
+    {
         'key': 'ending_contracts',
         'label': 'Own contracts ending within 6 months',
         'group': 'lists',
@@ -141,6 +244,8 @@ TRIGGER_GROUPS = {
     'contract_ending_soon': ['person', 'contract', 'lists'],
     'any_contract_ending_soon': ['person', 'contract', 'lists'],
     'new_task_assigned': ['person', 'task', 'lists'],
+    'purchase_order_created': ['person', 'task', 'lists'],
+    'personnel_task_created': ['person', 'task', 'lists'],
     'task_status_changed': ['person', 'task', 'lists'],
     'task_comment_on_created_task': ['person', 'task', 'lists'],
     'checklist_assigned': ['person', 'checklist', 'lists'],
@@ -375,6 +480,31 @@ def list_assigned_tasks(employee, status=None):
     return _task_list(qs)
 
 
+def list_personnel_tasks(user, employee, status=None):
+    from apps.tasks.utils import get_personnel_tasks_queryset
+
+    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    if user is None:
+        return TemplateList(headers, [])
+    qs = _unarchived(get_personnel_tasks_queryset(user), employee)
+    if status:
+        qs = qs.filter(status=status)
+    return _task_list(qs)
+
+
+def list_my_personnel_tasks(employee, status=None):
+    from apps.tasks.models import PERSONNEL_TASK_TYPES, Task
+
+    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    if employee is None:
+        return TemplateList(headers, [])
+    qs = Task.objects.filter(assignee=employee, task_type__in=PERSONNEL_TASK_TYPES)
+    qs = _unarchived(qs, employee)
+    if status:
+        qs = qs.filter(status=status)
+    return _task_list(qs)
+
+
 def list_ending_contracts(employee, months=6):
     headers = ['Employee', 'Valid until', 'Pay scale', 'Weekly hours']
     if employee is None:
@@ -448,6 +578,10 @@ def resolve_param_list(kind, status, user, employee):
         return list_my_purchase_orders(employee, status=status)
     if kind == 'assigned_tasks':
         return list_assigned_tasks(employee, status=status)
+    if kind == 'personnel_tasks':
+        return list_personnel_tasks(user, employee, status=status)
+    if kind == 'my_personnel_tasks':
+        return list_my_personnel_tasks(employee, status=status)
     return TemplateList([], [])
 
 
@@ -543,6 +677,18 @@ def build_replacement_map(
         'task_assignee': '',
         'task_creator': '',
         'supplier': '',
+        'personnel_employee_name': '',
+        'personnel_employee_number': '',
+        'personnel_valid_from': '',
+        'personnel_valid_until': '',
+        'personnel_plan_position': '',
+        'personnel_limitation_reason': '',
+        'recruitment_name': '',
+        'recruitment_email': '',
+        'recruitment_job': '',
+        'recruitment_working_as': '',
+        'recruitment_pay_scale_group': '',
+        'recruitment_weekly_hours': '',
         'comment_author': '',
         'comment_text': '',
         'checklist_name': '',
@@ -592,6 +738,7 @@ def build_replacement_map(
         values['task_assignee'] = _person_name(getattr(task, 'assignee', None))
         values['task_creator'] = _person_name(getattr(task, 'creator', None))
         values['supplier'] = getattr(task, 'supplier', '') or ''
+        _fill_personnel_task_values(values, task)
 
     if comment is not None:
         values['comment_author'] = _person_name(getattr(comment, 'author', None))
@@ -630,11 +777,13 @@ def build_replacement_map(
         values['delivered_at'] = _fmt_datetime(getattr(chemical_item, 'delivered_at', None))
         values['mhd'] = _fmt_date(getattr(chemical_item, 'mhd', None))
 
-    from apps.tasks.models import PURCHASE_STATUSES
+    from apps.tasks.models import PERSONNEL_STATUSES, PURCHASE_STATUSES, RECRUITMENT_STATUSES
 
     values['purchase_orders'] = list_purchase_orders(user, employee)
     values['my_purchase_orders'] = list_my_purchase_orders(employee)
     values['assigned_tasks'] = list_assigned_tasks(employee)
+    values['personnel_tasks'] = list_personnel_tasks(user, employee)
+    values['my_personnel_tasks'] = list_my_personnel_tasks(employee)
     values['ending_contracts'] = list_ending_contracts(employee)
     values['incomplete_chemical_items'] = list_incomplete_chemical_items(employee)
     for status_key, _label in PURCHASE_STATUSES:
@@ -644,8 +793,53 @@ def build_replacement_map(
         values[f'my_purchase_orders_{status_key}'] = list_my_purchase_orders(
             employee, status=status_key
         )
+    personnel_status_keys = []
+    for status_key, _label in PERSONNEL_STATUSES + RECRUITMENT_STATUSES:
+        if status_key in personnel_status_keys:
+            continue
+        personnel_status_keys.append(status_key)
+        values[f'personnel_tasks_{status_key}'] = list_personnel_tasks(
+            user, employee, status=status_key
+        )
+        values[f'my_personnel_tasks_{status_key}'] = list_my_personnel_tasks(
+            employee, status=status_key
+        )
 
     return values
+
+
+def _fill_personnel_task_values(values, task):
+    from apps.tasks.models import PERSONNEL_TASK_TYPES
+
+    task_type = getattr(task, 'task_type', '') or ''
+    if task_type not in PERSONNEL_TASK_TYPES:
+        return
+    subject = getattr(task, 'employee', None)
+    if subject is not None:
+        values['personnel_employee_name'] = _person_name(subject)
+        values['personnel_employee_number'] = getattr(subject, 'employee_number', '') or ''
+    values['personnel_valid_from'] = _fmt_date(getattr(task, 'valid_from', None))
+    values['personnel_valid_until'] = _fmt_date(getattr(task, 'valid_until', None))
+    values['personnel_plan_position'] = getattr(task, 'plan_position_number', '') or ''
+    reason = (getattr(task, 'limitation_reason', '') or '').strip()
+    if len(reason) > 400:
+        reason = reason[:397] + '...'
+    values['personnel_limitation_reason'] = reason
+    if task_type != 'personnel_recruitment':
+        return
+    first = getattr(task, 'first_name', '') or ''
+    last = getattr(task, 'last_name', '') or ''
+    candidate = (first + ' ' + last).strip()
+    if candidate:
+        values['personnel_employee_name'] = candidate
+        values['recruitment_name'] = candidate
+    values['recruitment_email'] = getattr(task, 'email_private', '') or ''
+    job = getattr(task, 'job', None)
+    values['recruitment_job'] = str(job) if job else ''
+    values['recruitment_working_as'] = getattr(task, 'working_as', '') or ''
+    values['recruitment_pay_scale_group'] = getattr(task, 'pay_scale_group', '') or ''
+    hours = getattr(task, 'weekly_hours', None)
+    values['recruitment_weekly_hours'] = '' if hours is None else str(hours)
 
 
 def render_placeholders(template, replacements, *, html=False, user=None, employee=None):

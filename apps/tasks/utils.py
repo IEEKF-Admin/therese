@@ -34,7 +34,13 @@ steps). This keeps workflows usable before HR configures coordinators per workgr
 """
 
 from django.db.models import Q
-from .models import PurchaseOrderTask, RECRUITMENT_STATUSES, RECRUITMENT_STATUS_ORDER
+from .models import (
+    PERSONNEL_TASK_TYPES,
+    PurchaseOrderTask,
+    RECRUITMENT_STATUSES,
+    RECRUITMENT_STATUS_ORDER,
+    Task,
+)
 from .workflow_config import creator_has_coordinator_fallback
 from apps.accounts.permissions import GroupNames
 
@@ -160,6 +166,28 @@ def get_purchase_orders_queryset(user):
             wbs_element__isnull=False,
         )
 
+    return queryset.filter(visible)
+
+
+def get_personnel_tasks_queryset(user):
+    """Personnel reallocation, extension, and recruitment tasks visible to the user."""
+    if not user or not user.is_authenticated:
+        return Task.objects.none()
+
+    employee = getattr(user, 'employee', None)
+    if not employee:
+        return Task.objects.none()
+
+    queryset = Task.objects.filter(task_type__in=PERSONNEL_TASK_TYPES).select_related(
+        'creator', 'assignee',
+    ).order_by('-created_at')
+
+    if user.is_superuser or is_personnel_coordinator(user):
+        return queryset
+
+    visible = Q(creator=employee)
+    if is_personnel_approver(user):
+        visible |= Q(assignee=employee)
     return queryset.filter(visible)
 
 

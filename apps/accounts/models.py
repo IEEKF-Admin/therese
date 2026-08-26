@@ -49,6 +49,8 @@ class LoginPopupConfig(models.Model):
         ('contract_ending_soon', 'Own contract ending in X months'),
         ('any_contract_ending_soon', 'Any employee contract ending in X months'),
         ('new_task_assigned', 'New task assigned to the user'),
+        ('purchase_order_created', 'New purchase order (procurement) created'),
+        ('personnel_task_created', 'New personnel task created'),
         ('task_status_changed', 'Status changed on a task created by the user'),
         (
             'task_comment_on_created_task',

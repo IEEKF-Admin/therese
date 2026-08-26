@@ -176,6 +176,25 @@ def evaluate_login_popups(user, *, employee=None, assigned_to_me=None, my_create
                     LoginPopupAcknowledgement.contract_reference(c) for c in unacked
                 ]
 
+        elif config.trigger in ('purchase_order_created', 'personnel_task_created'):
+            if user.last_login:
+                from apps.tasks.models import PERSONNEL_TASK_TYPES, PurchaseOrderTask, Task
+
+                if config.trigger == 'purchase_order_created':
+                    created_qs = PurchaseOrderTask.objects.filter(
+                        created_at__gt=user.last_login,
+                    )
+                else:
+                    created_qs = Task.objects.filter(
+                        task_type__in=PERSONNEL_TASK_TYPES,
+                        created_at__gt=user.last_login,
+                    )
+                latest = created_qs.order_by('-created_at').first()
+                if latest and _should_show_global_trigger(user, config, acknowledged):
+                    show = True
+                    task_for_text = latest
+                    ack_reference_keys = [LoginPopupAcknowledgement.GLOBAL_REFERENCE]
+
         elif config.trigger == 'new_task_assigned' and employee:
             if user.last_login and _should_show_global_trigger(user, config, acknowledged):
                 for task in assigned_to_me:

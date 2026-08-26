@@ -14,10 +14,14 @@ from apps.accounts.login_popups import (
 )
 from apps.accounts.models import CustomUser, LoginPopupConfig, TriggerEmailSend
 from apps.accounts.permissions import GroupNames, assign_permissions_to_groups, get_or_create_default_groups
-from apps.accounts.template_variables import build_replacement_map, render_placeholders
+from apps.accounts.template_variables import (
+    build_replacement_map,
+    catalog_for_trigger,
+    render_placeholders,
+)
 from apps.accounts.trigger_emails import send_due_contract_emails, send_login_time_trigger_emails
 from apps.hr.models import Contract, Employee
-from apps.tasks.models import GenericTextTask, PurchaseOrderTask, TaskComment
+from apps.tasks.models import GenericTextTask, PersonnelReallocationTask, PurchaseOrderTask, TaskComment
 
 
 class TemplateVariableTests(TestCase):
@@ -54,6 +58,30 @@ class TemplateVariableTests(TestCase):
         )
         self.assertIn('Hello Ben', rendered)
         self.assertIn(end_date.strftime('%d.%m.%Y'), rendered)
+
+    def test_personnel_task_placeholders_and_catalog(self):
+        task = PersonnelReallocationTask.objects.create(
+            creator=self.employee,
+            assignee=self.employee,
+            task_type='personnel_reallocation',
+            employee=self.employee,
+            valid_from=date.today(),
+            valid_until=date.today() + timedelta(days=30),
+        )
+        replacements = build_replacement_map(self.user, self.employee, task=task)
+        rendered = render_placeholders(
+            '{{ personnel_employee_name }} {{ personnel_employee_number }} {{ personnel_valid_from }}',
+            replacements,
+        )
+        self.assertIn('Ben Beta', rendered)
+        self.assertIn('E-VARS', rendered)
+        keys = {item['key'] for item in catalog_for_trigger('personnel_task_created')}
+        self.assertIn('personnel_employee_name', keys)
+        self.assertIn('personnel_tasks', keys)
+        self.assertIn('my_personnel_tasks', keys)
+        po_keys = {item['key'] for item in catalog_for_trigger('purchase_order_created')}
+        self.assertIn('supplier', po_keys)
+        self.assertIn('purchase_orders', po_keys)
 
     def test_html_escaping(self):
         self.employee.first_name = '<script>x</script>'
@@ -279,6 +307,45 @@ class TriggerEmailSendTests(TestCase):
         self.assertIn('Status completed', mail.outbox[0].subject)
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_purchase_order_created_notifies_audience(self):
+        self.config.trigger = 'purchase_order_created'
+        self.config.email_html = '<p>PO {{ supplier }} {{ task_number }}</p>'
+        self.config.email_subject = 'New PO {{ supplier }}'
+        self.config.save(update_fields=['trigger', 'email_html', 'email_subject'])
+        PurchaseOrderTask.objects.create(
+            creator=self.employee,
+            assignee=self.employee,
+            task_type='purchase_order',
+            supplier='Acme GmbH',
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('New PO Acme GmbH', mail.outbox[0].subject)
+        GenericTextTask.objects.create(
+            creator=self.employee,
+            assignee=self.employee,
+            task_type='generic_text',
+            title='Ignore me',
+        )
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_personnel_task_created_notifies_audience(self):
+        self.config.trigger = 'personnel_task_created'
+        self.config.email_html = '<p>{{ personnel_employee_name }} from {{ personnel_valid_from }}</p>'
+        self.config.email_subject = 'Personnel {{ personnel_employee_name }}'
+        self.config.save(update_fields=['trigger', 'email_html', 'email_subject'])
+        PersonnelReallocationTask.objects.create(
+            creator=self.employee,
+            assignee=self.employee,
+            task_type='personnel_reallocation',
+            employee=self.employee,
+            valid_from=date.today(),
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Personnel Cara Gamma', mail.outbox[0].subject)
+        self.assertIn('Cara Gamma from', mail.outbox[0].alternatives[0][0])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_comment_emails_creator_immediately(self):
         self.config.trigger = 'task_comment_on_created_task'
         self.config.email_html = '<p>{{ comment_author }}: {{ comment_text }}</p>'
@@ -379,6 +446,8 @@ class EmailTemplateSettingsTests(TestCase):
         self.assertContains(response, 'Messaging')
         self.assertContains(response, 'Contract mail')
         self.assertContains(response, 'New task assigned to the user')
+        self.assertContains(response, 'New purchase order (procurement) created')
+        self.assertContains(response, 'New personnel task created')
         self.assertContains(response, 'First login (welcome / profile completion)')
         self.assertContains(response, 'Email body')
         self.assertContains(response, '{{ first_name }}')

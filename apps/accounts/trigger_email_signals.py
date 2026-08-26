@@ -36,7 +36,14 @@ def cache_task_previous_state(sender, instance, **kwargs):
 
 def send_task_trigger_emails(sender, instance, created, **kwargs):
     try:
-        from apps.accounts.trigger_emails import notify_task_assigned, notify_task_status_changed
+        from apps.accounts.trigger_emails import (
+            notify_task_assigned,
+            notify_task_created,
+            notify_task_status_changed,
+        )
+
+        if created and instance._meta.concrete_model is sender:
+            notify_task_created(instance)
 
         prev_assignee_id = getattr(instance, '_trigger_prev_assignee_id', None)
         if instance.assignee_id and (created or instance.assignee_id != prev_assignee_id):

@@ -40,6 +40,12 @@ PERSONNEL_STATUSES = [
     ('completed', 'Completed'),
 ]
 
+PERSONNEL_TASK_TYPES = (
+    'personnel_reallocation',
+    'personnel_contract_extension',
+    'personnel_recruitment',
+)
+
 RECRUITMENT_STATUSES = [
     ('not_yet_processed', 'Not yet processed / Noch nicht bearbeitet'),
     ('coordination_completed', 'Coordination completed / Koordination abgeschlossen'),

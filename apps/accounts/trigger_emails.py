@@ -145,6 +145,47 @@ def send_login_time_trigger_emails(user, employee=None):
             deliver_trigger_email(config, user, employee, 'global')
 
 
+def notify_audience(trigger, reference_key, **context):
+    """Send a trigger email to every active user in the config audience."""
+    from apps.accounts.models import CustomUser
+
+    users = list(CustomUser.objects.filter(is_active=True))
+    for config in enabled_email_configs(trigger):
+        for user in users:
+            deliver_trigger_email(
+                config,
+                user,
+                _employee_of(user),
+                reference_key,
+                **context,
+            )
+
+
+PERSONNEL_CREATED_TYPES = (
+    'personnel_reallocation',
+    'personnel_contract_extension',
+    'personnel_recruitment',
+)
+
+
+def notify_task_created(task):
+    if task is None:
+        return
+    task_type = getattr(task, 'task_type', '') or ''
+    if task_type == 'purchase_order':
+        notify_audience(
+            'purchase_order_created',
+            f'po_created:{task.pk}',
+            task=task,
+        )
+    elif task_type in PERSONNEL_CREATED_TYPES:
+        notify_audience(
+            'personnel_task_created',
+            f'personnel_created:{task.pk}',
+            task=task,
+        )
+
+
 def notify_task_assigned(task):
     employee = getattr(task, 'assignee', None)
     user = user_for_employee(employee)

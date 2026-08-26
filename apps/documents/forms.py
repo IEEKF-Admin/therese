@@ -98,7 +98,12 @@ class DualListSelect(forms.SelectMultiple):
     Two multi-select lists: available vs selected.
 
     Empty selection is allowed (all items can be moved back to Available).
+    HTML required is disabled: options in the Selected list are not marked
+    selected until submit JS runs, which is too late for the browser check.
     """
+
+    def use_required_attribute(self, initial):
+        return False
 
     def __init__(self, *args, available_heading='Available', selected_heading='Selected', **kwargs):
         super().__init__(*args, **kwargs)

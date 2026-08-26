@@ -191,6 +191,8 @@ class ChecklistManageUITests(TestCase):
         self.assertContains(page, 'Selected')
         self.assertContains(page, 'dual-list-widget')
         self.assertContains(page, published.version_label)
+        self.assertNotContains(page, 'name="employees" required')
+        self.assertNotContains(page, "name='employees' required")
         posted = self.client.post(url, {
             'template_version': str(published.pk),
             'employees': [str(employee.pk)],

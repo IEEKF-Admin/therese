@@ -106,6 +106,7 @@ class DocumentManageFormFixesTests(TestCase):
         self.assertIn('dual-list-available', html)
         self.assertIn('dual-list-selected', html)
         self.assertIn('dual-list-add', html)
+        self.assertNotIn(' required', html)
 
 
 class DocumentAudienceTests(TestCase):

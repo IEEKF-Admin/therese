@@ -14,6 +14,7 @@ from apps.tasks.forms import (
     PersonnelReallocationTaskForm,
     PurchaseItemForm,
     PurchaseOrderTaskForm,
+    ReallocationFundingAllocationForm,
     ReallocationFundingFormSet,
     RecruitmentFundingFormSet,
 )
@@ -122,6 +123,32 @@ class PersonnelTaskValidationTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn('valid_until', form.errors)
+
+    def test_reallocation_edit_does_not_require_posted_employee(self):
+        creator = Employee.objects.create(
+            employee_number='E-HR-CRE',
+            first_name='Creator',
+            last_name='User',
+        )
+        task = PersonnelReallocationTask.objects.create(
+            task_type='personnel_reallocation',
+            creator=creator,
+            employee=self.employee,
+            valid_from=date(2026, 1, 1),
+            valid_until=date(2026, 12, 31),
+        )
+        form = PersonnelReallocationTaskForm(
+            data={
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'status': 'not_yet_processed',
+            },
+            instance=task,
+            user=self.user,
+            is_creation=False,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['employee'], self.employee)
 
     def test_extension_requires_limitation_reason_when_limited(self):
         form = PersonnelContractExtensionTaskForm(
@@ -289,6 +316,10 @@ class ReallocationFundingFormsetEditTests(TestCase):
             'funding_allocations-1-plan_position_number': '50081402',
             'funding_allocations-1-notes': '',
         }
+
+    def test_funding_form_does_not_emit_html_required(self):
+        form = ReallocationFundingAllocationForm()
+        self.assertFalse(form.use_required_attribute)
 
     def test_unchanged_existing_allocations_are_valid_on_edit(self):
         formset = ReallocationFundingFormSet(self._edit_data(), instance=self.task)

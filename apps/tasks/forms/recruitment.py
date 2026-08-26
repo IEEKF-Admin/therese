@@ -48,6 +48,7 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
     empty cleaned rows are marked DELETE so they are not persisted.
     """
     INTERNAL_FIELDS = {'id', 'recruitment_task', 'DELETE'}
+    use_required_attribute = False
 
     class Meta:
         model = RecruitmentFundingAllocation

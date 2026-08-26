@@ -18,8 +18,18 @@
     <div class="alert alert-info">No coordinator is configured for your workgroup. You can complete the coordination steps yourself.</div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" novalidate>
         {% csrf_token %}
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            Please correct the highlighted fields.
+            <ul style="margin:0.35rem 0 0; padding-left:1.2rem;">
+                {% for field, errs in form.errors.items %}
+                <li><strong>{% if field == "__all__" %}Form{% else %}{{ field }}{% endif %}:</strong> {{ errs|striptags }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
 
         <div class="form-section">
             <h3>Reallocation Information</h3>
@@ -32,6 +42,7 @@
             <div class="aligned-field">
                 <label>Employee</label>
                 <strong>{{ task.employee.get_full_name|default:task.employee }}</strong>
+                {{ form.employee.as_hidden }}
             </div>
 
             <div class="aligned-field">

@@ -27,6 +27,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
     """One PSP/cost-center + percentage row for reallocation funding."""
 
     INTERNAL_FIELDS = {'id', 'reallocation_task', 'DELETE'}
+    use_required_attribute = False
 
     class Meta:
         model = ReallocationFundingAllocation
@@ -190,6 +191,9 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
             self.fields['employee'].required = True
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
+            if not self.is_creation and getattr(self.instance, 'pk', None):
+                # Edit page shows the name as text and does not post this field.
+                self.fields['employee'].disabled = True
 
         for field_name in ['valid_from', 'valid_until']:
             if field_name in self.fields:
@@ -282,6 +286,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
+            if not self.is_creation and getattr(self.instance, 'pk', None):
+                self.fields['employee'].disabled = True
 
         if 'is_limited' in self.fields and self.is_creation:
             self.fields['is_limited'].initial = True

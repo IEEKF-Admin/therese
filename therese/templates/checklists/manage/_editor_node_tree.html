@@ -1,0 +1,39 @@
+{% for item in tree %}
+{% with node=item.node children=item.children %}
+{% if node.node_kind == 'section' %}
+<div class="checklist-nodes-section">
+    <div class="checklist-nodes-section-header checklist-node-row{% if edit_node and edit_node.pk == node.pk %} is-selected{% endif %}"
+         data-node-href="{% url 'checklists:manage_version_edit' template.pk version.pk %}?node={{ node.pk }}">
+        <div class="checklist-nodes-section-title">
+            <strong>{{ node.display_name }}</strong>
+            {% if node.label_en and node.label_de %}<small class="field-hint-de">{{ node.label_de }}</small>{% endif %}
+            <span class="checklist-node-meta">Section · {{ node.sort_order }}</span>
+        </div>
+        {% include "checklists/manage/_editor_node_actions.html" %}
+    </div>
+    <div class="checklist-nodes-section-body">
+        {% if children %}
+            {% include "checklists/manage/_editor_node_tree.html" with tree=children %}
+        {% else %}
+            <p class="checklist-nodes-empty">No items in this section.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="checklist-node-item checklist-node-row{% if node.node_kind == 'radio_option' %} is-child{% endif %}{% if edit_node and edit_node.pk == node.pk %} is-selected{% endif %}"
+     data-node-href="{% url 'checklists:manage_version_edit' template.pk version.pk %}?node={{ node.pk }}">
+    <span class="checklist-node-order">{{ node.sort_order }}</span>
+    <span class="checklist-node-kind">{{ node.get_node_kind_display }}{% if node.field_type %} ({{ node.get_field_type_display }}){% endif %}</span>
+    <span class="checklist-node-label">
+        {{ node.display_name }}
+        {% if node.label_en and node.label_de %}<small class="field-hint-de">{{ node.label_de }}</small>{% endif %}
+        {% if node.choice_key and node.node_kind == 'radio_option' %} <code>{{ node.choice_key }}</code>{% endif %}
+    </span>
+    {% include "checklists/manage/_editor_node_actions.html" %}
+</div>
+{% if children %}
+    {% include "checklists/manage/_editor_node_tree.html" with tree=children %}
+{% endif %}
+{% endif %}
+{% endwith %}
+{% endfor %}

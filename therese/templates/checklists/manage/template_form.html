@@ -20,6 +20,16 @@
         {% csrf_token %}
         <div class="form-section">
             <h3>Template details</h3>
+            {% if copy_source %}
+            <p class="field-hint">
+                Copies the latest version of “{{ copy_source.name_en }}”
+                {% with latest=copy_source.versions.first %}
+                {% if latest %}({{ latest.version_label }}){% endif %}
+                {% endwith %}
+                into a new draft template. You can change the slug before saving.
+                <span class="field-hint-de">Kopiert die letzte Version als neue Entwurf-Vorlage. Der Slug kann vor dem Speichern geändert werden.</span>
+            </p>
+            {% endif %}
             {% for field in form %}
             <div class="aligned-field">
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>

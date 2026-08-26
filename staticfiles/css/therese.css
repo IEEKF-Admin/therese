@@ -100,6 +100,40 @@ body {
     color: var(--primary);
 }
 
+.action-icon-danger:hover {
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+.doc-current-badge,
+.doc-old-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+}
+
+.doc-current-badge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.doc-old-badge {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.form-readonly,
+input.form-readonly,
+input[readonly].form-control {
+    background: #f8fafc;
+    color: #475569;
+    cursor: default;
+}
+
 .action-icon.delete {
     color: #dc2626;
 }
@@ -175,13 +209,32 @@ body {
     margin-top: 0.35rem;
 }
 
-/* Sidebar - slimmer */
+/* Sidebar - sticky below the sticky header, independently scrollable */
 .sidebar {
     width: 240px;
-    background: white;
+    flex-shrink: 0;
+    background: var(--card);
     border-right: 1px solid var(--border);
-    padding: 2rem 1rem;
-    min-height: calc(100vh - 73px);
+    /* Extra bottom padding so the last nav item is not clipped by the viewport edge */
+    padding: 1.25rem 1rem 3.5rem;
+    position: sticky;
+    /* Match sticky .top-header so nav stays usable on long pages */
+    top: 0;
+    align-self: flex-start;
+    max-height: calc(100vh - 73px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.sidebar-nav {
+    padding-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-nav > a:first-child {
+    margin-top: 0;
 }
 
 .sidebar-nav a {
@@ -271,8 +324,10 @@ body {
 /* Main Content */
 .main-container {
     display: flex;
+    align-items: flex-start;
     max-width: 1600px;
     margin: 0 auto;
+    min-height: calc(100vh - 73px);
 }
 
 .content {
@@ -429,6 +484,351 @@ body {
     margin-bottom: 1rem;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
+}
+
+/* Contract cards with nested funding allocations */
+.contracts-section .contract-archive-toolbar {
+    margin: 0.5rem 0 1rem;
+}
+
+.contract-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.contract-card.is-archived {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.contract-card.is-hidden-archive {
+    display: none !important;
+}
+
+.contract-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.contract-card.is-archived .contract-card-header {
+    background: #d1d5db;
+}
+
+.contract-card-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--primary, #1e3a5f);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-active {
+    background: #dcfce7;
+    color: #166534;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+}
+
+.badge-archived {
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid #9ca3af;
+}
+
+.contract-card-body {
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.contract-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.contract-fields-grid .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.funding-block {
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 1rem;
+}
+
+.funding-block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.funding-block-header h5 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.funding-active-grid,
+.funding-readonly-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+}
+
+@media (min-width: 900px) {
+    .funding-active-grid,
+    .funding-readonly-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.funding-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.75rem;
+}
+
+.funding-item .funding-item-top {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.funding-item .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.funding-item-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.funding-item.is-inactive {
+    background: #d1d5db;
+    border-color: #9ca3af;
+}
+
+.funding-archive-toolbar {
+    margin: 0.65rem 0 0.5rem;
+}
+
+.btn-add-funding,
+.btn-add-salary {
+    margin-top: 0.35rem;
+}
+
+.salary-block {
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+.salary-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+@media (min-width: 900px) {
+    .salary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.salary-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.75rem;
+}
+
+.salary-item .funding-item-top,
+.salary-item .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.salary-item.is-inactive {
+    background: #d1d5db;
+    border-color: #9ca3af;
+}
+
+/* Employee form inline rows (contracts, funding, …) */
+.inline-form-row.contract-row,
+.inline-form-row.funding-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 0.85rem 1rem;
+    align-items: start;
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.1rem 1.15rem 1.15rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.inline-form-row.contract-row + .inline-form-row.contract-row,
+.inline-form-row.funding-row + .inline-form-row.funding-row {
+    margin-top: 0.15rem;
+}
+
+.inline-form-row .inline-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.inline-form-row .inline-field.full {
+    grid-column: 1 / -1;
+}
+
+.inline-form-row .inline-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0;
+}
+
+.inline-form-row .inline-delete {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    margin: 0;
+}
+
+/* Soft remove control — matches secondary chrome, danger on hover */
+.btn-inline-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    padding: 0;
+    margin: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff !important;
+    color: #64748b !important;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.btn-inline-remove svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    display: block;
+    pointer-events: none;
+}
+
+.btn-inline-remove:hover {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border-color: #fecaca;
+}
+
+.btn-inline-remove:focus-visible {
+    outline: 2px solid var(--primary, #2563eb);
+    outline-offset: 2px;
+}
+
+/* Contract / Funding Allocation rows: inactive (manual or past end date) */
+.inline-form-row.is-inactive,
+.contract-row.is-inactive,
+.funding-row.is-inactive {
+    background: #d1d5db;
+    border: 1px solid #9ca3af;
+    border-radius: 10px;
+    opacity: 0.96;
+    box-shadow: none;
+}
+
+.inline-form-row.is-inactive label,
+.contract-row.is-inactive label,
+.funding-row.is-inactive label {
+    color: #4b5563;
+}
+
+/* Locked fields inside inactive rows */
+.inline-form-row.is-inactive .form-control,
+.inline-form-row.is-inactive input:not([type="checkbox"]):not([type="hidden"]),
+.inline-form-row.is-inactive select,
+.inline-form-row.is-inactive textarea,
+.inline-form-row.is-inactive .is-inactive-field {
+    background: #c4c9d1 !important;
+    border-color: #9ca3af !important;
+    color: #374151 !important;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+.inline-form-row.is-inactive .active-toggle-wrap,
+.inline-form-row.is-inactive .active-toggle-wrap input,
+.inline-form-row.is-inactive .inline-delete,
+.inline-form-row.is-inactive .btn-inline-remove {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.inline-form-row.is-inactive .active-toggle-wrap input.is-active-toggle {
+    background: #fff;
+    accent-color: var(--primary, #2563eb);
+}
+
+tr.is-inactive,
+.table tr.is-inactive {
+    background: #d1d5db !important;
+    color: #1f2937;
+}
+
+.active-toggle-wrap {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+}
+
+.active-toggle-wrap input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+    cursor: pointer;
+}
+
+/* Give contract/funding cards room for the absolute remove control */
+.inline-form-row.contract-row,
+.inline-form-row.funding-row {
+    padding-right: 3.25rem;
 }
 
 .form-actions {
@@ -1411,6 +1811,29 @@ input.form-control:focus {
     color: #1e40af;
 }
 
+.alert-success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.alert-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.alert-error,
+.alert-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.page-messages .alert:last-child {
+    margin-bottom: 1.5rem;
+}
+
 .task-type-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1521,12 +1944,22 @@ input[type="month"].form-control {
     gap: 0.5rem;
 }
 
+.checkbox-field > input[type="checkbox"] {
+    flex-shrink: 0;
+    margin: 0.2rem 0 0;
+    width: 1rem;
+    height: 1rem;
+}
+
 .checkbox-field label {
     margin: 0;
     font-weight: 400;
+    line-height: 1.35;
 }
 
-.year-estimate-row {
+/* Classic year-estimate grid (cost center form only — must NOT match tr/th) */
+div.year-estimate-header,
+div.year-estimate-row {
     display: grid;
     grid-template-columns: 100px repeat(5, 1fr) 40px;
     gap: 0.5rem;
@@ -1534,6 +1967,127 @@ input[type="month"].form-control {
     margin-bottom: 0.75rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #f3f4f9;
+}
+
+/* PSP year estimates: table columns shared by thead + tbody */
+.year-estimate-scroll {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    max-width: 100%;
+}
+
+.year-estimate-table {
+    width: max-content;
+    max-width: none;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.year-estimate-table col.ye-col-year {
+    width: 7rem;
+}
+
+.year-estimate-table col.ye-col-amount {
+    width: 9.5rem;
+}
+
+.year-estimate-table col.ye-col-delete {
+    width: 2.75rem;
+}
+
+.year-estimate-table th,
+.year-estimate-table td {
+    box-sizing: border-box;
+    padding: 0.4rem 0.45rem;
+    vertical-align: bottom;
+    text-align: left;
+}
+
+.year-estimate-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1.3;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: normal;
+}
+
+.year-estimate-table thead th .bilingual-label__en {
+    display: block;
+    margin-top: 0.15rem;
+    font-weight: 400;
+}
+
+.year-estimate-table tbody tr {
+    border-bottom: 1px solid #f3f4f9;
+}
+
+.year-estimate-table .ye-delete {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Inputs fill their cell; cell width comes from colgroup only */
+.year-estimate-table input,
+.year-estimate-table .form-control,
+.year-estimate-table .form-control-sm,
+.form-card .year-estimate-table .form-control,
+.form-card .year-estimate-table .form-control-sm {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0;
+}
+
+.year-estimate-hidden-fields {
+    display: none !important;
+}
+
+.year-estimate-table col.is-cost-type-hidden,
+.year-estimate-table th.is-cost-type-hidden,
+.year-estimate-table td.is-cost-type-hidden {
+    display: none !important;
+}
+
+.cost-type-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+.cost-type-checkbox {
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.cost-type-checkbox > input[type="checkbox"] {
+    /* Align with the first (German) label line, not the whole bilingual block */
+    margin-top: 0.15rem;
+}
+
+.cost-type-checkbox > div {
+    min-width: 0;
+}
+
+.cost-type-checkbox .bilingual-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+
+.bilingual-label__de {
+    font-weight: 500;
+    color: #374151;
+    line-height: 1.3;
+}
+
+.bilingual-label__en {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #9ca3af;
+    line-height: 1.25;
 }
 
 .job-rules-table {
@@ -1545,7 +2099,7 @@ input[type="month"].form-control {
 .job-rules-header,
 .job-rules-row {
     display: grid;
-    grid-template-columns: 1.4fr repeat(4, 1fr);
+    grid-template-columns: 1.3fr repeat(4, 1fr) 1.2fr;
     gap: 0.75rem;
     align-items: start;
 }
@@ -1582,16 +2136,6 @@ input[type="month"].form-control {
     }
 }
 
-.year-estimate-header {
-    display: grid;
-    grid-template-columns: 100px repeat(5, 1fr) 40px;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #374151;
-}
-
 @media (max-width: 700px) {
     .recruitment-funding-row {
         grid-template-columns: 1fr;
@@ -1601,12 +2145,12 @@ input[type="month"].form-control {
         padding: 1.5rem 1rem;
     }
 
-    .year-estimate-row,
-    .year-estimate-header {
+    div.year-estimate-header,
+    div.year-estimate-row {
         grid-template-columns: 1fr 1fr;
     }
 
-    .year-estimate-row .inline-delete {
+    div.year-estimate-row .inline-delete {
         grid-column: span 2;
     }
 }
@@ -1651,6 +2195,66 @@ input[type="month"].form-control {
     color: #374151;
 }
 
+.checklist-section .aligned-field.checklist-field,
+.checklist-display .checklist-field {
+    display: grid;
+    grid-template-columns: minmax(18rem, 1.5fr) minmax(16rem, 2fr);
+    align-items: start;
+    column-gap: 1.5rem;
+    row-gap: 0.4rem;
+}
+
+.checklist-field-label,
+.checklist-field-control {
+    min-width: 0;
+}
+
+.checklist-section .checklist-field-label > label,
+.checklist-field-title {
+    display: block;
+    width: auto;
+    max-width: none;
+    text-align: left;
+    padding-right: 0;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.checklist-field-label .field-hint {
+    margin: 0.15rem 0 0;
+}
+
+.form-check-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.5rem;
+}
+
+.form-check-row input[type="checkbox"],
+.form-check-row input[type="radio"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.form-check-row label,
+.checklist-inline-label {
+    display: inline !important;
+    width: auto !important;
+    text-align: left !important;
+    padding-right: 0 !important;
+    margin: 0;
+    font-weight: 400;
+}
+
+@media (max-width: 700px) {
+    .checklist-section .aligned-field.checklist-field,
+    .checklist-display .checklist-field {
+        grid-template-columns: 1fr;
+    }
+}
+
 .checklist-section .form-control,
 .checklist-section select,
 .checklist-section textarea {
@@ -1689,4 +2293,111 @@ input[type="month"].form-control {
 .checklist-field + .checklist-field,
 .checklist-html-block + .aligned-field {
     margin-top: 0.25rem;
+}
+
+.job-standard-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.field-explanation-text {
+    display: block;
+    margin-top: 0.35rem;
+    color: #1e3a8a;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.rule-trigger-group {
+    margin-top: 0.35rem;
+}
+
+.funding-percentage-container:not(.funding-show-percentage) .funding-percentage-field {
+    display: none;
+}
+
+.job-custom-select {
+    position: relative;
+}
+
+.job-native-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.job-select-toggle {
+    text-align: left;
+    cursor: pointer;
+    background: #fff;
+}
+
+.job-select-menu {
+    display: none;
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.job-select-menu.is-open {
+    display: block;
+}
+
+.job-select-menu li {
+    padding: 0.55rem 0.85rem;
+    cursor: pointer;
+}
+
+.job-select-menu li:hover,
+.job-select-menu li.is-selected {
+    background: #eff6ff;
+}
+
+.job-hover-tooltip {
+    position: absolute;
+    z-index: 41;
+    left: calc(100% + 0.6rem);
+    top: 0;
+    min-width: 14rem;
+    max-width: 22rem;
+    padding: 0.7rem 0.85rem;
+    background: #1e3a8a;
+    color: #eff6ff;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 900px) {
+    .job-hover-tooltip {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(100% + 0.4rem);
+        max-width: none;
+    }
 }

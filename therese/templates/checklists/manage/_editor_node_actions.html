@@ -1,0 +1,12 @@
+<div class="checklist-node-actions" data-stop-node-nav>
+    <form method="post" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="copy_node">
+        <input type="hidden" name="node_pk" value="{{ node.pk }}">
+        <button type="submit" class="btn-link">Copy</button>
+    </form>
+    <form method="post" action="{% url 'checklists:manage_node_delete' template.pk version.pk node.pk %}" style="display:inline;" onsubmit="return confirm('Delete this node and its children?');">
+        {% csrf_token %}
+        <button type="submit" class="btn-link text-danger">Delete</button>
+    </form>
+</div>

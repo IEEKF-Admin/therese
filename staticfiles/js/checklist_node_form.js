@@ -5,6 +5,7 @@
         label: ['section', 'field', 'html', 'radio_option'],
         content: ['html'],
         field_help: ['field'],
+        help_fields: ['html', 'field'],
         required: ['field'],
         field_advanced: ['field'],
         visible_subject: ['field', 'html'],
@@ -29,7 +30,7 @@
     }
 
     function updateParentOptions(root) {
-        const select = root.querySelector('select[name="parent"]');
+        const select = root.querySelector('[data-parent-select], select[name="parent"]');
         const choicesByKind = window.CHECKLIST_PARENT_CHOICES;
         if (!select || !choicesByKind) return;
 
@@ -64,6 +65,11 @@
             el.querySelectorAll('input, select, textarea').forEach(function(input) {
                 input.disabled = !visible;
             });
+        });
+        root.querySelectorAll('[data-label-caption]').forEach(function(el) {
+            const sectionCaption = el.getAttribute('data-caption-section');
+            const defaultCaption = el.getAttribute('data-caption-default');
+            el.textContent = (kind === 'section' && sectionCaption) ? sectionCaption : defaultCaption;
         });
     }
 

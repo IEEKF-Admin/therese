@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from apps.checklists.forms import (
     ChecklistTemplateForm,
@@ -16,6 +17,7 @@ from apps.checklists.access import (
     employees_in_user_workgroups,
     get_user_workgroups_ordered,
     subject_active_instances,
+    user_can_edit_node,
     user_can_fill_instance,
     user_can_manage,
     user_can_view_instance_readonly,
@@ -32,25 +34,51 @@ from apps.checklists.services import (
     build_node_tree,
     complete_instance,
     compute_progress,
+    copy_template_latest_version,
     create_next_version,
+    duplicate_node_subtree,
     publish_version,
     responses_by_node_id,
     save_field_response,
 )
+from django.utils.text import slugify
 from apps.hr.models import Employee
+
+
+def _completable(user, instance):
+    return (
+        user_can_manage(user)
+        and not instance.is_locked
+        and instance.template_version.completion_mode
+        == ChecklistTemplateVersion.CompletionMode.COORDINATOR_CONFIRM
+    )
 
 
 def _instance_context(request, instance, *, can_edit):
     version = instance.template_version
     nodes = list(
-        version.nodes.prefetch_related('editable_by_employees', 'children').order_by('sort_order', 'pk')
+        version.nodes.prefetch_related(
+            'editable_by_employees', 'editable_by_groups', 'children',
+        ).order_by('sort_order', 'pk')
     )
     if can_edit:
         visible_nodes = nodes
     else:
-        visible_nodes = [n for n in nodes if n.visible_to_subject or not request.user.employee or instance.subject_id != request.user.employee.pk]
+        viewer = getattr(request.user, 'employee', None)
+        visible_nodes = [
+            n for n in nodes
+            if n.visible_to_subject or not viewer or instance.subject_id != viewer.pk
+        ]
     tree = build_node_tree(visible_nodes)
     percent, fulfilled, total = compute_progress(instance)
+    editable_node_ids = set()
+    if can_edit:
+        editable_node_ids = {
+            n.pk
+            for n in visible_nodes
+            if n.node_kind == ChecklistTemplateNode.NodeKind.FIELD
+            and user_can_edit_node(request.user, instance, n)
+        }
     return {
         'instance': instance,
         'template': version.template,
@@ -58,9 +86,11 @@ def _instance_context(request, instance, *, can_edit):
         'tree': tree,
         'responses': responses_by_node_id(instance),
         'can_edit': can_edit,
+        'editable_node_ids': editable_node_ids,
         'progress_percent': percent,
         'progress_fulfilled': fulfilled,
         'progress_total': total,
+        'can_complete': _completable(request.user, instance),
     }
 
 
@@ -70,6 +100,8 @@ def _parse_field_post(request, instance):
         node_kind=ChecklistTemplateNode.NodeKind.FIELD,
     )
     for node in field_nodes:
+        if not user_can_edit_node(request.user, instance, node):
+            continue
         prefix = f'field_{node.pk}'
         has_file = f'{prefix}_file' in request.FILES
         is_checkbox = node.field_type == ChecklistTemplateNode.FieldType.CHECKBOX
@@ -145,14 +177,14 @@ def _get_draft_version(template, version_pk):
 
 
 def _parent_choices_json(version):
-    nodes = version.nodes.order_by('sort_order', 'pk')
+    nodes = version.nodes.select_related('parent').order_by('sort_order', 'pk')
     sections = [
-        {'id': n.pk, 'label': n.label_en or f'Section {n.pk}'}
+        {'id': n.pk, 'label': n.parent_choice_label}
         for n in nodes
         if n.node_kind == ChecklistTemplateNode.NodeKind.SECTION
     ]
     radio_groups = [
-        {'id': n.pk, 'label': n.label_en or f'Radio group {n.pk}'}
+        {'id': n.pk, 'label': n.parent_choice_label}
         for n in nodes
         if n.node_kind == ChecklistTemplateNode.NodeKind.FIELD
         and n.field_type == ChecklistTemplateNode.FieldType.RADIO_GROUP
@@ -259,6 +291,61 @@ def manage_template_edit(request, pk):
     })
 
 
+def _suggested_copy_slug(source):
+    base = slugify(source.slug) or 'template'
+    candidate = f'{base}-copy'
+    n = 2
+    while ChecklistTemplate.objects.filter(slug=candidate).exists():
+        candidate = f'{base}-copy-{n}'
+        n += 1
+    return candidate
+
+
+@login_required
+@permission_required('checklists.manage_checklist', raise_exception=True)
+def manage_template_copy(request, pk):
+    source = get_object_or_404(ChecklistTemplate, pk=pk)
+    initial = {
+        'slug': _suggested_copy_slug(source),
+        'name_en': f'Copy of {source.name_en}' if source.name_en else '',
+        'name_de': f'Kopie von {source.name_de}' if source.name_de else '',
+        'description_en': source.description_en,
+        'description_de': source.description_de,
+    }
+    if request.method == 'POST':
+        form = ChecklistTemplateForm(request.POST)
+        if form.is_valid():
+            new_template, new_version = copy_template_latest_version(
+                source,
+                request.user,
+                slug=form.cleaned_data['slug'],
+                name_en=form.cleaned_data['name_en'],
+                name_de=form.cleaned_data['name_de'],
+                description_en=form.cleaned_data.get('description_en') or '',
+                description_de=form.cleaned_data.get('description_de') or '',
+            )
+            messages.success(
+                request,
+                f'Copied latest version of “{source.name_en}” to “{new_template.name_en}” as {new_version.version_label}.',
+            )
+            return redirect('checklists:manage_version_edit', pk=new_template.pk, vid=new_version.pk)
+    else:
+        form = ChecklistTemplateForm(initial=initial)
+    return render(request, 'checklists/manage/template_form.html', {
+        'form': form,
+        'title': f'Copy checklist — {source.name_en}',
+        'submit_label': 'Create copy',
+        'copy_source': source,
+    })
+
+
+def _version_edit_redirect(pk, vid, node=None):
+    url = reverse('checklists:manage_version_edit', args=[pk, vid])
+    if node is not None:
+        url = f'{url}?node={node.pk}'
+    return redirect(url)
+
+
 @login_required
 @permission_required('checklists.manage_checklist', raise_exception=True)
 def manage_version_edit(request, pk, vid):
@@ -267,7 +354,17 @@ def manage_version_edit(request, pk, vid):
     nodes = list(version.nodes.select_related('parent').order_by('sort_order', 'pk'))
 
     version_form = ChecklistTemplateVersionForm(instance=version, version=version)
-    node_form = ChecklistTemplateNodeForm(version=version)
+    add_form = ChecklistTemplateNodeForm(version=version, auto_id='id_add_%s')
+    edit_node = None
+    edit_form = None
+    show_add_modal = False
+
+    node_pk = request.GET.get('node') or request.POST.get('node_pk')
+    if node_pk:
+        edit_node = get_object_or_404(version.nodes, pk=node_pk)
+        edit_form = ChecklistTemplateNodeForm(
+            instance=edit_node, version=version, auto_id='id_edit_%s',
+        )
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -278,18 +375,38 @@ def manage_version_edit(request, pk, vid):
                 messages.success(request, 'Version settings saved.')
                 return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
         elif action == 'add_node':
-            node_form = ChecklistTemplateNodeForm(request.POST, version=version)
-            if node_form.is_valid():
-                node_form.save()
+            add_form = ChecklistTemplateNodeForm(
+                request.POST, version=version, auto_id='id_add_%s',
+            )
+            if add_form.is_valid():
+                new_node = add_form.save()
                 messages.success(request, 'Node added.')
-                return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
+                return _version_edit_redirect(pk, vid, new_node)
+            show_add_modal = True
+        elif action == 'save_node' and edit_node:
+            edit_form = ChecklistTemplateNodeForm(
+                request.POST, instance=edit_node, version=version, auto_id='id_edit_%s',
+            )
+            if edit_form.is_valid():
+                edit_form.save()
+                messages.success(request, 'Node saved.')
+                return _version_edit_redirect(pk, vid, edit_node)
+        elif action == 'copy_node':
+            source = get_object_or_404(version.nodes, pk=request.POST.get('node_pk'))
+            copied = duplicate_node_subtree(source)
+            messages.success(request, 'Node copied.')
+            return _version_edit_redirect(pk, vid, copied)
 
     return render(request, 'checklists/manage/version_edit.html', {
         'template': template,
         'version': version,
         'nodes': nodes,
+        'tree': build_node_tree(nodes),
         'version_form': version_form,
-        'node_form': node_form,
+        'add_form': add_form,
+        'edit_node': edit_node,
+        'edit_form': edit_form,
+        'show_add_modal': show_add_modal,
         'parent_choices_json': _parent_choices_json(version),
     })
 
@@ -300,10 +417,15 @@ def manage_version_preview(request, pk, vid):
     template = get_object_or_404(ChecklistTemplate, pk=pk)
     version = _get_draft_version(template, vid)
     nodes = list(
-        version.nodes.prefetch_related('editable_by_employees', 'children').order_by('sort_order', 'pk')
+        version.nodes.prefetch_related(
+            'editable_by_employees', 'editable_by_groups', 'children',
+        ).order_by('sort_order', 'pk')
     )
     tree = build_node_tree(nodes)
     percent, fulfilled, total = _preview_progress(version)
+    editable_node_ids = {
+        n.pk for n in nodes if n.node_kind == ChecklistTemplateNode.NodeKind.FIELD
+    }
     return render(request, 'checklists/manage/version_preview.html', {
         'template': template,
         'version': version,
@@ -311,6 +433,7 @@ def manage_version_preview(request, pk, vid):
         'responses': {},
         'can_edit': True,
         'preview_mode': True,
+        'editable_node_ids': editable_node_ids,
         'progress_percent': percent,
         'progress_fulfilled': fulfilled,
         'progress_total': total,
@@ -323,24 +446,13 @@ def manage_node_edit(request, pk, vid, node_pk):
     template = get_object_or_404(ChecklistTemplate, pk=pk)
     version = _get_draft_version(template, vid)
     node = get_object_or_404(version.nodes, pk=node_pk)
-
     if request.method == 'POST':
         form = ChecklistTemplateNodeForm(request.POST, instance=node, version=version)
         if form.is_valid():
             form.save()
             messages.success(request, 'Node saved.')
-            return redirect('checklists:manage_version_edit', pk=pk, vid=vid)
-    else:
-        form = ChecklistTemplateNodeForm(instance=node, version=version)
-
-    return render(request, 'checklists/manage/node_form.html', {
-        'template': template,
-        'version': version,
-        'node': node,
-        'form': form,
-        'parent_choices_json': _parent_choices_json(version),
-        'title': f'Edit node — {node.label_en or node.choice_key}',
-    })
+            return _version_edit_redirect(pk, vid, node)
+    return redirect(f"{reverse('checklists:manage_version_edit', args=[pk, vid])}?node={node.pk}")
 
 
 @login_required
@@ -459,12 +571,7 @@ def instance_view(request, pk):
     if not user_can_view_instance_readonly(request.user, instance):
         return HttpResponseForbidden('Access denied.')
     context = _instance_context(request, instance, can_edit=False)
-    context['can_complete'] = (
-        user_can_manage(request.user)
-        and not instance.is_locked
-        and instance.template_version.completion_mode
-        == ChecklistTemplateVersion.CompletionMode.COORDINATOR_CONFIRM
-    )
+    context['can_switch_to_edit'] = user_can_fill_instance(request.user, instance)
     return render(request, 'checklists/instance_fill.html', context)
 
 

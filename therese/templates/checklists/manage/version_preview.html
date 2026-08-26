@@ -28,5 +28,7 @@
     ({{ progress_fulfilled }}/{{ progress_total }} required fields)
 </div>
 
+<div class="checklist-display">
 {% include "checklists/partials/node_tree.html" with tree=tree responses=responses can_edit=can_edit preview_mode=preview_mode %}
+</div>
 {% endblock %}

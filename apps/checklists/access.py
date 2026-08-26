@@ -34,22 +34,20 @@ def user_can_view_instance_readonly(user, instance):
         subject_wg_ids = set(instance.subject.workgroups.values_list('pk', flat=True))
         if subject_wg_ids & _user_workgroup_ids(user):
             return True
+    if user_can_edit_any_node(user, instance):
+        return True
     return False
 
 
-def user_can_fill_instance(user, instance):
-    if not user.is_authenticated or instance.is_locked:
-        return False
-    if instance.status == ChecklistInstance.Status.CANCELLED:
-        return False
-    employee = _user_employee(user)
-    return employee is not None and instance.subject_id == employee.pk
-
-
 def user_can_edit_node(user, instance, node):
+    if not user.is_authenticated:
+        return False
     if instance.is_locked or instance.status == ChecklistInstance.Status.CANCELLED:
         return False
     if user_can_manage(user) and node.editable_by_coordinators:
+        return True
+    user_group_ids = set(user.groups.values_list('pk', flat=True))
+    if user_group_ids and node.editable_by_groups.filter(pk__in=user_group_ids).exists():
         return True
     employee = _user_employee(user)
     if not employee:
@@ -59,6 +57,28 @@ def user_can_edit_node(user, instance, node):
     if node.editable_by_employees.filter(pk=employee.pk).exists():
         return True
     return False
+
+
+def user_can_edit_any_node(user, instance):
+    if not user.is_authenticated or instance.is_locked:
+        return False
+    if instance.status == ChecklistInstance.Status.CANCELLED:
+        return False
+    nodes = instance.template_version.nodes.filter(
+        node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+    )
+    return any(user_can_edit_node(user, instance, node) for node in nodes)
+
+
+def user_can_fill_instance(user, instance):
+    if not user.is_authenticated or instance.is_locked:
+        return False
+    if instance.status == ChecklistInstance.Status.CANCELLED:
+        return False
+    employee = _user_employee(user)
+    if employee and instance.subject_id == employee.pk:
+        return True
+    return user_can_edit_any_node(user, instance)
 
 
 def subject_active_instances(user):

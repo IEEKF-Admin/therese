@@ -8,6 +8,7 @@ from apps.checklists.access import user_can_edit_node
 from apps.checklists.models import (
     ChecklistFieldResponse,
     ChecklistInstance,
+    ChecklistTemplate,
     ChecklistTemplateNode,
     ChecklistTemplateVersion,
 )
@@ -17,7 +18,11 @@ from apps.hr.models import EmployeeDocumentType
 
 def copy_version_nodes(source_version, target_version):
     """Copy the node tree from one version to another (new draft)."""
-    old_nodes = list(source_version.nodes.prefetch_related('editable_by_employees').order_by('sort_order', 'pk'))
+    old_nodes = list(
+        source_version.nodes.prefetch_related('editable_by_employees', 'editable_by_groups').order_by(
+            'sort_order', 'pk'
+        )
+    )
     id_map = {}
 
     for old in old_nodes:
@@ -55,6 +60,9 @@ def copy_version_nodes(source_version, target_version):
         employee_ids = list(old.editable_by_employees.values_list('pk', flat=True))
         if employee_ids:
             new_node.editable_by_employees.set(employee_ids)
+        group_ids = list(old.editable_by_groups.values_list('pk', flat=True))
+        if group_ids:
+            new_node.editable_by_groups.set(group_ids)
 
     return id_map
 
@@ -75,6 +83,92 @@ def create_next_version(template, user, *, copy_from_version):
         new_version.anchor_node = id_map[copy_from_version.anchor_node_id]
         new_version.save(update_fields=['anchor_node', 'updated_at'])
     return new_version
+
+
+def _unique_choice_key(version, key):
+    if not (key or '').strip():
+        return ''
+    base = f'{key}-copy'
+    candidate = base
+    n = 2
+    existing = set(
+        version.nodes.exclude(choice_key='').values_list('choice_key', flat=True)
+    )
+    while candidate in existing:
+        candidate = f'{base}-{n}'
+        n += 1
+    return candidate
+
+
+def duplicate_node_subtree(node, *, new_parent=None, sort_order=None):
+    """Copy a node and its descendants inside the same version."""
+    parent = node.parent if new_parent is None else new_parent
+    if sort_order is None:
+        siblings = ChecklistTemplateNode.objects.filter(version=node.version, parent=parent)
+        max_order = siblings.aggregate(models.Max('sort_order'))['sort_order__max']
+        sort_order = (max_order or 0) + 1
+    label_en = node.label_en
+    label_de = node.label_de
+    if new_parent is None:
+        if label_en:
+            label_en = f'Copy of {label_en}'
+        if label_de:
+            label_de = f'Kopie von {label_de}'
+    new_node = ChecklistTemplateNode.objects.create(
+        version=node.version,
+        parent=parent,
+        sort_order=sort_order,
+        node_kind=node.node_kind,
+        field_type=node.field_type,
+        choice_key=_unique_choice_key(node.version, node.choice_key),
+        label_en=label_en,
+        label_de=label_de,
+        help_en=node.help_en,
+        help_de=node.help_de,
+        required_for_completion=node.required_for_completion,
+        allow_not_applicable=node.allow_not_applicable,
+        editable_by_subject=node.editable_by_subject,
+        editable_by_coordinators=node.editable_by_coordinators,
+        visible_to_subject=node.visible_to_subject,
+        file_target=node.file_target,
+        employee_document_type=node.employee_document_type,
+        storage_label_en=node.storage_label_en,
+        storage_label_de=node.storage_label_de,
+    )
+    new_node.editable_by_employees.set(node.editable_by_employees.all())
+    new_node.editable_by_groups.set(node.editable_by_groups.all())
+    for child in node.children.order_by('sort_order', 'pk'):
+        duplicate_node_subtree(child, new_parent=new_node, sort_order=child.sort_order)
+    return new_node
+
+
+def copy_template_latest_version(source_template, user, *, slug, name_en, name_de, description_en='', description_de=''):
+    """Create a new template with a draft copy of the source's latest version."""
+    source_version = source_template.versions.order_by('-version_number').first()
+    new_template = ChecklistTemplate.objects.create(
+        slug=slug,
+        name_en=name_en,
+        name_de=name_de,
+        description_en=description_en,
+        description_de=description_de,
+    )
+    new_version = ChecklistTemplateVersion.objects.create(
+        template=new_template,
+        version_number=1,
+        status=ChecklistTemplateVersion.Status.DRAFT,
+        completion_mode=(
+            source_version.completion_mode
+            if source_version
+            else ChecklistTemplateVersion.CompletionMode.COORDINATOR_CONFIRM
+        ),
+        created_by=user,
+    )
+    if source_version:
+        id_map = copy_version_nodes(source_version, new_version)
+        if source_version.anchor_node_id and source_version.anchor_node_id in id_map:
+            new_version.anchor_node = id_map[source_version.anchor_node_id]
+            new_version.save(update_fields=['anchor_node', 'updated_at'])
+    return new_template, new_version
 
 
 def publish_version(version, user):

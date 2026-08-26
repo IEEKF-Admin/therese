@@ -30,6 +30,8 @@
                 <a href="{% url 'checklists:manage_template_detail' t.pk %}">Versions</a>
                 ·
                 <a href="{% url 'checklists:manage_template_edit' t.pk %}">Edit</a>
+                ·
+                <a href="{% url 'checklists:manage_template_copy' t.pk %}">Copy</a>
             </td>
         </tr>
         {% empty %}

@@ -4,14 +4,19 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import CustomUser
-from apps.checklists.access import user_can_fill_instance, user_has_active_checklists
+from apps.checklists.access import (
+    user_can_edit_node,
+    user_can_fill_instance,
+    user_has_active_checklists,
+)
+from apps.checklists.services import assign_instance, compute_progress, copy_template_latest_version, publish_version
 from apps.checklists.models import (
     ChecklistInstance,
     ChecklistTemplate,
     ChecklistTemplateNode,
     ChecklistTemplateVersion,
 )
-from apps.checklists.services import assign_instance, compute_progress, publish_version
+
 from apps.hr.models import Employee
 
 
@@ -168,6 +173,193 @@ class ChecklistManageUITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'New Template')
         self.assertNotContains(response, 'Admin bearbeiten')
+
+    def test_version_edit_shows_inline_settings_and_copy(self):
+        template = ChecklistTemplate.objects.create(slug='ed1', name_en='Ed', name_de='Ed')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        section = ChecklistTemplateNode.objects.create(
+            version=version,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en='Section A',
+            sort_order=0,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=version,
+            parent=section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Item',
+            sort_order=0,
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Node settings')
+        self.assertContains(response, 'Add node')
+        self.assertContains(response, 'Copy')
+        self.assertContains(response, 'checklist-nodes-section')
+        self.assertContains(response, 'checklist-nodes-section-header')
+        self.assertContains(response, 'Section A')
+        self.assertContains(response, 'Item')
+        self.assertNotContains(response, f'/nodes/{section.pk}/edit/')
+        selected = self.client.get(url + f'?node={section.pk}')
+        self.assertEqual(selected.status_code, 200)
+        self.assertContains(selected, 'Section A')
+        copied = self.client.post(url, {'action': 'copy_node', 'node_pk': str(section.pk)})
+        self.assertEqual(copied.status_code, 302)
+        self.assertEqual(version.nodes.filter(node_kind='section').count(), 2)
+        self.assertEqual(version.nodes.filter(node_kind='field').count(), 2)
+        copied_section = version.nodes.filter(node_kind='section').exclude(pk=section.pk).get()
+        self.assertEqual(copied_section.parent_id, section.parent_id)
+        self.assertGreater(copied_section.sort_order, section.sort_order)
+        self.assertTrue(version.nodes.filter(parent=copied_section, node_kind='field').exists())
+        self.assertContains(selected, 'dual-list-widget')
+        self.assertContains(selected, 'Editable by Django groups')
+
+    def test_version_edit_nests_section_cards(self):
+        template = ChecklistTemplate.objects.create(slug='nest', name_en='Nest', name_de='Nest')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        outer = ChecklistTemplateNode.objects.create(
+            version=version,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en='Outer',
+            sort_order=0,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=version,
+            parent=outer,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en='Inner',
+            sort_order=0,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=version,
+            parent=outer,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Outer item',
+            sort_order=1,
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('checklist-nodes-section', content)
+        self.assertIn('Outer', content)
+        self.assertIn('Inner', content)
+        self.assertIn('Outer item', content)
+        outer_header = content.index('checklist-nodes-section-header')
+        inner_pos = content.index('Inner')
+        self.assertLess(outer_header, inner_pos)
+
+    def test_copy_template_uses_latest_version(self):
+        template = ChecklistTemplate.objects.create(
+            slug='src', name_en='Source', name_de='Quelle',
+        )
+        v1 = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=v1, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='Old',
+        )
+        v2 = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=2, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        ChecklistTemplateNode.objects.create(
+            version=v2, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='Latest',
+        )
+        url = reverse('checklists:manage_template_copy', args=[template.pk])
+        get_response = self.client.get(url)
+        self.assertEqual(get_response.status_code, 200)
+        self.assertContains(get_response, 'src-copy')
+        response = self.client.post(url, {
+            'slug': 'src-copy',
+            'name_en': 'Source copy',
+            'name_de': 'Quelle Kopie',
+            'description_en': '',
+            'description_de': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        copied = ChecklistTemplate.objects.get(slug='src-copy')
+        draft = copied.versions.get()
+        self.assertEqual(draft.version_number, 1)
+        self.assertEqual(draft.status, ChecklistTemplateVersion.Status.DRAFT)
+        self.assertTrue(draft.nodes.filter(label_en='Latest').exists())
+        self.assertFalse(draft.nodes.filter(label_en='Old').exists())
+        self.assertContains(get_response, 'Copies the latest version')
+
+
+class ChecklistEditAccessTests(TestCase):
+    def setUp(self):
+        self.manager = _user('mgr-acc')
+        self.subject_user = _user('subj-acc')
+        self.subject = Employee.objects.create(
+            employee_number='CL-ACC-1',
+            first_name='Subj',
+            last_name='Acc',
+            user=self.subject_user,
+        )
+        self.template = ChecklistTemplate.objects.create(
+            slug='acc', name_en='Access', name_de='Zugriff',
+        )
+        self.version = ChecklistTemplateVersion.objects.create(
+            template=self.template,
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.DRAFT,
+            created_by=self.manager,
+        )
+        self.field = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Group item',
+            editable_by_subject=False,
+            editable_by_coordinators=False,
+            sort_order=0,
+        )
+        self.group = Group.objects.create(name='Checklist Editors')
+        self.field.editable_by_groups.add(self.group)
+        publish_version(self.version, self.manager)
+        self.instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+
+    def test_django_group_can_edit_node(self):
+        editor = _user('group-editor')
+        editor.groups.add(self.group)
+        self.assertTrue(user_can_edit_node(editor, self.instance, self.field))
+        self.assertTrue(user_can_fill_instance(editor, self.instance))
+        outsider = _user('outsider')
+        self.assertFalse(user_can_edit_node(outsider, self.instance, self.field))
+        self.assertFalse(user_can_fill_instance(outsider, self.instance))
+        self.assertFalse(user_can_edit_node(self.subject_user, self.instance, self.field))
+
+    def test_group_member_can_open_fill(self):
+        editor = _user('group-fill')
+        editor.groups.add(self.group)
+        self.client.login(username='group-fill', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[self.instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Group item')
+        self.assertContains(response, 'Done / Erledigt')
+
+    def test_copy_template_preserves_groups(self):
+        new_template, new_version = copy_template_latest_version(
+            self.template,
+            self.manager,
+            slug='acc-copy',
+            name_en='Access copy',
+            name_de='Zugriff Kopie',
+        )
+        copied_field = new_version.nodes.get(label_en='Group item')
+        self.assertEqual(
+            set(copied_field.editable_by_groups.values_list('pk', flat=True)),
+            {self.group.pk},
+        )
+
+
 class ChecklistHtmlNodeTests(TestCase):
     def test_radio_option_displays_choice_key_fallback(self):
         radio_field = ChecklistTemplateNode.objects.create(
@@ -267,6 +459,10 @@ class ChecklistHtmlNodeTests(TestCase):
         self.assertContains(response, 'form-actions')
         self.assertContains(response, 'card checklist-section')
         self.assertContains(response, 'checklist-section-title')
+        self.assertContains(response, 'checklist-field')
+        self.assertContains(response, 'checklist-field-label')
+        self.assertContains(response, 'form-check-row')
+        self.assertContains(response, 'Done / Erledigt')
 
     def test_section_groups_heading_and_fields_in_one_card(self):
         ChecklistTemplateNode.objects.create(
@@ -371,6 +567,53 @@ class ChecklistPreviewTests(TestCase):
         self.assertContains(response, 'Acknowledge')
         self.assertContains(response, 'disabled')
 
+
+    def test_section_name_required_and_used_as_parent_label(self):
+        template = ChecklistTemplate.objects.create(slug='named', name_en='Named', name_de='Named')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        empty = self.client.post(url, {
+            'action': 'add_node',
+            'node_kind': ChecklistTemplateNode.NodeKind.SECTION,
+            'parent': '',
+            'sort_order': 0,
+            'label_en': '',
+            'label_de': '',
+            'field_type': '',
+            'choice_key': '',
+        })
+        self.assertEqual(empty.status_code, 200)
+        self.assertContains(empty, 'Name (EN or DE) is required for sections.')
+        self.assertFalse(version.nodes.exists())
+
+        created = self.client.post(url, {
+            'action': 'add_node',
+            'node_kind': ChecklistTemplateNode.NodeKind.SECTION,
+            'parent': '',
+            'sort_order': 0,
+            'label_en': 'Onboarding',
+            'label_de': 'Einarbeitung',
+            'field_type': '',
+            'choice_key': '',
+        })
+        self.assertEqual(created.status_code, 302)
+        section = version.nodes.get(node_kind='section')
+        self.assertEqual(section.display_name, 'Onboarding')
+        nested = ChecklistTemplateNode.objects.create(
+            version=version,
+            parent=section,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en='Documents',
+            sort_order=1,
+        )
+        self.assertEqual(nested.parent_choice_label, 'Onboarding / Documents')
+        page = self.client.get(url)
+        self.assertContains(page, 'Onboarding')
+        self.assertContains(page, 'Onboarding / Documents')
+        self.assertContains(page, 'Name (EN)')
+        self.assertNotContains(page, f'Section {section.pk}')
 
     def test_version_edit_parent_choices_include_radio_group(self):
         radio_field = ChecklistTemplateNode.objects.create(

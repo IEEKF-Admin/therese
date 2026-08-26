@@ -1,6 +1,7 @@
 """Process checklist models."""
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.db import models
 
 from apps.core.models import BaseModel
@@ -167,6 +168,12 @@ class ChecklistTemplateNode(BaseModel):
         related_name='editable_checklist_nodes',
         verbose_name='Editable by employees',
     )
+    editable_by_groups = models.ManyToManyField(
+        Group,
+        blank=True,
+        related_name='editable_checklist_nodes',
+        verbose_name='Editable by Django groups',
+    )
     visible_to_subject = models.BooleanField(default=True, verbose_name='Visible to subject')
     file_target = models.CharField(
         max_length=30,
@@ -188,8 +195,27 @@ class ChecklistTemplateNode(BaseModel):
         verbose_name_plural = 'Checklist Template Nodes'
         ordering = ['sort_order', 'pk']
 
+    @property
+    def display_name(self):
+        name = (
+            (self.label_en or '').strip()
+            or (self.label_de or '').strip()
+            or (self.choice_key or '').strip()
+        )
+        if name:
+            return name
+        if self.pk:
+            return f'{self.get_node_kind_display()} {self.pk}'
+        return self.get_node_kind_display()
+
+    @property
+    def parent_choice_label(self):
+        if self.parent_id and self.parent:
+            return f'{self.parent.display_name} / {self.display_name}'
+        return self.display_name
+
     def __str__(self):
-        return self.label_en or self.choice_key or f'Node {self.pk}'
+        return self.display_name
 
 
 class ChecklistInstance(BaseModel):

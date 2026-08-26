@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
@@ -8,6 +9,7 @@ from apps.checklists.models import (
     ChecklistTemplateVersion,
 )
 from apps.core.html_sanitize import sanitize_html
+from apps.documents.forms import DualListSelect
 from apps.hr.models import Employee
 
 
@@ -77,6 +79,7 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             'label_en', 'label_de', 'help_en', 'help_de',
             'required_for_completion', 'allow_not_applicable',
             'editable_by_subject', 'editable_by_coordinators', 'editable_by_employees',
+            'editable_by_groups',
             'visible_to_subject', 'file_target', 'employee_document_type',
             'storage_label_en', 'storage_label_de',
         ]
@@ -90,7 +93,8 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             'label_de': forms.TextInput(attrs={'class': 'form-control'}),
             'help_en': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'help_de': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'editable_by_employees': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+            'editable_by_employees': DualListSelect(attrs={'class': 'form-select', 'size': 8}),
+            'editable_by_groups': DualListSelect(attrs={'class': 'form-select', 'size': 8}),
             'file_target': forms.Select(attrs={'class': 'form-select'}),
             'employee_document_type': forms.Select(attrs={'class': 'form-select'}),
             'storage_label_en': forms.TextInput(attrs={'class': 'form-control'}),
@@ -102,6 +106,8 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         self.version = version
         self.fields['parent'].required = False
         self.fields['parent'].empty_label = '— Top level —'
+        self.fields['parent'].widget.attrs['data-parent-select'] = '1'
+        self.fields['parent'].label_from_instance = lambda obj: obj.parent_choice_label
         self.fields['field_type'].required = False
         self.fields['choice_key'].required = False
         self.fields['file_target'].required = False
@@ -110,14 +116,22 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         self.fields['editable_by_employees'].queryset = Employee.objects.order_by(
             'last_name', 'first_name',
         )
+        self.fields['editable_by_groups'].required = False
+        self.fields['editable_by_groups'].queryset = Group.objects.order_by('name')
         if version:
             self._set_parent_queryset()
         self._apply_node_kind_field_state()
 
     def _apply_node_kind_field_state(self):
         node_kind = self.data.get('node_kind') or (
-            self.instance.node_kind if self.instance.pk else None
+            self.instance.node_kind if self.instance.pk else ChecklistTemplateNode.NodeKind.SECTION
         )
+        if node_kind == ChecklistTemplateNode.NodeKind.SECTION:
+            self.fields['label_en'].label = 'Name (EN)'
+            self.fields['label_de'].label = 'Name (DE)'
+        else:
+            self.fields['label_en'].label = 'Label (EN)'
+            self.fields['label_de'].label = 'Label (DE)'
         is_html = node_kind == ChecklistTemplateNode.NodeKind.HTML
         if is_html:
             self.fields['help_en'].label = 'Content (EN)'
@@ -151,7 +165,7 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             qs = qs.filter(node_kind=ChecklistTemplateNode.NodeKind.SECTION)
         else:
             qs = qs.filter(node_kind=ChecklistTemplateNode.NodeKind.SECTION)
-        self.fields['parent'].queryset = qs.order_by('sort_order', 'pk')
+        self.fields['parent'].queryset = qs.select_related('parent').order_by('sort_order', 'pk')
 
     def clean(self):
         cleaned = super().clean()
@@ -160,6 +174,9 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         field_type = cleaned.get('field_type') or ''
 
         if node_kind == ChecklistTemplateNode.NodeKind.SECTION:
+            cleaned['field_type'] = ''
+            if not (cleaned.get('label_en') or '').strip() and not (cleaned.get('label_de') or '').strip():
+                raise ValidationError('Name (EN or DE) is required for sections.')
             if parent and parent.node_kind != ChecklistTemplateNode.NodeKind.SECTION:
                 raise ValidationError('Sections can only be nested under other sections.')
         elif node_kind == ChecklistTemplateNode.NodeKind.FIELD:
@@ -183,8 +200,6 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
                 raise ValidationError('Content (EN or DE) is required for HTML nodes.')
             if parent and parent.node_kind != ChecklistTemplateNode.NodeKind.SECTION:
                 raise ValidationError('HTML blocks must be placed under a section.')
-        elif node_kind == ChecklistTemplateNode.NodeKind.SECTION:
-            cleaned['field_type'] = ''
 
         if parent and self.version and parent.version_id != self.version.pk:
             raise ValidationError('Parent node must belong to this version.')

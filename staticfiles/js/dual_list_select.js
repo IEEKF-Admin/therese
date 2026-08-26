@@ -1,16 +1,16 @@
 (function() {
     function moveSelected(fromSelect, toSelect) {
         Array.prototype.slice.call(fromSelect.selectedOptions).forEach(function(opt) {
-            toSelect.appendChild(opt);
             opt.selected = false;
+            toSelect.appendChild(opt);
         });
         sortOptions(toSelect);
     }
 
     function moveAll(fromSelect, toSelect) {
         Array.prototype.slice.call(fromSelect.options).forEach(function(opt) {
-            toSelect.appendChild(opt);
             opt.selected = false;
+            toSelect.appendChild(opt);
         });
         sortOptions(toSelect);
     }
@@ -23,12 +23,6 @@
         opts.forEach(function(opt) { select.appendChild(opt); });
     }
 
-    function selectAllForSubmit(selectedSelect) {
-        Array.prototype.forEach.call(selectedSelect.options, function(opt) {
-            opt.selected = true;
-        });
-    }
-
     function initDualList(root) {
         if (root.dataset.dualListReady === '1') return;
         root.dataset.dualListReady = '1';
@@ -38,28 +32,44 @@
             || root.querySelector('.dual-list-panel:last-child select');
         if (!available || !selected) return;
 
+        var fieldName = selected.getAttribute('name');
+        if (fieldName) {
+            selected.removeAttribute('name');
+            selected.removeAttribute('required');
+        }
+        var holder = root.querySelector('[data-dual-list-values]');
+        if (!holder) {
+            holder = document.createElement('div');
+            holder.setAttribute('data-dual-list-values', fieldName || '');
+            holder.hidden = true;
+            root.appendChild(holder);
+        }
+
+        function syncHidden() {
+            holder.innerHTML = '';
+            if (!fieldName) return;
+            Array.prototype.forEach.call(selected.options, function(opt) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = fieldName;
+                input.value = opt.value;
+                holder.appendChild(input);
+            });
+        }
+
         var addBtn = root.querySelector('.dual-list-add');
         var removeBtn = root.querySelector('.dual-list-remove');
         var addAllBtn = root.querySelector('.dual-list-add-all');
         var removeAllBtn = root.querySelector('.dual-list-remove-all');
 
-        function syncSelected() { selectAllForSubmit(selected); }
-        if (addBtn) addBtn.addEventListener('click', function() { moveSelected(available, selected); syncSelected(); });
-        if (removeBtn) removeBtn.addEventListener('click', function() { moveSelected(selected, available); syncSelected(); });
-        if (addAllBtn) addAllBtn.addEventListener('click', function() { moveAll(available, selected); syncSelected(); });
-        if (removeAllBtn) removeAllBtn.addEventListener('click', function() { moveAll(selected, available); syncSelected(); });
+        if (addBtn) addBtn.addEventListener('click', function() { moveSelected(available, selected); syncHidden(); });
+        if (removeBtn) removeBtn.addEventListener('click', function() { moveSelected(selected, available); syncHidden(); });
+        if (addAllBtn) addAllBtn.addEventListener('click', function() { moveAll(available, selected); syncHidden(); });
+        if (removeAllBtn) removeAllBtn.addEventListener('click', function() { moveAll(selected, available); syncHidden(); });
 
-        available.addEventListener('dblclick', function() { moveSelected(available, selected); syncSelected(); });
-        selected.addEventListener('dblclick', function() { moveSelected(selected, available); syncSelected(); });
-        syncSelected();
-
-        var form = root.closest('form');
-        if (form) {
-            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(btn) {
-                btn.addEventListener('click', syncSelected);
-            });
-            form.addEventListener('submit', syncSelected);
-        }
+        available.addEventListener('dblclick', function() { moveSelected(available, selected); syncHidden(); });
+        selected.addEventListener('dblclick', function() { moveSelected(selected, available); syncHidden(); });
+        syncHidden();
     }
 
     function initAll() {

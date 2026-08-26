@@ -100,6 +100,11 @@ class DualListSelect(forms.SelectMultiple):
     Empty selection is allowed (all items can be moved back to Available).
     """
 
+    def __init__(self, *args, available_heading='Available', selected_heading='Selected', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.available_heading = available_heading
+        self.selected_heading = selected_heading
+
     def render(self, name, value, attrs=None, renderer=None):
         if value is None:
             value = []
@@ -134,9 +139,9 @@ class DualListSelect(forms.SelectMultiple):
         return format_html(
             '<div class="dual-list-widget" data-dual-list>'
             '<div class="dual-list-panel">'
-            '<div class="dual-list-heading">Available</div>'
+            '<div class="dual-list-heading">{available_heading}</div>'
             '<select multiple class="form-select dual-list-available" size="8" '
-            'aria-label="Available {name}">{available}</select>'
+            'aria-label="{available_heading} {name}">{available}</select>'
             '</div>'
             '<div class="dual-list-actions">'
             '<button type="button" class="btn-secondary dual-list-add" '
@@ -149,15 +154,17 @@ class DualListSelect(forms.SelectMultiple):
             'title="Remove all" aria-label="Remove all">&laquo;</button>'
             '</div>'
             '<div class="dual-list-panel">'
-            '<div class="dual-list-heading">Selected</div>'
+            '<div class="dual-list-heading">{selected_heading}</div>'
             '<select{selected_attrs} multiple size="8" '
-            'aria-label="Selected {name}">{selected}</select>'
+            'aria-label="{selected_heading} {name}">{selected}</select>'
             '</div>'
             '</div>',
             name=name,
             available=available_html,
             selected_attrs=selected_attrs,
             selected=selected_html,
+            available_heading=self.available_heading,
+            selected_heading=self.selected_heading,
         )
 
 

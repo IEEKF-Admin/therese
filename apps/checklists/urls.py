@@ -11,6 +11,7 @@ urlpatterns = [
     path('manage/templates/new/', views.manage_template_create, name='manage_template_create'),
     path('manage/templates/<int:pk>/edit/', views.manage_template_edit, name='manage_template_edit'),
     path('manage/templates/<int:pk>/copy/', views.manage_template_copy, name='manage_template_copy'),
+    path('manage/templates/<int:pk>/assign/', views.manage_assign, name='manage_template_assign'),
     path('manage/templates/<int:pk>/', views.manage_template_detail, name='manage_template_detail'),
     path('manage/templates/<int:pk>/versions/<int:vid>/edit/', views.manage_version_edit, name='manage_version_edit'),
     path('manage/templates/<int:pk>/versions/<int:vid>/preview/', views.manage_version_preview, name='manage_version_preview'),

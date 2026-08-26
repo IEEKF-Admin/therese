@@ -7,7 +7,6 @@
     <h1>Checklist Templates <small class="field-hint-de">Checklisten-Vorlagen</small></h1>
     <div class="page-header-actions">
         <a href="{% url 'checklists:manage_template_create' %}" class="btn-primary">New Template</a>
-        <a href="{% url 'checklists:manage_assign' %}" class="btn-secondary">Assign</a>
     </div>
 </div>
 
@@ -32,6 +31,8 @@
                 <a href="{% url 'checklists:manage_template_edit' t.pk %}">Edit</a>
                 ·
                 <a href="{% url 'checklists:manage_template_copy' t.pk %}">Copy</a>
+                ·
+                <a href="{% url 'checklists:manage_template_assign' t.pk %}">Assign</a>
             </td>
         </tr>
         {% empty %}

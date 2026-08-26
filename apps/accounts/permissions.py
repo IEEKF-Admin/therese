@@ -265,8 +265,20 @@ def user_is_hr_superassistant(user):
     return user.groups.filter(name=GroupNames.HR_SUPERASSISTANT).exists()
 
 
+def user_is_systemadmin(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name=GroupNames.SYSTEMADMIN).exists()
+
+
+def user_can_edit_global_settings(user):
+    return user_is_systemadmin(user)
+
+
 def user_can_manage_messaging(user):
-    """Login popups, trigger emails, and account emails."""
+    """Login popups and trigger emails."""
     return (
         user_is_hr_superassistant(user)
         or user_can_configure_email(user)

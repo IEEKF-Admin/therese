@@ -2,8 +2,12 @@
 {% with node=item.node children=item.children %}
 {% if node.node_kind == 'section' %}
 <div class="checklist-nodes-section">
-    <div class="checklist-nodes-section-header checklist-node-row{% if edit_node and edit_node.pk == node.pk %} is-selected{% endif %}"
+    <div class="checklist-nodes-section-header checklist-node-row{% if node.pk in selected_node_ids %} is-selected{% endif %}"
+         data-node-id="{{ node.pk }}"
          data-node-href="{% url 'checklists:manage_version_edit' template.pk version.pk %}?node={{ node.pk }}">
+        <label class="checklist-node-check" data-stop-node-nav>
+            <input type="checkbox" class="checklist-node-select" value="{{ node.pk }}"{% if node.pk in selected_node_ids %} checked{% endif %}>
+        </label>
         <div class="checklist-nodes-section-title">
             <strong>{{ node.display_name }}</strong>
             {% if node.label_en and node.label_de %}<small class="field-hint-de">{{ node.label_de }}</small>{% endif %}
@@ -20,8 +24,12 @@
     </div>
 </div>
 {% else %}
-<div class="checklist-node-item checklist-node-row{% if node.node_kind == 'radio_option' %} is-child{% endif %}{% if edit_node and edit_node.pk == node.pk %} is-selected{% endif %}"
+<div class="checklist-node-item checklist-node-row{% if node.node_kind == 'radio_option' %} is-child{% endif %}{% if node.pk in selected_node_ids %} is-selected{% endif %}"
+     data-node-id="{{ node.pk }}"
      data-node-href="{% url 'checklists:manage_version_edit' template.pk version.pk %}?node={{ node.pk }}">
+    <label class="checklist-node-check" data-stop-node-nav>
+        <input type="checkbox" class="checklist-node-select" value="{{ node.pk }}"{% if node.pk in selected_node_ids %} checked{% endif %}>
+    </label>
     <span class="checklist-node-order">{{ node.sort_order }}</span>
     <span class="checklist-node-kind">{{ node.get_node_kind_display }}{% if node.field_type %} ({{ node.get_field_type_display }}){% endif %}</span>
     <span class="checklist-node-label">

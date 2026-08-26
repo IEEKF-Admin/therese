@@ -6,6 +6,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from apps.checklists.forms import (
+    ChecklistAssignForm,
+    ChecklistNodeBulkForm,
     ChecklistTemplateForm,
     ChecklistTemplateNodeForm,
     ChecklistTemplateVersionForm,
@@ -339,11 +341,38 @@ def manage_template_copy(request, pk):
     })
 
 
-def _version_edit_redirect(pk, vid, node=None):
+def _version_edit_redirect(pk, vid, node=None, nodes=None):
     url = reverse('checklists:manage_version_edit', args=[pk, vid])
+    if nodes:
+        ids = ','.join(str(n.pk) for n in nodes)
+        return redirect(f'{url}?nodes={ids}')
     if node is not None:
-        url = f'{url}?node={node.pk}'
+        return redirect(f'{url}?node={node.pk}')
     return redirect(url)
+
+
+def _parse_selected_node_ids(request):
+    values = []
+    if request.method == 'POST' and request.POST.get('action') == 'save_bulk':
+        values = request.POST.getlist('node_pks')
+    elif request.GET.get('nodes'):
+        values = request.GET.getlist('nodes')
+        if len(values) == 1 and ',' in values[0]:
+            values = values[0].split(',')
+    elif request.GET.get('node'):
+        values = [request.GET.get('node')]
+    elif request.POST.get('node_pk'):
+        values = [request.POST.get('node_pk')]
+    ids = []
+    seen = set()
+    for value in values:
+        value = str(value).strip()
+        if value.isdigit():
+            node_id = int(value)
+            if node_id not in seen:
+                seen.add(node_id)
+                ids.append(node_id)
+    return ids
 
 
 @login_required
@@ -357,14 +386,21 @@ def manage_version_edit(request, pk, vid):
     add_form = ChecklistTemplateNodeForm(version=version, auto_id='id_add_%s')
     edit_node = None
     edit_form = None
+    bulk_form = None
+    edit_nodes = []
     show_add_modal = False
 
-    node_pk = request.GET.get('node') or request.POST.get('node_pk')
-    if node_pk:
-        edit_node = get_object_or_404(version.nodes, pk=node_pk)
-        edit_form = ChecklistTemplateNodeForm(
-            instance=edit_node, version=version, auto_id='id_edit_%s',
-        )
+    selected_ids = _parse_selected_node_ids(request)
+    if selected_ids:
+        by_id = {n.pk: n for n in nodes}
+        edit_nodes = [by_id[i] for i in selected_ids if i in by_id]
+        if len(edit_nodes) == 1:
+            edit_node = edit_nodes[0]
+            edit_form = ChecklistTemplateNodeForm(
+                instance=edit_node, version=version, auto_id='id_edit_%s',
+            )
+        elif len(edit_nodes) > 1:
+            bulk_form = ChecklistNodeBulkForm(version=version, nodes=edit_nodes)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -391,12 +427,21 @@ def manage_version_edit(request, pk, vid):
                 edit_form.save()
                 messages.success(request, 'Node saved.')
                 return _version_edit_redirect(pk, vid, edit_node)
+        elif action == 'save_bulk' and edit_nodes:
+            bulk_form = ChecklistNodeBulkForm(
+                request.POST, version=version, nodes=edit_nodes,
+            )
+            if bulk_form.is_valid():
+                updated = bulk_form.apply()
+                messages.success(request, f'Updated {updated} node(s).')
+                return _version_edit_redirect(pk, vid, nodes=edit_nodes)
         elif action == 'copy_node':
             source = get_object_or_404(version.nodes, pk=request.POST.get('node_pk'))
             copied = duplicate_node_subtree(source)
             messages.success(request, 'Node copied.')
             return _version_edit_redirect(pk, vid, copied)
 
+    selected_node_ids = {n.pk for n in edit_nodes}
     return render(request, 'checklists/manage/version_edit.html', {
         'template': template,
         'version': version,
@@ -406,6 +451,9 @@ def manage_version_edit(request, pk, vid):
         'add_form': add_form,
         'edit_node': edit_node,
         'edit_form': edit_form,
+        'edit_nodes': edit_nodes,
+        'bulk_form': bulk_form,
+        'selected_node_ids': selected_node_ids,
         'show_add_modal': show_add_modal,
         'parent_choices_json': _parent_choices_json(version),
     })
@@ -469,35 +517,47 @@ def manage_node_delete(request, pk, vid, node_pk):
 
 @login_required
 @permission_required('checklists.manage_checklist', raise_exception=True)
-def manage_assign(request):
+def manage_assign(request, pk=None):
+    template = get_object_or_404(ChecklistTemplate, pk=pk) if pk else None
     published_versions = (
         ChecklistTemplateVersion.objects.filter(status=ChecklistTemplateVersion.Status.PUBLISHED)
         .select_related('template')
         .order_by('template__name_en', '-version_number')
     )
-    employees = Employee.objects.select_related('user').order_by('last_name', 'first_name')
-
-    if request.method == 'POST':
-        version_id = request.POST.get('template_version')
-        employee_ids = request.POST.getlist('employees')
-        version = get_object_or_404(published_versions, pk=version_id)
-        selected = employees.filter(pk__in=employee_ids)
-        if not selected.exists():
-            messages.error(request, 'Select at least one employee. / Mindestens einen Mitarbeiter auswählen.')
-        else:
-            created = 0
-            for employee in selected:
-                assign_instance(employee, version, assigned_by=request.user)
-                created += 1
-            messages.success(
+    lock_version = None
+    if template:
+        published_versions = published_versions.filter(template=template)
+        lock_version = published_versions.first()
+        if not lock_version:
+            messages.error(
                 request,
-                f'Assigned checklist to {created} employee(s). / Checkliste {created} Mitarbeiter(n) zugewiesen.',
+                'Publish a version before assigning this checklist. / Bitte zuerst eine Version veröffentlichen.',
             )
-            return redirect('checklists:manage_assign')
+            return redirect('checklists:manage_template_detail', pk=template.pk)
+
+    form = ChecklistAssignForm(
+        request.POST or None,
+        published_versions=published_versions,
+        lock_version=lock_version,
+    )
+    if request.method == 'POST' and form.is_valid():
+        version = form.cleaned_data['template_version']
+        created = 0
+        for employee in form.cleaned_data['employees']:
+            assign_instance(employee, version, assigned_by=request.user)
+            created += 1
+        messages.success(
+            request,
+            f'Assigned checklist to {created} employee(s). / Checkliste {created} Mitarbeiter(n) zugewiesen.',
+        )
+        if template:
+            return redirect('checklists:manage_template_assign', pk=template.pk)
+        return redirect('checklists:manage_assign')
 
     return render(request, 'checklists/manage/assign.html', {
-        'published_versions': published_versions,
-        'employees': employees,
+        'form': form,
+        'template': template,
+        'lock_version': lock_version,
     })
 
 

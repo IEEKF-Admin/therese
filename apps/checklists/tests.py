@@ -174,6 +174,41 @@ class ChecklistManageUITests(TestCase):
         self.assertContains(response, 'New Template')
         self.assertNotContains(response, 'Admin bearbeiten')
 
+    def test_assign_uses_dual_list_and_per_template_link(self):
+        template = ChecklistTemplate.objects.create(slug='asg', name_en='Assign Me', name_de='Zuweisen')
+        published = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+        employee = Employee.objects.create(
+            employee_number='CL-ASG-1', first_name='Pat', last_name='Assignee',
+        )
+        listing = self.client.get(reverse('checklists:manage_template_list'))
+        self.assertContains(listing, reverse('checklists:manage_template_assign', args=[template.pk]))
+        url = reverse('checklists:manage_template_assign', args=[template.pk])
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Not selected')
+        self.assertContains(page, 'Selected')
+        self.assertContains(page, 'dual-list-widget')
+        self.assertContains(page, published.version_label)
+        posted = self.client.post(url, {
+            'template_version': str(published.pk),
+            'employees': [str(employee.pk)],
+        })
+        self.assertEqual(posted.status_code, 302)
+        self.assertTrue(
+            ChecklistInstance.objects.filter(subject=employee, template_version=published).exists()
+        )
+
+    def test_assign_requires_published_version(self):
+        template = ChecklistTemplate.objects.create(slug='draft-only', name_en='Draft', name_de='Entwurf')
+        ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        response = self.client.get(reverse('checklists:manage_template_assign', args=[template.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('checklists:manage_template_detail', args=[template.pk]))
+
     def test_version_edit_shows_inline_settings_and_copy(self):
         template = ChecklistTemplate.objects.create(slug='ed1', name_en='Ed', name_de='Ed')
         version = ChecklistTemplateVersion.objects.create(
@@ -217,6 +252,72 @@ class ChecklistManageUITests(TestCase):
         self.assertTrue(version.nodes.filter(parent=copied_section, node_kind='field').exists())
         self.assertContains(selected, 'dual-list-widget')
         self.assertContains(selected, 'Editable by Django groups')
+        self.assertContains(response, 'checklist-node-select')
+
+    def test_add_node_defaults_visible_to_subject(self):
+        template = ChecklistTemplate.objects.create(slug='vis', name_en='Vis', name_de='Vis')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        section = ChecklistTemplateNode.objects.create(
+            version=version, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='S',
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        response = self.client.post(url, {
+            'action': 'add_node',
+            'node_kind': ChecklistTemplateNode.NodeKind.FIELD,
+            'field_type': ChecklistTemplateNode.FieldType.CHECKBOX,
+            'parent': str(section.pk),
+            'sort_order': 1,
+            'label_en': 'Seen',
+            'label_de': 'Sichtbar',
+        })
+        self.assertEqual(response.status_code, 302)
+        node = version.nodes.get(label_en='Seen')
+        self.assertTrue(node.visible_to_subject)
+        self.assertTrue(node.editable_by_subject)
+        self.assertTrue(node.editable_by_coordinators)
+
+    def test_bulk_edit_shared_field_settings(self):
+        template = ChecklistTemplate.objects.create(slug='bulk', name_en='Bulk', name_de='Bulk')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        section = ChecklistTemplateNode.objects.create(
+            version=version, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='S',
+        )
+        a = ChecklistTemplateNode.objects.create(
+            version=version, parent=section, node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX, label_en='A',
+            required_for_completion=False, visible_to_subject=True,
+        )
+        b = ChecklistTemplateNode.objects.create(
+            version=version, parent=section, node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX, label_en='B',
+            required_for_completion=False, visible_to_subject=True,
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        page = self.client.get(url + f'?nodes={a.pk},{b.pk}')
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Edit 2 nodes')
+        self.assertContains(page, 'Required for completion')
+        posted = self.client.post(url + f'?nodes={a.pk},{b.pk}', {
+            'action': 'save_bulk',
+            'node_pks': [str(a.pk), str(b.pk)],
+            'required_for_completion': '1',
+            'allow_not_applicable': '__unchanged__',
+            'editable_by_subject': '__unchanged__',
+            'editable_by_coordinators': '__unchanged__',
+            'visible_to_subject': '0',
+            'parent': '__unchanged__',
+        })
+        self.assertEqual(posted.status_code, 302)
+        a.refresh_from_db()
+        b.refresh_from_db()
+        self.assertTrue(a.required_for_completion)
+        self.assertTrue(b.required_for_completion)
+        self.assertFalse(a.visible_to_subject)
+        self.assertFalse(b.visible_to_subject)
 
     def test_version_edit_nests_section_cards(self):
         template = ChecklistTemplate.objects.create(slug='nest', name_en='Nest', name_de='Nest')

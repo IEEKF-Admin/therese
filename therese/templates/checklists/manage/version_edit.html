@@ -33,6 +33,12 @@
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
 }
+.checklist-node-check {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    cursor: pointer;
+}
 .checklist-nodes-section-header.is-selected { background: #e0f2fe; }
 .checklist-nodes-section-title { min-width: 0; }
 .checklist-nodes-section-title strong { display: block; }
@@ -54,7 +60,7 @@
 }
 .checklist-node-item {
     display: grid;
-    grid-template-columns: 2.2rem minmax(6.5rem, 1.1fr) minmax(7rem, 2fr) auto;
+    grid-template-columns: 1.4rem 2.2rem minmax(6.5rem, 1.1fr) minmax(7rem, 2fr) auto;
     gap: 0.45rem;
     align-items: center;
     padding: 0.4rem 0.5rem;
@@ -67,9 +73,10 @@
 .checklist-node-actions { display: flex; gap: 0.35rem; white-space: nowrap; }
 @media (max-width: 700px) {
     .checklist-node-item {
-        grid-template-columns: 2rem 1fr auto;
-        grid-template-areas: "order label actions" "order kind actions";
+        grid-template-columns: 1.4rem 2rem 1fr auto;
+        grid-template-areas: "check order label actions" "check order kind actions";
     }
+    .checklist-node-check { grid-area: check; }
     .checklist-node-order { grid-area: order; }
     .checklist-node-kind { grid-area: kind; }
     .checklist-node-label { grid-area: label; }
@@ -154,8 +161,34 @@
         </div>
 
         <div class="form-section" data-checklist-node-form>
-            <h3>Node settings</h3>
-            {% if edit_form %}
+            <h3>{% if bulk_form %}Edit {{ edit_nodes|length }} nodes{% else %}Node settings{% endif %}</h3>
+            {% if bulk_form %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_bulk">
+                {% for node in edit_nodes %}
+                <input type="hidden" name="node_pks" value="{{ node.pk }}">
+                {% endfor %}
+                {% if bulk_form.has_shared_fields %}
+                <p class="field-hint">Only shared settings are shown. Leave “Unchanged” to keep current values.
+                    <span class="field-hint-de">Nur gemeinsame Eigenschaften. „Unchanged“ belässt den bisherigen Wert.</span>
+                </p>
+                {% for field in bulk_form %}
+                <div class="aligned-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+                {% endfor %}
+                {{ bulk_form.non_field_errors }}
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save selected</button>
+                </div>
+                {% else %}
+                <p style="color:#64748b;">These nodes have no shared settings to edit together.</p>
+                {% endif %}
+            </form>
+            {% elif edit_form %}
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="save_node">
@@ -166,16 +199,19 @@
                 </div>
             </form>
             {% else %}
-            <p style="color:#64748b;">Click a node to edit its settings.</p>
+            <p style="color:#64748b;">Click a node to edit its settings. Ctrl-click or use the checkboxes to edit several at once.</p>
             {% endif %}
         </div>
     </div>
 
     <div class="right-col">
         <div class="form-section list-panel">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
                 <h3 style="margin:0;">Nodes</h3>
-                <button type="button" class="btn-primary" id="open-add-node-modal">Add node</button>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button type="button" class="btn-secondary" id="edit-selected-nodes" hidden>Edit selected</button>
+                    <button type="button" class="btn-primary" id="open-add-node-modal">Add node</button>
+                </div>
             </div>
             {% if tree %}
                 {% include "checklists/manage/_editor_node_tree.html" with tree=tree %}
@@ -274,12 +310,52 @@
   document.querySelectorAll('[data-close-add-node]').forEach(function(el) {
     el.addEventListener('click', closeModal);
   });
+  var editSelectedBtn = document.getElementById('edit-selected-nodes');
+  var editBase = "{% url 'checklists:manage_version_edit' template.pk version.pk %}";
+  function selectedIds() {
+    return Array.prototype.map.call(
+      document.querySelectorAll('.checklist-node-select:checked'),
+      function(el) { return el.value; }
+    );
+  }
+  function updateEditSelected() {
+    var ids = selectedIds();
+    if (!editSelectedBtn) return;
+    if (ids.length) {
+      editSelectedBtn.hidden = false;
+      editSelectedBtn.textContent = ids.length === 1 ? 'Edit selected' : 'Edit ' + ids.length + ' nodes';
+    } else {
+      editSelectedBtn.hidden = true;
+    }
+  }
+  function goToSelection(ids) {
+    if (!ids.length) return;
+    if (ids.length === 1) {
+      window.location.href = editBase + '?node=' + encodeURIComponent(ids[0]);
+    } else {
+      window.location.href = editBase + '?nodes=' + encodeURIComponent(ids.join(','));
+    }
+  }
+  if (editSelectedBtn) {
+    editSelectedBtn.addEventListener('click', function() { goToSelection(selectedIds()); });
+  }
+  document.querySelectorAll('.checklist-node-select').forEach(function(box) {
+    box.addEventListener('change', updateEditSelected);
+  });
   document.querySelectorAll('.checklist-node-row[data-node-href]').forEach(function(row) {
     row.addEventListener('click', function(event) {
       if (event.target.closest('[data-stop-node-nav]')) return;
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        var box = row.querySelector('.checklist-node-select');
+        if (box) box.checked = !box.checked;
+        goToSelection(selectedIds());
+        return;
+      }
       window.location.href = row.getAttribute('data-node-href');
     });
   });
+  updateEditSelected();
 })();
 </script>
 {% include "documents/includes/wysiwyg.html" %}

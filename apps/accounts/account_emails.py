@@ -89,6 +89,21 @@ def ensure_account_email_templates():
     return templates
 
 
+def save_account_email_templates_from_post(post):
+    """Update both account email kinds from a POST dict. Returns saved templates."""
+    ensure_account_email_templates()
+    saved = []
+    for kind, _label in AccountEmailTemplate.KIND_CHOICES:
+        template = AccountEmailTemplate.objects.filter(kind=kind).first()
+        if template is None:
+            continue
+        template.subject = (post.get(f'subject_{kind}') or '')[:200]
+        template.body_html = sanitize_html(post.get(f'body_{kind}') or '')
+        template.save(update_fields=['subject', 'body_html'])
+        saved.append(template)
+    return saved
+
+
 def _employee_of_user(user):
     try:
         return user.employee

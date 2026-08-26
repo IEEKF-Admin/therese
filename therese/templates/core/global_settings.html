@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Global Settings - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Global Settings</h1>
+    <p class="page-subtitle">Institute-wide defaults. Only Systemadmin can change these.</p>
+</div>
+
+<div class="card" style="margin-bottom:2rem;">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_global">
+        <div class="form-section">
+            <h3>Institute defaults</h3>
+            {% for field in form %}
+            <div class="aligned-field">
+                {% if field.field.widget.input_type == 'checkbox' %}
+                <div class="form-check-row">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% else %}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% endif %}
+                {% if field.help_text %}<small class="field-hint-de">{{ field.help_text }}</small>{% endif %}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+            {{ form.non_field_errors }}
+            {% if setting.updated_at %}
+            <p class="field-hint">Last updated: {{ setting.updated_at|date:"d.m.Y H:i" }}</p>
+            {% endif %}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save settings</button>
+        </div>
+    </form>
+</div>
+
+{{ account_email_variables|json_script:"account-email-variables" }}
+<h2 class="section-heading" id="account-emails">Account emails</h2>
+<p style="color:#64748b; margin-bottom:1rem;">
+    These messages are sent when a login is created or a password is reset.
+    Variables:
+    {% for item in account_email_variables %}
+        <code>{{ item.token }}</code>{% if not forloop.last %}, {% endif %}
+    {% endfor %}.
+</p>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_account_emails">
+    {% for template in account_email_templates %}
+    <div class="card" style="margin-bottom:1rem; box-shadow:none;">
+        <h3 style="margin-bottom:0.75rem;">{{ template.get_kind_display }}</h3>
+        <div class="aligned-field" style="margin-bottom:0.6rem;">
+            <label for="subject_{{ template.kind }}">Subject</label>
+            <input type="text" name="subject_{{ template.kind }}" id="subject_{{ template.kind }}"
+                   class="form-control" maxlength="200" value="{{ template.subject }}">
+        </div>
+        <label for="body_{{ template.kind }}">Email body</label>
+        <div class="variable-chips" data-editor-id="body_{{ template.kind }}"
+             data-account-vars="1" style="margin:0.4rem 0 0.6rem;"></div>
+        <textarea name="body_{{ template.kind }}" id="body_{{ template.kind }}"
+                  class="form-control wysiwyg-editor" data-wysiwyg-height="280" rows="10">{{ template.body_html }}</textarea>
+    </div>
+    {% endfor %}
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save account emails</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.variable-chip {
+    display:inline-block; border:1px solid #cbd5e1; background:#f8fafc; color:#334155;
+    border-radius:999px; padding:0.15rem 0.6rem; font-size:0.8rem; cursor:pointer;
+}
+.variable-chip:hover { background:#e2e8f0; }
+</style>
+<script>
+function insertAtCursor(textarea, text) {
+    if (!textarea) return;
+    var start = textarea.selectionStart || 0;
+    var end = textarea.selectionEnd || 0;
+    var value = textarea.value || '';
+    textarea.value = value.slice(0, start) + text + value.slice(end);
+    var pos = start + text.length;
+    textarea.focus();
+    textarea.setSelectionRange(pos, pos);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var accountVarsEl = document.getElementById('account-email-variables');
+    var accountVars = accountVarsEl ? (JSON.parse(accountVarsEl.textContent) || []) : [];
+    document.querySelectorAll('[data-account-vars]').forEach(function(box) {
+        var editorId = box.getAttribute('data-editor-id');
+        box.innerHTML = '';
+        accountVars.forEach(function(item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'variable-chip';
+            btn.textContent = item.token;
+            btn.title = item.label;
+            btn.addEventListener('click', function() {
+                if (typeof tinymce !== 'undefined') {
+                    var editor = tinymce.get(editorId);
+                    if (editor) {
+                        editor.focus();
+                        editor.insertContent(item.token);
+                        return;
+                    }
+                }
+                var ta = document.getElementById(editorId);
+                if (ta) insertAtCursor(ta, item.token);
+            });
+            box.appendChild(btn);
+        });
+    });
+});
+</script>
+{% include "documents/includes/wysiwyg.html" %}
+{% endblock %}

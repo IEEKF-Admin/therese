@@ -158,12 +158,12 @@ class PasswordResetViewTests(TestCase):
 
     def test_systemadmin_can_edit_account_email_templates(self):
         self.client.login(username='sysadmin', password='test')
-        response = self.client.get(reverse('core_settings:messaging'))
+        response = self.client.get(reverse('core_settings:global_settings'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Account emails')
         self.assertContains(response, '{{ username }}')
         response = self.client.post(
-            reverse('core_settings:messaging'),
+            reverse('core_settings:global_settings'),
             {
                 'action': 'save_account_emails',
                 'subject_user_created': 'Welcome {{ first_name }}',
@@ -193,7 +193,7 @@ class PasswordResetViewTests(TestCase):
     def test_hr_cannot_save_account_email_templates(self):
         self.client.login(username='hrsuper', password='test')
         response = self.client.post(
-            reverse('core_settings:messaging'),
+            reverse('core_settings:global_settings'),
             {
                 'action': 'save_account_emails',
                 'subject_user_created': 'Nope',

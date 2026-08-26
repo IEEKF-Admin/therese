@@ -62,9 +62,6 @@
             const group = el.getAttribute('data-node-field-group');
             const visible = groupVisible(group, kind);
             el.style.display = visible ? '' : 'none';
-            el.querySelectorAll('input, select, textarea').forEach(function(input) {
-                input.disabled = !visible;
-            });
         });
         root.querySelectorAll('[data-label-caption]').forEach(function(el) {
             const sectionCaption = el.getAttribute('data-caption-section');

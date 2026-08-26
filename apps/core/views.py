@@ -1,8 +1,10 @@
 from django import forms
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from .file_service import ThereseFileService
 from .media_access import user_can_access_stored_file
@@ -98,3 +100,40 @@ def _default_test_recipient(user):
     if employee is not None:
         return (getattr(employee, 'email_professional', '') or '').strip()
     return ''
+
+
+@login_required
+def global_settings(request):
+    from apps.accounts.account_emails import (
+        ACCOUNT_EMAIL_VARIABLES,
+        ensure_account_email_templates,
+        save_account_email_templates_from_post,
+    )
+    from apps.accounts.permissions import user_can_edit_global_settings
+    from apps.core.forms import GlobalSettingForm
+    from apps.core.models import GlobalSetting
+
+    if not user_can_edit_global_settings(request.user):
+        raise PermissionDenied
+
+    setting = GlobalSetting.get_solo()
+    form = GlobalSettingForm(instance=setting)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'save_account_emails':
+            save_account_email_templates_from_post(request.POST)
+            messages.success(request, 'Account email templates were saved.')
+            return redirect('core_settings:global_settings')
+        form = GlobalSettingForm(request.POST, instance=setting)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Global settings were saved.')
+            return redirect('core_settings:global_settings')
+
+    return render(request, 'core/global_settings.html', {
+        'form': form,
+        'setting': setting,
+        'account_email_templates': ensure_account_email_templates(),
+        'account_email_variables': ACCOUNT_EMAIL_VARIABLES,
+    })

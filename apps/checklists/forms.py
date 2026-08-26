@@ -12,6 +12,18 @@ from apps.core.html_sanitize import sanitize_html
 from apps.documents.forms import DualListSelect
 from apps.hr.models import Employee
 
+_BOOL_DEFAULTS_TRUE = (
+    'editable_by_subject',
+    'editable_by_coordinators',
+    'visible_to_subject',
+)
+_UNCHANGED = '__unchanged__'
+_YES_NO_UNCHANGED = [
+    (_UNCHANGED, '— Unchanged —'),
+    ('1', 'Yes'),
+    ('0', 'No'),
+]
+
 
 class ChecklistTemplateForm(forms.ModelForm):
     class Meta:
@@ -204,6 +216,11 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         if parent and self.version and parent.version_id != self.version.pk:
             raise ValidationError('Parent node must belong to this version.')
 
+        if not self.instance.pk:
+            for name in _BOOL_DEFAULTS_TRUE:
+                if name not in self.data:
+                    cleaned[name] = True
+
         # HTML nodes store rich content in help_*; field help may contain markup too.
         if cleaned.get('help_en') is not None:
             cleaned['help_en'] = sanitize_html(cleaned.get('help_en'))
@@ -218,3 +235,150 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
         return instance
+
+
+def _employee_choice_label(employee):
+    return f'{employee.get_full_name()} ({employee.employee_number})'
+
+
+class ChecklistAssignForm(forms.Form):
+    template_version = forms.ModelChoiceField(
+        queryset=ChecklistTemplateVersion.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Published version',
+    )
+    employees = forms.ModelMultipleChoiceField(
+        queryset=Employee.objects.none(),
+        widget=DualListSelect(
+            attrs={'class': 'form-select', 'size': 12},
+            available_heading='Not selected',
+            selected_heading='Selected',
+        ),
+        label='Employees',
+        required=True,
+    )
+
+    def __init__(self, *args, published_versions=None, lock_version=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        versions = published_versions if published_versions is not None else (
+            ChecklistTemplateVersion.objects.filter(
+                status=ChecklistTemplateVersion.Status.PUBLISHED,
+            ).select_related('template')
+        )
+        self.fields['template_version'].queryset = versions
+        self.fields['template_version'].label_from_instance = (
+            lambda v: f'{v.template.name_en} ({v.version_label})'
+        )
+        self.fields['employees'].queryset = Employee.objects.order_by(
+            'last_name', 'first_name',
+        )
+        self.fields['employees'].label_from_instance = _employee_choice_label
+        self.lock_version = lock_version
+        if lock_version:
+            self.fields['template_version'].initial = lock_version.pk
+            self.fields['template_version'].widget = forms.HiddenInput()
+
+
+class ChecklistNodeBulkForm(forms.Form):
+    parent = forms.ChoiceField(
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Parent',
+    )
+    required_for_completion = forms.ChoiceField(
+        choices=_YES_NO_UNCHANGED, required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Required for completion',
+    )
+    allow_not_applicable = forms.ChoiceField(
+        choices=_YES_NO_UNCHANGED, required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Allow N/A',
+    )
+    editable_by_subject = forms.ChoiceField(
+        choices=_YES_NO_UNCHANGED, required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Editable by subject',
+    )
+    editable_by_coordinators = forms.ChoiceField(
+        choices=_YES_NO_UNCHANGED, required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Editable by coordinators',
+    )
+    visible_to_subject = forms.ChoiceField(
+        choices=_YES_NO_UNCHANGED, required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Visible to subject',
+    )
+
+    def __init__(self, *args, version=None, nodes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.version = version
+        self.nodes = list(nodes or [])
+        kinds = {n.node_kind for n in self.nodes}
+        NodeKind = ChecklistTemplateNode.NodeKind
+        self.show_required = kinds == {NodeKind.FIELD}
+        self.show_na = kinds == {NodeKind.FIELD}
+        self.show_editable = kinds == {NodeKind.FIELD}
+        self.show_visible = kinds <= {NodeKind.FIELD, NodeKind.HTML} and bool(kinds)
+        self.show_parent = bool(kinds) and (
+            kinds == {NodeKind.RADIO_OPTION} or NodeKind.RADIO_OPTION not in kinds
+        )
+        if not self.show_required:
+            self.fields.pop('required_for_completion')
+        if not self.show_na:
+            self.fields.pop('allow_not_applicable')
+        if not self.show_editable:
+            self.fields.pop('editable_by_subject')
+            self.fields.pop('editable_by_coordinators')
+        if not self.show_visible:
+            self.fields.pop('visible_to_subject')
+        if self.show_parent and version:
+            choices = [(_UNCHANGED, '— Unchanged —')]
+            if NodeKind.RADIO_OPTION not in kinds:
+                choices.append(('', '— Top level —'))
+            if kinds == {NodeKind.RADIO_OPTION}:
+                parents = version.nodes.filter(
+                    node_kind=NodeKind.FIELD,
+                    field_type=ChecklistTemplateNode.FieldType.RADIO_GROUP,
+                )
+            else:
+                parents = version.nodes.filter(node_kind=NodeKind.SECTION)
+            exclude_pks = {n.pk for n in self.nodes if n.node_kind == NodeKind.SECTION}
+            for parent in parents.order_by('sort_order', 'pk'):
+                if parent.pk in exclude_pks:
+                    continue
+                choices.append((str(parent.pk), parent.parent_choice_label))
+            self.fields['parent'].choices = choices
+        else:
+            self.fields.pop('parent', None)
+
+    def has_shared_fields(self):
+        return bool(self.fields)
+
+    def apply(self):
+        cleaned = self.cleaned_data
+        bool_map = {
+            'required_for_completion': cleaned.get('required_for_completion'),
+            'allow_not_applicable': cleaned.get('allow_not_applicable'),
+            'editable_by_subject': cleaned.get('editable_by_subject'),
+            'editable_by_coordinators': cleaned.get('editable_by_coordinators'),
+            'visible_to_subject': cleaned.get('visible_to_subject'),
+        }
+        parent_choice = cleaned.get('parent', _UNCHANGED)
+        updated = 0
+        for node in self.nodes:
+            fields = []
+            if parent_choice and parent_choice != _UNCHANGED:
+                node.parent_id = int(parent_choice) if parent_choice else None
+                fields.append('parent')
+            elif parent_choice == '':
+                node.parent_id = None
+                fields.append('parent')
+            for name, value in bool_map.items():
+                if value == '1':
+                    setattr(node, name, True)
+                    fields.append(name)
+                elif value == '0':
+                    setattr(node, name, False)
+                    fields.append(name)
+            if fields:
+                fields.append('updated_at')
+                node.save(update_fields=fields)
+                updated += 1
+        return updated

@@ -1,11 +1,22 @@
 {% extends "base.html" %}
+{% load static widget_tweaks %}
 
-{% block title %}Assign Checklists - THERESE{% endblock %}
+{% block title %}Assign Checklist - THERESE{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'css/dual_list_select.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Assign Checklist <small class="field-hint-de">Checkliste zuweisen</small></h1>
+    <h1>
+        {% if template %}Assign {{ template.name_en }}{% else %}Assign Checklist{% endif %}
+        <small class="field-hint-de">Checkliste zuweisen</small>
+    </h1>
     <div class="page-header-actions">
+        {% if template %}
+        <a href="{% url 'checklists:manage_template_detail' template.pk %}" class="btn-secondary">← Versions</a>
+        {% endif %}
         <a href="{% url 'checklists:manage_template_list' %}" class="btn-secondary">← Templates</a>
     </div>
 </div>
@@ -15,28 +26,33 @@
         {% csrf_token %}
         <div class="form-section">
             <h3>Assignment</h3>
+            {% if lock_version %}
             <div class="aligned-field">
-                <label for="template_version">Published version</label>
-                <select name="template_version" id="template_version" class="form-select" required>
-                    <option value="">— Select —</option>
-                    {% for v in published_versions %}
-                    <option value="{{ v.pk }}">{{ v.template.name_en }} ({{ v.version_label }})</option>
-                    {% endfor %}
-                </select>
+                <label>Published version</label>
+                <div>{{ lock_version.template.name_en }} ({{ lock_version.version_label }})</div>
+                {{ form.template_version }}
             </div>
+            {% else %}
             <div class="aligned-field">
-                <label for="employees">Employees</label>
-                <select name="employees" id="employees" class="form-select" multiple size="12" required>
-                    {% for e in employees %}
-                    <option value="{{ e.pk }}">{{ e.get_full_name }} ({{ e.employee_number }})</option>
-                    {% endfor %}
-                </select>
-                <small class="field-hint-de">Mehrfachauswahl mit Strg/Cmd.</small>
+                <label for="{{ form.template_version.id_for_label }}">{{ form.template_version.label }}</label>
+                {{ form.template_version }}
+                {{ form.template_version.errors }}
             </div>
+            {% endif %}
+            <div class="aligned-field">
+                <label>{{ form.employees.label }}</label>
+                {{ form.employees }}
+                {{ form.employees.errors }}
+            </div>
+            {{ form.non_field_errors }}
         </div>
         <div class="form-actions">
             <button type="submit" class="btn-primary">Assign</button>
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dual_list_select.js' %}"></script>
 {% endblock %}

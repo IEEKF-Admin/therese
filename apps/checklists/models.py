@@ -36,6 +36,12 @@ class ChecklistTemplate(BaseModel):
     def __str__(self):
         return self.name_en
 
+    def published_version(self):
+        for version in self.versions.all():
+            if version.status == ChecklistTemplateVersion.Status.PUBLISHED:
+                return version
+        return None
+
 
 class ChecklistTemplateVersion(BaseModel):
     class Status(models.TextChoices):

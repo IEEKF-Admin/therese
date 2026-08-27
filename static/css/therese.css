@@ -1463,6 +1463,17 @@ a.btn-primary:hover {
     color: #fff !important;
 }
 
+.btn-primary:disabled,
+.btn-primary[disabled],
+button.btn-primary:disabled {
+    background: #94a3b8 !important;
+    color: #f1f5f9 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    opacity: 0.75;
+    box-shadow: none;
+}
+
 .btn-secondary,
 a.btn-secondary {
     display: inline-flex;

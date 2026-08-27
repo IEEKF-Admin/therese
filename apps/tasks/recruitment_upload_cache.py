@@ -28,6 +28,11 @@ def stash_recruitment_uploads(request):
             f'recruitment_tasks/draft/{uuid.uuid4().hex}/{uploaded.name}',
             uploaded,
         )
+        if hasattr(uploaded, 'seek'):
+            try:
+                uploaded.seek(0)
+            except Exception:
+                pass
         old_path = uploads.get(field_name, {}).get('path')
         if old_path and old_path != storage_path:
             default_storage.delete(old_path)

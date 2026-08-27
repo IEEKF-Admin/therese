@@ -16,6 +16,15 @@ from apps.core.upload_validation import (
 
 MAX_DOCUMENT_SIZE_BYTES = MAX_DEFAULT_UPLOAD_BYTES
 ALLOWED_DOCUMENT_EXTENSIONS = PDF_EXT | IMAGE_EXT
+PERSONNEL_DOCUMENT_ACCEPT = ','.join(
+    sorted(ALLOWED_DOCUMENT_EXTENSIONS) + [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+    ]
+)
 
 
 def validate_personnel_document(uploaded_file):

@@ -502,12 +502,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
 
     if (checkbox && submitBtn) {
-        checkbox.addEventListener('change', function() {
+        function syncSubmitEnabled() {
             submitBtn.disabled = !checkbox.checked;
-        });
-
-        // Ensure button starts disabled
-        submitBtn.disabled = !checkbox.checked;
+            submitBtn.setAttribute('aria-disabled', checkbox.checked ? 'false' : 'true');
+        }
+        checkbox.addEventListener('change', syncSubmitEnabled);
+        checkbox.addEventListener('click', syncSubmitEnabled);
+        syncSubmitEnabled();
+        var form = submitBtn.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                if (!checkbox.checked) {
+                    event.preventDefault();
+                    syncSubmitEnabled();
+                }
+            });
+        }
     }
 });
 

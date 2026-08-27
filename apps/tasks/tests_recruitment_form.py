@@ -225,6 +225,8 @@ class LimitationReasonTemplateTests(TestCase):
         )
         self.assertIn('weekly_hours', form.fields)
         self.assertFalse(form.fields['weekly_hours'].required)
+        self.assertIn('.pdf', form.fields['cv_file'].widget.attrs.get('accept', ''))
+        self.assertIn('.pdf', form.fields['latest_degree_certificate_file'].widget.attrs.get('accept', ''))
         self.assertNotIn('plan_position_number', form.fields)
         self.assertIn('qualification', form.fields)
 
@@ -439,6 +441,8 @@ class RecruitmentUploadCacheTests(TestCase):
 
         uploads = stash_recruitment_uploads(request)
         self.assertIn('cv_file', uploads)
+        from apps.hr.document_utils import validate_personnel_document
+        validate_personnel_document(request.FILES['cv_file'])
 
         cleaned_data = {}
         apply_stashed_uploads(cleaned_data, uploads)

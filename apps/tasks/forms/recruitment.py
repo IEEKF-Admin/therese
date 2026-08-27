@@ -259,9 +259,15 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 if not can_change_status:
                     self.fields['status'].widget = forms.HiddenInput()
 
+        from apps.hr.document_utils import PERSONNEL_DOCUMENT_ACCEPT
+
         for file_field in ('cv_file', 'latest_degree_certificate_file'):
             if file_field in self.fields:
-                self.fields[file_field].widget.attrs['data-recruitment-field'] = file_field
+                self.fields[file_field].widget.attrs.update({
+                    'data-recruitment-field': file_field,
+                    'accept': PERSONNEL_DOCUMENT_ACCEPT,
+                    'class': 'form-control',
+                })
 
         job_id = None
         if self.data.get('job'):

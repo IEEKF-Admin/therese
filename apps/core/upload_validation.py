@@ -24,10 +24,24 @@ _MAGIC = {
 
 
 def _read_header(uploaded_file, n=16):
-    pos = uploaded_file.tell() if hasattr(uploaded_file, 'tell') else 0
+    """Read magic bytes from the start of the file, then restore the pointer."""
+    pos = 0
+    if hasattr(uploaded_file, 'tell'):
+        try:
+            pos = uploaded_file.tell()
+        except Exception:
+            pos = 0
+    if hasattr(uploaded_file, 'seek'):
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
     header = uploaded_file.read(n)
     if hasattr(uploaded_file, 'seek'):
-        uploaded_file.seek(pos)
+        try:
+            uploaded_file.seek(pos)
+        except Exception:
+            pass
     return header or b''
 
 
@@ -54,9 +68,10 @@ def validate_upload(
     if not require_magic:
         return
 
-    header = _read_header(uploaded_file)
+    header = _read_header(uploaded_file, n=32)
     if ext == '.pdf':
-        if not header.startswith(b'%PDF'):
+        pdf_header = header.lstrip(b'\xef\xbb\xbf \t\r\n')
+        if not pdf_header.startswith(b'%PDF'):
             raise ValidationError('Invalid PDF file.')
     elif ext in {'.jpg', '.jpeg'}:
         if not header.startswith(b'\xff\xd8\xff'):

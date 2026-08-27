@@ -137,7 +137,40 @@ class LimitationReasonTemplateTests(TestCase):
             user=CustomUser.objects.create_user('creator-hours3', password='test'),
             is_creation=True,
         )
-        self.assertEqual(form.fields['weekly_hours'].widget.attrs.get('step'), '0.001')
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['weekly_hours'], Decimal('19.625'))
+
+    def test_weekly_hours_accepts_comma_decimal(self):
+        files = {
+            'cv_file': SimpleUploadedFile('cv.pdf', b'%PDF cv', content_type='application/pdf'),
+            'latest_degree_certificate_file': SimpleUploadedFile(
+                'degree.pdf', b'%PDF degree', content_type='application/pdf',
+            ),
+        }
+        form = PersonnelRecruitmentTaskForm(
+            data={
+                'job': self.job.pk,
+                'first_name': 'Anna',
+                'last_name': 'Muster',
+                'gender': 'F',
+                'date_of_birth': '01.01.1995',
+                'country_of_origin': 'Germany',
+                'place_of_birth': 'Bonn',
+                'email_private': 'anna@example.com',
+                'street': 'Main Street',
+                'house_number': '1',
+                'postal_code': '53111',
+                'city': 'Bonn',
+                'country': 'Germany',
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'weekly_hours': '19,625',
+                'status': 'not_yet_processed',
+            },
+            files=files,
+            user=CustomUser.objects.create_user('creator-hours-comma', password='test'),
+            is_creation=True,
+        )
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['weekly_hours'], Decimal('19.625'))
 

@@ -6,6 +6,7 @@ from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
 from apps.finances.funding_sources import FundingSourceFormMixin
 from apps.finances.models import PayScale
+from apps.tasks.form_validation import DecimalCommaField
 from apps.tasks.forms.common import (
     _configure_gender_field,
     _configure_personnel_assignee_field,
@@ -286,13 +287,20 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 'min': '0',
             })
         if 'weekly_hours' in self.fields:
-            self.fields['weekly_hours'].required = False
-            self.fields['weekly_hours'].widget.attrs.update({
-                'class': 'form-control',
-                'step': '0.001',
-                'min': '0',
-                'data-recruitment-weekly-hours': 'true',
-            })
+            original = self.fields['weekly_hours']
+            self.fields['weekly_hours'] = DecimalCommaField(
+                required=False,
+                max_digits=6,
+                decimal_places=3,
+                label=original.label,
+                help_text=original.help_text,
+                widget=forms.TextInput(attrs={
+                    'class': 'form-control',
+                    'inputmode': 'decimal',
+                    'placeholder': 'e.g. 19,625',
+                    'data-recruitment-weekly-hours': 'true',
+                }),
+            )
             if self.is_creation and not self.data and not self.initial.get('weekly_hours'):
                 from apps.core.models import GlobalSetting
                 default_hours = GlobalSetting.get_default_weekly_hours()

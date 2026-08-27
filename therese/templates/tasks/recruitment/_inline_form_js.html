@@ -52,6 +52,8 @@
         });
 
         clone.querySelectorAll('input, select, textarea').forEach(el => {
+            el.disabled = false;
+            el.removeAttribute('required');
             if (el.type === 'hidden') {
                 if (/-id$/.test(el.name) || /-recruitment_task$/.test(el.name)) {
                     el.value = '';

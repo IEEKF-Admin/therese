@@ -12,6 +12,32 @@ from django.core.validators import URLValidator
 DATE_PARSE_FORMATS = ('%d.%m.%Y', '%Y-%m-%d')
 
 
+def parse_loose_decimal(value):
+    """Accept 19.625 or German 19,625. Return str for DecimalField.to_python."""
+    if value is None or isinstance(value, (int, float, Decimal)):
+        return value
+    text = str(value).strip().replace('\u00a0', '').replace(' ', '')
+    if not text:
+        return text
+    if ',' in text and '.' in text:
+        if text.rfind(',') > text.rfind('.'):
+            text = text.replace('.', '').replace(',', '.')
+        else:
+            text = text.replace(',', '')
+    elif ',' in text:
+        text = text.replace(',', '.')
+    return text
+
+
+class DecimalCommaField(forms.DecimalField):
+    """Decimal input that accepts comma or period as the decimal separator."""
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        return super().to_python(parse_loose_decimal(value))
+
+
 def parse_german_date(value):
     """Parse DD.MM.YYYY or ISO date strings; return date or None."""
     if not value:

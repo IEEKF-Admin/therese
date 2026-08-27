@@ -112,6 +112,10 @@
                 if (input.type === 'hidden' || input.type === 'checkbox') return;
                 // Template dropdown is optional; the free-text field counts as filled.
                 if (input.matches('[data-limitation-template]')) return;
+                // Hidden empty-form templates must not participate in HTML5 validation
+                // (the browser otherwise blocks submit with no visible error).
+                if (input.closest('.empty-form-template')) return;
+                if (fieldKey === 'funding_allocations') return;
                 if (required) {
                     input.setAttribute('required', 'required');
                 } else {
@@ -130,7 +134,9 @@
     function applyJobFieldRules(config) {
         const jobId = getSelectedJobId();
         const months = getCurrentDurationMonths();
-        const jobRules = jobId && config.jobRules[jobId] ? config.jobRules[jobId] : {};
+        const jobRules = (jobId && config.jobRules && config.jobRules[jobId])
+            ? config.jobRules[jobId]
+            : {};
         const defaults = config.defaultRequired || {};
 
         Object.keys(config.allFieldKeys || {}).forEach(function(fieldKey) {
@@ -548,6 +554,11 @@
             applyJobPayscaleDefaults(config, options);
             syncMonthlySalaryField(config);
         }
+
+        document.querySelectorAll('.empty-form-template input, .empty-form-template select, .empty-form-template textarea').forEach(function(input) {
+            input.removeAttribute('required');
+            input.disabled = true;
+        });
 
         initPayscaleFields(config);
         initJobDropdownHover(config);

@@ -5,12 +5,22 @@ from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.checklists.access import (
+    checklists_menu_needs_attention,
+    editor_work_complete,
+    instances_editable_by_user,
     user_can_edit_node,
     user_can_fill_instance,
     user_has_active_checklists,
 )
-from apps.checklists.services import assign_instance, compute_progress, copy_template_latest_version, publish_version
+from apps.checklists.services import (
+    assign_instance,
+    compute_progress,
+    copy_template_latest_version,
+    publish_version,
+    save_field_response,
+)
 from apps.checklists.models import (
+    ChecklistEditorArchive,
     ChecklistInstance,
     ChecklistTemplate,
     ChecklistTemplateNode,
@@ -766,4 +776,150 @@ class ChecklistPreviewTests(TestCase):
     def test_preview_button_on_version_edit(self):
         url = reverse('checklists:manage_version_edit', args=[self.template.pk, self.draft.pk])
         self.assertContains(self.client.get(url), 'Preview')
+
+
+class YourChecklistsEditorTests(TestCase):
+    def setUp(self):
+        self.subject_user = _user('cl-subject')
+        self.subject = Employee.objects.create(
+            employee_number='CL-SUB',
+            first_name='Sam',
+            last_name='Subject',
+            user=self.subject_user,
+        )
+        self.editor_user = _user('cl-editor')
+        self.editor = Employee.objects.create(
+            employee_number='CL-ED',
+            first_name='Eve',
+            last_name='Editor',
+            user=self.editor_user,
+        )
+        self.template = ChecklistTemplate.objects.create(
+            slug='kit',
+            name_en='Kit checklist',
+            name_de='Kit-Checkliste',
+        )
+        self.version = ChecklistTemplateVersion.objects.create(
+            template=self.template,
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        self.field = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.CHECKBOX,
+            label_en='Kit received',
+            required_for_completion=True,
+            editable_by_subject=False,
+            editable_by_coordinators=False,
+        )
+        self.field.editable_by_employees.add(self.editor)
+        publish_version(self.version, self.editor_user)
+        self.version.refresh_from_db()
+        self.instance = assign_instance(self.subject, self.version, assigned_by=self.editor_user)
+
+    def test_editor_sees_subject_grouped_list(self):
+        self.client.login(username='cl-editor', password='test')
+        response = self.client.get(reverse('checklists:my_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Your Checklists')
+        self.assertContains(response, 'Assigned to you')
+        self.assertContains(response, 'You can edit')
+        self.assertContains(response, 'Sam Subject')
+        self.assertContains(response, 'Kit checklist')
+        self.assertTrue(instances_editable_by_user(self.editor_user).filter(pk=self.instance.pk).exists())
+
+    def test_menu_dot_for_unseen_editor_checklist(self):
+        self.assertTrue(checklists_menu_needs_attention(self.editor_user))
+        self.client.login(username='cl-editor', password='test')
+        self.client.get(reverse('checklists:instance_fill', args=[self.instance.pk]))
+        self.assertFalse(checklists_menu_needs_attention(self.editor_user))
+
+    def test_archives_when_editor_fields_are_filled(self):
+        other = _user('cl-other')
+        other_emp = Employee.objects.create(
+            employee_number='CL-OT',
+            first_name='Ollie',
+            last_name='Other',
+            user=other,
+        )
+        self.field.editable_by_employees.add(other_emp)
+        save_field_response(
+            other,
+            self.instance,
+            self.field,
+            data={'value_bool': True},
+        )
+        self.assertTrue(editor_work_complete(self.editor_user, self.instance))
+        self.client.login(username='cl-editor', password='test')
+        response = self.client.get(reverse('checklists:my_list'))
+        self.assertContains(response, 'No checklists for others are waiting')
+        self.assertTrue(
+            ChecklistEditorArchive.objects.filter(
+                user=self.editor_user, instance=self.instance,
+            ).exists()
+        )
+        archive = self.client.get(reverse('checklists:my_list') + '?editor_archive=1')
+        self.assertContains(archive, 'Kit checklist')
+
+    def test_group_edit_rights_include_instance(self):
+        group = Group.objects.create(name='CL Editors')
+        self.editor_user.groups.add(group)
+        self.field.editable_by_employees.clear()
+        self.field.editable_by_groups.add(group)
+        self.assertTrue(user_can_edit_node(self.editor_user, self.instance, self.field))
+        self.assertTrue(instances_editable_by_user(self.editor_user).filter(pk=self.instance.pk).exists())
+
+    def test_coordinator_sees_editable_by_coordinators_instances(self):
+        coord = _user('cl-coord')
+        Employee.objects.create(
+            employee_number='CL-CO',
+            first_name='Cora',
+            last_name='Coord',
+            user=coord,
+        )
+        group, _ = Group.objects.get_or_create(name='Checklists - Manage')
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename='manage_checklist', content_type=ct)
+        group.permissions.add(perm)
+        coord.groups.add(group)
+        self.field.editable_by_employees.clear()
+        self.field.editable_by_coordinators = True
+        self.field.save(update_fields=['editable_by_coordinators'])
+        self.assertTrue(instances_editable_by_user(coord).filter(pk=self.instance.pk).exists())
+        self.client.login(username='cl-coord', password='test')
+        response = self.client.get(reverse('checklists:my_list'))
+        self.assertContains(response, 'Sam Subject')
+        self.assertContains(response, 'Kit checklist')
+
+    def test_fill_greys_fields_editor_cannot_edit(self):
+        subject_only = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.TEXT,
+            label_en='Subject notes',
+            required_for_completion=False,
+            editable_by_subject=True,
+            editable_by_coordinators=False,
+            sort_order=2,
+        )
+        self.client.login(username='cl-editor', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[self.instance.pk]))
+        self.assertContains(response, 'checklist-field-readonly')
+        self.assertContains(response, 'Subject notes')
+        self.assertContains(response, f'name="field_{self.field.pk}"')
+        self.assertNotContains(response, f'name="field_{subject_only.pk}"')
+
+    def test_editor_save_archives_when_own_fields_complete(self):
+        self.client.login(username='cl-editor', password='test')
+        response = self.client.post(
+            reverse('checklists:instance_fill', args=[self.instance.pk]),
+            {f'field_{self.field.pk}': 'on'},
+        )
+        self.assertRedirects(response, reverse('checklists:my_list'))
+        self.assertTrue(
+            ChecklistEditorArchive.objects.filter(
+                user=self.editor_user, instance=self.instance,
+            ).exists()
+        )
 

@@ -16,15 +16,22 @@ from django.views.decorators.http import require_POST
 
 from apps.checklists.access import (
     acknowledge_instance,
+    archive_editor_instance,
+    editor_archive_ids_for_user,
+    editor_work_complete,
     employees_in_user_workgroups,
     get_user_workgroups_ordered,
+    instances_editable_by_user,
+    mark_editor_seen,
     subject_active_instances,
+    sync_editor_archives,
     user_can_edit_node,
     user_can_fill_instance,
     user_can_manage,
     user_can_view_instance_readonly,
 )
 from apps.checklists.models import (
+    ChecklistEditorArchive,
     ChecklistFieldResponse,
     ChecklistInstance,
     ChecklistTemplate,
@@ -125,15 +132,67 @@ def _parse_field_post(request, instance):
     return saved
 
 
+def _editor_groups(user, instances):
+    """Group editor instances by subject employee."""
+    groups = []
+    by_subject = {}
+    for instance in instances:
+        key = instance.subject_id
+        if key not in by_subject:
+            by_subject[key] = {
+                'subject': instance.subject,
+                'instances': [],
+            }
+            groups.append(by_subject[key])
+        by_subject[key]['instances'].append(instance)
+    groups.sort(key=lambda item: (
+        (item['subject'].last_name or '').lower(),
+        (item['subject'].first_name or '').lower(),
+    ))
+    return groups
+
+
 @login_required
 def my_list(request):
-    instances = subject_active_instances(request.user)
-    if not instances.exists():
-        messages.info(request, 'You have no active checklists. / Sie haben keine aktiven Checklisten.')
+    assigned = list(subject_active_instances(request.user))
+    editor_qs = list(
+        instances_editable_by_user(request.user).prefetch_related(
+            'template_version__nodes__editable_by_employees',
+            'template_version__nodes__editable_by_groups',
+            'responses',
+        )
+    )
+    archived_ids = editor_archive_ids_for_user(request.user)
+    newly_archived = sync_editor_archives(
+        request.user,
+        [inst for inst in editor_qs if inst.pk not in archived_ids],
+    )
+    archived_ids |= newly_archived
+    open_editor = [inst for inst in editor_qs if inst.pk not in archived_ids]
+    show_editor_archive = request.GET.get('editor_archive') == '1'
+    archived_editor = []
+    if show_editor_archive:
+        archived_editor = list(
+            ChecklistInstance.objects.filter(
+                pk__in=ChecklistEditorArchive.objects.filter(
+                    user=request.user,
+                ).values_list('instance_id', flat=True),
+            ).select_related(
+                'subject', 'template_version', 'template_version__template',
+            ).order_by('subject__last_name', 'subject__first_name', '-assigned_at')
+        )
+    if not assigned and not open_editor and not archived_editor and not archived_ids:
+        messages.info(request, 'You have no checklists. / Sie haben keine Checklisten.')
         return redirect('tasks:my_tasks')
-    for inst in instances:
+    for inst in assigned:
         acknowledge_instance(request.user, inst)
-    return render(request, 'checklists/my_list.html', {'instances': instances})
+    return render(request, 'checklists/my_list.html', {
+        'assigned_instances': assigned,
+        'editor_groups': _editor_groups(request.user, open_editor),
+        'archived_editor_groups': _editor_groups(request.user, archived_editor),
+        'show_editor_archive': show_editor_archive,
+        'has_editor_archive': bool(archived_ids),
+    })
 
 
 @login_required
@@ -150,12 +209,21 @@ def instance_fill(request, pk):
         return HttpResponseForbidden('Access denied.')
 
     acknowledge_instance(request.user, instance)
+    mark_editor_seen(request.user, instance)
 
     if request.method == 'POST':
         saved = _parse_field_post(request, instance)
         if saved:
             messages.success(request, f'Saved {saved} field(s). / {saved} Feld(er) gespeichert.')
         instance.refresh_from_db()
+        employee = getattr(request.user, 'employee', None)
+        if employee and instance.subject_id != employee.pk and editor_work_complete(request.user, instance):
+            archive_editor_instance(request.user, instance)
+            messages.info(
+                request,
+                'This checklist was moved to your archive because all fields you can edit are filled.',
+            )
+            return redirect('checklists:my_list')
         return redirect('checklists:instance_fill', pk=pk)
 
     context = _instance_context(request, instance, can_edit=True)

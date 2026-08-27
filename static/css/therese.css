@@ -2225,6 +2225,15 @@ div.year-estimate-row {
     margin: 0.15rem 0 0;
 }
 
+.checklist-field.checklist-field-readonly {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.checklist-field.checklist-field-readonly a {
+    pointer-events: auto;
+}
+
 .form-check-row {
     display: flex;
     align-items: center;

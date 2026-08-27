@@ -29,8 +29,8 @@
     <a href="{% url 'checklists:my_list' %}"
        class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
         <i class="fas fa-clipboard-check"></i>
-        <span>My Checklists</span>
-        {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklist assignments"></span>{% endif %}
+        <span>Your Checklists</span>
+        {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklists to fill"></span>{% endif %}
     </a>
     {% endif %}
 

@@ -352,3 +352,65 @@ class ChecklistAssignmentAck(BaseModel):
 
     def __str__(self):
         return f'{self.user} ack {self.instance_id}'
+
+
+class ChecklistEditorArchive(BaseModel):
+    """Personal archive for checklists the user edits but is not assigned as subject."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='checklist_editor_archives',
+        verbose_name='User',
+    )
+    instance = models.ForeignKey(
+        ChecklistInstance,
+        on_delete=models.CASCADE,
+        related_name='editor_archives',
+        verbose_name='Instance',
+    )
+    archived_at = models.DateTimeField(auto_now_add=True, verbose_name='Archived at')
+
+    class Meta:
+        verbose_name = 'Checklist Editor Archive'
+        verbose_name_plural = 'Checklist Editor Archives'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'instance'],
+                name='checklist_editor_archive_user_instance_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} archived {self.instance_id}'
+
+
+class ChecklistEditorSeen(BaseModel):
+    """Tracks that an editor has opened a checklist they did not receive as subject."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='checklist_editor_seens',
+        verbose_name='User',
+    )
+    instance = models.ForeignKey(
+        ChecklistInstance,
+        on_delete=models.CASCADE,
+        related_name='editor_seens',
+        verbose_name='Instance',
+    )
+    seen_at = models.DateTimeField(auto_now_add=True, verbose_name='Seen at')
+
+    class Meta:
+        verbose_name = 'Checklist Editor Seen'
+        verbose_name_plural = 'Checklist Editor Seens'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'instance'],
+                name='checklist_editor_seen_user_instance_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} saw {self.instance_id}'

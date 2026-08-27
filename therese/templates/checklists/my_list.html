@@ -1,37 +1,139 @@
 {% extends "base.html" %}
 
-{% block title %}My Checklists / Meine Checklisten - THERESE{% endblock %}
+{% block title %}Your Checklists / Ihre Checklisten - THERESE{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>My Checklists <small class="field-hint-de">Meine Checklisten</small></h1>
+    <h1>Your Checklists <small class="field-hint-de">Ihre Checklisten</small></h1>
 </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Checklist / Checkliste</th>
-            <th>Version</th>
-            <th>Status</th>
-            <th>Assigned / Zugewiesen</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for instance in instances %}
-        <tr>
-            <td>
-                <strong>{{ instance.template_version.template.name_en }}</strong>
-                <small class="field-hint-de">{{ instance.template_version.template.name_de }}</small>
-            </td>
-            <td>{{ instance.template_version.version_label }}</td>
-            <td>{{ instance.get_status_display }}</td>
-            <td>{{ instance.assigned_at|date:"d.m.Y H:i" }}</td>
-            <td>
-                <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
-            </td>
-        </tr>
+<div class="form-section">
+    <h2>Assigned to you <small class="field-hint-de">Ihnen zugewiesen</small></h2>
+    <p class="text-muted" style="font-size:0.9rem;">Checklists assigned to you as the subject.</p>
+    {% if assigned_instances %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Checklist / Checkliste</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Assigned / Zugewiesen</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for instance in assigned_instances %}
+            <tr>
+                <td>
+                    <strong>{{ instance.template_version.template.name_en }}</strong>
+                    <small class="field-hint-de">{{ instance.template_version.template.name_de }}</small>
+                </td>
+                <td>{{ instance.template_version.version_label }}</td>
+                <td>{{ instance.get_status_display }}</td>
+                <td>{{ instance.assigned_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                    <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No checklists are assigned to you.</p>
+    {% endif %}
+</div>
+
+<div class="form-section">
+    <div class="page-header" style="margin:0 0 1rem; padding:0; border:0;">
+        <h2>You can edit <small class="field-hint-de">Sie dürfen ausfüllen</small></h2>
+        {% if has_editor_archive %}
+        <div class="page-header-actions">
+            {% if show_editor_archive %}
+            <a href="{% url 'checklists:my_list' %}" class="btn-secondary btn-sm">Open / Offen</a>
+            {% else %}
+            <a href="{% url 'checklists:my_list' %}?editor_archive=1" class="btn-secondary btn-sm">Archive / Archiv</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <p class="text-muted" style="font-size:0.9rem;">
+        {% if show_editor_archive %}
+        Archived checklists assigned to others where your editable fields are already filled.
+        {% else %}
+        Checklists assigned to others that contain fields you may edit (as a named person, group member, or coordinator).
+        {% endif %}
+    </p>
+
+    {% if show_editor_archive %}
+        {% if archived_editor_groups %}
+        {% for group in archived_editor_groups %}
+        <h3 style="margin-top:1.25rem;">{{ group.subject.get_full_name }}</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Checklist / Checkliste</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th>Assigned / Zugewiesen</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instance in group.instances %}
+                <tr>
+                    <td>
+                        <strong>{{ instance.template_version.template.name_en }}</strong>
+                        <small class="field-hint-de">{{ instance.template_version.template.name_de }}</small>
+                    </td>
+                    <td>{{ instance.template_version.version_label }}</td>
+                    <td>{{ instance.get_status_display }}</td>
+                    <td>{{ instance.assigned_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-secondary btn-sm">Open / Öffnen</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
-    </tbody>
-</table>
+        {% else %}
+        <p>No archived editor checklists.</p>
+        {% endif %}
+    {% else %}
+        {% if editor_groups %}
+        {% for group in editor_groups %}
+        <h3 style="margin-top:1.25rem;">{{ group.subject.get_full_name }}</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Checklist / Checkliste</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th>Assigned / Zugewiesen</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instance in group.instances %}
+                <tr>
+                    <td>
+                        <strong>{{ instance.template_version.template.name_en }}</strong>
+                        <small class="field-hint-de">{{ instance.template_version.template.name_de }}</small>
+                    </td>
+                    <td>{{ instance.template_version.version_label }}</td>
+                    <td>{{ instance.get_status_display }}</td>
+                    <td>{{ instance.assigned_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        {% else %}
+        <p>No checklists for others are waiting for you to edit.</p>
+        {% endif %}
+    {% endif %}
+</div>
 {% endblock %}

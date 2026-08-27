@@ -13,11 +13,9 @@
         </p>
     </div>
     <div class="page-header-actions">
-        {% if not can_edit %}
         <a href="{% url 'checklists:my_list' %}" class="btn-secondary">&larr; Back</a>
-        {% if can_switch_to_edit %}
+        {% if not can_edit and can_switch_to_edit %}
         <a href="{% url 'checklists:instance_fill' instance.pk %}" class="btn-primary">Edit fields</a>
-        {% endif %}
         {% endif %}
         {% if can_complete %}
         <form method="post" action="{% url 'checklists:instance_complete' instance.pk %}" style="display:inline;">

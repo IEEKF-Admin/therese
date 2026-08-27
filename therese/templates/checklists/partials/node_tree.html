@@ -15,7 +15,7 @@
         {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|sanitize_html }}</div>{% endif %}
     </div>
     {% elif node.node_kind == 'field' %}
-    <div class="aligned-field checklist-field">
+    <div class="aligned-field checklist-field{% if can_edit and node.pk not in editable_node_ids %} checklist-field-readonly{% endif %}">
         <div class="checklist-field-label">
             {% if node.field_type == 'radio_group' %}
             <span class="checklist-field-title" id="field_{{ node.pk }}-label">

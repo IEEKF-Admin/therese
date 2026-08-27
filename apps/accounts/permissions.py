@@ -64,6 +64,9 @@ class GroupNames:
     EMAIL_CONFIGURE = "Email - Configure"
     SYSTEMADMIN = "Systemadmin"
 
+    HOLIDAY_APPROVER = "Holiday Approver"
+    HOLIDAY_SUPER_APPROVER = "Holiday Super Approver"
+
 
 # All groups as a list (useful for iteration)
 NEW_GROUPS = [
@@ -101,6 +104,8 @@ NEW_GROUPS = [
     GroupNames.CHECKLISTS_INSTITUTE_PROGRESS,
     GroupNames.EMAIL_CONFIGURE,
     GroupNames.SYSTEMADMIN,
+    GroupNames.HOLIDAY_APPROVER,
+    GroupNames.HOLIDAY_SUPER_APPROVER,
 ]
 
 # Groups removed from the system (deleted by ensure_groups / post_migrate).
@@ -310,6 +315,10 @@ def assign_permissions_to_groups():
     from apps.tasks.models import PurchaseOrderTask, StandardPurchaseItem, Task
     from apps.documents.models import Document
     from apps.checklists.models import ChecklistTemplate
+    try:
+        from apps.holidays.models import HolidayRequest
+    except Exception:
+        HolidayRequest = None
 
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
@@ -422,6 +431,12 @@ def assign_permissions_to_groups():
 
     configure_email = get_perm('configure_email', GlobalSetting)
     safe_add(GroupNames.EMAIL_CONFIGURE, configure_email)
+
+    if HolidayRequest is not None:
+        approve_wg_h = get_perm('approve_workgroup_holiday', HolidayRequest)
+        approve_all_h = get_perm('approve_all_holiday', HolidayRequest)
+        safe_add(GroupNames.HOLIDAY_APPROVER, approve_wg_h)
+        safe_add(GroupNames.HOLIDAY_SUPER_APPROVER, approve_wg_h, approve_all_h)
 
     reset_password = get_perm('reset_user_password', CustomUser)
     safe_add(GroupNames.SYSTEMADMIN, reset_password)

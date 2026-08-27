@@ -16,6 +16,27 @@
     </a>
     {% endif %}
 
+    {% if holiday_flags.planning and has_employee %}
+    <a href="{% url 'holidays:my_holidays' %}"
+       class="{% if '/holidays/my' in request.path %}active{% endif %}">
+        <i class="fas fa-umbrella-beach"></i> My Holidays
+    </a>
+    {% endif %}
+    {% if user_can_approve_holidays %}
+    <a href="{% url 'holidays:approve_list' %}"
+       class="sidebar-link-with-badge {% if '/holidays/approve' in request.path %}active{% endif %}">
+        <i class="fas fa-calendar-check"></i>
+        <span>Approve Holidays</span>
+        {% if holidays_menu_needs_attention %}<span class="menu-notification-dot" title="Pending holiday requests"></span>{% endif %}
+    </a>
+    {% endif %}
+    {% if holiday_flags.gantt and has_employee %}
+    <a href="{% url 'holidays:gantt' %}"
+       class="{% if '/holidays/gantt' in request.path %}active{% endif %}">
+        <i class="fas fa-calendar-week"></i> Team Holidays
+    </a>
+    {% endif %}
+
     {% if perms.documents.view_document or perms.documents.manage_document %}
     <a href="{% url 'documents:list' %}"
        class="sidebar-link-with-badge {% if '/documents/' in request.path and '/documents/manage' not in request.path %}active{% endif %}">

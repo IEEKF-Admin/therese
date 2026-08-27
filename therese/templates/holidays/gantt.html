@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Team Holidays - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Team Holidays <small class="field-hint-de">Urlaubsübersicht</small></h1>
+</div>
+
+<form method="get" class="search-toolbar">
+    <label for="year">Year</label>
+    <input type="number" class="form-control" name="year" id="year" value="{{ year }}" style="width:6rem;">
+    <label for="workgroup">Workgroup</label>
+    <select name="workgroup" id="workgroup" class="form-control" {% if institute %}disabled{% endif %}>
+        <option value="">Own workgroup(s)</option>
+        {% for wg in workgroups %}
+        <option value="{{ wg.pk }}"{% if selected_workgroup == wg.pk %} selected{% endif %}>{{ wg.short_name }}</option>
+        {% endfor %}
+    </select>
+    <label class="form-check-row">
+        <input type="checkbox" name="scope" value="institute"{% if institute %} checked{% endif %}
+               onchange="this.form.submit()">
+        Whole institute
+    </label>
+    <button type="submit" class="btn-secondary">Show</button>
+</form>
+
+<div class="holiday-gantt">
+    <div class="holiday-gantt-head">
+        <div class="holiday-gantt-name"></div>
+        <div class="holiday-gantt-months">
+            {% for month in months %}
+            <span>{{ month|date:"M" }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% for row in rows %}
+    <div class="holiday-gantt-row">
+        <div class="holiday-gantt-name">{{ row.employee.get_full_name }}</div>
+        <div class="holiday-gantt-track">
+            {% for bar in row.bars %}
+            <div class="holiday-gantt-bar" style="left:{{ bar.left }}%;width:{{ bar.width }}%;" title="{{ bar.label }}"></div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <p class="empty-state">No shared holidays in this view.</p>
+    {% endfor %}
+</div>
+{% endblock %}

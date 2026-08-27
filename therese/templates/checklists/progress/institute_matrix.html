@@ -5,36 +5,125 @@
 {% block content %}
 <div class="page-header">
     <h1>Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt (Institut)</small></h1>
+    {% if selected_employee %}
+    <div class="page-header-actions">
+        <a href="{% url 'checklists:progress_institute' %}" class="btn-secondary">&larr; Back</a>
+    </div>
+    {% endif %}
 </div>
 
-<div class="user-group-matrix-wrap" style="overflow-x:auto;">
-<table class="table" style="min-width:max-content;">
+{% if selected_employee %}
+<p class="page-subtitle">{{ selected_employee.get_full_name }}</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Checklist / Checkliste</th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in instance_rows %}
+        <tr>
+            <td>
+                <strong>{{ row.instance.template_version.template.name_en }}</strong>
+                <small class="field-hint-de">{{ row.instance.template_version.template.name_de }}</small>
+            </td>
+            <td>{{ row.instance.template_version.version_label }}</td>
+            <td>{{ row.instance.get_status_display }}</td>
+            <td>{{ row.percent }}% ({{ row.fulfilled }}/{{ row.total }})</td>
+            <td>
+                <a href="{% url 'checklists:instance_view' row.instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="empty-state">No open checklists for this employee.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<form method="get" class="search-toolbar">
+    <label for="template-filter" class="form-label" style="font-size:0.8rem;">Checklist / Checkliste</label>
+    <select name="template" id="template-filter" class="form-control" onchange="this.form.submit()">
+        <option value="">All people with open checklists</option>
+        {% for t in filter_templates %}
+        <option value="{{ t.pk }}"{% if selected_template and selected_template.pk == t.pk %} selected{% endif %}>
+            {{ t.name_en }} ({{ t.open_count }})
+        </option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn-secondary">Filter</button>
+</form>
+
+{% if selected_template %}
+<p class="page-subtitle">{{ selected_template.name_en }} <small class="field-hint-de">{{ selected_template.name_de }}</small></p>
+<table class="table">
     <thead>
         <tr>
             <th>Employee / Mitarbeiter</th>
-            {% for t in templates %}
-            <th title="{{ t.name_en }}">{{ t.name_en|truncatechars:20 }}</th>
-            {% endfor %}
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in instance_rows %}
+        <tr>
+            <td>
+                <a href="{% url 'checklists:progress_institute' %}?employee={{ row.instance.subject_id }}">
+                    {{ row.instance.subject.get_full_name }}
+                </a>
+            </td>
+            <td>{{ row.instance.get_status_display }}</td>
+            <td>{{ row.percent }}% ({{ row.fulfilled }}/{{ row.total }})</td>
+            <td>
+                <a href="{% url 'checklists:instance_view' row.instance.pk %}" class="btn-primary btn-sm">Open / Öffnen</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4" class="empty-state">No employees with this checklist open.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Employee / Mitarbeiter</th>
+            <th>Open / Offen</th>
+            <th>Checklists / Checklisten</th>
         </tr>
     </thead>
     <tbody>
         {% for row in rows %}
         <tr>
-            <th scope="row">{{ row.employee.get_full_name }}</th>
-            {% for cell in row.cells %}
-            <td style="text-align:center;">
-                {% if cell.instance %}
-                <a href="{% url 'checklists:instance_view' cell.instance.pk %}">{{ cell.percent }}%</a>
-                {% else %}—{% endif %}
+            <td>
+                <a href="{% url 'checklists:progress_institute' %}?employee={{ row.employee.pk }}">
+                    {{ row.employee.get_full_name }}
+                </a>
             </td>
-            {% endfor %}
+            <td>{{ row.open_count }}</td>
+            <td>
+                {% for instance in row.instances %}
+                <a href="{% url 'checklists:progress_institute' %}?template={{ instance.template_version.template_id }}">
+                    {{ instance.template_version.template.name_en }}
+                </a>{% if not forloop.last %}, {% endif %}
+                {% empty %}—{% endfor %}
+            </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="{{ templates|length|add:1 }}" class="empty-state">No employees found.</td>
+            <td colspan="3" class="empty-state">No employees with open checklists.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-</div>
+{% endif %}
+{% endif %}
 {% endblock %}

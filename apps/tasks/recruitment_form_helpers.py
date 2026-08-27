@@ -201,6 +201,9 @@ def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files
             continue
 
         value = cleaned_data.get(field_key)
+        if isinstance(value, str):
+            value = value.strip()
+            cleaned_data[field_key] = value
         if value in (None, ''):
             form.add_error(field_key, 'This field is required.')
 

@@ -1,6 +1,9 @@
+from collections import defaultdict
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -716,17 +719,113 @@ def progress_workgroup(request):
     })
 
 
+def _int_query_param(request, name):
+    raw = request.GET.get(name)
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise Http404()
+
+
+def _open_instances_qs():
+    return ChecklistInstance.objects.filter(
+        status__in=ChecklistInstance.ACTIVE_STATUSES,
+    ).select_related(
+        'subject', 'template_version', 'template_version__template',
+    )
+
+
+def _progress_instance_rows(instances):
+    rows = []
+    for instance in instances:
+        percent, fulfilled, total = compute_progress(instance)
+        rows.append({
+            'instance': instance,
+            'percent': percent,
+            'fulfilled': fulfilled,
+            'total': total,
+        })
+    return rows
+
+
+def _templates_with_open():
+    return (
+        ChecklistTemplate.objects.filter(
+            versions__instances__status__in=ChecklistInstance.ACTIVE_STATUSES,
+        )
+        .annotate(
+            open_count=Count(
+                'versions__instances',
+                filter=Q(versions__instances__status__in=ChecklistInstance.ACTIVE_STATUSES),
+                distinct=True,
+            )
+        )
+        .order_by('name_en')
+    )
+
+
 @login_required
 @permission_required('checklists.view_institute_progress', raise_exception=True)
 def progress_institute(request):
-    """Institute-wide checklist progress (all employees)."""
-    employees = list(Employee.objects.order_by('last_name', 'first_name'))
-    templates = ChecklistTemplate.objects.order_by('name_en')
-    rows = _progress_matrix(employees, templates)
-    return render(request, 'checklists/progress/institute_matrix.html', {
-        'templates': templates,
-        'rows': rows,
-    })
+    """People with open checklists; detail via employee click or template filter."""
+    employee_id = _int_query_param(request, 'employee')
+    template_id = _int_query_param(request, 'template')
+    filter_templates = list(_templates_with_open())
+    context = {
+        'filter_templates': filter_templates,
+        'selected_employee': None,
+        'selected_template': None,
+        'rows': [],
+        'instance_rows': [],
+    }
+
+    if employee_id:
+        employee = get_object_or_404(Employee, pk=employee_id)
+        instances = _open_instances_qs().filter(subject=employee).order_by(
+            'template_version__template__name_en', '-assigned_at',
+        )
+        context['selected_employee'] = employee
+        context['instance_rows'] = _progress_instance_rows(instances)
+        return render(request, 'checklists/progress/institute_matrix.html', context)
+
+    if template_id:
+        template = get_object_or_404(ChecklistTemplate, pk=template_id)
+        instances = _open_instances_qs().filter(
+            template_version__template=template,
+        ).order_by('subject__last_name', 'subject__first_name', '-assigned_at')
+        context['selected_template'] = template
+        context['instance_rows'] = _progress_instance_rows(instances)
+        return render(request, 'checklists/progress/institute_matrix.html', context)
+
+    employees = list(
+        Employee.objects.filter(
+            checklist_instances__status__in=ChecklistInstance.ACTIVE_STATUSES,
+        )
+        .annotate(
+            open_count=Count(
+                'checklist_instances',
+                filter=Q(checklist_instances__status__in=ChecklistInstance.ACTIVE_STATUSES),
+                distinct=True,
+            )
+        )
+        .order_by('last_name', 'first_name')
+    )
+    open_by_employee = defaultdict(list)
+    for instance in _open_instances_qs().order_by(
+        'template_version__template__name_en', '-assigned_at',
+    ):
+        open_by_employee[instance.subject_id].append(instance)
+    context['rows'] = [
+        {
+            'employee': employee,
+            'open_count': employee.open_count,
+            'instances': open_by_employee.get(employee.pk, []),
+        }
+        for employee in employees
+    ]
+    return render(request, 'checklists/progress/institute_matrix.html', context)
 
 
 @login_required

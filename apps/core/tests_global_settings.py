@@ -55,6 +55,12 @@ class GlobalSettingsViewTests(TestCase):
             'personnel_import_tolerance': '0.0300',
             'chemical_hazard_threshold': 'signal_danger_only',
             'show_add_employee_on_reallocation': 'on',
+            'holidays_enabled': 'on',
+            'holiday_half_day_rounding': 'up',
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '0',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
         })
         self.assertEqual(posted.status_code, 302)
         setting = GlobalSetting.get_solo()

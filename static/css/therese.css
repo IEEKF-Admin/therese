@@ -1709,6 +1709,54 @@ input.form-control:focus {
     margin-bottom: 1rem;
 }
 
+.settings-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.settings-tab {
+    border: 0;
+    background: transparent;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    color: #64748b;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.settings-tab.is-active {
+    color: var(--primary, #0ea5e9);
+    border-bottom-color: var(--primary, #0ea5e9);
+}
+
+.holiday-calendar {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+.holiday-calendar th,
+.holiday-calendar td {
+    border: 1px solid var(--border);
+    text-align: center;
+    padding: 0.35rem;
+    height: 2.6rem;
+}
+.holiday-cell.is-outside { background: #f8fafc; color: #cbd5e1; }
+.holiday-cell.is-weekend { background: #f1f5f9; }
+.holiday-cell.is-holiday { background: #fee2e2; color: #991b1b; }
+.holiday-cell.is-workday label { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; cursor: pointer; }
+.holiday-cal-nav { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+
+.holiday-gantt { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+.holiday-gantt-head,
+.holiday-gantt-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
+.holiday-gantt-name { width: 12rem; flex-shrink: 0; padding: 0.45rem 0.6rem; font-size: 0.85rem; }
+.holiday-gantt-months { flex: 1; display: grid; grid-template-columns: repeat(12, 1fr); font-size: 0.75rem; color: #64748b; padding: 0.4rem 0; }
+.holiday-gantt-track { flex: 1; position: relative; min-height: 2rem; background: linear-gradient(to right, #f8fafc 0, #f8fafc 50%, #fff 50%, #fff 100%); background-size: calc(100% / 12) 100%; }
+.holiday-gantt-bar { position: absolute; top: 0.4rem; height: 1.2rem; background: #38bdf8; border-radius: 4px; }
+
 .table,
 .detail-table {
     width: 100%;

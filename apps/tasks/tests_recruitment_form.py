@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -104,6 +105,85 @@ class LimitationReasonTemplateTests(TestCase):
         self.assertEqual(saved.limitation_reason, 'Project funding ends')
         self.assertEqual(saved.pay_scale_group, 'E13')
         self.assertEqual(saved.experience_level, 3)
+
+    def test_weekly_hours_accepts_three_decimal_places(self):
+        files = {
+            'cv_file': SimpleUploadedFile('cv.pdf', b'%PDF cv', content_type='application/pdf'),
+            'latest_degree_certificate_file': SimpleUploadedFile(
+                'degree.pdf', b'%PDF degree', content_type='application/pdf',
+            ),
+        }
+        form = PersonnelRecruitmentTaskForm(
+            data={
+                'job': self.job.pk,
+                'first_name': 'Anna',
+                'last_name': 'Muster',
+                'gender': 'F',
+                'date_of_birth': '01.01.1995',
+                'country_of_origin': 'Germany',
+                'place_of_birth': 'Bonn',
+                'email_private': 'anna@example.com',
+                'street': 'Main Street',
+                'house_number': '1',
+                'postal_code': '53111',
+                'city': 'Bonn',
+                'country': 'Germany',
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'weekly_hours': '19.625',
+                'status': 'not_yet_processed',
+            },
+            files=files,
+            user=CustomUser.objects.create_user('creator-hours3', password='test'),
+            is_creation=True,
+        )
+        self.assertEqual(form.fields['weekly_hours'].widget.attrs.get('step'), '0.001')
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['weekly_hours'], Decimal('19.625'))
+
+    def test_limitation_reason_text_satisfies_required_without_dropdown(self):
+        from apps.tasks.models import RecruitmentJobFieldRule
+        from apps.tasks.recruitment_config import RequiredMode, VisibilityMode
+
+        RecruitmentJobFieldRule.objects.create(
+            job=self.job,
+            field_key='limitation_reason',
+            visibility_mode=VisibilityMode.ALWAYS,
+            required_mode=RequiredMode.ALWAYS,
+        )
+        files = {
+            'cv_file': SimpleUploadedFile('cv.pdf', b'%PDF cv', content_type='application/pdf'),
+            'latest_degree_certificate_file': SimpleUploadedFile(
+                'degree.pdf', b'%PDF degree', content_type='application/pdf',
+            ),
+        }
+        form = PersonnelRecruitmentTaskForm(
+            data={
+                'job': self.job.pk,
+                'first_name': 'Anna',
+                'last_name': 'Muster',
+                'gender': 'F',
+                'date_of_birth': '01.01.1995',
+                'country_of_origin': 'Germany',
+                'place_of_birth': 'Bonn',
+                'email_private': 'anna@example.com',
+                'street': 'Main Street',
+                'house_number': '1',
+                'postal_code': '53111',
+                'city': 'Bonn',
+                'country': 'Germany',
+                'valid_from': '01.01.2026',
+                'valid_until': '31.12.2026',
+                'limitation_reason': 'Free-text reason only',
+                'limitation_reason_template': '',
+                'status': 'not_yet_processed',
+            },
+            files=files,
+            user=CustomUser.objects.create_user('creator-lim', password='test'),
+            is_creation=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['limitation_reason'], 'Free-text reason only')
 
     def test_weekly_hours_visible_and_optional_on_create(self):
         form = PersonnelRecruitmentTaskForm(

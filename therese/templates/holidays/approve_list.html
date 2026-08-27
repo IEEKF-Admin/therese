@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Approve Holidays - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Approve Holidays <small class="field-hint-de">Urlaub genehmigen</small></h1>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    {% if is_super_approver %}
+    <div class="form-section">
+        <h2>Own workgroup</h2>
+        {% include "holidays/_approve_table.html" with items=in_workgroup %}
+    </div>
+    <div class="form-section">
+        <h2>Other workgroups</h2>
+        {% include "holidays/_approve_table.html" with items=out_workgroup %}
+    </div>
+    {% else %}
+    <div class="form-section">
+        <h2>Pending requests</h2>
+        {% include "holidays/_approve_table.html" with items=in_workgroup %}
+    </div>
+    {% endif %}
+    <div class="aligned-field">
+        <label for="rejection_comment">Rejection comment (optional)</label>
+        <input type="text" name="rejection_comment" id="rejection_comment" class="form-control">
+    </div>
+    <div class="form-actions">
+        <button type="submit" name="action" value="approve" class="btn-primary">Approve selected</button>
+        <button type="submit" name="action" value="reject" class="btn-secondary">Reject selected</button>
+    </div>
+</form>
+{% endblock %}

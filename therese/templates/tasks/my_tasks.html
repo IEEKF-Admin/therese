@@ -252,7 +252,10 @@ Do not remove any existing requirements from this header without explicit instru
     'location_management': "{% url 'hr:location_management' %}",
     'my_checklists': "{% url 'checklists:my_list' %}",
     'chemical_items': "{% url 'chemicals:chemical_item_list' %}",
-    'chemical_undelivered': "{% url 'orders:undelivered_items' %}"
+    'chemical_undelivered': "{% url 'orders:undelivered_items' %}",
+    'my_holidays': "{% url 'holidays:my_holidays' %}",
+    'approve_holidays': "{% url 'holidays:approve_list' %}",
+    'team_holidays': "{% url 'holidays:gantt' %}"
   };
   var current = 0;
   var modal = document.getElementById('login-popup-modal');

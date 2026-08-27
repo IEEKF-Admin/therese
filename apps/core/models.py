@@ -233,6 +233,63 @@ class GlobalSetting(models.Model):
             'this threshold are treated as hazardous substances.'
         ),
     )
+    holidays_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Holidays module',
+        help_text=(
+            'Master switch. When off, all holiday menus and pages are hidden; '
+            'the options below are ignored.'
+        ),
+    )
+    holidays_planning_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Holidays: planning',
+        help_text='Employees can request leave, see remaining days, and print an unsigned form.',
+    )
+    holidays_approval_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Holidays: approval',
+        help_text='Workgroup / super approvers decide requests; signed PDF is emailed.',
+    )
+    holidays_gantt_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Holidays: Gantt overview',
+        help_text='Shared approved leave on a team timeline (requires consent).',
+    )
+    holiday_federal_state = models.CharField(
+        max_length=2,
+        blank=True,
+        default='',
+        verbose_name='Federal state (public holidays)',
+        help_text='Used for state-specific public holidays.',
+    )
+    holiday_half_day_rounding = models.CharField(
+        max_length=8,
+        choices=[('up', 'Round half days up'), ('down', 'Round half days down')],
+        default='up',
+        verbose_name='Half-day entitlement rounding',
+    )
+    holiday_advance_deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Advance-request deadline (not enforced yet)',
+        help_text='Prepared for a later rule that next-year leave must be requested by this date.',
+    )
+    holiday_email_recipients = models.TextField(
+        blank=True,
+        verbose_name='Holiday PDF email recipients',
+        help_text='Comma-separated addresses that receive the signed PDF after approval.',
+    )
+    holiday_email_subject = models.CharField(
+        max_length=200,
+        blank=True,
+        default='Holiday request',
+        verbose_name='Holiday PDF email subject',
+    )
+    holiday_email_html = models.TextField(
+        blank=True,
+        verbose_name='Holiday PDF email body (HTML)',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

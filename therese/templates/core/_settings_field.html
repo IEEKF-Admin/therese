@@ -1,0 +1,13 @@
+<div class="aligned-field">
+    {% if field.field.widget.input_type == 'checkbox' %}
+    <div class="form-check-row">
+        {{ field }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% else %}
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% endif %}
+    {% if field.help_text %}<small class="field-hint-de">{{ field.help_text }}</small>{% endif %}
+    {{ field.errors }}
+</div>

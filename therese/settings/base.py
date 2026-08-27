@@ -97,6 +97,7 @@ INSTALLED_APPS = [
     'apps.documents',
     'apps.checklists',
     'apps.chemicals',
+    'apps.holidays',
     'widget_tweaks',
 ]
 

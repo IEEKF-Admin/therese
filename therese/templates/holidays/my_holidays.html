@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}My Holidays - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Holidays <small class="field-hint-de">Mein Urlaub</small></h1>
+</div>
+
+<div class="form-section">
+    <h2>Balance <small class="field-hint-de">Kontingent</small></h2>
+    <p>
+        This year: <strong>{{ remaining_this }}</strong> of {{ entitlement_this }} days remaining
+        ({{ used_this }} requested).
+        Suggested from the institute table: {{ suggested_this }}.
+        Next year remaining: <strong>{{ remaining_next }}</strong>.
+    </p>
+</div>
+
+<div class="form-section">
+    <h2>Request leave <small class="field-hint-de">Urlaub beantragen</small></h2>
+    <p class="text-muted" style="font-size:0.9rem;">Mark the days you want off. Public holidays and non-working weekdays are skipped.</p>
+    <div class="holiday-cal-nav">
+        <a class="btn-secondary btn-sm" href="?year={{ prev_year }}&amp;month={{ prev_month }}">&larr;</a>
+        <strong>{{ month_label }}</strong>
+        <a class="btn-secondary btn-sm" href="?year={{ next_year }}&amp;month={{ next_month }}">&rarr;</a>
+    </div>
+    <form method="post" action="{% url 'holidays:create_request' %}" id="holiday-request-form">
+        {% csrf_token %}
+        <table class="holiday-calendar">
+            <thead>
+                <tr>
+                    <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in weeks %}
+                <tr>
+                    {% for cell in week %}
+                    <td class="holiday-cell {% if not cell.in_month %}is-outside{% endif %}
+                        {% if cell.info.kind == 'public' or cell.info.kind == 'custom' %}is-holiday{% endif %}
+                        {% if cell.info.is_weekend %}is-weekend{% endif %}
+                        {% if cell.info.is_workday and cell.info.kind == 'work' %}is-workday{% endif %}">
+                        {% if cell.in_month %}
+                            {% if cell.info.is_workday and cell.info.kind == 'work' %}
+                            <label>
+                                <input type="checkbox" name="dates" value="{{ cell.date|date:'Y-m-d' }}">
+                                {{ cell.date.day }}
+                            </label>
+                            {% else %}
+                            <span title="{{ cell.info.label|default:'' }}">{{ cell.date.day }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="aligned-field" style="margin-top:1rem;">
+            <label for="id_comment">Comment</label>
+            <input type="text" name="comment" id="id_comment" class="form-control">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Submit request</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-section">
+    <h2>My requests</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>From</th>
+                <th>Until</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in requests %}
+            <tr>
+                <td>{{ item.start_date|date:"d.m.Y" }}</td>
+                <td>{{ item.end_date|date:"d.m.Y" }}</td>
+                <td>{{ item.day_count }}</td>
+                <td>{{ item.get_status_display }}</td>
+                <td>
+                    <a class="btn-secondary btn-sm" href="{% url 'holidays:request_pdf' item.pk %}" target="_blank" rel="noopener">PDF</a>
+                    {% if not approval_enabled or item.status == 'pending' %}
+                    <form method="post" action="{% url 'holidays:delete_request' item.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-secondary btn-sm">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="empty-state">No holiday requests yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="form-section">
+    <h2>Settings</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_profile">
+        <p>Workdays / Woche</p>
+        <div class="form-check-row">{{ profile_form.works_monday }} <label for="{{ profile_form.works_monday.id_for_label }}">Mon</label></div>
+        <div class="form-check-row">{{ profile_form.works_tuesday }} <label for="{{ profile_form.works_tuesday.id_for_label }}">Tue</label></div>
+        <div class="form-check-row">{{ profile_form.works_wednesday }} <label for="{{ profile_form.works_wednesday.id_for_label }}">Wed</label></div>
+        <div class="form-check-row">{{ profile_form.works_thursday }} <label for="{{ profile_form.works_thursday.id_for_label }}">Thu</label></div>
+        <div class="form-check-row">{{ profile_form.works_friday }} <label for="{{ profile_form.works_friday.id_for_label }}">Fri</label></div>
+        <div class="aligned-field">
+            <label for="{{ entitlement_form.this_year.id_for_label }}">Entitlement this year (days)</label>
+            {{ entitlement_form.this_year }}
+        </div>
+        <div class="aligned-field">
+            <label for="{{ entitlement_form.next_year.id_for_label }}">Entitlement next year (days)</label>
+            {{ entitlement_form.next_year }}
+        </div>
+        {% if gantt_enabled %}
+        <div class="form-check-row">
+            {{ profile_form.share_with_institute }}
+            <label for="{{ profile_form.share_with_institute.id_for_label }}">{{ profile_form.share_with_institute.label }}</label>
+        </div>
+        {% endif %}
+        {% if approval_enabled %}
+        <div class="aligned-field">
+            <label for="{{ profile_form.signature.id_for_label }}">Signature image</label>
+            {{ profile_form.signature }}
+        </div>
+        {% endif %}
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save settings</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

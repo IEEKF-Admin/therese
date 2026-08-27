@@ -289,7 +289,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             self.fields['weekly_hours'].required = False
             self.fields['weekly_hours'].widget.attrs.update({
                 'class': 'form-control',
-                'step': '0.01',
+                'step': '0.001',
                 'min': '0',
                 'data-recruitment-weekly-hours': 'true',
             })

@@ -644,8 +644,8 @@ class PersonnelRecruitmentTask(Task):
         verbose_name="Theoretical Monthly Salary for 100% Workload",
     )
     weekly_hours = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
+        max_digits=6,
+        decimal_places=3,
         null=True,
         blank=True,
         verbose_name="Weekly Working Hours",

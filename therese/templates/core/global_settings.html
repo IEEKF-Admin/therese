@@ -8,38 +8,123 @@
     <p class="page-subtitle">Institute-wide defaults. Only Systemadmin can change these.</p>
 </div>
 
-<div class="card" style="margin-bottom:2rem;">
-    <form method="post">
+<div class="settings-tabs" role="tablist">
+    <button type="button" class="settings-tab is-active" data-tab="general">General</button>
+    <button type="button" class="settings-tab" data-tab="personnel">Personnel &amp; finances</button>
+    <button type="button" class="settings-tab" data-tab="chemicals">Chemicals</button>
+    <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
+    <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
+</div>
+
+<div class="card settings-tab-panel is-active" data-panel="general" style="margin-bottom:2rem;">
+    <form method="post" id="global-settings-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_global">
         <div class="form-section">
             <h3>Institute defaults</h3>
-            {% for field in form %}
-            <div class="aligned-field">
-                {% if field.field.widget.input_type == 'checkbox' %}
-                <div class="form-check-row">
-                    {{ field }}
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                </div>
-                {% else %}
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% endif %}
-                {% if field.help_text %}<small class="field-hint-de">{{ field.help_text }}</small>{% endif %}
-                {{ field.errors }}
-            </div>
-            {% endfor %}
+            {% include "core/_settings_field.html" with field=form.default_weekly_hours %}
+            {% include "core/_settings_field.html" with field=form.show_add_employee_on_reallocation %}
+            {% include "core/_settings_field.html" with field=form.irresponsible %}
             {{ form.non_field_errors }}
             {% if setting.updated_at %}
             <p class="field-hint">Last updated: {{ setting.updated_at|date:"d.m.Y H:i" }}</p>
             {% endif %}
         </div>
+
+        <div class="settings-tab-panel" data-panel="personnel" style="display:none;">
+            <div class="form-section">
+                <h3>Personnel &amp; finances</h3>
+                {% include "core/_settings_field.html" with field=form.true_cost_multiplicator %}
+                {% include "core/_settings_field.html" with field=form.personnel_import_tolerance %}
+            </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="chemicals" style="display:none;">
+            <div class="form-section">
+                <h3>Chemicals</h3>
+                {% include "core/_settings_field.html" with field=form.chemical_hazard_threshold %}
+            </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="holidays" style="display:none;">
+            <div class="form-section">
+                <h3>Modules</h3>
+                {% include "core/_settings_field.html" with field=form.holidays_enabled %}
+                {% include "core/_settings_field.html" with field=form.holidays_planning_enabled %}
+                {% include "core/_settings_field.html" with field=form.holidays_approval_enabled %}
+                {% include "core/_settings_field.html" with field=form.holidays_gantt_enabled %}
+            </div>
+            <div class="form-section">
+                <h3>Rules</h3>
+                {% include "core/_settings_field.html" with field=form.holiday_federal_state %}
+                {% include "core/_settings_field.html" with field=form.holiday_half_day_rounding %}
+                {% include "core/_settings_field.html" with field=form.holiday_advance_deadline %}
+            </div>
+            <div class="form-section">
+                <h3>Approval email</h3>
+                {% include "core/_settings_field.html" with field=form.holiday_email_recipients %}
+                {% include "core/_settings_field.html" with field=form.holiday_email_subject %}
+                {% include "core/_settings_field.html" with field=form.holiday_email_html %}
+            </div>
+            <div class="form-section">
+                <h3>Custom days (Brauchtum)</h3>
+                {{ custom_formset.management_form }}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Year</th><th>Date</th><th>Name</th><th>Rule</th><th>Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cform in custom_formset %}
+                        <tr>
+                            <td>{{ cform.id }}{{ cform.year }}</td>
+                            <td>{{ cform.day }}</td>
+                            <td>{{ cform.name }}</td>
+                            <td>{{ cform.mode }}</td>
+                            <td>{% if cform.instance.pk %}{{ cform.DELETE }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-section">
+                <h3>Entitlement table (days)</h3>
+                <p class="field-hint">Columns are contract months in the calendar year (12 = Jan–Dec).</p>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            {% for months in month_range %}
+                            <th>{{ months }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in entitlement_grid %}
+                        <tr>
+                            <th>{{ row.weekdays }} days/week</th>
+                            {% for cell in row.cells %}
+                            <td>
+                                <input class="form-control" style="width:4.5rem;"
+                                       name="entitlement_{{ row.weekdays }}_{{ cell.months }}"
+                                       value="{{ cell.value }}">
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn-primary">Save settings</button>
         </div>
     </form>
 </div>
 
+<div class="card settings-tab-panel" data-panel="emails" style="display:none; margin-bottom:2rem;">
 {{ account_email_variables|json_script:"account-email-variables" }}
 <h2 class="section-heading" id="account-emails">Account emails</h2>
 <p style="color:#64748b; margin-bottom:1rem;">
@@ -71,6 +156,7 @@
         <button type="submit" class="btn-primary">Save account emails</button>
     </div>
 </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -119,6 +205,33 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             box.appendChild(btn);
         });
+    });
+
+    var tabs = document.querySelectorAll('.settings-tab');
+    function showTab(name) {
+        tabs.forEach(function(tab) {
+            tab.classList.toggle('is-active', tab.getAttribute('data-tab') === name);
+        });
+        document.querySelectorAll('.settings-tab-panel').forEach(function(panel) {
+            var match = panel.getAttribute('data-panel') === name;
+            if (panel.id === 'global-settings-form' || panel.querySelector('#global-settings-form')) return;
+            panel.style.display = match ? '' : 'none';
+            panel.classList.toggle('is-active', match);
+        });
+        var formCard = document.querySelector('.card.settings-tab-panel[data-panel="general"]');
+        if (formCard) {
+            formCard.style.display = (name === 'emails') ? 'none' : '';
+        }
+        var emails = document.querySelector('.settings-tab-panel[data-panel="emails"]');
+        if (emails) emails.style.display = (name === 'emails') ? '' : 'none';
+        document.querySelectorAll('#global-settings-form .settings-tab-panel').forEach(function(panel) {
+            panel.style.display = panel.getAttribute('data-panel') === name ? '' : 'none';
+        });
+        var generalSection = document.querySelector('#global-settings-form > .form-section');
+        if (generalSection) generalSection.style.display = name === 'general' ? '' : 'none';
+    }
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() { showTab(tab.getAttribute('data-tab')); });
     });
 });
 </script>

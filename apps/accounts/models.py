@@ -66,6 +66,10 @@ class LoginPopupConfig(models.Model):
             'chemical_item_delivered',
             'Chemicals: own chemical item was delivered (complete inventory data)',
         ),
+        ('holiday_request_submitted', 'Holiday request submitted (for approvers)'),
+        ('holiday_request_approved', 'Own holiday request was approved'),
+        ('holiday_request_rejected', 'Own holiday request was rejected'),
+        ('holiday_request_deleted', 'Holiday request deleted'),
     ]
 
     REACTION_CHOICES = [
@@ -83,6 +87,9 @@ class LoginPopupConfig(models.Model):
         ('my_checklists', 'My Checklists'),
         ('chemical_items', 'Chemicals - My Chemical Items'),
         ('chemical_undelivered', 'Undelivered Order Items (all POs)'),
+        ('my_holidays', 'My Holidays'),
+        ('approve_holidays', 'Approve Holidays'),
+        ('team_holidays', 'Team Holidays'),
     ]
 
     AUDIENCE_MATCH_CHOICES = [

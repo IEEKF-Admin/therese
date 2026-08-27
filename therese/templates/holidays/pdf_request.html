@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Holiday request</title>
+<style>
+body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #111; }
+h1 { font-size: 18px; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+td, th { border: 1px solid #ccc; padding: 6px; text-align: left; }
+.sig { margin-top: 28px; width: 45%; display: inline-block; }
+.sig img { max-height: 60px; }
+</style>
+</head>
+<body>
+<h1>Holiday request / Urlaubsantrag</h1>
+<table>
+    <tr><th>Employee</th><td>{{ employee.get_full_name }} ({{ employee.employee_number }})</td></tr>
+    <tr><th>From</th><td>{{ request.start_date|date:"d.m.Y" }}</td></tr>
+    <tr><th>Until</th><td>{{ request.end_date|date:"d.m.Y" }}</td></tr>
+    <tr><th>Vacation days</th><td>{{ request.day_count }}</td></tr>
+    <tr><th>Status</th><td>{{ request.get_status_display }}</td></tr>
+    <tr><th>Days counted</th><td>{% for d in counted %}{{ d }}{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>
+</table>
+<div class="sig">
+    <p>Applicant</p>
+    {% if applicant_sig %}<img src="{{ applicant_sig }}" alt="signature">{% elif signed %}<p>—</p>{% else %}<p>(sign on paper)</p>{% endif %}
+    <p>{{ employee.get_full_name }}</p>
+</div>
+<div class="sig">
+    <p>Approved by</p>
+    {% if approver_sig %}<img src="{{ approver_sig }}" alt="signature">{% elif signed %}<p>—</p>{% else %}<p>(sign on paper)</p>{% endif %}
+    {% if request.decided_by %}<p>{{ request.decided_by.get_full_name|default:request.decided_by.username }}</p>{% endif %}
+</div>
+</body>
+</html>

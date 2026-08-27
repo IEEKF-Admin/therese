@@ -110,6 +110,8 @@
         document.querySelectorAll(`[data-recruitment-field="${fieldKey}"]`).forEach(function(wrapper) {
             wrapper.querySelectorAll('input, select, textarea').forEach(function(input) {
                 if (input.type === 'hidden' || input.type === 'checkbox') return;
+                // Template dropdown is optional; the free-text field counts as filled.
+                if (input.matches('[data-limitation-template]')) return;
                 if (required) {
                     input.setAttribute('required', 'required');
                 } else {

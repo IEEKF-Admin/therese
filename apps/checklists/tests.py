@@ -140,6 +140,89 @@ class ChecklistViewTests(TestCase):
         response = self.client.get(reverse('checklists:manage_template_list'))
         self.assertEqual(response.status_code, 200)
 
+
+class InstituteProgressTests(TestCase):
+    def setUp(self):
+        self.viewer = _user('inst-viewer')
+        group, _ = Group.objects.get_or_create(name='Checklists - Institute Progress')
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename='view_institute_progress', content_type=ct)
+        group.permissions.add(perm)
+        self.viewer.groups.add(group)
+        self.version = ChecklistTemplateVersion.objects.create(
+            template=ChecklistTemplate.objects.create(
+                slug='safety-inst',
+                name_en='Safety Inst',
+                name_de='Sicherheit Inst',
+            ),
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+
+    def test_lists_only_employees_with_open_assignments(self):
+        open_emp = Employee.objects.create(
+            employee_number='CL-OP', first_name='Open', last_name='Person',
+        )
+        done_emp = Employee.objects.create(
+            employee_number='CL-DN', first_name='Done', last_name='Person',
+        )
+        Employee.objects.create(
+            employee_number='CL-NO', first_name='None', last_name='Person',
+        )
+        ChecklistInstance.objects.create(
+            subject=open_emp, template_version=self.version,
+        )
+        ChecklistInstance.objects.create(
+            subject=done_emp,
+            template_version=self.version,
+            status=ChecklistInstance.Status.COMPLETED,
+        )
+        self.client.login(username='inst-viewer', password='test')
+        response = self.client.get(reverse('checklists:progress_institute'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Open Person')
+        self.assertNotContains(response, 'Done Person')
+        self.assertNotContains(response, 'None Person')
+        self.assertContains(response, 'All people with open checklists')
+
+    def test_employee_detail_and_template_filter(self):
+        open_emp = Employee.objects.create(
+            employee_number='CL-OP2', first_name='Open', last_name='Filter',
+        )
+        other = Employee.objects.create(
+            employee_number='CL-OT2', first_name='Other', last_name='Filter',
+        )
+        instance = ChecklistInstance.objects.create(
+            subject=open_emp, template_version=self.version,
+        )
+        other_version = ChecklistTemplateVersion.objects.create(
+            template=ChecklistTemplate.objects.create(
+                slug='kit-inst',
+                name_en='Kit Inst',
+                name_de='Kit Inst DE',
+            ),
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+        ChecklistInstance.objects.create(subject=other, template_version=other_version)
+        self.client.login(username='inst-viewer', password='test')
+
+        person = self.client.get(
+            reverse('checklists:progress_institute') + f'?employee={open_emp.pk}',
+        )
+        self.assertContains(person, 'Open Filter')
+        self.assertContains(person, 'Safety Inst')
+        self.assertContains(person, reverse('checklists:instance_view', args=[instance.pk]))
+        self.assertNotContains(person, 'Kit Inst')
+
+        filtered = self.client.get(
+            reverse('checklists:progress_institute') + f'?template={self.version.template_id}',
+        )
+        self.assertContains(filtered, 'Safety Inst')
+        self.assertContains(filtered, 'Open Filter')
+        self.assertNotContains(filtered, 'Other Filter')
+
+
 class ChecklistManageUITests(TestCase):
     def setUp(self):
         self.manager = _user('mgr-ui')

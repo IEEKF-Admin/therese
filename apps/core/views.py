@@ -118,6 +118,12 @@ def global_settings(request):
 
     setting = GlobalSetting.get_solo()
     form = GlobalSettingForm(instance=setting)
+    from apps.holidays.forms import HolidayCustomDayFormSet
+    from apps.holidays.models import HolidayCustomDay, HolidayEntitlementRate
+    from apps.holidays.services import ensure_default_rates
+
+    ensure_default_rates()
+    custom_qs = HolidayCustomDay.objects.order_by('day')
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -126,14 +132,44 @@ def global_settings(request):
             messages.success(request, 'Account email templates were saved.')
             return redirect('core_settings:global_settings')
         form = GlobalSettingForm(request.POST, instance=setting)
-        if form.is_valid():
+        custom_formset = HolidayCustomDayFormSet(request.POST, queryset=custom_qs)
+        if form.is_valid() and custom_formset.is_valid():
             form.save()
+            custom_formset.save()
+            for weekdays in range(1, 6):
+                for months in range(1, 13):
+                    raw = request.POST.get(f'entitlement_{weekdays}_{months}')
+                    if raw in (None, ''):
+                        continue
+                    HolidayEntitlementRate.objects.update_or_create(
+                        weekdays=weekdays,
+                        contract_months=months,
+                        defaults={'days': raw},
+                    )
             messages.success(request, 'Global settings were saved.')
             return redirect('core_settings:global_settings')
+    else:
+        custom_formset = HolidayCustomDayFormSet(queryset=custom_qs)
 
+    rates = {
+        (row.weekdays, row.contract_months): row.days
+        for row in HolidayEntitlementRate.objects.all()
+    }
+    entitlement_grid = []
+    for weekdays in range(5, 0, -1):
+        entitlement_grid.append({
+            'weekdays': weekdays,
+            'cells': [
+                {'months': months, 'value': rates.get((weekdays, months), '')}
+                for months in range(12, 0, -1)
+            ],
+        })
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
         'account_email_templates': ensure_account_email_templates(),
         'account_email_variables': ACCOUNT_EMAIL_VARIABLES,
+        'custom_formset': custom_formset,
+        'entitlement_grid': entitlement_grid,
+        'month_range': range(12, 0, -1),
     })

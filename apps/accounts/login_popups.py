@@ -354,6 +354,59 @@ def evaluate_login_popups(
                     None,
                 )
 
+        elif config.trigger == 'holiday_request_submitted' and event_since:
+            from apps.holidays.access import pending_requests_for_approver
+
+            rows = list(
+                pending_requests_for_approver(user).filter(submitted_at__gt=event_since)
+            )
+            unacked_refs = [
+                f'holiday_submitted:{item.pk}'
+                for item in rows
+                if f'holiday_submitted:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
+        elif config.trigger == 'holiday_request_approved' and employee and event_since:
+            from apps.holidays.models import HolidayRequest
+
+            rows = list(
+                HolidayRequest.objects.filter(
+                    employee=employee,
+                    status=HolidayRequest.Status.APPROVED,
+                    decided_at__gt=event_since,
+                )
+            )
+            unacked_refs = [
+                f'holiday_approved:{item.pk}'
+                for item in rows
+                if f'holiday_approved:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
+        elif config.trigger == 'holiday_request_rejected' and employee and event_since:
+            from apps.holidays.models import HolidayRequest
+
+            rows = list(
+                HolidayRequest.objects.filter(
+                    employee=employee,
+                    status=HolidayRequest.Status.REJECTED,
+                    decided_at__gt=event_since,
+                )
+            )
+            unacked_refs = [
+                f'holiday_rejected:{item.pk}'
+                for item in rows
+                if f'holiday_rejected:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+
         elif config.trigger == 'chemical_item_delivered' and employee and event_since:
             from apps.chemicals.models import ChemicalItem
 

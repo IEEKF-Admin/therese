@@ -10,7 +10,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from apps.core.models import DataImportLog, GlobalSetting
 from apps.finances.import_access import (
@@ -223,8 +223,15 @@ def third_party_funding_import_preview(request):
 
         try:
             summary = apply_import_plan(plan, uploaded_by=request.user)
-        except ValueError as exc:
-            messages.error(request, str(exc))
+        except (ValueError, ValidationError) as exc:
+            if isinstance(exc, ValidationError) and getattr(exc, 'message_dict', None):
+                parts = []
+                for field, msgs in exc.message_dict.items():
+                    parts.append(f'{field}: {"; ".join(str(m) for m in msgs)}')
+                text = '; '.join(parts) if parts else str(exc)
+            else:
+                text = str(exc)
+            messages.error(request, text)
             return render(request, 'finances/report_import_preview.html', {
                 'plan': plan,
                 'cost_centers': cost_centers,

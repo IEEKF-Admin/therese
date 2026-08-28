@@ -474,19 +474,26 @@ def _create_fa_from_check(check: dict, as_of: date) -> list[str]:
     else:
         pct_sum = active_open_fa_percentage_total(contract, as_of)
         if pct_sum >= Decimal('100.00'):
-            # Contract split
+            # Contract split: end the old contract the day before the new one.
             if contract.valid_until is not None:
                 new_from = contract.valid_until + timedelta(days=1)
             elif booking_date is not None:
                 new_from = date(booking_date.year, booking_date.month, 1)
             else:
                 new_from = as_of
+            # Booking month / as_of can lie before the existing valid_from
+            # (e.g. Personalkosten for Dec 2025, contract starts Jan 2026).
+            if contract.valid_from and new_from < contract.valid_from:
+                new_from = contract.valid_from
             new_until = new_from + timedelta(days=1)
-            # Only one active contract: deactivate old
             contract.is_active = False
+            update_fields = ['is_active', 'updated_at']
             if contract.valid_until is None:
-                contract.valid_until = new_from - timedelta(days=1)
-            contract.save(update_fields=['is_active', 'valid_until', 'updated_at'])
+                proposed_end = new_from - timedelta(days=1)
+                if contract.valid_from and proposed_end >= contract.valid_from:
+                    contract.valid_until = proposed_end
+                    update_fields.append('valid_until')
+            contract.save(update_fields=update_fields)
 
             new_contract = _copy_contract_fields(
                 contract,

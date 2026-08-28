@@ -272,6 +272,39 @@ class PersonnelMatchTests(TestCase):
         ).first()
         self.assertIsNotNone(fa)
 
+    def test_contract_split_when_booking_month_before_valid_from(self):
+        """Personalkosten month before contract start must not 500 on valid_until."""
+        self.alloc.workhours_percentage = Decimal('100.00')
+        self.alloc.save()
+        self.contract.valid_from = date(2026, 1, 1)
+        self.contract.valid_until = None
+        self.contract.save()
+        wbs2 = WBSElement.objects.create(
+            wbs_code='D-100.0003',
+            title='Third',
+            cost_center=self.cc,
+            has_personnel_costs=True,
+        )
+        entry = self._entry('50001094', '100.00', booking='2025-12-01')
+        entry['parent_psp_code'] = 'D-100.0003'
+        entry['psp_code'] = 'D-100.0003.2'
+        checks = build_personnel_checks(
+            [entry], 'D-100.0003', as_of=date(2026, 8, 28),
+        )
+        dkey = checks[0]['decision_key']
+        apply_personnel_decisions(
+            checks, {dkey: 'create_fa'}, as_of=date(2026, 8, 28),
+        )
+        self.contract.refresh_from_db()
+        self.assertFalse(self.contract.is_active)
+        if self.contract.valid_until is not None:
+            self.assertGreaterEqual(self.contract.valid_until, self.contract.valid_from)
+        new_c = Contract.objects.filter(
+            employee=self.employee,
+        ).exclude(pk=self.contract.pk).get()
+        self.assertGreaterEqual(new_c.valid_from, self.contract.valid_from)
+        self.assertGreaterEqual(new_c.valid_until, new_c.valid_from)
+
     def test_january_tolerance_is_4_percent(self):
         self.assertEqual(
             tolerance_for_booking_date(date(2026, 1, 15)),

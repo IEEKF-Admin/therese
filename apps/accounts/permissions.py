@@ -405,13 +405,12 @@ def assign_permissions_to_groups():
         view_doc,
     )
 
-    # Personnel (create/coordinate/approve — import/general-request are user_permissions only)
+    # Personnel (create/coordinate/approve)
     create_personnel = get_perm("create_personnel_task", PurchaseOrderTask)
     view_all_personnel = get_perm("view_all_personnel_tasks", Task)
     approve_personnel = get_perm("approve_personnel_task", Task)
-    # Resolve import/general-request perms so missing-perm warnings still surface
-    get_perm("import_pay_scale", PayScale)
-    get_perm("import_third_party_funding_report", WBSElement)
+    import_pay = get_perm("import_pay_scale", PayScale)
+    import_funding = get_perm("import_third_party_funding_report", WBSElement)
     get_perm("create_general_request", PurchaseOrderTask)
     safe_add(GroupNames.PERSONNEL_TASKS_CREATE, create_personnel)
     safe_add(GroupNames.PERSONNEL_COORDINATION_RIGHTS, view_all_personnel)
@@ -489,6 +488,8 @@ def assign_permissions_to_groups():
         manage_all_cc,
         view_all_po,
         manage_std,
+        import_pay,
+        import_funding,
     )
     # Drop contact perms if previously assigned to this group
     try:

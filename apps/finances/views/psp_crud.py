@@ -178,7 +178,7 @@ class PSPCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet(self.request.POST)
         else:
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet()
-        context['title'] = 'Create Funding analysis'
+        context['title'] = 'Create PSP element'
         context['hide_work_group_field'] = False
         return context
 
@@ -231,7 +231,7 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             )
         else:
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet(instance=self.object)
-        context['title'] = 'Edit Funding analysis'
+        context['title'] = 'Edit PSP element'
         context['hide_work_group_field'] = False
         return context
 

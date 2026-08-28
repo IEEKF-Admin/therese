@@ -162,7 +162,7 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if perms.hr.manage_location or user.is_superuser %}
@@ -230,10 +230,10 @@
     </a>
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:psp_manage' %}"
        class="{% if 'psp/manage' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram"></i> Funding analysis
+        <i class="fas fa-project-diagram"></i> PSP - Elements
     </a>
     {% endif %}
 
@@ -252,22 +252,22 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.import_pay_scale or perms.finances.import_third_party_funding_report or user.is_superuser %}
+    {% if perms.finances.import_pay_scale or perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Data Import</div>
-    {% if perms.finances.import_pay_scale or user.is_superuser %}
+    {% if perms.finances.import_pay_scale or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:import_pay_scales' %}"
        class="{% if 'import-pay-scales' in request.path %}active{% endif %}">
         <i class="fas fa-table"></i> Pay Scales / TV-L
     </a>
     {% endif %}
-    {% if perms.finances.import_third_party_funding_report or user.is_superuser %}
+    {% if perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:third_party_funding_import' %}"
        class="{% if 'import/third-party-funding' in request.path and 'history' not in request.path %}active{% endif %}">
         <i class="fas fa-file-excel"></i> Third-party Funding Reports
     </a>
     {% endif %}
     {# History: all users who may run any tracked import (funding and/or pay scales) #}
-    {% if perms.finances.import_third_party_funding_report or perms.finances.import_pay_scale or user.is_superuser %}
+    {% if perms.finances.import_third_party_funding_report or perms.finances.import_pay_scale or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:third_party_funding_import_history' %}"
        class="{% if 'import/third-party-funding/history' in request.path %}active{% endif %}">
         <i class="fas fa-history"></i> Funding Import History

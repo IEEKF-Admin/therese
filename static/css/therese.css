@@ -222,7 +222,7 @@ input[readonly].form-control {
     top: 0;
     align-self: flex-start;
     max-height: calc(100vh - 73px);
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;

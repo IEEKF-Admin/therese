@@ -445,11 +445,12 @@ class ReportImportServiceTests(TestCase):
             file_sha256='a' * 64,
             report_created_on=date(2026, 6, 1),
             status=DataImportLog.Status.COMPLETED,
-            summary='scopes=psp,personnel',
+            summary='scopes=psp,personnel; psp_codes=T-100.0001',
         )
         is_older, upload_date, prior, prior_date = is_report_older_than_last_import(
             DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
             report_created_on=date(2026, 3, 1),
+            psp_codes={'T-100.0001'},
         )
         self.assertTrue(is_older)
         self.assertEqual(upload_date, date(2026, 3, 1))
@@ -458,14 +459,40 @@ class ReportImportServiceTests(TestCase):
         is_ok, _, _, _ = is_report_older_than_last_import(
             DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
             report_created_on=date(2026, 6, 1),
+            psp_codes={'T-100.0001'},
         )
         self.assertFalse(is_ok)
 
         is_newer, _, _, _ = is_report_older_than_last_import(
             DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
             report_created_on=date(2026, 7, 1),
+            psp_codes={'T-100.0001'},
         )
         self.assertFalse(is_newer)
+
+    def test_older_report_for_other_psp_is_allowed(self):
+        record_data_import(
+            kind=DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            uploaded_by=None,
+            original_filename='psp-x.xlsx',
+            file_sha256='b' * 64,
+            report_created_on=date(2026, 1, 1),
+            status=DataImportLog.Status.COMPLETED,
+            summary='scopes=psp,personnel; psp_codes=T-X.0001',
+        )
+        is_older, _, _, _ = is_report_older_than_last_import(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            report_created_on=date(2025, 12, 1),
+            psp_codes={'T-Y.0001'},
+        )
+        self.assertFalse(is_older)
+        is_same_psp_older, _, _, prior_date = is_report_older_than_last_import(
+            DataImportLog.Kind.THIRD_PARTY_FUNDING_REPORT,
+            report_created_on=date(2025, 12, 1),
+            psp_codes={'T-X.0001'},
+        )
+        self.assertTrue(is_same_psp_older)
+        self.assertEqual(prior_date, date(2026, 1, 1))
 
     def test_lifetime_plan_overwrites_single_row_not_import_year_key(self):
         """Re-import updates the one lifetime row even if technical year ≠ import year."""

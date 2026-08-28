@@ -199,14 +199,36 @@ def effective_creation_date_from_log(log: DataImportLog) -> date | None:
     )
 
 
-def latest_completed_report_creation_date(kind: str) -> tuple[date | None, DataImportLog | None]:
+def parse_psp_codes_from_import_summary(summary: str) -> set[str]:
+    """Parse ``psp_codes=A,B`` from a DataImportLog.summary string."""
+    text = (summary or '').strip()
+    if not text:
+        return set()
+    for part in text.split(';'):
+        part = part.strip()
+        if part.lower().startswith('psp_codes='):
+            val = part.split('=', 1)[1].strip()
+            return {s.strip() for s in val.split(',') if s.strip()}
+    return set()
+
+
+def latest_completed_report_creation_date(
+    kind: str,
+    *,
+    psp_codes: set[str] | list[str] | None = None,
+) -> tuple[date | None, DataImportLog | None]:
     """
     Latest report creation date among completed imports of ``kind``.
 
-    Reports are cumulative (start of PSP → pull date), so only newer (or equal)
-    reports should be accepted after an earlier successful import.
+    When ``psp_codes`` is set, only prior imports that list at least one of
+    those PSP codes are considered (reports are cumulative per PSP element).
+    Logs without stored PSP codes are ignored so an import for PSP X cannot
+    block a later import for PSP Y.
     """
     if not kind:
+        return None, None
+    wanted = {str(c).strip() for c in (psp_codes or []) if str(c).strip()}
+    if not wanted:
         return None, None
     logs = (
         DataImportLog.objects.filter(
@@ -219,6 +241,9 @@ def latest_completed_report_creation_date(kind: str) -> tuple[date | None, DataI
     best_date: date | None = None
     best_log: DataImportLog | None = None
     for log in logs.iterator(chunk_size=200):
+        log_codes = parse_psp_codes_from_import_summary(log.summary)
+        if not log_codes or not (log_codes & wanted):
+            continue
         d = effective_creation_date_from_log(log)
         if d is None:
             continue
@@ -233,13 +258,14 @@ def is_report_older_than_last_import(
     *,
     report_created_on: date | None = None,
     file_created_at: datetime | None = None,
+    psp_codes: set[str] | list[str] | None = None,
 ) -> tuple[bool, date | None, DataImportLog | None, date | None]:
     """
     True when this upload's creation date is strictly older than the latest
-    completed import for the same kind.
+    completed import for the same kind and overlapping PSP element(s).
 
     Returns ``(is_older, upload_date, prior_log, prior_date)``.
-    If the upload date cannot be determined, returns False (no block).
+    If the upload date or PSP codes cannot be determined, returns False.
     """
     upload_date = effective_report_creation_date(
         report_created_on=report_created_on,
@@ -247,7 +273,9 @@ def is_report_older_than_last_import(
     )
     if upload_date is None:
         return False, None, None, None
-    prior_date, prior_log = latest_completed_report_creation_date(kind)
+    prior_date, prior_log = latest_completed_report_creation_date(
+        kind, psp_codes=psp_codes,
+    )
     if prior_date is None:
         return False, upload_date, None, None
     if upload_date < prior_date:

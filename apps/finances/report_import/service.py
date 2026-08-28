@@ -18,6 +18,7 @@ from apps.core.import_tracking import (
     extract_xlsx_document_timestamps,
     find_completed_import_by_hash,
     is_report_older_than_last_import,
+    parse_psp_codes_from_import_summary,
     parse_scopes_from_import_summary,
     record_data_import,
     remaining_scopes_for_hash,
@@ -281,15 +282,30 @@ def analyze_uploaded_files(
                 break
         meta['report_created_on'] = report_created_on
 
+        # Personalkosten sheet (salary matching against funding allocations)
+        pk_entries = parse_personalkosten_sheet(raw, filename)
+        psp_codes = {p.wbs_code for p in parsed.parents if p.wbs_code}
+        for entry in pk_entries:
+            if entry.parent_psp_code:
+                psp_codes.add(entry.parent_psp_code)
+            elif entry.psp_code:
+                psp_codes.add(entry.psp_code)
+        meta['psp_codes'] = sorted(psp_codes)
+
         # Reports are cumulative (PSP start → pull date). Reject older pulls
-        # than the newest already-imported report of this kind.
+        # than the newest already-imported report for the same PSP element(s).
         is_older, upload_date, prior_by_date, prior_date = is_report_older_than_last_import(
             kind,
             report_created_on=report_created_on_date,
             file_created_at=file_created_at,
+            psp_codes=psp_codes,
         )
         meta['effective_creation_date'] = upload_date.isoformat() if upload_date else None
         if is_older and prior_date is not None:
+            prior_codes = parse_psp_codes_from_import_summary(
+                prior_by_date.summary if prior_by_date else '',
+            )
+            overlap = sorted(psp_codes & prior_codes) if prior_codes else sorted(psp_codes)
             meta['is_stale_report'] = True
             meta['stale_vs_prior'] = {
                 'upload_date': upload_date.isoformat() if upload_date else None,
@@ -303,10 +319,8 @@ def analyze_uploaded_files(
                     if prior_by_date and prior_by_date.uploaded_by_id
                     else 'unknown'
                 ),
+                'psp_codes': overlap,
             }
-
-        # Personalkosten sheet (salary matching against funding allocations)
-        pk_entries = parse_personalkosten_sheet(raw, filename)
         meta['personalkosten_entries'] = [
             {
                 'personalnummer': e.personalnummer,
@@ -356,7 +370,7 @@ def analyze_uploaded_files(
     global_warnings.append(
         'Funding reports are cumulative (PSP start → report pull date). '
         'The same file content cannot be re-imported for scopes already done; '
-        'reports older than the latest imported report creation date are blocked.'
+        'reports older than the latest imported report for the same PSP element are blocked.'
     )
 
     for parent in parents:
@@ -957,7 +971,7 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
     # Scope-aware duplicate check: same file bytes may be re-imported only for
     # scopes not yet completed for that hash.
     # Also reject reports older than the latest already-imported report
-    # (reports are cumulative from PSP start to pull date).
+    # for the same PSP element (reports are cumulative per PSP).
     # ``allow_reimport`` (GlobalSetting.irresponsible + UI checkbox) bypasses both.
     allow_reimport = bool(plan.get('allow_reimport'))
     effective_scopes = dict(plan['import_scopes'])
@@ -965,10 +979,16 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
         file_hash = meta.get('file_sha256') or ''
         report_created_on = _date(meta.get('report_created_on'))
         file_created_at = _datetime(meta.get('file_created_at'))
+        psp_codes = set(meta.get('psp_codes') or [])
+        if not psp_codes:
+            for parent in plan.get('parents') or []:
+                if parent.get('source_filename') == meta.get('filename') and parent.get('wbs_code'):
+                    psp_codes.add(parent['wbs_code'])
         is_older, upload_date, prior_by_date, prior_date = is_report_older_than_last_import(
             kind,
             report_created_on=report_created_on,
             file_created_at=file_created_at,
+            psp_codes=psp_codes,
         )
         if is_older and prior_date is not None and not allow_reimport:
             raise ValueError(
@@ -1065,7 +1085,7 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
     scope_label = ','.join(
         k for k in (SCOPE_PSP, SCOPE_PERSONNEL, SCOPE_ORDERS) if scopes.get(k)
     ) or 'none'
-    summary_text = (
+    summary_base = (
         f"scopes={scope_label}; "
         f"year={import_year}; "
         f"psp_created={summary['psp_created']}; "
@@ -1083,6 +1103,16 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
                     report_created_on = _date(parent.get('report_created_on'))
                     if report_created_on:
                         break
+        psp_codes = list(meta.get('psp_codes') or [])
+        if not psp_codes:
+            psp_codes = sorted({
+                p['wbs_code']
+                for p in (plan.get('parents') or [])
+                if p.get('source_filename') == meta.get('filename') and p.get('wbs_code')
+            })
+        summary_text = summary_base
+        if psp_codes:
+            summary_text += f"; psp_codes={','.join(psp_codes)}"
         record_data_import(
             kind=kind,
             uploaded_by=uploaded_by,

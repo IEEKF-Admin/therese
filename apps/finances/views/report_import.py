@@ -128,16 +128,18 @@ def third_party_funding_import(request):
                 if not meta.get('is_stale_report'):
                     continue
                 stale = meta.get('stale_vs_prior') or {}
+                psp_label = ', '.join(stale.get('psp_codes') or meta.get('psp_codes') or []) or 'this PSP'
                 messages.error(
                     request,
                     (
                         f'Report too old: "{meta.get("filename")}" '
                         f'(creation date {stale.get("upload_date") or "unknown"}) is older '
-                        f'than the latest imported report '
+                        f'than the latest imported report for {psp_label} '
                         f'({stale.get("prior_date")}, '
                         f'"{stale.get("prior_filename") or "—"}" by '
                         f'{stale.get("prior_uploaded_by", "unknown")}). '
-                        f'Only reports with the same or a newer creation date may be uploaded.'
+                        f'Only reports with the same or a newer creation date may be uploaded '
+                        f'for that PSP element.'
                     ),
                 )
             return redirect('finances:third_party_funding_import')

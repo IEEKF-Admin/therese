@@ -11,6 +11,7 @@ from apps.hr.employee_access import (
     user_can_manage_employee,
     user_can_view_employee,
 )
+from apps.hr.forms import EmployeeForm
 from apps.hr.models import Employee, Workgroup
 
 
@@ -121,3 +122,27 @@ class EmployeeAccessTests(TestCase):
         _grant(lone, 'can_view_employees', 'manage_employee')
         qs = filter_employees_for_user(Employee.objects.all(), lone)
         self.assertEqual(qs.count(), 0)
+
+
+class EmployeeFormCheckNeededTests(TestCase):
+    def test_linked_user_with_check_needed_shows_form_error_not_500(self):
+        login = CustomUser.objects.create_user('linked', password='test')
+        employee = Employee.objects.create(
+            employee_number='CN-1',
+            first_name='Check',
+            last_name='Needed',
+            user=login,
+            check_needed=True,
+        )
+        form = EmployeeForm(
+            data={
+                'employee_number': employee.employee_number,
+                'first_name': 'Check',
+                'last_name': 'Needed',
+                'check_needed': 'on',
+            },
+            instance=employee,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertTrue(form.errors)
+        self.assertNotIn('user', form.errors)

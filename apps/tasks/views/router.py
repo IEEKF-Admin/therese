@@ -55,7 +55,10 @@ def task_detail(request, pk):
 
     # Personnel tasks: reallocation, contract extension, recruitment.
     if getattr(task, 'task_type', None) in (
-        'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+        'personnel_reallocation',
+        'personnel_contract_extension',
+        'personnel_recruitment',
+        'personnel_change_working_hours',
     ):
         from .detail.personnel import personnel_task_detail
         return personnel_task_detail(request, task)

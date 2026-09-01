@@ -133,6 +133,10 @@
        class="{% if 'type=personnel_reallocation' in request.get_full_path %}active{% endif %}">
         <i class="fas fa-exchange-alt"></i> Reallocation
     </a>
+    <a href="{% url 'tasks:task_create' %}?type=personnel_change_working_hours"
+       class="{% if 'type=personnel_change_working_hours' in request.get_full_path %}active{% endif %}">
+        <i class="fas fa-clock"></i> Working Hours
+    </a>
     <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension"
        class="{% if 'type=personnel_contract_extension' in request.get_full_path %}active{% endif %}">
         <i class="fas fa-file-contract"></i> Extension

@@ -6,10 +6,15 @@ from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
 from apps.finances.funding_sources import FundingSourceFormMixin
 from apps.hr.models import Employee
-from apps.tasks.form_validation import require_non_empty_text, validate_contract_dates
+from apps.tasks.form_validation import (
+    DecimalCommaField,
+    require_non_empty_text,
+    validate_contract_dates,
+)
 from apps.tasks.forms.common import _configure_personnel_assignee_field, add_initial_message_field
 from apps.tasks.models import (
     PERSONNEL_STATUSES,
+    PersonnelChangeWorkingHoursTask,
     PersonnelContractExtensionTask,
     PersonnelReallocationTask,
     ReallocationFundingAllocation,
@@ -218,6 +223,99 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
             cleaned_data,
             require_start=True,
         )
+        return cleaned_data
+
+
+# ---------------------------------------------------------------------------
+# Change working hours task
+# ---------------------------------------------------------------------------
+class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
+    """Personnel task to change weekly hours on the employee's current contract."""
+
+    class Meta:
+        model = PersonnelChangeWorkingHoursTask
+        fields = [
+            'employee', 'valid_from', 'valid_until',
+            'new_weekly_hours', 'assignee', 'status',
+        ]
+        widgets = {
+            'valid_from': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ',
+            }),
+            'valid_until': forms.DateInput(attrs={
+                'type': 'text',
+                'class': 'form-control date-picker',
+                'placeholder': 'TT.MM.JJJJ',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.is_creation = kwargs.pop('is_creation', False)
+        super().__init__(*args, **kwargs)
+
+        if 'status' in self.fields:
+            self.fields['status'].choices = PERSONNEL_STATUSES
+            if self.is_creation:
+                self.fields['status'].widget = forms.HiddenInput()
+                self.fields['status'].initial = 'not_yet_processed'
+                self.fields['status'].required = True
+                if self.data:
+                    self.data = self.data.copy()
+                    self.data['status'] = 'not_yet_processed'
+
+        if 'employee' in self.fields:
+            self.fields['employee'].widget.attrs.update({'class': 'form-control'})
+            self.fields['employee'].required = True
+            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['employee'].empty_label = "— Select employee —"
+            if not self.is_creation and getattr(self.instance, 'pk', None):
+                self.fields['employee'].disabled = True
+
+        for field_name in ['valid_from', 'valid_until']:
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs.update({'class': 'form-control'})
+                if field_name == 'valid_from':
+                    self.fields[field_name].required = True
+
+        if 'new_weekly_hours' in self.fields:
+            original = self.fields['new_weekly_hours']
+            self.fields['new_weekly_hours'] = DecimalCommaField(
+                required=True,
+                max_digits=6,
+                decimal_places=3,
+                min_value=Decimal('0.001'),
+                label='New weekly working hours',
+                help_text=original.help_text,
+                widget=forms.TextInput(attrs={
+                    'class': 'form-control',
+                    'inputmode': 'decimal',
+                    'placeholder': 'e.g. 19,625',
+                }),
+            )
+
+        if self.is_creation:
+            add_initial_message_field(
+                self,
+                rows=6,
+                placeholder='Add any additional notes or context for this working hours change...',
+            )
+
+        _configure_personnel_assignee_field(self)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        strip_limitation_reason_template(cleaned_data)
+        validate_contract_dates(
+            self,
+            cleaned_data,
+            require_start=True,
+        )
+        hours = cleaned_data.get('new_weekly_hours')
+        if hours is not None and hours <= 0:
+            self.add_error('new_weekly_hours', 'Weekly working hours must be greater than 0.')
         return cleaned_data
 
 

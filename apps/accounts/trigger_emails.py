@@ -167,6 +167,7 @@ PERSONNEL_CREATED_TYPES = (
     'personnel_reallocation',
     'personnel_contract_extension',
     'personnel_recruitment',
+    'personnel_change_working_hours',
 )
 
 

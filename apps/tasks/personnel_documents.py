@@ -12,6 +12,7 @@ PERSONNEL_TASK_TYPES = (
     'personnel_recruitment',
     'personnel_reallocation',
     'personnel_contract_extension',
+    'personnel_change_working_hours',
 )
 
 _INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

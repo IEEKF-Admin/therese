@@ -44,6 +44,7 @@ PERSONNEL_TASK_TYPES = (
     'personnel_reallocation',
     'personnel_contract_extension',
     'personnel_recruitment',
+    'personnel_change_working_hours',
 )
 
 RECRUITMENT_STATUSES = [
@@ -74,6 +75,7 @@ class Task(BaseModel):
         ('personnel_reallocation', 'Personnel Reallocation'),
         ('personnel_contract_extension', 'Personnel Contract Extension'),
         ('personnel_recruitment', 'Personnel Recruitment'),
+        ('personnel_change_working_hours', 'Change Working Hours'),
         ('generic_text', 'General Request'),
     ]
 
@@ -143,7 +145,12 @@ class Task(BaseModel):
     def get_initial_status(self):
         if self.task_type == 'purchase_order':
             return 'not_yet_processed'
-        if self.task_type in ('personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment'):
+        if self.task_type in (
+            'personnel_reallocation',
+            'personnel_contract_extension',
+            'personnel_recruitment',
+            'personnel_change_working_hours',
+        ):
             return 'not_yet_processed'
         return 'seen'  # generic_text
 
@@ -158,7 +165,11 @@ class Task(BaseModel):
         if self.task_type == 'personnel_recruitment':
             mapping = dict(RECRUITMENT_STATUSES)
             return mapping.get(self.status, self.status)
-        if self.task_type in ('personnel_reallocation', 'personnel_contract_extension'):
+        if self.task_type in (
+            'personnel_reallocation',
+            'personnel_contract_extension',
+            'personnel_change_working_hours',
+        ):
             mapping = dict(PERSONNEL_STATUSES)
             return mapping.get(self.status, self.status)
         return self.status
@@ -393,6 +404,22 @@ class PersonnelContractExtensionTask(Task):
 
     class Meta:
         verbose_name = "Contract Extension Task"
+
+
+class PersonnelChangeWorkingHoursTask(Task):
+    employee = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name='change_working_hours_tasks',
+    )
+    valid_from = models.DateField()
+    valid_until = models.DateField(null=True, blank=True)
+    new_weekly_hours = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        verbose_name="New weekly working hours",
+    )
+
+    class Meta:
+        verbose_name = "Change Working Hours Task"
 
 
 class RecruitmentJob(BaseModel):

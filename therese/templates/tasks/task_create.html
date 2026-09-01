@@ -3,6 +3,7 @@
 
 {% block title %}
 {% if task_type == 'personnel_reallocation' %}New Personnel Reallocation - THERESE
+{% elif task_type == 'personnel_change_working_hours' %}New Change Working Hours - THERESE
 {% elif task_type == 'personnel_contract_extension' %}New Personnel Contract Extension - THERESE
 {% elif task_type == 'personnel_recruitment' %}New Personnel Recruitment - THERESE
 {% elif po_variant == 'quote' %}Order with Quote - THERESE
@@ -13,6 +14,8 @@
 <div class="page-header">
     {% if task_type == 'personnel_reallocation' %}
         <h1>New Personnel Reallocation</h1>
+    {% elif task_type == 'personnel_change_working_hours' %}
+        <h1>New Change Working Hours</h1>
     {% elif task_type == 'personnel_contract_extension' %}
         <h1>New Personnel Contract Extension</h1>
     {% elif task_type == 'personnel_recruitment' %}
@@ -281,6 +284,38 @@
                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
             </div>
 
+        {% elif task_type == 'personnel_change_working_hours' %}
+            <div class="form-section compact">
+                <h3>Working Hours Change</h3>
+
+                <div class="aligned-field">
+                    <label>Employee<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.employee|add_class:"form-control" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Mitarbeiter</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid From<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.valid_from|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig ab</small>
+                </div>
+                <div class="aligned-field">
+                    <label>Valid Until</label>
+                    {{ form.valid_until|add_class:"date-picker" }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
+                </div>
+                <div class="aligned-field">
+                    <label>New weekly working hours<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
+                    {{ form.new_weekly_hours }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Neue wöchentliche Arbeitszeit</small>
+                </div>
+            </div>
+
+            <div class="form-section comment-full">
+                <h3>Comment / Notes</h3>
+                {{ form.initial_message|add_class:"form-control full-width-textarea" }}
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+            </div>
+
         {% elif task_type == 'personnel_contract_extension' %}
             <!-- === PERSONNEL CONTRACT EXTENSION (no Assignment & Priority card at all) === -->
             <div class="form-section compact">
@@ -354,6 +389,8 @@
 
             {% if task_type == 'personnel_reallocation' %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Personnel Reallocation</button>
+            {% elif task_type == 'personnel_change_working_hours' %}
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Change Working Hours</button>
             {% elif task_type == 'personnel_contract_extension' %}
                 <button type="submit" class="btn-primary" id="submit-btn" disabled>✅ Create Contract Extension</button>
             {% elif task_type == 'personnel_recruitment' %}

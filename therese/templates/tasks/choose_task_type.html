@@ -46,6 +46,12 @@ Do not remove any existing requirements from this header without explicit instru
             <p>Move staff to another WBS element</p>
         </a>
 
+        <a href="{% url 'tasks:task_create' %}?type=personnel_change_working_hours" class="task-type-card">
+            <i class="fas fa-clock fa-3x"></i>
+            <h3>Change Working Hours</h3>
+            <p>Change an employee's weekly working hours</p>
+        </a>
+
         <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension" class="task-type-card">
             <i class="fas fa-file-contract fa-3x"></i>
             <h3>Contract Extension</h3>

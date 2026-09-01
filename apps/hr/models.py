@@ -282,14 +282,15 @@ class Employee(BaseModel):
 
         if self.user_id and self.check_needed:
             raise ValidationError({
-                'user': (
+                'check_needed': (
                     'A Django login user can only be linked when '
-                    '“Check needed” is No.'
+                    '“Check needed” is No. Uncheck this flag to save, '
+                    'or unlink the login user first.'
                 ),
             })
         if self.user_id and self.is_pending:
             raise ValidationError({
-                'user': (
+                'is_pending': (
                     'A Django login user can only be linked when the employee '
                     'is no longer pending.'
                 ),
@@ -401,8 +402,8 @@ class Contract(BaseModel):
     )
 
     weekly_hours = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
+        max_digits=6,
+        decimal_places=3,
         verbose_name="Weekly Working Hours"
     )
 

@@ -132,6 +132,10 @@
                            class="action-icon" title="Reallocation" aria-label="Create reallocation for {{ employee.get_full_name }}">
                             <i class="fas fa-exchange-alt"></i>
                         </a>
+                        <a href="{% url 'tasks:task_create' %}?type=personnel_change_working_hours&amp;employee={{ employee.pk }}"
+                           class="action-icon" title="Change working hours" aria-label="Create working hours change for {{ employee.get_full_name }}">
+                            <i class="fas fa-clock"></i>
+                        </a>
                         <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension&amp;employee={{ employee.pk }}"
                            class="action-icon" title="Extension" aria-label="Create extension for {{ employee.get_full_name }}">
                             <i class="fas fa-file-contract"></i>

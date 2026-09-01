@@ -124,6 +124,7 @@ def _task_attachment_file(user, path) -> bool:
         'personnel_recruitment',
         'personnel_reallocation',
         'personnel_contract_extension',
+        'personnel_change_working_hours',
     ):
         return can_view_personnel_task(user, task)
     if task.task_type == 'generic_text':

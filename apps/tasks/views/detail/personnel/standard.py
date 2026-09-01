@@ -7,7 +7,12 @@ Do not remove any existing requirements from this module without explicit instru
 from django.contrib import messages
 from django.shortcuts import redirect, render
 
+from ....change_working_hours_apply import (
+    ApplyWorkingHoursError,
+    apply_change_working_hours,
+)
 from ....forms import (
+    PersonnelChangeWorkingHoursTaskForm,
     PersonnelContractExtensionTaskForm,
     PersonnelReallocationTaskForm,
     ReallocationFundingFormSet,
@@ -44,10 +49,18 @@ def handle_standard_personnel_detail(request, task):
         and is_personnel_approver(request.user)
     )
     apply_reallocation_enabled = can_apply_reallocation and task.status == 'completed'
+    can_apply_working_hours = (
+        task_type == 'personnel_change_working_hours'
+        and is_personnel_approver(request.user)
+    )
+    apply_working_hours_enabled = can_apply_working_hours and task.status == 'completed'
 
     if task_type == 'personnel_reallocation':
         form_class = PersonnelReallocationTaskForm
         template = 'tasks/detail/reallocation.html'
+    elif task_type == 'personnel_change_working_hours':
+        form_class = PersonnelChangeWorkingHoursTaskForm
+        template = 'tasks/detail/change_working_hours.html'
     elif task_type == 'personnel_contract_extension':
         form_class = PersonnelContractExtensionTaskForm
         template = 'tasks/detail/extension.html'
@@ -93,6 +106,11 @@ def handle_standard_personnel_detail(request, task):
                 and request.POST.get('save_and_apply')
             ):
                 return _save_and_apply_reallocation(request, saved, employee=employee)
+            if (
+                task_type == 'personnel_change_working_hours'
+                and request.POST.get('save_and_apply')
+            ):
+                return _save_and_apply_working_hours(request, saved, employee=employee)
             messages.success(request, "Task updated successfully.")
             return redirect_to_my_tasks()
         messages.error(request, "Please correct the errors below.")
@@ -116,6 +134,8 @@ def handle_standard_personnel_detail(request, task):
         'can_set_assignee': can_set_assignee,
         'can_apply_reallocation': can_apply_reallocation,
         'apply_reallocation_enabled': apply_reallocation_enabled,
+        'can_apply_working_hours': can_apply_working_hours,
+        'apply_working_hours_enabled': apply_working_hours_enabled,
         'is_creator': is_creator,
         'is_coordinator': is_coordinator,
         'coordinator_fallback': coordinator_fallback,
@@ -163,5 +183,38 @@ def _save_and_apply_reallocation(request, task, *, employee):
     messages.success(
         request,
         'Task updated and funding allocations were applied to the employee.',
+    )
+    return redirect('tasks:task_detail', pk=task.pk)
+
+
+def _save_and_apply_working_hours(request, task, *, employee):
+    """After a successful save, write new weekly hours onto the current contract."""
+    if not is_personnel_approver(request.user):
+        messages.success(request, "Task updated successfully.")
+        return redirect_to_my_tasks()
+    task.refresh_from_db()
+    if task.status != 'completed':
+        messages.success(request, "Task updated successfully.")
+        messages.error(request, 'Working hours can only be applied when the task status is Completed.')
+        return redirect('tasks:task_detail', pk=task.pk)
+    try:
+        contract = apply_change_working_hours(task)
+    except ApplyWorkingHoursError as exc:
+        messages.success(request, "Task updated successfully.")
+        messages.error(request, exc.message)
+        return redirect('tasks:task_detail', pk=task.pk)
+    if employee:
+        record_task_update(
+            task,
+            employee,
+            new_message=(
+                f'Applied weekly working hours ({task.new_weekly_hours}) '
+                f'to the current contract of {task.employee.get_full_name()}.'
+            ),
+        )
+    messages.success(
+        request,
+        f'Task updated and weekly working hours were set to {contract.weekly_hours} '
+        f'on the current contract.',
     )
     return redirect('tasks:task_detail', pk=task.pk)

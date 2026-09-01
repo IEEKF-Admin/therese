@@ -30,6 +30,7 @@ from ..forms import (
     PurchaseItemFormSet,
     GenericTextTaskForm,
     PersonnelReallocationTaskForm,
+    PersonnelChangeWorkingHoursTaskForm,
     PersonnelContractExtensionTaskForm,
     PersonnelRecruitmentTaskForm,
     RecruitmentFundingFormSet,
@@ -64,7 +65,10 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def _assign_personnel_task_number(self, instance):
         if instance.task_type not in (
-            'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+            'personnel_reallocation',
+            'personnel_contract_extension',
+            'personnel_recruitment',
+            'personnel_change_working_hours',
         ) or instance.task_number:
             return instance
 
@@ -73,6 +77,8 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             prefix = 'RA'
         elif instance.task_type == 'personnel_contract_extension':
             prefix = 'CE'
+        elif instance.task_type == 'personnel_change_working_hours':
+            prefix = 'CWH'
         else:
             prefix = 'REC'
 
@@ -162,7 +168,12 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
             return False
 
-        if task_type in ('personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment'):
+        if task_type in (
+            'personnel_reallocation',
+            'personnel_contract_extension',
+            'personnel_recruitment',
+            'personnel_change_working_hours',
+        ):
             return self._can_create_personnel_task(user)
 
         return False
@@ -181,7 +192,10 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                     "Task creation is only available for users with an employee record.",
                 )
             elif self._get_task_type() in (
-                'personnel_reallocation', 'personnel_contract_extension', 'personnel_recruitment',
+                'personnel_reallocation',
+                'personnel_contract_extension',
+                'personnel_recruitment',
+                'personnel_change_working_hours',
             ) and not self._can_create_personnel_task(user):
                 messages.error(
                     self.request,
@@ -203,6 +217,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         mapping = {
             'purchase_order': PurchaseOrderTaskForm,
             'personnel_reallocation': PersonnelReallocationTaskForm,
+            'personnel_change_working_hours': PersonnelChangeWorkingHoursTaskForm,
             'personnel_contract_extension': PersonnelContractExtensionTaskForm,
             'personnel_recruitment': PersonnelRecruitmentTaskForm,
             'generic_text': GenericTextTaskForm,
@@ -216,6 +231,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         # Formulare die user + is_creation brauchen
         if task_type in (
             'purchase_order', 'generic_text', 'personnel_reallocation',
+            'personnel_change_working_hours',
             'personnel_contract_extension', 'personnel_recruitment',
         ):
             kwargs['user'] = self.request.user
@@ -250,7 +266,11 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 kwargs['initial']['supplier'] = standard_supplier
 
         # Prefill employee for reallocation / extension (e.g. from employee list)
-        if task_type in ('personnel_reallocation', 'personnel_contract_extension'):
+        if task_type in (
+            'personnel_reallocation',
+            'personnel_contract_extension',
+            'personnel_change_working_hours',
+        ):
             employee_raw = (self.request.GET.get('employee') or '').strip()
             if employee_raw and not self.request.POST:
                 try:

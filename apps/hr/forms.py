@@ -58,6 +58,12 @@ class EmployeeForm(forms.ModelForm):
         empty_label="— Select Building —",
         label="Building"
     )
+
+    def add_error(self, field, error):
+        # Model.clean() may attach errors to excluded fields (e.g. user).
+        if field and field not in self.fields:
+            field = None
+        return super().add_error(field, error)
     phone_number = forms.ModelChoiceField(
         queryset=PhoneNumber.objects.none(),
         required=False,

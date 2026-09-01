@@ -14,7 +14,7 @@ from django.contrib import messages
 from ...models import (
     Task, PurchaseOrderTask, GenericTextTask,
     PersonnelReallocationTask, PersonnelContractExtensionTask,
-    PersonnelRecruitmentTask,
+    PersonnelChangeWorkingHoursTask, PersonnelRecruitmentTask,
 )
 from ...utils import can_view_personnel_task, can_view_purchase_order
 from ..redirects import redirect_to_my_tasks
@@ -68,6 +68,14 @@ def get_task_or_404(pk, user, request=None):
 
     if base_task.task_type == 'personnel_contract_extension':
         task = PersonnelContractExtensionTask.objects.select_related(
+            'assignee', 'creator', 'employee', 'last_changed_by'
+        ).prefetch_related('comments', 'comments__author').get(pk=pk)
+        if not can_view_personnel_task(user, task):
+            return _deny_view(request or user)
+        return task
+
+    if base_task.task_type == 'personnel_change_working_hours':
+        task = PersonnelChangeWorkingHoursTask.objects.select_related(
             'assignee', 'creator', 'employee', 'last_changed_by'
         ).prefetch_related('comments', 'comments__author').get(pk=pk)
         if not can_view_personnel_task(user, task):

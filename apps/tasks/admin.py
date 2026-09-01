@@ -10,7 +10,8 @@ from django import forms
 from .models import (
     Task, TaskComment, TaskAttachment,
     PurchaseOrderTask, PurchaseItem,
-    PersonnelReallocationTask, PersonnelContractExtensionTask,
+    PersonnelReallocationTask, PersonnelChangeWorkingHoursTask,
+    PersonnelContractExtensionTask,
     PersonnelRecruitmentTask, RecruitmentFundingAllocation,
     ReallocationFundingAllocation, RecruitmentJob,
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
@@ -191,6 +192,13 @@ class ReallocationFundingInline(admin.TabularInline):
 class PersonnelReallocationTaskAdmin(admin.ModelAdmin):
     inlines = [ReallocationFundingInline, TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'employee', 'status', 'valid_from', 'assignee']
+    list_filter = ['status', 'valid_from']
+
+
+@admin.register(PersonnelChangeWorkingHoursTask, site=therese_admin)
+class PersonnelChangeWorkingHoursTaskAdmin(admin.ModelAdmin):
+    inlines = [TaskCommentInline, TaskAttachmentInline]
+    list_display = ['title', 'employee', 'new_weekly_hours', 'status', 'valid_from', 'assignee']
     list_filter = ['status', 'valid_from']
 
 

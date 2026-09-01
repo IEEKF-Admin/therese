@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from ..models import Task, PurchaseOrderTask
+from ..models import PERSONNEL_TASK_TYPES, Task, PurchaseOrderTask
 from apps.hr.models import Employee
 from ..utils import (
     get_purchase_orders_queryset,
@@ -121,11 +121,7 @@ def my_tasks(request):
     personnel_all_visible = None
     if is_personnel_coordinator(request.user):
         personnel_qs = Task.objects.filter(
-            task_type__in=[
-                'personnel_reallocation',
-                'personnel_contract_extension',
-                'personnel_recruitment',
-            ],
+            task_type__in=PERSONNEL_TASK_TYPES,
         ).select_related('assignee', 'creator').order_by('-created_at')
         if is_archive_view:
             personnel_all_visible = personnel_qs.filter(archived_by=employee)

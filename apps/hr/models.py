@@ -22,6 +22,11 @@ class Gender(models.TextChoices):
     NOT_SPECIFIED = 'X', 'Not specified'
 
 
+class EmployeeQuerySet(models.QuerySet):
+    def institute(self):
+        return self.filter(is_external=False)
+
+
 class Building(BaseModel):
     number = models.CharField(max_length=20, unique=True, verbose_name="Building Number")
     name = models.CharField(max_length=100, blank=True, verbose_name="Building Name")
@@ -143,7 +148,14 @@ class RoomStorageItem(BaseModel):
 
 
 class Employee(BaseModel):
-    employee_number = models.CharField(max_length=20, unique=True, verbose_name="Employee Number")
+    objects = EmployeeQuerySet.as_manager()
+    employee_number = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Employee Number",
+    )
     user = models.OneToOneField(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -229,6 +241,16 @@ class Employee(BaseModel):
     )
     website = models.URLField(blank=True, verbose_name="Website")
 
+    is_external = models.BooleanField(
+        default=False,
+        verbose_name="External",
+        help_text=(
+            "Person is not an institute employee. Shown in the employee list "
+            "with an External badge. No phone list, holidays, or cost reports. "
+            "Employee number is optional. Link an existing Django user for login "
+            "and group permissions."
+        ),
+    )
     is_pending = models.BooleanField(
         default=False,
         verbose_name="Pending",
@@ -271,7 +293,15 @@ class Employee(BaseModel):
 
     def __str__(self):
         prefix = f"{self.prefix} " if self.prefix else ""
-        return f"{prefix}{self.first_name} {self.last_name} ({self.employee_number})"
+        name = f"{prefix}{self.first_name} {self.last_name}".strip()
+        extra = []
+        if self.employee_number:
+            extra.append(self.employee_number)
+        if self.is_external:
+            extra.append('external')
+        if extra:
+            return f"{name} ({', '.join(extra)})"
+        return name
 
     def get_full_name(self):
         prefix = f"{self.prefix} " if self.prefix else ""
@@ -279,6 +309,13 @@ class Employee(BaseModel):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+
+        number = (self.employee_number or '').strip()
+        self.employee_number = number or None
+        if not self.is_external and not self.employee_number:
+            raise ValidationError({
+                'employee_number': 'Employee number is required for institute employees.',
+            })
 
         if self.user_id and self.check_needed:
             raise ValidationError({

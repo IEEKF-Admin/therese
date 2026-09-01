@@ -22,8 +22,10 @@ Constraints:
 """
 
 from django import forms
+from django.db.models import Q
 from django.forms.models import inlineformset_factory
 
+from apps.accounts.models import CustomUser
 from .models import (
     Employee, Building, Room, PhoneNumber, RoomStorageItem, Contract,
     FundingAllocation, SalarySupplement, Workgroup
@@ -35,7 +37,7 @@ from apps.finances.models import PayScale
 
 # Explicit fields only — never bind `user` via mass assignment.
 EMPLOYEE_MANAGE_FIELDS = [
-    'employee_number', 'prefix', 'first_name', 'last_name', 'gender',
+    'employee_number', 'is_external', 'user', 'prefix', 'first_name', 'last_name', 'gender',
     'date_of_birth', 'country_of_origin', 'place_of_birth',
     'email_professional', 'email_private', 'google_account', 'private_phone_number',
     'room', 'phone_number', 'street', 'house_number', 'postal_code', 'city', 'country',
@@ -82,6 +84,7 @@ class EmployeeForm(forms.ModelForm):
                 'placeholder': 'TT.MM.JJJJ'
             }),
             'room': forms.Select(attrs={'class': 'room-select form-control'}),
+            'is_external': forms.CheckboxInput(attrs={'class': 'is-active-toggle'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -141,6 +144,19 @@ class EmployeeForm(forms.ModelForm):
                 preserved_qs = PhoneNumber.objects.filter(phone_number=phone_to_preserve)
                 phone_field.queryset = (phone_field.queryset | preserved_qs).distinct()
 
+        if 'employee_number' in self.fields:
+            self.fields['employee_number'].required = False
+
+        if 'user' in self.fields:
+            user_qs = CustomUser.objects.filter(employee__isnull=True)
+            if instance and instance.user_id:
+                user_qs = CustomUser.objects.filter(
+                    Q(employee__isnull=True) | Q(pk=instance.user_id)
+                )
+            self.fields['user'].queryset = user_qs.order_by('username')
+            self.fields['user'].required = False
+            self.fields['user'].empty_label = '— No login user —'
+
         if 'job' in self.fields:
             from apps.tasks.recruitment_config import visible_recruitment_jobs
             include = instance.job if instance and getattr(instance, 'job_id', None) else None
@@ -161,6 +177,10 @@ class EmployeeForm(forms.ModelForm):
         building = cleaned_data.get('building')
         if room and building and room.building != building:
             self.add_error('room', "Room does not belong to selected building")
+        number = (cleaned_data.get('employee_number') or '').strip()
+        cleaned_data['employee_number'] = number or None
+        if not cleaned_data.get('is_external') and not cleaned_data.get('employee_number'):
+            self.add_error('employee_number', 'Employee number is required for institute employees.')
         return cleaned_data
 
     def clean_phone_number(self):

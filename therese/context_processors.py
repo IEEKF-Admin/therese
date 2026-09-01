@@ -14,10 +14,13 @@ def user_groups(request):
     """Stellt die Gruppen des aktuellen Users als Liste bereit + has_employee flag"""
     if request.user.is_authenticated:
         has_employee = hasattr(request.user, 'employee') and request.user.employee is not None
+        employee = getattr(request.user, 'employee', None)
+        is_external_employee = bool(employee and employee.is_external)
         flags = holiday_flags()
         return {
             'user_groups': list(request.user.groups.values_list('name', flat=True)),
             'has_employee': has_employee,
+            'is_external_employee': is_external_employee,
             'documents_menu_needs_attention': documents_menu_needs_attention(request.user),
             'user_has_active_checklists': user_has_active_checklists(request.user),
             'checklists_menu_needs_attention': checklists_menu_needs_attention(request.user),
@@ -28,6 +31,7 @@ def user_groups(request):
     return {
         'user_groups': [],
         'has_employee': False,
+        'is_external_employee': False,
         'documents_menu_needs_attention': False,
         'user_has_active_checklists': False,
         'checklists_menu_needs_attention': False,

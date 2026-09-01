@@ -278,6 +278,8 @@ def create_request(user, employee, dates, *, comment=''):
     flags = holiday_flags()
     if not flags['planning']:
         raise ValidationError('Holiday planning is disabled.')
+    if getattr(employee, 'is_external', False):
+        raise ValidationError('Holiday planning is only available for institute employees.')
     if not dates:
         raise ValidationError('Select at least one day.')
     dates = sorted(set(dates))
@@ -431,7 +433,7 @@ def ensure_default_rates():
 def gantt_employees(user, *, workgroup_id=None, institute=False):
     from apps.hr.models import Employee
 
-    qs = Employee.objects.filter(holiday_profile__share_with_institute=True)
+    qs = Employee.objects.institute().filter(holiday_profile__share_with_institute=True)
     viewer = getattr(user, 'employee', None)
     if institute:
         return qs.distinct().order_by('last_name', 'first_name')

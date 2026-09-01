@@ -31,6 +31,8 @@ def ensure_employee_group_membership(user):
 
 def _should_create_login_user(employee: Employee) -> bool:
     """Login users only when the employee is not pending and not check_needed."""
+    if getattr(employee, 'is_external', False):
+        return False
     if getattr(employee, 'is_pending', False):
         return False
     if getattr(employee, 'check_needed', False):

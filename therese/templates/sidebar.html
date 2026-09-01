@@ -16,7 +16,7 @@
     </a>
     {% endif %}
 
-    {% if holiday_flags.planning and has_employee %}
+    {% if holiday_flags.planning and has_employee and not is_external_employee %}
     <a href="{% url 'holidays:my_holidays' %}"
        class="{% if '/holidays/my' in request.path %}active{% endif %}">
         <i class="fas fa-umbrella-beach"></i> My Holidays
@@ -30,7 +30,7 @@
         {% if holidays_menu_needs_attention %}<span class="menu-notification-dot" title="Pending holiday requests"></span>{% endif %}
     </a>
     {% endif %}
-    {% if holiday_flags.gantt and has_employee %}
+    {% if holiday_flags.gantt and has_employee and not is_external_employee %}
     <a href="{% url 'holidays:gantt' %}"
        class="{% if '/holidays/gantt' in request.path %}active{% endif %}">
         <i class="fas fa-calendar-week"></i> Team Holidays
@@ -146,7 +146,7 @@
 
     {% if has_employee or user.is_superuser or perms.finances.view_psp_overview or perms.finances.view_all_psp_elements or perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.view_contact_person_list or perms.finances.manage_contact_person %}
     <div class="sidebar-heading">Knowledge</div>
-    {% if has_employee or user.is_superuser %}
+    {% if has_employee and not is_external_employee or user.is_superuser %}
     <a href="{% url 'hr:phone_list' %}"
        class="{% if 'phone-list' in request.path %}active{% endif %}">
         <i class="fas fa-phone"></i> Phone List

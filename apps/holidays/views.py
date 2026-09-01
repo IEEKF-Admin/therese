@@ -39,6 +39,13 @@ def _require_employee(request):
     return employee
 
 
+def _require_institute_employee(request):
+    employee = _require_employee(request)
+    if employee.is_external:
+        raise PermissionDenied('Holiday planning is only available for institute employees.')
+    return employee
+
+
 def _require_planning(request):
     if not holiday_flags()['planning']:
         raise PermissionDenied('Holiday planning is disabled.')
@@ -47,7 +54,7 @@ def _require_planning(request):
 @login_required
 def my_holidays(request):
     _require_planning(request)
-    employee = _require_employee(request)
+    employee = _require_institute_employee(request)
     profile = get_or_create_profile(employee)
     today = date.today()
     year = today.year
@@ -129,7 +136,7 @@ def my_holidays(request):
 @require_POST
 def create_holiday_request(request):
     _require_planning(request)
-    employee = _require_employee(request)
+    employee = _require_institute_employee(request)
     raw = request.POST.getlist('dates') or (request.POST.get('dates') or '').split(',')
     dates = []
     for item in raw:
@@ -238,7 +245,7 @@ def approve_list(request):
 def gantt(request):
     if not holiday_flags()['gantt']:
         raise PermissionDenied('The holiday overview is disabled.')
-    _require_employee(request)
+    _require_institute_employee(request)
     today = date.today()
     try:
         year = int(request.GET.get('year', today.year))

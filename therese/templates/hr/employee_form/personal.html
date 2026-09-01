@@ -2,6 +2,16 @@
 <div class="form-section">
     <h3>Personal Information</h3>
     <div class="aligned-field"><label>{{ form.employee_number.label }}</label>{% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number|add_class:"form-control" }}{% endif %}</div>
+    {% if form.is_external %}
+    <div class="aligned-field">
+        <label>{{ form.is_external.label }}</label>
+        <div class="active-toggle-wrap">{{ form.is_external }}</div>
+        <small class="field-hint-de">Kein Institutsangehöriger. Mitarbeiternummer optional. Login-User verknüpfen für Gruppen/Checklisten.</small>
+    </div>
+    {% endif %}
+    {% if form.user %}
+    <div class="aligned-field"><label>{{ form.user.label }}</label>{% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}</div>
+    {% endif %}
     <div class="aligned-field"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.first_name.label }}</label>{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.last_name.label }}</label>{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}</div>

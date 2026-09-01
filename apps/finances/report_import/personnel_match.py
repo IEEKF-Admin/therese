@@ -186,7 +186,7 @@ def build_personnel_checks(entries: list, parent_wbs_code: str, as_of: date | No
             checks.append(check)
             continue
 
-        employee = Employee.objects.filter(employee_number=personalnummer).first()
+        employee = Employee.objects.institute().filter(employee_number=personalnummer).first()
         if employee is None:
             # Case c
             check['status'] = 'no_employee'
@@ -366,7 +366,7 @@ def _create_employee_from_check(check: dict, as_of: date) -> tuple[Employee, lis
 
     notes = []
     personalnummer = check['personalnummer']
-    existing = Employee.objects.filter(employee_number=personalnummer).first()
+    existing = Employee.objects.institute().filter(employee_number=personalnummer).first()
     if existing:
         notes.append(
             f'{personalnummer}: employee already exists (pk={existing.pk}); not re-created.'
@@ -442,9 +442,9 @@ def _create_fa_from_check(check: dict, as_of: date) -> list[str]:
 
     notes = []
     personalnummer = check.get('personalnummer')
-    employee = Employee.objects.filter(pk=check.get('employee_pk')).first()
+    employee = Employee.objects.institute().filter(pk=check.get('employee_pk')).first()
     if employee is None:
-        employee = Employee.objects.filter(employee_number=personalnummer).first()
+        employee = Employee.objects.institute().filter(employee_number=personalnummer).first()
     if employee is None:
         notes.append(f'{personalnummer}: cannot create FA — employee missing.')
         return notes

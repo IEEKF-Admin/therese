@@ -95,6 +95,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_display = (
         'employee_number',
         'get_full_name',
+        'is_external',
         'gender',
         'email_professional',
         'job',
@@ -102,7 +103,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         'cost_center',
         'user',
     )
-    list_filter = ('gender', 'room__building', 'cost_center', 'job')
+    list_filter = ('is_external', 'gender', 'room__building', 'cost_center', 'job')
     search_fields = (
         'employee_number',
         'first_name',
@@ -120,6 +121,7 @@ class EmployeeAdmin(admin.ModelAdmin):
             {
                 'fields': (
                     'employee_number',
+                    'is_external',
                     'user',
                     'prefix',
                     'first_name',

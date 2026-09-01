@@ -67,6 +67,11 @@ def phone_list(request):
     from apps.hr.models import Contract
     from apps.hr.validity import contract_open_on_q
 
+    viewer = getattr(request.user, 'employee', None)
+    if viewer is not None and viewer.is_external and not request.user.is_superuser:
+        messages.error(request, "Phone list is only available for institute employees.")
+        return redirect('tasks:my_tasks')
+
     today = date.today()
     open_employee_ids = (
         Contract.objects.filter(contract_open_on_q(today))
@@ -74,7 +79,7 @@ def phone_list(request):
         .distinct()
     )
     employees = (
-        Employee.objects.filter(pk__in=open_employee_ids)
+        Employee.objects.institute().filter(pk__in=open_employee_ids)
         .order_by('last_name', 'first_name')
         .only('first_name', 'last_name', 'phone_number', 'email_professional')
     )
@@ -116,11 +121,12 @@ def employee_list(request):
 
     today = date.today()
     if archive_mode:
-        employees = employees.filter(
+        employees = employees.filter(is_external=False).filter(
             models.Q(contracts__valid_until__lt=today) | models.Q(contracts__isnull=True)
         ).distinct()
     else:
         employees = employees.filter(
+            models.Q(is_external=True) |
             models.Q(contracts__valid_until__isnull=True) |
             models.Q(contracts__valid_until__gte=today)
         ).distinct()

@@ -175,7 +175,7 @@ def annotate_employees_for_list(employees: list[Employee], *, as_of: date | None
         emp.list_contract_check_needed = any(
             getattr(c, 'check_needed', False) for c in contracts
         )
-        if archive_mode:
+        if archive_mode or emp.is_external:
             emp.list_expiry_warning = False
             emp.list_expiry_tooltip = ''
         else:

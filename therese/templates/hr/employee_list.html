@@ -98,6 +98,9 @@
                     {% endif %}
                     <td>
                         <strong>{{ employee.get_full_name }}</strong>
+                        {% if employee.is_external %}
+                        <span class="badge" style="background:#64748b;color:#fff;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Not an institute employee">External</span>
+                        {% endif %}
                         {% if employee.is_pending %}
                         <span class="badge" style="background:#6366f1;color:#fff;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Pending import review">Pending</span>
                         {% endif %}
@@ -111,7 +114,7 @@
                               style="color:#dc2626; font-weight:800; margin-left:0.35rem; font-size:1.15em;">!</span>
                         {% endif %}
                     </td>
-                    <td>{{ employee.employee_number }}</td>
+                    <td>{{ employee.employee_number|default:"—" }}</td>
                     <td>
                         {% with vu=employee.list_valid_until %}
                             {% if vu.from_date %}

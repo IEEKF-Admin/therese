@@ -1,13 +1,46 @@
 {% load widget_tweaks %}
 {% load static widget_tweaks %}
 
-{% if messages %}
+{% if form.errors or contract_formset.non_form_errors or workgroup_formset.non_form_errors %}
 <div class="alert alert-danger">
-    <strong>Could not save:</strong>
+    <strong>Could not save — please correct:</strong>
     <ul>
-        {% for message in messages %}
-            <li>{{ message }}</li>
+        {% for field in form %}
+            {% if field.errors %}
+            <li><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</li>
+            {% endif %}
         {% endfor %}
+        {% if form.non_field_errors %}
+        <li>{{ form.non_field_errors|striptags }}</li>
+        {% endif %}
+        {% if contract_formset.non_form_errors %}
+        <li><strong>Contracts:</strong> {{ contract_formset.non_form_errors|striptags }}</li>
+        {% endif %}
+        {% for card in contract_cards %}
+            {% for field in card.form %}
+                {% if field.errors %}
+                <li><strong>Contract – {{ field.label }}:</strong> {{ field.errors|striptags }}</li>
+                {% endif %}
+            {% endfor %}
+            {% if card.form.non_field_errors %}
+            <li><strong>Contract:</strong> {{ card.form.non_field_errors|striptags }}</li>
+            {% endif %}
+            {% if card.funding_formset and card.funding_formset.non_form_errors %}
+            <li><strong>Funding:</strong> {{ card.funding_formset.non_form_errors|striptags }}</li>
+            {% endif %}
+            {% if card.funding_formset %}
+                {% for fform in card.funding_formset %}
+                    {% for field in fform %}
+                        {% if field.errors %}
+                        <li><strong>Funding – {{ field.label }}:</strong> {{ field.errors|striptags }}</li>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        {% if workgroup_formset.non_form_errors %}
+        <li><strong>Workgroups:</strong> {{ workgroup_formset.non_form_errors|striptags }}</li>
+        {% endif %}
     </ul>
 </div>
 {% endif %}

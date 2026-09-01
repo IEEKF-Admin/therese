@@ -22,7 +22,6 @@ Constraints:
 """
 
 from django import forms
-from django.db.models import Q
 from django.forms.models import inlineformset_factory
 
 from apps.accounts.models import CustomUser
@@ -148,14 +147,15 @@ class EmployeeForm(forms.ModelForm):
             self.fields['employee_number'].required = False
 
         if 'user' in self.fields:
-            user_qs = CustomUser.objects.filter(employee__isnull=True)
-            if instance and instance.user_id:
-                user_qs = CustomUser.objects.filter(
-                    Q(employee__isnull=True) | Q(pk=instance.user_id)
-                )
-            self.fields['user'].queryset = user_qs.order_by('username')
+            # Include already-linked users so the current assignment is a valid
+            # choice on POST (restricting to "unlinked only" yields invalid_choice
+            # with no visible field error on this form).
+            self.fields['user'].queryset = CustomUser.objects.order_by(
+                'last_name', 'first_name', 'username',
+            )
             self.fields['user'].required = False
             self.fields['user'].empty_label = '— No login user —'
+            self.fields['user'].label = 'Django User'
 
         if 'job' in self.fields:
             from apps.tasks.recruitment_config import visible_recruitment_jobs
@@ -181,6 +181,18 @@ class EmployeeForm(forms.ModelForm):
         cleaned_data['employee_number'] = number or None
         if not cleaned_data.get('is_external') and not cleaned_data.get('employee_number'):
             self.add_error('employee_number', 'Employee number is required for institute employees.')
+        linked_user = cleaned_data.get('user')
+        if linked_user is not None:
+            taken = Employee.objects.filter(user=linked_user)
+            if self.instance and self.instance.pk:
+                taken = taken.exclude(pk=self.instance.pk)
+            if taken.exists():
+                other = taken.first()
+                self.add_error(
+                    'user',
+                    'This login user is already linked to '
+                    f'{other.get_full_name()}.',
+                )
         return cleaned_data
 
     def clean_phone_number(self):

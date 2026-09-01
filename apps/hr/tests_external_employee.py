@@ -55,6 +55,29 @@ class ExternalEmployeeFormTests(TestCase):
         self.assertTrue(emp.is_external)
         self.assertEqual(emp.user_id, login.pk)
 
+    def test_edit_keeps_existing_linked_user(self):
+        login = _user('keep-login')
+        employee = Employee.objects.create(
+            employee_number='90103758',
+            first_name='Therese',
+            last_name='Aich',
+            gender='F',
+            country='Germany',
+            user=login,
+        )
+        form = EmployeeForm(
+            data={
+                'employee_number': '90103758',
+                'first_name': 'Therese',
+                'last_name': 'Aich',
+                'gender': 'F',
+                'country': 'Germany',
+                'user': str(login.pk),
+            },
+            instance=employee,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
 
 class ExternalEmployeeListTests(TestCase):
     def setUp(self):

@@ -1893,6 +1893,20 @@ input.form-control:focus {
     margin-bottom: 1.5rem;
 }
 
+.form-control.error,
+select.error,
+input.error,
+textarea.error {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2;
+}
+.field-error {
+    display: block;
+    color: #dc2626;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
 .task-type-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

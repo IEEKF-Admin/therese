@@ -10,8 +10,13 @@
     </div>
     {% endif %}
     {% if form.user %}
-    <div class="aligned-field"><label>{{ form.user.label }}</label>{% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}</div>
+    <div class="aligned-field">
+        <label>{{ form.user.label }}</label>
+        {% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}
+        {% if form.user.errors %}<small class="field-error">{{ form.user.errors|striptags }}</small>{% endif %}
+    </div>
     {% endif %}
+    {% if form.job %}{{ form.job.as_hidden }}{% endif %}
     <div class="aligned-field"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.first_name.label }}</label>{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.last_name.label }}</label>{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}</div>

@@ -155,7 +155,7 @@ class EmployeeForm(forms.ModelForm):
             )
             self.fields['user'].required = False
             self.fields['user'].empty_label = '— No login user —'
-            self.fields['user'].label = 'Django User'
+            self.fields['user'].label = 'Login account'
 
         if 'job' in self.fields:
             from apps.tasks.recruitment_config import visible_recruitment_jobs

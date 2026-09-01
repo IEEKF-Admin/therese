@@ -6,14 +6,7 @@
     <div class="aligned-field">
         <label>{{ form.is_external.label }}</label>
         <div class="active-toggle-wrap">{{ form.is_external }}</div>
-        <small class="field-hint-de">Kein Institutsangehöriger. Mitarbeiternummer optional. Login-User verknüpfen für Gruppen/Checklisten.</small>
-    </div>
-    {% endif %}
-    {% if form.user %}
-    <div class="aligned-field">
-        <label>{{ form.user.label }}</label>
-        {% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}
-        {% if form.user.errors %}<small class="field-error">{{ form.user.errors|striptags }}</small>{% endif %}
+        <small class="field-hint">Not an institute employee. Employee number is optional. Link a login account for groups and checklists.</small>
     </div>
     {% endif %}
     {% if form.job %}{{ form.job.as_hidden }}{% endif %}
@@ -28,16 +21,38 @@
     <div class="aligned-field">
         <label>{{ form.is_pending.label }}</label>
         <div class="active-toggle-wrap">{{ form.is_pending }}</div>
-        <small class="field-hint-de">Aus Import erzeugt — noch in Prüfung (Pending).</small>
+        <small class="field-hint">Created from an import — still pending review.</small>
     </div>
     {% endif %}
     {% if form.check_needed %}
     <div class="aligned-field">
         <label>{{ form.check_needed.label }}</label>
         <div class="active-toggle-wrap">{{ form.check_needed }}</div>
-        <small class="field-hint-de">Manuelle Prüfung nötig. Login-User erst nach Entfernen dieses Flags.</small>
+        <small class="field-hint">Manual review required. Uncheck before linking a login account.</small>
     </div>
     {% endif %}
 </div>
+
+{% if form.user or show_reset_password %}
+<div class="form-section account-section">
+    <h3>Account</h3>
+    {% if form.user %}
+    <div class="aligned-field">
+        <label>{{ form.user.label }}</label>
+        {% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}
+        {% if form.user.errors %}<small class="field-error">{{ form.user.errors|striptags }}</small>{% endif %}
+    </div>
+    {% endif %}
+    {% if show_reset_password %}
+    <div class="aligned-field account-danger-zone">
+        <label>Password</label>
+        <button type="submit" form="employee-reset-password-form" class="btn-secondary"
+                onclick="return confirm('Generate a new password and email it to this user?');">
+            Reset Password
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 
 

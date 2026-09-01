@@ -48,20 +48,26 @@
 <div class="two-col-layout employee-two-col">
     <div class="left-col">
         {% include "hr/employee_form/personal.html" %}
-        {% include "hr/employee_form/address.html" %}
-        {% include "hr/employee_form/workgroups.html" %}
     </div>
     <div class="right-col">
         {% include "hr/employee_form/contact_location.html" %}
-        {% include "hr/employee_form/documents_finance.html" %}
     </div>
 </div>
 
 <div class="full-block">
+    {% include "hr/employee_form/address.html" %}
+</div>
+<div class="full-block">
+    {% include "hr/employee_form/documents_finance.html" %}
+</div>
+<div class="full-block">
+    {% include "hr/employee_form/workgroups.html" %}
+</div>
+<div class="full-block">
     {% include "hr/employee_form/contracts.html" %}
 </div>
 
-<div class="form-actions">
-    <button type="submit" class="btn-primary">💾 Save Employee</button>
+<div class="employee-sticky-actions">
+    <button type="submit" class="btn-primary">Save Employee</button>
     <a href="{% url 'hr:employee_list' %}" class="btn-secondary">Cancel</a>
 </div>

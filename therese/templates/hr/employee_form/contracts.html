@@ -1,7 +1,7 @@
 {% load widget_tweaks %}
 <div class="form-section full-width contracts-section">
     <h3>Contracts &amp; Funding Allocations</h3>
-    <p class="text-muted" style="font-size:0.85rem; margin-top:0;">
+    <p class="text-muted contracts-funding-help" style="font-size:0.85rem; margin-top:0;"{% if not show_funding_help %} hidden{% endif %}>
         Each contract is a card. Funding allocations belong to that contract.
         Active funding % on the <strong>active</strong> contract must sum to
         <strong>exactly 100%</strong>. At most one active contract is allowed.
@@ -61,11 +61,11 @@
                     <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field">
-                        <label title="Monatsgehalt bei 100% Arbeitszeit">
+                        <label title="Monthly salary at 100% working time">
                             Monthly Salary (100% workload)
                         </label>
                         {% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}
-                        <small class="field-hint-de">Monatsgehalt, das die Person bei 100% Arbeitszeit erhalten würde. Zulagen und Teilzeit fließen in die True Costs ein.</small>
+                        <small class="field-hint">Monthly salary at 100% working time. Supplements and part-time hours apply in true costs.</small>
                     </div>
                     <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
@@ -221,11 +221,11 @@
         </div>
         {% endwith %}
         {% empty %}
-        <p class="text-muted">No contracts yet. Add one below.</p>
+        <p class="text-muted">No contracts yet.</p>
         {% endfor %}
     </div>
 
-    <button type="button" class="btn-secondary" id="btn-add-contract" style="margin-top:0.75rem;">
+    <button type="button" class="btn-secondary btn-add-row" id="btn-add-contract">
         + Add contract
     </button>
 </div>
@@ -253,11 +253,11 @@
                 <div class="inline-field"><label>Pay Scale Group</label>{{ empty_contract_form.pay_scale_group|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Experience Level</label>{{ empty_contract_form.experience_level|add_class:"form-control" }}</div>
                 <div class="inline-field">
-                    <label title="Monatsgehalt bei 100% Arbeitszeit">
+                    <label title="Monthly salary at 100% working time">
                         Monthly Salary (100% workload)
                     </label>
                     {{ empty_contract_form.monthly_salary|add_class:"form-control" }}
-                    <small class="field-hint-de">Monatsgehalt, das die Person bei 100% Arbeitszeit erhalten würde. Zulagen und Teilzeit fließen in die True Costs ein.</small>
+                    <small class="field-hint">Monthly salary at 100% working time. Supplements and part-time hours apply in true costs.</small>
                 </div>
                 <div class="inline-field"><label>Job Number</label>{{ empty_contract_form.job_number|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Weekly Hours</label>{{ empty_contract_form.weekly_hours|add_class:"form-control" }}</div>
@@ -630,6 +630,8 @@
             totalInput.value = idx + 1;
             bindCard(clone);
             if (typeof initFlatpickrDatePickers === 'function') initFlatpickrDatePickers();
+            var fundingHelp = document.querySelector('.contracts-funding-help');
+            if (fundingHelp) fundingHelp.hidden = false;
         });
     }
 

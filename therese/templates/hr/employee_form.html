@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static widget_tweaks %}   <!-- WICHTIG: Hier laden -->
 
 {% block title %}{% if object %}Edit{% else %}New{% endif %} Employee - THERESE{% endblock %}
@@ -20,54 +20,38 @@
     }
 
     function getTotalFormsInput(container, formsetPrefix) {
-        // Prefer the explicit formset prefix when provided (avoids grabbing another formset).
         if (formsetPrefix) {
             const byPrefix = document.querySelector(
                 `input[name="${formsetPrefix}-TOTAL_FORMS"]`
             );
             if (byPrefix) return byPrefix;
         }
-
-        // 1. Direct descendant or inside the container
         let input = container.querySelector('input[name$="-TOTAL_FORMS"]');
         if (input) return input;
-
-        // 2. Look in the previous sibling(s) — management_form is usually rendered right before the rows
         let sibling = container.previousElementSibling;
         while (sibling) {
             input = sibling.querySelector && sibling.querySelector('input[name$="-TOTAL_FORMS"]');
             if (input) return input;
             sibling = sibling.previousElementSibling;
         }
-
-        // 3. Look upwards in parent (for the div-container cases)
         let parent = container.parentElement;
         if (parent) {
             input = parent.querySelector('input[name$="-TOTAL_FORMS"]');
             if (input) return input;
         }
-
-        // 4. Section form-section that wraps table + management form
         let section = container.closest('.form-section');
         if (section) {
             input = section.querySelector('input[name$="-TOTAL_FORMS"]');
             if (input) return input;
         }
-
-        // 5. Last resort: any TOTAL_FORMS on the page (better than nothing)
         const all = document.querySelectorAll('input[name$="-TOTAL_FORMS"]');
         return all.length ? all[0] : null;
     }
 
     window.addInlineRow = function(containerId, templateSelector, formsetPrefix) {
-        console.log(`➕ addInlineRow: ${containerId}`);
         const container = document.getElementById(containerId);
-        if (!container) {
-            console.error('Container not found:', containerId);
-            return;
-        }
+        if (!container) return;
 
-        // Empty templates live next to the container (sibling), not inside it.
         let templateWrapper = null;
         if (containerId === 'contract-container') {
             templateWrapper = document.getElementById('contract-empty-template');
@@ -79,7 +63,6 @@
                 ? container.parentElement.querySelector('.empty-form-template')
                 : null;
         }
-        // Workgroup / salary: empty template row is inside the tbody itself
         if (!templateWrapper) {
             templateWrapper = container.querySelector('.empty-form-template');
         }
@@ -100,10 +83,7 @@
                 || container.querySelector(templateSelector)
                 || container.querySelector('tr');
         }
-        if (!rowSource) {
-            console.error('No template row found for', containerId);
-            return;
-        }
+        if (!rowSource) return;
 
         const totalInput = getTotalFormsInput(container, formsetPrefix);
         let newIndex = 0;
@@ -157,11 +137,13 @@
         if (typeof initFlatpickrDatePickers === 'function') {
             initFlatpickrDatePickers();
         }
-
-        console.log('✅ New row added with index', newIndex);
+        if (typeof window.syncWorkgroupSelectTitles === 'function') {
+            window.syncWorkgroupSelectTitles();
+        }
+        var help = document.querySelector('.contracts-funding-help');
+        if (help) help.hidden = false;
     };
 
-    // Delegated handler for all "Remove" buttons (works for existing + new rows)
     document.addEventListener('click', function(e) {
         const removeBtn = e.target.closest('.remove-row');
         if (!removeBtn) return;
@@ -171,16 +153,13 @@
 
         const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
         if (deleteCheckbox) {
-            // Existing row → mark for deletion (Django formset style)
             deleteCheckbox.checked = true;
             row.style.display = 'none';
         } else {
-            // Newly added row (no server ID yet) → just remove from DOM
             row.remove();
         }
     });
 
-    // Re-enable fields that were disabled for inactive rows so values still POST
     document.querySelectorAll('form.employee-form').forEach(function(form) {
         form.addEventListener('submit', function() {
             form.querySelectorAll('.is-inactive input:disabled, .is-inactive select:disabled, .is-inactive textarea:disabled').forEach(function(el) {
@@ -190,15 +169,28 @@
             });
         });
     });
+
+    window.syncWorkgroupSelectTitles = function() {
+        document.querySelectorAll('#workgroup-table select').forEach(function(sel) {
+            var opt = sel.options[sel.selectedIndex];
+            sel.title = opt ? opt.text.trim() : '';
+        });
+    };
+    document.addEventListener('change', function(e) {
+        if (e.target.closest && e.target.closest('#workgroup-table') && e.target.tagName === 'SELECT') {
+            window.syncWorkgroupSelectTitles();
+        }
+    });
+    document.addEventListener('DOMContentLoaded', window.syncWorkgroupSelectTitles);
 })();
 </script>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>{% if object %}Edit{% else %}Create{% endif %} Employee</h1>
-    <div class="page-header-actions">
-        <a href="{% url 'hr:employee_list' %}" class="btn-secondary">← Back to List</a>
+<div class="page-header employee-form-header">
+    <div class="employee-form-heading">
+        <a href="{% url 'hr:employee_list' %}" class="back-link">← Back to List</a>
+        <h1>{% if object %}Edit{% else %}Create{% endif %} Employee</h1>
     </div>
 </div>
 
@@ -209,7 +201,7 @@
 </div>
 {% endif %}
 
-<form method="post" enctype="multipart/form-data" class="employee-form">
+<form method="post" enctype="multipart/form-data" class="employee-form" id="employee-edit-form">
     {% csrf_token %}
     {% if next_url %}
     <input type="hidden" name="next" value="{{ next_url }}">
@@ -223,5 +215,3 @@
 </form>
 {% endif %}
 {% endblock %}
-
-

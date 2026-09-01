@@ -7,17 +7,13 @@
     <div class="aligned-field"><label>{{ form.private_phone_number.label }}</label>{% if form.private_phone_number.errors %}{{ form.private_phone_number|add_class:"form-control error" }}{% else %}{{ form.private_phone_number|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.website.label }}</label>{% if form.website.errors %}{{ form.website|add_class:"form-control error" }}{% else %}{{ form.website|add_class:"form-control" }}{% endif %}</div>
 
-    <div class="aligned-field"><label>Building</label>{% if form.building.errors %}{{ form.building|add_class:"building-select form-control error" }}{% else %}{{ form.building|add_class:"building-select form-control" }}{% endif %}</div>
-    <div class="aligned-field"><label>Room</label>{% if form.room.errors %}{{ form.room|add_class:"room-select form-control error" }}{% else %}{{ form.room|add_class:"room-select form-control" }}{% endif %}</div>
-    <div class="aligned-field"><label>Office Phone</label>{% if form.phone_number.errors %}{{ form.phone_number|add_class:"phone-select form-control error" }}{% else %}{{ form.phone_number|add_class:"phone-select form-control" }}{% endif %}</div>
-    {% if show_reset_password %}
-    <div class="form-actions" style="margin-top:1.25rem; margin-bottom:0;">
-        <button type="submit" form="employee-reset-password-form" class="btn-secondary"
-                onclick="return confirm('Generate a new password and email it to this user?');">
-            Reset Password
-        </button>
+    <div class="workplace-group">
+        <h4>Workplace</h4>
+        <p class="field-hint">Select building first, then room, then office phone.</p>
+        <div class="aligned-field"><label>Building</label>{% if form.building.errors %}{{ form.building|add_class:"building-select form-control error" }}{% else %}{{ form.building|add_class:"building-select form-control" }}{% endif %}</div>
+        <div class="aligned-field"><label>Room</label>{% if form.room.errors %}{{ form.room|add_class:"room-select form-control error" }}{% else %}{{ form.room|add_class:"room-select form-control" }}{% endif %}</div>
+        <div class="aligned-field"><label>Office Phone</label>{% if form.phone_number.errors %}{{ form.phone_number|add_class:"phone-select form-control error" }}{% else %}{{ form.phone_number|add_class:"phone-select form-control" }}{% endif %}</div>
     </div>
-    {% endif %}
 </div>
 
 

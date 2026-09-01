@@ -399,6 +399,7 @@ def _contract_ui_context(request, employee, task=None):
             card.setdefault('funding_readonly', [])
             card.setdefault('salary_readonly', [])
 
+    cards = built.get('contract_cards') or []
     return {
         **built,
         'add_funding_wbs': (
@@ -409,6 +410,7 @@ def _contract_ui_context(request, employee, task=None):
             request.GET.get('show_archived_contracts') == '1'
             or request.POST.get('show_archived_contracts') == '1'
         ),
+        'show_funding_help': any(card.get('is_active') for card in cards),
     }
 
 
@@ -422,6 +424,9 @@ def _bind_post_context(context, employee, request):
     context['nested_funding'] = nested_fa
     context['nested_salary'] = nested_ss
     context['show_archived_contracts'] = request.POST.get('show_archived_contracts') == '1'
+    context['show_funding_help'] = any(
+        card.get('is_active') for card in context.get('contract_cards') or []
+    )
     return context
 
 
@@ -574,6 +579,8 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return user_can_manage_employees(self.request.user)
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         self.object = self.get_object()
         if not user_can_manage_employee(request.user, self.object):
             messages.error(request, "You don't have permission to edit this employee.")

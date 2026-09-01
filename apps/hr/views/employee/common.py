@@ -31,12 +31,26 @@ def employee_document_context(request, employee=None):
     }
 
 
+def _nested_formset_needs_save(cform, nested_fs):
+    """False when the UI did not post the nested formset (e.g. archived contract)."""
+    if nested_fs is None or not nested_fs.is_bound:
+        return False
+    cleaned = getattr(cform, 'cleaned_data', None) or {}
+    if cleaned.get('DELETE'):
+        return False
+    if not cleaned.get('is_active', True):
+        return False
+    return True
+
+
 def _save_nested_on_contract(nested, saved_by_index, *, inactive_skip=True):
     """Save nested formsets keyed as (index, contract_form, formset)."""
     for index, cform, nested_fs in nested:
         if not hasattr(cform, 'cleaned_data') or not cform.cleaned_data:
             continue
         if cform.cleaned_data.get('DELETE'):
+            continue
+        if not nested_fs.is_bound:
             continue
         contract = cform.instance
         if not contract.pk:
@@ -83,11 +97,15 @@ def save_employee_with_formsets(
     if not contract_formset.is_valid():
         return None, ['Please correct errors in Contracts.']
 
-    for _, _, fa_fs in nested_funding:
+    for cform, fa_fs in ((item[1], item[2]) for item in nested_funding):
+        if not _nested_formset_needs_save(cform, fa_fs):
+            continue
         if not fa_fs.is_valid():
             return None, ['Please correct errors in Funding Allocations.']
 
-    for _, _, ss_fs in nested_salary:
+    for cform, ss_fs in ((item[1], item[2]) for item in nested_salary):
+        if not _nested_formset_needs_save(cform, ss_fs):
+            continue
         if not ss_fs.is_valid():
             return None, ['Please correct errors in Salary Supplements.']
 

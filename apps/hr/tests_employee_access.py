@@ -1,8 +1,12 @@
 """Workgroup-scoped vs institute-wide employee access."""
 
+from datetime import date
+from decimal import Decimal
+
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
+from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import assign_permissions_to_groups, get_or_create_default_groups
@@ -12,7 +16,7 @@ from apps.hr.employee_access import (
     user_can_view_employee,
 )
 from apps.hr.forms import EmployeeForm
-from apps.hr.models import Employee, Workgroup
+from apps.hr.models import Contract, Employee, Workgroup
 
 
 def _grant(user, *codenames):
@@ -107,6 +111,21 @@ class EmployeeAccessTests(TestCase):
         self.assertIn('A1', content)
         self.assertNotIn('B1', content)
 
+    def test_unauth_edit_redirects_to_login_with_edit_next(self):
+        from urllib.parse import parse_qs, urlparse
+
+        url = f'/hr/employees/{self.emp_a.pk}/edit/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        parsed = urlparse(response.url)
+        self.assertTrue(parsed.path.endswith('/accounts/login/'))
+        self.assertEqual(parse_qs(parsed.query).get('next', [''])[0], url)
+        follow = self.client.get(url, follow=True)
+        self.assertNotIn(
+            "You don't have permission to edit this employee.",
+            follow.content.decode(),
+        )
+
     def test_edit_blocked_outside_workgroup(self):
         client = Client()
         client.login(username='manager', password='test')
@@ -146,3 +165,55 @@ class EmployeeFormCheckNeededTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertTrue(form.errors)
         self.assertNotIn('user', form.errors)
+
+
+class ArchivedContractEmployeeSaveTests(TestCase):
+    def setUp(self):
+        get_or_create_default_groups()
+        assign_permissions_to_groups()
+        self.user = _ready_user('hr-arch')
+        _grant(self.user, 'manage_all_employees', 'manage_employee')
+        self.employee = Employee.objects.create(
+            employee_number='ARCH-1',
+            first_name='Archived',
+            last_name='Only',
+            gender='X',
+            country='Germany',
+        )
+        self.contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.000'),
+            valid_from=date(2020, 1, 1),
+            valid_until=date(2024, 12, 31),
+            is_active=False,
+        )
+
+    def test_save_succeeds_without_posted_funding_formset(self):
+        self.client.login(username='hr-arch', password='test')
+        response = self.client.post(
+            reverse('hr:employee_update', args=[self.employee.pk]),
+            {
+                'employee_number': 'ARCH-1',
+                'first_name': 'Archived',
+                'last_name': 'Only',
+                'gender': 'X',
+                'country': 'Germany',
+                'contracts-TOTAL_FORMS': '1',
+                'contracts-INITIAL_FORMS': '1',
+                'contracts-MIN_NUM_FORMS': '0',
+                'contracts-MAX_NUM_FORMS': '1000',
+                'contracts-0-id': str(self.contract.pk),
+                'contracts-0-weekly_hours': '39.000',
+                'contracts-0-valid_from': '01.01.2020',
+                'contracts-0-valid_until': '31.12.2024',
+                'Workgroup_members-TOTAL_FORMS': '0',
+                'Workgroup_members-INITIAL_FORMS': '0',
+                'Workgroup_members-MIN_NUM_FORMS': '0',
+                'Workgroup_members-MAX_NUM_FORMS': '1000',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303), getattr(response, 'context', None))
+        self.assertNotIn(
+            'Please correct errors in Funding Allocations.',
+            ' '.join(str(m) for m in response.wsgi_request._messages) if hasattr(response, 'wsgi_request') else '',
+        )

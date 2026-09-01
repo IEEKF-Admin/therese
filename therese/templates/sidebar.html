@@ -25,9 +25,11 @@
     {% if user_can_approve_holidays %}
     <a href="{% url 'holidays:approve_list' %}"
        class="sidebar-link-with-badge {% if '/holidays/approve' in request.path %}active{% endif %}">
-        <i class="fas fa-calendar-check"></i>
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-calendar-check"></i>
+            {% if holidays_menu_needs_attention %}<span class="menu-notification-dot" aria-label="Pending holiday requests"></span>{% endif %}
+        </span>
         <span>Approve Holidays</span>
-        {% if holidays_menu_needs_attention %}<span class="menu-notification-dot" title="Pending holiday requests"></span>{% endif %}
     </a>
     {% endif %}
     {% if holiday_flags.gantt and has_employee and not is_external_employee %}
@@ -40,18 +42,22 @@
     {% if perms.documents.view_document or perms.documents.manage_document %}
     <a href="{% url 'documents:list' %}"
        class="sidebar-link-with-badge {% if '/documents/' in request.path and '/documents/manage' not in request.path %}active{% endif %}">
-        <i class="fas fa-book-open"></i>
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-book-open"></i>
+            {% if documents_menu_needs_attention %}<span class="menu-notification-dot" aria-label="New or updated documents"></span>{% endif %}
+        </span>
         <span>Documents &amp; SOPs</span>
-        {% if documents_menu_needs_attention %}<span class="menu-notification-dot" title="New or updated documents"></span>{% endif %}
     </a>
     {% endif %}
 
     {% if user_has_active_checklists %}
     <a href="{% url 'checklists:my_list' %}"
        class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
-        <i class="fas fa-clipboard-check"></i>
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-clipboard-check"></i>
+            {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" aria-label="New checklists to fill"></span>{% endif %}
+        </span>
         <span>Your Checklists</span>
-        {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" title="New checklists to fill"></span>{% endif %}
     </a>
     {% endif %}
 

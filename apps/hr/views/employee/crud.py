@@ -121,15 +121,17 @@ def employee_list(request):
     employees = filter_employees_for_user(employees, request.user)
 
     today = date.today()
+    current_contract_q = (
+        models.Q(contracts__valid_until__isnull=True)
+        | models.Q(contracts__valid_until__gte=today)
+    )
     if archive_mode:
-        employees = employees.filter(is_external=False).filter(
-            models.Q(contracts__valid_until__lt=today) | models.Q(contracts__isnull=True)
+        employees = employees.filter(is_external=False).exclude(
+            current_contract_q
         ).distinct()
     else:
         employees = employees.filter(
-            models.Q(is_external=True) |
-            models.Q(contracts__valid_until__isnull=True) |
-            models.Q(contracts__valid_until__gte=today)
+            models.Q(is_external=True) | current_contract_q
         ).distinct()
 
     if search_query:
@@ -184,6 +186,7 @@ def employee_list(request):
 
     show_actions = can_create_personnel
     show_checkboxes = can_manage
+    show_action_column = show_actions or (archive_mode and can_manage)
     from apps.accounts.permissions import user_can_reset_user_password
     can_reset_passwords = user_can_reset_user_password(request.user)
 
@@ -199,6 +202,7 @@ def employee_list(request):
         'can_create_personnel': can_create_personnel,
         'can_edit_any': can_edit_any,
         'show_actions': show_actions,
+        'show_action_column': show_action_column,
         'show_checkboxes': show_checkboxes,
         'can_reset_passwords': can_reset_passwords,
     }
@@ -279,6 +283,64 @@ def employee_list(request):
         if not deleted and not blocked and not skipped_perm:
             messages.info(request, 'No employees were selected for deletion.')
         return redirect('hr:employee_list')
+
+    restore_id = (request.POST.get('restore_id') or '').strip()
+    if request.method == 'POST' and (
+        request.POST.get('action') == 'restore_selected' or restore_id
+    ):
+        if not can_manage:
+            messages.error(request, 'You do not have permission to restore employees.')
+            return redirect(reverse('hr:employee_list') + '?archive=1')
+        from apps.hr.employee_list_helpers import restore_employee_from_archive
+
+        ids = [restore_id] if restore_id else request.POST.getlist('selected_ids')
+        restored = 0
+        skipped_perm = 0
+        no_contract = []
+        failed = []
+        for eid in ids:
+            try:
+                emp = Employee.objects.get(pk=eid)
+            except (Employee.DoesNotExist, ValueError, TypeError):
+                continue
+            if not user_can_manage_employee(request.user, emp):
+                skipped_perm += 1
+                continue
+            ok, reason = restore_employee_from_archive(emp)
+            if ok:
+                restored += 1
+            elif reason == 'no_contract':
+                no_contract.append(emp.get_full_name())
+            else:
+                failed.append(emp.get_full_name())
+        if restored:
+            messages.success(
+                request,
+                f'{restored} employee(s) restored to the active list.',
+            )
+        if skipped_perm:
+            messages.warning(
+                request,
+                f'{skipped_perm} employee(s) skipped (no manage permission).',
+            )
+        if no_contract:
+            messages.warning(
+                request,
+                'No contract to restore for: ' + ', '.join(no_contract[:5])
+                + (' …' if len(no_contract) > 5 else '')
+                + '. Open the employee and add a contract.',
+            )
+        if failed:
+            messages.error(
+                request,
+                'Could not restore: ' + ', '.join(failed[:5])
+                + (' …' if len(failed) > 5 else ''),
+            )
+        if not restored and not skipped_perm and not no_contract and not failed:
+            messages.info(request, 'No employees were selected for restore.')
+        if restored and not no_contract and not failed:
+            return redirect('hr:employee_list')
+        return redirect(reverse('hr:employee_list') + '?archive=1')
 
     if request.GET.get('partial') == '1':
         return render(request, 'hr/_employee_table_body.html', context)
@@ -412,6 +474,12 @@ def _contract_ui_context(request, employee, task=None):
         'show_archived_contracts': (
             request.GET.get('show_archived_contracts') == '1'
             or request.POST.get('show_archived_contracts') == '1'
+            or (
+                request.method != 'POST'
+                and bool(employee.pk)
+                and any(card.get('is_existing') for card in cards)
+                and not any(card.get('is_active') for card in cards)
+            )
         ),
         'show_funding_help': any(card.get('is_active') for card in cards),
     }

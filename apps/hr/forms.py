@@ -402,6 +402,15 @@ class ContractForm(forms.ModelForm):
             and cleaned_data.get('is_active') is False
         ):
             cleaned_data['check_needed'] = False
+        if cleaned_data.get('is_active'):
+            from datetime import date as date_cls
+            until = cleaned_data.get('valid_until')
+            if until is not None and until < date_cls.today():
+                self.add_error(
+                    'valid_until',
+                    'A contract that has already ended cannot be active. '
+                    'Extend or clear Valid Until first.',
+                )
         return cleaned_data
 
 

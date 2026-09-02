@@ -45,8 +45,16 @@
             {% endif %}
         {% endwith %}
     </td>
-    {% if show_actions %}
+    {% if show_action_column %}
     <td data-stop-row-nav style="white-space:nowrap;">
+        {% if archive_mode and employee.list_can_edit %}
+        <button type="submit" class="btn-secondary" name="restore_id" value="{{ employee.pk }}"
+                style="padding:4px 8px; font-size:0.8rem;"
+                title="Restore to active list"
+                onclick="return confirm('Restore {{ employee.get_full_name }} to the active list? An expired contract will be set active and open-ended.');">
+            Restore
+        </button>
+        {% elif show_actions %}
         <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation&amp;employee={{ employee.pk }}"
            class="action-icon" title="Reallocation" aria-label="Create reallocation for {{ employee.get_full_name }}">
             <i class="fas fa-exchange-alt"></i>
@@ -59,12 +67,13 @@
            class="action-icon" title="Extension" aria-label="Create extension for {{ employee.get_full_name }}">
             <i class="fas fa-file-contract"></i>
         </a>
+        {% endif %}
     </td>
     {% endif %}
 </tr>
 {% empty %}
 <tr>
-    <td colspan="{% if show_checkboxes and show_actions %}5{% elif show_checkboxes or show_actions %}4{% else %}3{% endif %}" class="empty-state">
+    <td colspan="{% if show_checkboxes and show_action_column %}5{% elif show_checkboxes or show_action_column %}4{% else %}3{% endif %}" class="empty-state">
         {% if archive_mode %}No employees in archive.{% else %}No active employees found.{% endif %}
     </td>
 </tr>

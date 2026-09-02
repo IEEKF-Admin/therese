@@ -164,6 +164,32 @@ def display_contract_valid_until(
     }
 
 
+def restore_employee_from_archive(employee: Employee) -> tuple[bool, str]:
+    """
+    Put an archived employee back on the active list.
+
+    Reactivates the latest contract. If Valid Until is in the past, it is
+    cleared (open-ended) so the contract covers today. Other active contracts
+    are deactivated first (at most one active contract).
+    """
+    from django.core.exceptions import ValidationError
+
+    as_of = resolve_as_of()
+    latest = employee.contracts.order_by('-valid_from', '-pk').first()
+    if latest is None:
+        return False, 'no_contract'
+    employee.contracts.filter(is_active=True).exclude(pk=latest.pk).update(is_active=False)
+    latest.is_active = True
+    latest.check_needed = False
+    if latest.valid_until is not None and latest.valid_until < as_of:
+        latest.valid_until = None
+    try:
+        latest.save()
+    except ValidationError:
+        return False, 'invalid'
+    return True, 'ok'
+
+
 def annotate_employees_for_list(employees: list[Employee], *, as_of: date | None = None, archive_mode: bool = False):
     """Attach list-only attributes used by the template."""
     as_of = resolve_as_of(as_of)

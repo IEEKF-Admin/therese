@@ -260,6 +260,25 @@ class ContractArchiveAndDeleteTests(TestCase):
         self.assertIn(response.status_code, (302, 303))
         self.assertFalse(Contract.objects.filter(pk=self.contract.pk).exists())
 
+    def test_restore_from_archive_reactivates_expired_contract(self):
+        self.contract.valid_from = date(2020, 1, 1)
+        self.contract.valid_until = date(2020, 12, 31)
+        self.contract.is_active = False
+        self.contract.save()
+        self.client.login(username='sysadmin', password='test')
+        response = self.client.post(
+            reverse('hr:employee_list') + '?archive=1',
+            {'restore_id': str(self.employee.pk)},
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.contract.refresh_from_db()
+        self.assertTrue(self.contract.is_active)
+        self.assertIsNone(self.contract.valid_until)
+        active = self.client.get(reverse('hr:employee_list'))
+        self.assertContains(active, 'Del Ete')
+        archived = self.client.get(reverse('hr:employee_list'), {'archive': '1'})
+        self.assertNotContains(archived, 'Del Ete')
+
     def test_non_sysadmin_cannot_hard_delete_contract(self):
         other = _ready_user('hruser')
         _grant(other, 'manage_all_employees', 'manage_employee')

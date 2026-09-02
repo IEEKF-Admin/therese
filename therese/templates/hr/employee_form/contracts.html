@@ -538,9 +538,32 @@
         if (actCb && !actCb.dataset.archiveBound) {
             actCb.dataset.archiveBound = '1';
             actCb.addEventListener('change', function() {
+                const needed = card.querySelector('.contract-fields-grid input[name$="-check_needed"]');
                 if (!actCb.checked) {
-                    const needed = card.querySelector('.contract-fields-grid input[name$="-check_needed"]');
                     if (needed) needed.checked = false;
+                    card.classList.add('is-archived');
+                    card.setAttribute('data-active', '0');
+                    card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
+                        const name = el.getAttribute('name') || '';
+                        if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
+                        if (el.tagName === 'SELECT' || el.type === 'checkbox') el.disabled = true;
+                        else el.setAttribute('readonly', 'readonly');
+                        el.classList.add('is-inactive-field');
+                    });
+                } else {
+                    card.classList.remove('is-archived', 'is-hidden-archive');
+                    card.setAttribute('data-active', '1');
+                    const badge = card.querySelector('.badge-archived');
+                    if (badge) {
+                        badge.classList.remove('badge-archived');
+                        badge.classList.add('badge-active');
+                        badge.textContent = 'Active';
+                    }
+                    card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
+                        el.disabled = false;
+                        el.removeAttribute('readonly');
+                        el.classList.remove('is-inactive-field');
+                    });
                 }
             });
         }

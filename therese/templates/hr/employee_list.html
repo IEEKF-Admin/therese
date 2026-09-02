@@ -76,7 +76,7 @@
                             Contract Valid Until
                         </a>
                     </th>
-                    {% if show_actions %}
+                    {% if show_action_column %}
                     <th>Actions</th>
                     {% endif %}
                 </tr>
@@ -88,6 +88,12 @@
 
         {% if employees and show_checkboxes %}
         <div class="table-bulk-actions">
+            {% if archive_mode %}
+            <button type="submit" class="btn-subtle" name="action" value="restore_selected"
+                    onclick="return confirm('Restore selected employees to the active list? Expired contracts will be set active and open-ended.');">
+                Restore selected
+            </button>
+            {% endif %}
             <button type="submit" class="btn-subtle" name="action" value="delete_selected"
                     onclick="return confirm('Delete selected employees?');">
                 Delete selected

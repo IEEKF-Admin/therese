@@ -256,16 +256,21 @@ def build_contract_cards(
             'contract_pk': contract.pk if is_existing else None,
         })
 
-    empty_contract_fs = make_contract_formset(extra=0)(instance=employee)
-    empty_contract_form = empty_contract_fs.empty_form
-    shell = Contract(employee=employee) if employee is not None else Contract()
-    empty_fa_fs = make_contract_funding_formset(extra=0)(instance=shell, prefix='fa_tpl')
-    empty_ss_fs = make_contract_salary_formset(extra=0)(instance=shell, prefix='ss_tpl')
-
     return {
         'contract_formset': contract_fs,
         'contract_cards': cards,
-        'empty_contract_form': empty_contract_form,
+        **empty_contract_templates(employee),
+    }
+
+
+def empty_contract_templates(employee):
+    """Empty forms for JS 'Add contract / funding / salary' after GET or invalid POST."""
+    empty_contract_fs = make_contract_formset(extra=0)(instance=employee)
+    shell = Contract(employee=employee) if employee is not None else Contract()
+    empty_fa_fs = make_contract_funding_formset(extra=0)(instance=shell, prefix='fa_tpl')
+    empty_ss_fs = make_contract_salary_formset(extra=0)(instance=shell, prefix='ss_tpl')
+    return {
+        'empty_contract_form': empty_contract_fs.empty_form,
         'empty_funding_form': empty_fa_fs.empty_form,
         'empty_salary_form': empty_ss_fs.empty_form,
         'empty_funding_management': empty_fa_fs.management_form,

@@ -177,11 +177,18 @@ class EmployeeForm(forms.ModelForm):
         building = cleaned_data.get('building')
         if room and building and room.building != building:
             self.add_error('room', "Room does not belong to selected building")
-        number = (cleaned_data.get('employee_number') or '').strip()
-        cleaned_data['employee_number'] = number or None
-        if not cleaned_data.get('is_external') and not cleaned_data.get('employee_number'):
-            self.add_error('employee_number', 'Employee number is required for institute employees.')
-        linked_user = cleaned_data.get('user')
+        if 'employee_number' in self.fields:
+            number = (cleaned_data.get('employee_number') or '').strip()
+            cleaned_data['employee_number'] = number or None
+            is_external = cleaned_data.get('is_external')
+            if 'is_external' not in self.fields:
+                is_external = bool(getattr(self.instance, 'is_external', False))
+            if not is_external and not cleaned_data.get('employee_number'):
+                self.add_error(
+                    'employee_number',
+                    'Employee number is required for institute employees.',
+                )
+        linked_user = cleaned_data.get('user') if 'user' in self.fields else None
         if linked_user is not None:
             taken = Employee.objects.filter(user=linked_user)
             if self.instance and self.instance.pk:

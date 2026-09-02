@@ -15,7 +15,7 @@ from apps.hr.employee_access import (
     user_can_manage_employee,
     user_can_view_employee,
 )
-from apps.hr.forms import EmployeeForm
+from apps.hr.forms import EmployeeForm, EmployeeProfileForm
 from apps.hr.models import Contract, Employee, Workgroup
 
 
@@ -288,3 +288,104 @@ class ContractArchiveAndDeleteTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Contract.objects.filter(pk=self.contract.pk).exists())
+
+
+class EmployeeProfileFormTests(TestCase):
+    def test_profile_save_keeps_existing_employee_number(self):
+        user = CustomUser.objects.create_user('selfuser', password='test')
+        user.password_changed = True
+        user.save(update_fields=['password_changed'])
+        employee = Employee.objects.create(
+            employee_number='P-84',
+            first_name='Self',
+            last_name='User',
+            gender='X',
+            country='Germany',
+            user=user,
+        )
+        form = EmployeeProfileForm(
+            data={
+                'country': 'Germany',
+                'email_professional': 'self@example.org',
+            },
+            instance=employee,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        self.assertEqual(saved.employee_number, 'P-84')
+
+    def test_my_profile_post_succeeds_without_employee_number_field(self):
+        user = _ready_user('selfuser2')
+        Employee.objects.create(
+            employee_number='P-85',
+            first_name='Self',
+            last_name='Two',
+            gender='X',
+            country='Germany',
+            user=user,
+        )
+        self.client.login(username='selfuser2', password='test')
+        response = self.client.post(
+            reverse('hr:my_profile'),
+            {
+                'country': 'Germany',
+                'email_professional': 'two@example.org',
+                'Workgroup_members-TOTAL_FORMS': '0',
+                'Workgroup_members-INITIAL_FORMS': '0',
+                'Workgroup_members-MIN_NUM_FORMS': '0',
+                'Workgroup_members-MAX_NUM_FORMS': '1000',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303), getattr(response, 'context', None))
+
+
+class NewContractFundingTemplateTests(TestCase):
+    def setUp(self):
+        get_or_create_default_groups()
+        assign_permissions_to_groups()
+        self.user = _ready_user('hr-fa')
+        _grant(self.user, 'manage_all_employees', 'manage_employee')
+        self.employee = Employee.objects.create(
+            employee_number='FA-1',
+            first_name='Fund',
+            last_name='Ing',
+            gender='X',
+            country='Germany',
+        )
+
+    def test_invalid_funding_total_keeps_add_funding_template(self):
+        self.client.login(username='hr-fa', password='test')
+        response = self.client.post(
+            reverse('hr:employee_update', args=[self.employee.pk]),
+            {
+                'employee_number': 'FA-1',
+                'first_name': 'Fund',
+                'last_name': 'Ing',
+                'gender': 'X',
+                'country': 'Germany',
+                'contracts-TOTAL_FORMS': '1',
+                'contracts-INITIAL_FORMS': '0',
+                'contracts-MIN_NUM_FORMS': '0',
+                'contracts-MAX_NUM_FORMS': '1000',
+                'contracts-0-weekly_hours': '39.000',
+                'contracts-0-valid_from': '01.01.2026',
+                'contracts-0-is_active': 'on',
+                'fa_n0-TOTAL_FORMS': '0',
+                'fa_n0-INITIAL_FORMS': '0',
+                'fa_n0-MIN_NUM_FORMS': '0',
+                'fa_n0-MAX_NUM_FORMS': '1000',
+                'ss_n0-TOTAL_FORMS': '0',
+                'ss_n0-INITIAL_FORMS': '0',
+                'ss_n0-MIN_NUM_FORMS': '0',
+                'ss_n0-MAX_NUM_FORMS': '1000',
+                'Workgroup_members-TOTAL_FORMS': '0',
+                'Workgroup_members-INITIAL_FORMS': '0',
+                'Workgroup_members-MIN_NUM_FORMS': '0',
+                'Workgroup_members-MAX_NUM_FORMS': '1000',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.context.get('empty_funding_form'))
+        self.assertContains(response, 'id="funding-empty-template"')
+        self.assertContains(response, 'funding-item')
+        self.assertContains(response, 'btn-add-funding')

@@ -26,6 +26,7 @@ from ..employee_form_helpers import (
     build_contract_cards,
     collect_funding_formsets_from_post,
     collect_salary_formsets_from_post,
+    empty_contract_templates,
     funding_prefix_for_existing,
     funding_prefix_for_new,
     salary_prefix_for_existing,
@@ -494,6 +495,7 @@ def _bind_post_context(context, employee, request):
     context['workgroup_formset'] = WorkgroupFormSet(request.POST, instance=employee)
     context['nested_funding'] = nested_fa
     context['nested_salary'] = nested_ss
+    context.update(empty_contract_templates(employee))
     context['show_archived_contracts'] = request.POST.get('show_archived_contracts') == '1'
     context['show_funding_help'] = any(
         card.get('is_active') for card in context.get('contract_cards') or []

@@ -37,10 +37,12 @@ class ChecklistTemplate(BaseModel):
         return self.name_en
 
     def published_version(self):
-        for version in self.versions.all():
-            if version.status == ChecklistTemplateVersion.Status.PUBLISHED:
-                return version
-        return None
+        """Latest published version (highest version_number), or None."""
+        return (
+            self.versions.filter(status=ChecklistTemplateVersion.Status.PUBLISHED)
+            .order_by('-version_number', '-pk')
+            .first()
+        )
 
 
 class ChecklistTemplateVersion(BaseModel):

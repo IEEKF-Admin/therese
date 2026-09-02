@@ -21,7 +21,7 @@ def send_therese_test_email(to_email, *, requested_by=''):
     )
 
 
-def send_therese_html_email(to_email, subject, html_body, *, fail_silently=False):
+def send_therese_html_email(to_email, subject, html_body, *, fail_silently=False, attachments=None):
     """Send an HTML message with a plain-text fallback."""
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or None
     text = strip_tags(html_body or '')
@@ -32,4 +32,11 @@ def send_therese_html_email(to_email, subject, html_body, *, fail_silently=False
         to=[to_email],
     )
     message.attach_alternative(html_body or '', 'text/html')
+    for item in attachments or []:
+        if not item:
+            continue
+        if len(item) == 3:
+            message.attach(item[0], item[1], item[2])
+        else:
+            message.attach(*item)
     message.send(fail_silently=fail_silently)

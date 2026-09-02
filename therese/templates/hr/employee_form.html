@@ -164,7 +164,7 @@
         form.addEventListener('submit', function() {
             form.querySelectorAll('.is-inactive input:disabled, .is-inactive select:disabled, .is-inactive textarea:disabled').forEach(function(el) {
                 const name = el.getAttribute('name') || '';
-                if (name.indexOf('-is_active') !== -1) return;
+                if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1) return;
                 el.disabled = false;
             });
         });
@@ -182,6 +182,19 @@
         }
     });
     document.addEventListener('DOMContentLoaded', window.syncWorkgroupSelectTitles);
+
+    function syncExternalFields() {
+        var box = document.getElementById('id_is_external');
+        var on = !!(box && box.checked);
+        document.querySelectorAll('[data-institute-only]').forEach(function(el) {
+            el.hidden = on;
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        syncExternalFields();
+        var box = document.getElementById('id_is_external');
+        if (box) box.addEventListener('change', syncExternalFields);
+    });
 })();
 </script>
 {% endblock %}

@@ -74,6 +74,21 @@ class AccountEmailSendTests(TestCase):
         self.assertIn('annam', html)
         self.assertIn('Dr.', html)
 
+    def test_account_email_includes_template_attachment(self):
+        from django.core.files.base import ContentFile
+
+        template = AccountEmailTemplate.objects.get(kind=AccountEmailTemplate.KIND_PASSWORD_RESET)
+        template.attachment.save('welcome.pdf', ContentFile(b'%PDF-1.4 test'), save=True)
+        send_account_email(
+            AccountEmailTemplate.KIND_PASSWORD_RESET,
+            self.user,
+            self.employee,
+            'TempPass12ab',
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(mail.outbox[0].attachments)
+        self.assertEqual(mail.outbox[0].attachments[0][0], 'welcome.pdf')
+
     @override_settings(ACCOUNT_EMAIL_PAUSE_MIN=4, ACCOUNT_EMAIL_PAUSE_MAX=11)
     def test_pause_stays_in_window(self):
         values = [_pause_seconds() for _ in range(30)]

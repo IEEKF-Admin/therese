@@ -11,12 +11,22 @@ from django.contrib import messages
 
 from ..models import PERSONNEL_TASK_TYPES, Task, PurchaseOrderTask
 from apps.hr.models import Employee
+from apps.accounts.permissions import GroupNames
+
 from ..utils import (
     get_purchase_orders_queryset,
     is_procurement_coordinator,
     is_procurement_approver,
     is_personnel_coordinator,
 )
+
+
+def _user_can_create_personnel_task(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.has_perm('tasks.create_personnel_task'):
+        return True
+    return user.groups.filter(name=GroupNames.PERSONNEL_TASKS_CREATE).exists()
 
 
 @login_required
@@ -139,6 +149,7 @@ def my_tasks(request):
         'is_coordinator': is_coordinator,
         'is_approver': is_approver,
         'is_personnel_coordinator': is_personnel_coordinator(request.user),
+        'can_create_personnel_task': _user_can_create_personnel_task(request.user),
         'personnel_all_visible': personnel_all_visible,
         'is_archive_view': is_archive_view,
         'page_title': page_title,

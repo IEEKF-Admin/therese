@@ -4,6 +4,7 @@ apps/hr/urls.py
 from django.urls import path
 from .views.employee import (
     employee_list, employee_reset_password, phone_list, EmployeeCreateView, MinimalEmployeeCreateView,
+    contract_hard_delete, funding_hard_delete,
     EmployeeUpdateView, MyProfileView,
     WorkgroupListView, WorkgroupCreateView, WorkgroupUpdateView, WorkgroupDeleteView, LocationManagementView,
     BuildingCreateView, BuildingUpdateView,
@@ -29,6 +30,8 @@ urlpatterns = [
     path('employees/quick-new/', MinimalEmployeeCreateView.as_view(), name='employee_quick_create'),
     path('employees/<int:pk>/edit/', EmployeeUpdateView.as_view(), name='employee_update'),
     path('employees/<int:pk>/reset-password/', employee_reset_password, name='employee_reset_password'),
+    path('employees/<int:pk>/contracts/<int:contract_pk>/delete/', contract_hard_delete, name='contract_hard_delete'),
+    path('employees/<int:pk>/funding/<int:fa_pk>/delete/', funding_hard_delete, name='funding_hard_delete'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/download/', employee_document_download, name='employee_document_download'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/view/', employee_document_view, name='employee_document_view'),
     path('employees/<int:employee_pk>/documents/<int:version_pk>/delete/', employee_document_delete, name='employee_document_delete'),

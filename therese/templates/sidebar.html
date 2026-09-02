@@ -131,21 +131,9 @@
     {% endif %}
 
     {% if perms.tasks.create_personnel_task or user.is_superuser %}
-    <a href="{% url 'tasks:task_create' %}?type=personnel_recruitment"
-       class="{% if 'type=personnel_recruitment' in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-user-plus"></i> Recruitment
-    </a>
-    <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation"
-       class="{% if 'type=personnel_reallocation' in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-exchange-alt"></i> Reallocation
-    </a>
-    <a href="{% url 'tasks:task_create' %}?type=personnel_change_working_hours"
-       class="{% if 'type=personnel_change_working_hours' in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-clock"></i> Working Hours
-    </a>
-    <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension"
-       class="{% if 'type=personnel_contract_extension' in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-file-contract"></i> Extension
+    <a href="{% url 'tasks:choose_task_type' %}"
+       class="{% if '/tasks/create' in request.path %}active{% endif %}">
+        <i class="fas fa-user-plus"></i> Pers. Measures
     </a>
     {% endif %}
     {% endif %}

@@ -134,7 +134,7 @@
         <code>{{ item.token }}</code>{% if not forloop.last %}, {% endif %}
     {% endfor %}.
 </p>
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_account_emails">
     {% for template in account_email_templates %}
@@ -150,6 +150,23 @@
              data-account-vars="1" style="margin:0.4rem 0 0.6rem;"></div>
         <textarea name="body_{{ template.kind }}" id="body_{{ template.kind }}"
                   class="form-control wysiwyg-editor" data-wysiwyg-height="280" rows="10">{{ template.body_html }}</textarea>
+        <div class="aligned-field" style="margin-top:0.85rem;">
+            <label for="attachment_{{ template.kind }}">Attachment</label>
+            <div>
+                {% if template.attachment %}
+                <p style="margin:0 0 0.35rem;">
+                    Current: {{ template.attachment.name|cut:"account_email_attachments/" }}
+                </p>
+                <label style="display:flex; gap:0.4rem; align-items:center; font-weight:400;">
+                    <input type="checkbox" name="clear_attachment_{{ template.kind }}" value="1">
+                    Remove current attachment
+                </label>
+                {% endif %}
+                <input type="file" name="attachment_{{ template.kind }}" id="attachment_{{ template.kind }}"
+                       class="form-control" style="margin-top:0.35rem;">
+                <small class="field-hint">Optional. Sent with every email of this type. PDF, image, or Office file, max. 10 MB.</small>
+            </div>
+        </div>
     </div>
     {% endfor %}
     <div class="form-actions">

@@ -263,6 +263,12 @@ class AccountEmailTemplate(models.Model):
     kind = models.CharField(max_length=32, unique=True, choices=KIND_CHOICES)
     subject = models.CharField(max_length=200)
     body_html = models.TextField(blank=True)
+    attachment = models.FileField(
+        upload_to='account_email_attachments/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name="Attachment",
+    )
 
     class Meta:
         verbose_name = "Account Email Template"

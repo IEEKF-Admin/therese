@@ -7,7 +7,7 @@
     <div class="aligned-field"><label>{{ form.private_phone_number.label }}</label>{% if form.private_phone_number.errors %}{{ form.private_phone_number|add_class:"form-control error" }}{% else %}{{ form.private_phone_number|add_class:"form-control" }}{% endif %}</div>
     <div class="aligned-field"><label>{{ form.website.label }}</label>{% if form.website.errors %}{{ form.website|add_class:"form-control error" }}{% else %}{{ form.website|add_class:"form-control" }}{% endif %}</div>
 
-    <div class="workplace-group">
+    <div class="workplace-group" data-institute-only>
         <h4>Workplace</h4>
         <p class="field-hint">Select building first, then room, then office phone.</p>
         <div class="aligned-field"><label>Building</label>{% if form.building.errors %}{{ form.building|add_class:"building-select form-control error" }}{% else %}{{ form.building|add_class:"building-select form-control" }}{% endif %}</div>

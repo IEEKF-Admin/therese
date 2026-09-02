@@ -525,6 +525,8 @@ class Contract(BaseModel):
             )
             if was_active is None:
                 was_active = True
+        if was_active and not self.is_active:
+            self.check_needed = False
         super().save(*args, **kwargs)
         # Expired / inactive contract → all its funding allocations inactive.
         if not self.is_active:

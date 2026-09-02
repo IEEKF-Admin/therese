@@ -81,78 +81,8 @@
                     {% endif %}
                 </tr>
             </thead>
-            <tbody>
-                {% for employee in employees %}
-                <tr
-                    {% if employee.list_can_edit %}
-                    class="employee-row-clickable"
-                    data-edit-url="{% url 'hr:employee_update' employee.pk %}"
-                    style="cursor:pointer;"
-                    title="Open employee"
-                    {% endif %}
-                >
-                    {% if show_checkboxes %}
-                    <td class="table-checkbox-col" data-stop-row-nav>
-                        <input type="checkbox" name="selected_ids" value="{{ employee.pk }}">
-                    </td>
-                    {% endif %}
-                    <td>
-                        <strong>{{ employee.get_full_name }}</strong>
-                        {% if employee.is_external %}
-                        <span class="badge" style="background:#64748b;color:#fff;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Not an institute employee">External</span>
-                        {% endif %}
-                        {% if employee.is_pending %}
-                        <span class="badge" style="background:#6366f1;color:#fff;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Pending import review">Pending</span>
-                        {% endif %}
-                        {% if employee.check_needed or employee.list_contract_check_needed %}
-                        <span class="badge" style="background:#f59e0b;color:#111;margin-left:0.35rem;font-size:0.7rem;padding:0.15rem 0.4rem;border-radius:0.25rem;" title="Check needed">Check needed</span>
-                        {% endif %}
-                        {% if employee.list_expiry_warning %}
-                        <span class="employee-expiry-warning"
-                              title="{{ employee.list_expiry_tooltip }}"
-                              aria-label="{{ employee.list_expiry_tooltip }}"
-                              style="color:#dc2626; font-weight:800; margin-left:0.35rem; font-size:1.15em;">!</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ employee.employee_number|default:"—" }}</td>
-                    <td>
-                        {% with vu=employee.list_valid_until %}
-                            {% if vu.from_date %}
-                            <span class="text-muted" style="font-size:0.85em;">from {{ vu.from_date|date:"Y-m-d" }}:</span>
-                            {% endif %}
-                            {% if vu.open_ended %}
-                                Open-ended
-                            {% elif vu.date %}
-                                {{ vu.date|date:"Y-m-d" }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        {% endwith %}
-                    </td>
-                    {% if show_actions %}
-                    <td data-stop-row-nav style="white-space:nowrap;">
-                        <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation&amp;employee={{ employee.pk }}"
-                           class="action-icon" title="Reallocation" aria-label="Create reallocation for {{ employee.get_full_name }}">
-                            <i class="fas fa-exchange-alt"></i>
-                        </a>
-                        <a href="{% url 'tasks:task_create' %}?type=personnel_change_working_hours&amp;employee={{ employee.pk }}"
-                           class="action-icon" title="Change working hours" aria-label="Create working hours change for {{ employee.get_full_name }}">
-                            <i class="fas fa-clock"></i>
-                        </a>
-                        <a href="{% url 'tasks:task_create' %}?type=personnel_contract_extension&amp;employee={{ employee.pk }}"
-                           class="action-icon" title="Extension" aria-label="Create extension for {{ employee.get_full_name }}">
-                            <i class="fas fa-file-contract"></i>
-                        </a>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="{% if show_checkboxes and show_actions %}5{% elif show_checkboxes or show_actions %}4{% else %}3{% endif %}" class="empty-state">
-                        {% if archive_mode %}No employees in archive.{% else %}No active employees found.{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+            <tbody id="employee-table-body">
+                {% include "hr/_employee_table_body.html" %}
             </tbody>
         </table>
 
@@ -183,13 +113,46 @@
 {% block extra_js %}
 <script>
 (function() {
-    document.querySelectorAll('#employee-table tbody tr.employee-row-clickable').forEach(function(row) {
-        row.addEventListener('click', function(ev) {
-            if (ev.target.closest('[data-stop-row-nav]')) return;
-            if (ev.target.closest('a, button, input, label')) return;
-            var url = row.getAttribute('data-edit-url');
-            if (url) window.location.href = url;
+    function bindRowClicks() {
+        document.querySelectorAll('#employee-table tbody tr.employee-row-clickable').forEach(function(row) {
+            row.addEventListener('click', function(ev) {
+                if (ev.target.closest('[data-stop-row-nav]')) return;
+                if (ev.target.closest('a, button, input, label')) return;
+                var url = row.getAttribute('data-edit-url');
+                if (url) window.location.href = url;
+            });
         });
+    }
+    bindRowClicks();
+
+    var input = document.getElementById('employee-search');
+    var body = document.getElementById('employee-table-body');
+    if (!input || !body) return;
+    var timer = null;
+    var controller = null;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var params = new URLSearchParams(window.location.search);
+            params.set('q', input.value);
+            params.set('partial', '1');
+            if (controller) controller.abort();
+            controller = new AbortController();
+            fetch(window.location.pathname + '?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            }).then(function(res) { return res.text(); }).then(function(html) {
+                body.innerHTML = html;
+                bindRowClicks();
+                var url = new URL(window.location.href);
+                if (input.value) url.searchParams.set('q', input.value);
+                else url.searchParams.delete('q');
+                url.searchParams.delete('partial');
+                history.replaceState(null, '', url.pathname + url.search);
+            }).catch(function(err) {
+                if (err.name !== 'AbortError') console.warn(err);
+            });
+        }, 180);
     });
 })();
 </script>

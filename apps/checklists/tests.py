@@ -309,6 +309,40 @@ class ChecklistManageUITests(TestCase):
             1,
         )
 
+    def test_assign_locks_to_latest_published_version(self):
+        template = ChecklistTemplate.objects.create(
+            slug='asg-latest', name_en='Latest Assign', name_de='Neueste',
+        )
+        v1 = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.PUBLISHED,
+        )
+        v2 = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=2, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        publish_version(v2, self.manager)
+        v1.refresh_from_db()
+        self.assertEqual(v1.status, ChecklistTemplateVersion.Status.DEPRECATED)
+        url = reverse('checklists:manage_template_assign', args=[template.pk])
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context['lock_version'].pk, v2.pk)
+        self.assertContains(page, v2.version_label)
+        self.assertNotContains(page, f'({v1.version_label})')
+        employee = Employee.objects.create(
+            employee_number='CL-ASG-2', first_name='Lee', last_name='Test',
+        )
+        posted = self.client.post(url, {
+            'template_version': str(v2.pk),
+            'employees': [str(employee.pk)],
+        })
+        self.assertEqual(posted.status_code, 302)
+        self.assertTrue(
+            ChecklistInstance.objects.filter(subject=employee, template_version=v2).exists()
+        )
+        self.assertFalse(
+            ChecklistInstance.objects.filter(subject=employee, template_version=v1).exists()
+        )
+
     def test_assign_requires_published_version(self):
         template = ChecklistTemplate.objects.create(slug='draft-only', name_en='Draft', name_de='Entwurf')
         ChecklistTemplateVersion.objects.create(

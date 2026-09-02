@@ -263,7 +263,7 @@ class ChecklistAssignForm(forms.Form):
         versions = published_versions if published_versions is not None else (
             ChecklistTemplateVersion.objects.filter(
                 status=ChecklistTemplateVersion.Status.PUBLISHED,
-            ).select_related('template')
+            ).select_related('template').order_by('template__name_en', '-version_number', '-pk')
         )
         self.fields['template_version'].queryset = versions
         self.fields['template_version'].label_from_instance = (

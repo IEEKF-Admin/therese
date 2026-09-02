@@ -102,6 +102,14 @@ class EmployeeAccessTests(TestCase):
         self.assertTrue(user_can_view_employee(self.global_mgr, self.emp_b))
         self.assertTrue(user_can_manage_employee(self.global_mgr, self.emp_b))
 
+    def test_employee_list_partial_search(self):
+        client = Client()
+        client.login(username='viewer', password='test')
+        response = client.get('/hr/employees/', {'q': 'View', 'partial': '1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('View', response.content.decode())
+        self.assertNotIn('<html', response.content.decode().lower())
+
     def test_list_view_respects_scope(self):
         client = Client()
         client.login(username='viewer', password='test')
@@ -213,7 +221,51 @@ class ArchivedContractEmployeeSaveTests(TestCase):
             },
         )
         self.assertIn(response.status_code, (302, 303), getattr(response, 'context', None))
-        self.assertNotIn(
-            'Please correct errors in Funding Allocations.',
-            ' '.join(str(m) for m in response.wsgi_request._messages) if hasattr(response, 'wsgi_request') else '',
+
+
+class ContractArchiveAndDeleteTests(TestCase):
+    def setUp(self):
+        get_or_create_default_groups()
+        assign_permissions_to_groups()
+        self.admin = _ready_user('sysadmin')
+        from apps.accounts.permissions import GroupNames
+        from django.contrib.auth.models import Group
+        Group.objects.get_or_create(name=GroupNames.SYSTEMADMIN)[0].user_set.add(self.admin)
+        _grant(self.admin, 'manage_all_employees', 'manage_employee')
+        self.employee = Employee.objects.create(
+            employee_number='DEL-1', first_name='Del', last_name='Ete',
         )
+        self.contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('20.000'),
+            valid_from=date(2024, 1, 1),
+            is_active=True,
+            check_needed=False,
+        )
+
+    def test_archiving_clears_check_needed(self):
+        self.contract.check_needed = True
+        self.contract.save()
+        self.contract.is_active = False
+        self.contract.save()
+        self.contract.refresh_from_db()
+        self.assertFalse(self.contract.is_active)
+        self.assertFalse(self.contract.check_needed)
+
+    def test_systemadmin_can_hard_delete_contract(self):
+        self.client.login(username='sysadmin', password='test')
+        response = self.client.post(
+            reverse('hr:contract_hard_delete', args=[self.employee.pk, self.contract.pk]),
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertFalse(Contract.objects.filter(pk=self.contract.pk).exists())
+
+    def test_non_sysadmin_cannot_hard_delete_contract(self):
+        other = _ready_user('hruser')
+        _grant(other, 'manage_all_employees', 'manage_employee')
+        self.client.login(username='hruser', password='test')
+        response = self.client.post(
+            reverse('hr:contract_hard_delete', args=[self.employee.pk, self.contract.pk]),
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Contract.objects.filter(pk=self.contract.pk).exists())

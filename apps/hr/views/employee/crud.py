@@ -10,6 +10,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.db import models
@@ -279,6 +280,8 @@ def employee_list(request):
             messages.info(request, 'No employees were selected for deletion.')
         return redirect('hr:employee_list')
 
+    if request.GET.get('partial') == '1':
+        return render(request, 'hr/_employee_table_body.html', context)
     return render(request, 'hr/employee_list.html', context)
 
 
@@ -477,6 +480,8 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context.update(employee_document_context(self.request))
         context['current_payscales_json'] = current_payscales_json()
+        from apps.accounts.permissions import user_is_systemadmin
+        context['can_hard_delete'] = user_is_systemadmin(self.request.user)
         return context
 
     def form_valid(self, form):
@@ -497,38 +502,6 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         finalize_recruitment_task(self.request, employee)
         messages.success(self.request, "Employee successfully created.")
         return redirect(_safe_next_url(self.request, self.success_url))
-
-
-@login_required
-def employee_reset_password(request, pk):
-    from apps.accounts.account_emails import reset_and_notify
-    from apps.accounts.models import AccountEmailTemplate
-    from apps.accounts.permissions import user_can_reset_user_password
-
-    if request.method != 'POST':
-        return redirect('hr:employee_update', pk=pk)
-    if not user_can_reset_user_password(request.user):
-        raise PermissionDenied
-    employee = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
-    if not employee.user_id:
-        messages.error(request, 'This employee has no login user.')
-        return redirect('hr:employee_update', pk=pk)
-    _password, sent = reset_and_notify(
-        employee.user,
-        employee,
-        kind=AccountEmailTemplate.KIND_PASSWORD_RESET,
-    )
-    if sent:
-        messages.success(
-            request,
-            'A new password was generated and emailed to the user.',
-        )
-    else:
-        messages.warning(
-            request,
-            'A new password was generated, but the notification email could not be sent.',
-        )
-    return redirect('hr:employee_update', pk=pk)
 
 
 class MinimalEmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -614,6 +587,8 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             user_can_reset_user_password(self.request.user)
             and bool(employee.user_id)
         )
+        from apps.accounts.permissions import user_is_systemadmin
+        context['can_hard_delete'] = user_is_systemadmin(self.request.user)
         return context
 
     def form_valid(self, form):
@@ -668,4 +643,38 @@ def employee_reset_password(request, pk):
             request,
             'A new password was generated, but the notification email could not be sent.',
         )
+    return redirect('hr:employee_update', pk=pk)
+
+
+@login_required
+@require_POST
+def contract_hard_delete(request, pk, contract_pk):
+    from apps.accounts.permissions import user_is_systemadmin
+    from apps.hr.models import Contract
+
+    if not user_is_systemadmin(request.user):
+        raise PermissionDenied
+    employee = get_object_or_404(Employee, pk=pk)
+    if not user_can_manage_employee(request.user, employee):
+        raise PermissionDenied
+    contract = get_object_or_404(Contract, pk=contract_pk, employee=employee)
+    contract.delete()
+    messages.success(request, 'Contract was permanently deleted.')
+    return redirect('hr:employee_update', pk=pk)
+
+
+@login_required
+@require_POST
+def funding_hard_delete(request, pk, fa_pk):
+    from apps.accounts.permissions import user_is_systemadmin
+    from apps.hr.models import FundingAllocation
+
+    if not user_is_systemadmin(request.user):
+        raise PermissionDenied
+    employee = get_object_or_404(Employee, pk=pk)
+    if not user_can_manage_employee(request.user, employee):
+        raise PermissionDenied
+    allocation = get_object_or_404(FundingAllocation, pk=fa_pk, employee=employee)
+    allocation.delete()
+    messages.success(request, 'Funding allocation was permanently deleted.')
     return redirect('hr:employee_update', pk=pk)

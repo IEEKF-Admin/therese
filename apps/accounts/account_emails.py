@@ -89,17 +89,32 @@ def ensure_account_email_templates():
     return templates
 
 
-def save_account_email_templates_from_post(post):
+def save_account_email_templates_from_post(post, files=None):
     """Update both account email kinds from a POST dict. Returns saved templates."""
+    from apps.core.upload_validation import DOC_ATTACHMENT_EXT, IMAGE_EXT, PDF_EXT, validate_upload
+
+    files = files or {}
     ensure_account_email_templates()
     saved = []
+    allowed = PDF_EXT | IMAGE_EXT | DOC_ATTACHMENT_EXT
     for kind, _label in AccountEmailTemplate.KIND_CHOICES:
         template = AccountEmailTemplate.objects.filter(kind=kind).first()
         if template is None:
             continue
         template.subject = (post.get(f'subject_{kind}') or '')[:200]
         template.body_html = sanitize_html(post.get(f'body_{kind}') or '')
-        template.save(update_fields=['subject', 'body_html'])
+        update_fields = ['subject', 'body_html']
+        uploaded = files.get(f'attachment_{kind}') if hasattr(files, 'get') else None
+        if uploaded:
+            validate_upload(uploaded, allowed_extensions=allowed, require_magic=False)
+            template.attachment = uploaded
+            update_fields.append('attachment')
+        elif post.get(f'clear_attachment_{kind}'):
+            if template.attachment:
+                template.attachment.delete(save=False)
+            template.attachment = None
+            update_fields.append('attachment')
+        template.save(update_fields=update_fields)
         saved.append(template)
     return saved
 
@@ -159,8 +174,19 @@ def send_account_email(kind, user, employee, password):
         user=user,
         employee=employee,
     )
+    attachments = []
+    if template.attachment:
+        try:
+            filename = template.attachment.name.rsplit('/', 1)[-1]
+            with template.attachment.open('rb') as fh:
+                content = fh.read()
+            attachments.append((filename, content))
+        except Exception:
+            logger.exception('Account email attachment could not be read for %s', kind)
     try:
-        send_therese_html_email(to_email, subject, html_body)
+        send_therese_html_email(
+            to_email, subject, html_body, attachments=attachments or None,
+        )
     except Exception:
         logger.exception('Account email failed for user %s kind %s', user.pk, kind)
         return False

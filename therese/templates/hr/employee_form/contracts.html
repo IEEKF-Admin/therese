@@ -42,6 +42,15 @@
                     {% endif %}
                 </h4>
                 <div class="contract-card-actions">
+                    {% if object.pk and can_hard_delete and card.contract_pk %}
+                    <form method="post" action="{% url 'hr:contract_hard_delete' object.pk card.contract_pk %}" style="display:inline;" data-stop-row-nav>
+                        {% csrf_token %}
+                        <button type="submit" class="btn-secondary" style="padding:4px 8px; font-size:0.8rem;"
+                                onclick="return confirm('Permanently delete this contract and its funding allocations? This cannot be undone.');">
+                            Delete
+                        </button>
+                    </form>
+                    {% endif %}
                     {% if card.is_active %}
                     <button type="button" class="btn-inline-remove remove-row" title="Remove contract" aria-label="Remove contract"
                             data-remove-scope="contract">
@@ -76,12 +85,12 @@
                         {% if form.is_active.errors %}<small class="field-error">{{ form.is_active.errors|striptags }}</small>{% endif %}
                     </div>
                     <div class="inline-field">
-                        <label title="Manuelle Prüfung nach Import">Check needed</label>
+                        <label title="Manual review after import">Check needed</label>
                         <div class="active-toggle-wrap">{{ form.check_needed }}</div>
                     </div>
                     {% if form.instance.check_needed %}
                     <div class="inline-field full">
-                        <span class="badge badge-archived" style="background:#f59e0b;color:#111;">Check needed — bitte prüfen und Flag entfernen</span>
+                        <span class="badge badge-archived" style="background:#f59e0b;color:#111;">Check needed — review and clear the flag</span>
                     </div>
                     {% endif %}
                     <div class="inline-field full"><label>Comments</label>{% if form.comments.errors %}{{ form.comments|add_class:"form-control error" }}{% else %}{{ form.comments }}{% endif %}</div>
@@ -105,6 +114,15 @@
                             {{ fform.DELETE.as_hidden }}
                             <div class="funding-item-top">
                                 <span class="funding-item-label">Allocation</span>
+                                {% if object.pk and can_hard_delete and fform.instance.pk %}
+                                <form method="post" action="{% url 'hr:funding_hard_delete' object.pk fform.instance.pk %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-secondary" style="padding:2px 6px; font-size:0.75rem;"
+                                            onclick="return confirm('Permanently delete this funding allocation? This cannot be undone.');">
+                                        Delete
+                                    </button>
+                                </form>
+                                {% endif %}
                                 <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -146,6 +164,15 @@
                             </p>
                             {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
                             {% if fa.job_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Job: {{ fa.job_number }}</p>{% endif %}
+                            {% if object.pk and can_hard_delete %}
+                            <form method="post" action="{% url 'hr:funding_hard_delete' object.pk fa.pk %}" style="margin-top:0.4rem;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-secondary" style="padding:4px 8px; font-size:0.8rem;"
+                                        onclick="return confirm('Permanently delete this funding allocation? This cannot be undone.');">
+                                    Delete
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                         {% empty %}
                         <p class="text-muted" style="font-size:0.85rem;">No funding allocations.</p>
@@ -490,17 +517,32 @@
         if (card.classList.contains('is-archived') || card.getAttribute('data-active') === '0') {
             card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
                 const name = el.getAttribute('name') || '';
-                if (name.indexOf('-is_active') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
+                if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
                 if (el.tagName === 'SELECT' || el.type === 'checkbox') el.disabled = true;
                 else el.setAttribute('readonly', 'readonly');
                 el.classList.add('is-inactive-field');
             });
-            // Keep is_active enabled so user can re-activate
+            // Keep is_active and check_needed enabled so they can be changed after archive
             const act = card.querySelector('.contract-fields-grid input[name$="-is_active"]');
             if (act) {
                 act.disabled = false;
                 act.classList.remove('is-inactive-field');
             }
+            const cn = card.querySelector('.contract-fields-grid input[name$="-check_needed"]');
+            if (cn) {
+                cn.disabled = false;
+                cn.classList.remove('is-inactive-field');
+            }
+        }
+        const actCb = card.querySelector('.contract-fields-grid input[name$="-is_active"]');
+        if (actCb && !actCb.dataset.archiveBound) {
+            actCb.dataset.archiveBound = '1';
+            actCb.addEventListener('change', function() {
+                if (!actCb.checked) {
+                    const needed = card.querySelector('.contract-fields-grid input[name$="-check_needed"]');
+                    if (needed) needed.checked = false;
+                }
+            });
         }
     }
 

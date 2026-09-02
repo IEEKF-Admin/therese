@@ -128,7 +128,7 @@ def global_settings(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'save_account_emails':
-            save_account_email_templates_from_post(request.POST)
+            save_account_email_templates_from_post(request.POST, request.FILES)
             messages.success(request, 'Account email templates were saved.')
             return redirect('core_settings:global_settings')
         form = GlobalSettingForm(request.POST, instance=setting)

@@ -21,6 +21,14 @@
     </div>
 </div>
 
+{% if newer_draft %}
+<div class="alert alert-info">
+    A newer draft ({{ newer_draft.version_label }}) exists.
+    Publish it on the Versions page to assign that version.
+    Currently assigning {{ lock_version.version_label }}.
+</div>
+{% endif %}
+
 <div class="card">
     <form method="post">
         {% csrf_token %}

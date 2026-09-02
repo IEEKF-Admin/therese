@@ -593,12 +593,12 @@ def manage_assign(request, pk=None):
     published_versions = (
         ChecklistTemplateVersion.objects.filter(status=ChecklistTemplateVersion.Status.PUBLISHED)
         .select_related('template')
-        .order_by('template__name_en', '-version_number')
+        .order_by('template__name_en', '-version_number', '-pk')
     )
     lock_version = None
     if template:
-        published_versions = published_versions.filter(template=template)
-        lock_version = published_versions.first()
+        lock_version = template.published_version()
+        published_versions = published_versions.filter(pk=lock_version.pk) if lock_version else published_versions.none()
         if not lock_version:
             messages.error(
                 request,
@@ -607,6 +607,7 @@ def manage_assign(request, pk=None):
             return redirect('checklists:manage_template_detail', pk=template.pk)
 
     already_assigned_ids = []
+    newer_draft = None
     if lock_version:
         already_assigned_ids = list(
             ChecklistInstance.objects.filter(
@@ -616,6 +617,10 @@ def manage_assign(request, pk=None):
             .values_list('subject_id', flat=True)
             .distinct()
         )
+        if template:
+            latest = template.versions.order_by('-version_number', '-pk').first()
+            if latest and latest.pk != lock_version.pk and latest.status == ChecklistTemplateVersion.Status.DRAFT:
+                newer_draft = latest
 
     form_kwargs = {
         'published_versions': published_versions,
@@ -670,6 +675,7 @@ def manage_assign(request, pk=None):
         'form': form,
         'template': template,
         'lock_version': lock_version,
+        'newer_draft': newer_draft,
     })
 
 

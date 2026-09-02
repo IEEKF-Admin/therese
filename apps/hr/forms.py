@@ -395,6 +395,13 @@ class ContractForm(forms.ModelForm):
             )
             if salary is not None:
                 cleaned_data['monthly_salary'] = salary
+        if (
+            self.instance
+            and self.instance.pk
+            and self.instance.is_active
+            and cleaned_data.get('is_active') is False
+        ):
+            cleaned_data['check_needed'] = False
         return cleaned_data
 
 

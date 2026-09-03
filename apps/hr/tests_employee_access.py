@@ -252,6 +252,16 @@ class ContractArchiveAndDeleteTests(TestCase):
         self.assertFalse(self.contract.is_active)
         self.assertFalse(self.contract.check_needed)
 
+    def test_employee_edit_has_no_nested_delete_forms(self):
+        self.client.login(username='sysadmin', password='test')
+        response = self.client.get(
+            reverse('hr:employee_update', args=[self.employee.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('form="employee-edit-form"', html)
+        self.assertNotIn('method="post" action="', html.split('id="employee-edit-form"', 1)[-1].split('</form>', 1)[0])
+
     def test_systemadmin_can_hard_delete_contract(self):
         self.client.login(username='sysadmin', password='test')
         response = self.client.post(

@@ -43,9 +43,11 @@
                 </h4>
                 <div class="contract-card-actions">
                     {% if object.pk and can_hard_delete and card.contract_pk %}
-                    <button type="submit" form="hard-delete-contract-{{ card.contract_pk }}"
-                            class="btn-secondary" style="padding:4px 8px; font-size:0.8rem;"
-                            onclick="return confirm('Permanently delete this contract and its funding allocations? This cannot be undone.');">
+                    <button type="button" class="btn-secondary js-hard-delete"
+                            style="padding:4px 8px; font-size:0.8rem;"
+                            data-hard-delete-url="{% url 'hr:contract_hard_delete' object.pk card.contract_pk %}"
+                            data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
+                            data-hard-delete-confirm="Permanently delete this contract and its funding allocations? This cannot be undone.">
                         Delete
                     </button>
                     {% endif %}
@@ -63,7 +65,7 @@
 
             <div class="contract-card-body{% if not card.is_active %} is-readonly{% endif %}">
                 {{ form.id }}
-                {{ form.DELETE.as_hidden }}
+                <span hidden>{{ form.DELETE }}</span>
                 <div class="contract-fields-grid">
                     <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
@@ -109,13 +111,15 @@
                         <div class="funding-item{% if fform.instance.pk and not fform.instance.is_active %} is-inactive is-archived-fa{% endif %}"
                              data-fa-active="{% if fform.instance.pk and not fform.instance.is_active %}0{% else %}1{% endif %}">
                             {{ fform.id }}
-                            {{ fform.DELETE.as_hidden }}
+                            <span hidden>{{ fform.DELETE }}</span>
                             <div class="funding-item-top">
                                 <span class="funding-item-label">Allocation</span>
                                 {% if object.pk and can_hard_delete and fform.instance.pk %}
-                                <button type="submit" form="hard-delete-fa-{{ fform.instance.pk }}"
-                                        class="btn-secondary" style="padding:2px 6px; font-size:0.75rem;"
-                                        onclick="return confirm('Permanently delete this funding allocation? This cannot be undone.');">
+                                <button type="button" class="btn-secondary js-hard-delete"
+                                        style="padding:2px 6px; font-size:0.75rem;"
+                                        data-hard-delete-url="{% url 'hr:funding_hard_delete' object.pk fform.instance.pk %}"
+                                        data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
+                                        data-hard-delete-confirm="Permanently delete this funding allocation? This cannot be undone.">
                                     Delete
                                 </button>
                                 {% endif %}
@@ -161,9 +165,11 @@
                             {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
                             {% if fa.job_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Job: {{ fa.job_number }}</p>{% endif %}
                             {% if object.pk and can_hard_delete %}
-                            <button type="submit" form="hard-delete-fa-{{ fa.pk }}"
-                                    class="btn-secondary" style="padding:4px 8px; font-size:0.8rem; margin-top:0.4rem;"
-                                    onclick="return confirm('Permanently delete this funding allocation? This cannot be undone.');">
+                            <button type="button" class="btn-secondary js-hard-delete"
+                                    style="padding:4px 8px; font-size:0.8rem; margin-top:0.4rem;"
+                                    data-hard-delete-url="{% url 'hr:funding_hard_delete' object.pk fa.pk %}"
+                                    data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
+                                    data-hard-delete-confirm="Permanently delete this funding allocation? This cannot be undone.">
                                 Delete
                             </button>
                             {% endif %}
@@ -269,7 +275,7 @@
         </div>
         <div class="contract-card-body">
             {{ empty_contract_form.id }}
-            {{ empty_contract_form.DELETE.as_hidden }}
+            <span hidden>{{ empty_contract_form.DELETE }}</span>
             <div class="contract-fields-grid">
                 <div class="inline-field"><label>Pay Scale Group</label>{{ empty_contract_form.pay_scale_group|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Experience Level</label>{{ empty_contract_form.experience_level|add_class:"form-control" }}</div>
@@ -324,7 +330,7 @@
     {% if empty_funding_form %}
     <div class="funding-item" data-fa-active="1">
         {{ empty_funding_form.id }}
-        {{ empty_funding_form.DELETE.as_hidden }}
+        <span hidden>{{ empty_funding_form.DELETE }}</span>
         <div class="funding-item-top">
             <span class="funding-item-label">Allocation</span>
             <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
@@ -379,15 +385,31 @@
         return str.split(oldP).join(newP);
     }
 
+    function isDeleteMarked(el) {
+        if (!el) return false;
+        if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
+        var v = String(el.value || '').toLowerCase();
+        return v === 'on' || v === 'true' || v === '1';
+    }
+
+    function markDeleted(el) {
+        if (!el) return;
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            el.checked = true;
+        }
+        el.value = 'on';
+    }
+
     function updatePctSum(card) {
         if (!card || !card.classList.contains('contract-card')) return;
         let sum = 0;
-        card.querySelectorAll('.funding-item:not([style*="display: none"])').forEach(function(item) {
+        card.querySelectorAll('.funding-item').forEach(function(item) {
+            if (item.style.display === 'none') return;
             if (item.classList.contains('is-inactive') && item.style.display === 'none') return;
             const activeCb = item.querySelector('input[name$="-is_active"]');
             if (activeCb && !activeCb.checked) return;
             const del = item.querySelector('input[name$="-DELETE"]');
-            if (del && del.checked) return;
+            if (isDeleteMarked(del)) return;
             const pct = item.querySelector('.fa-pct, input[name$="-workhours_percentage"]');
             if (!pct) return;
             const v = parseFloat(String(pct.value).replace(',', '.'));
@@ -479,12 +501,19 @@
             inp.dataset.pctBound = '1';
             inp.addEventListener('input', function() { updatePctSum(card); });
         });
+        if (isDeleteMarked(item.querySelector('input[name$="-DELETE"]'))) {
+            item.style.display = 'none';
+        }
     }
 
     function applyFaArchiveVisibility(card) {
         const toggle = card.querySelector('.toggle-archived-fa');
         const show = toggle && toggle.checked;
         card.querySelectorAll('.funding-item.is-archived-fa, .funding-item.is-inactive').forEach(function(item) {
+            if (isDeleteMarked(item.querySelector('input[name$="-DELETE"]'))) {
+                item.style.display = 'none';
+                return;
+            }
             const activeCb = item.querySelector('input[name$="-is_active"]');
             const inactive = activeCb ? !activeCb.checked : item.classList.contains('is-inactive');
             if (inactive) {
@@ -704,7 +733,7 @@
             if (!card) return;
             const del = card.querySelector('input[name$="-DELETE"]');
             if (del && del.name && del.name.indexOf('contracts-') === 0) {
-                del.checked = true;
+                markDeleted(del);
                 card.style.display = 'none';
             } else {
                 card.remove();
@@ -716,7 +745,7 @@
             if (!item) return;
             const del = item.querySelector('input[name$="-DELETE"]');
             if (del) {
-                del.checked = true;
+                markDeleted(del);
                 item.style.display = 'none';
             } else {
                 item.remove();
@@ -728,12 +757,38 @@
         const card = item.closest('.contract-card');
         const del = item.querySelector('input[name$="-DELETE"]');
         if (del) {
-            del.checked = true;
+            markDeleted(del);
             item.style.display = 'none';
         } else {
             item.remove();
         }
         if (card) updatePctSum(card);
+    });
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.js-hard-delete');
+        if (!btn) return;
+        e.preventDefault();
+        const msg = btn.getAttribute('data-hard-delete-confirm') || 'Delete this record?';
+        if (!window.confirm(msg)) return;
+        const url = btn.getAttribute('data-hard-delete-url');
+        const redirectTo = btn.getAttribute('data-hard-delete-redirect') || window.location.pathname;
+        const csrfEl = document.querySelector('#employee-edit-form [name=csrfmiddlewaretoken]');
+        const csrf = csrfEl ? csrfEl.value : '';
+        const body = new URLSearchParams();
+        if (csrf) body.set('csrfmiddlewaretoken', csrf);
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: body,
+            credentials: 'same-origin',
+            redirect: 'manual',
+        }).finally(function() {
+            window.location.replace(redirectTo);
+        });
     });
 
     // Re-enable disabled fields on submit

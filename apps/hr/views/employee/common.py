@@ -70,6 +70,29 @@ def _save_nested_on_contract(nested, saved_by_index, *, inactive_skip=True):
         for obj in nested_fs.deleted_objects:
             obj.delete()
         nested_fs.save_m2m()
+        from apps.hr.models import FundingAllocation, SalarySupplement
+        if nested_fs.model is FundingAllocation:
+            related_qs = contract.funding_allocations.all()
+        elif nested_fs.model is SalarySupplement:
+            related_qs = contract.salary_supplements.all()
+        else:
+            related_qs = None
+        if related_qs is not None:
+            keep_ids = set()
+            for fform in nested_fs.forms:
+                cleaned = getattr(fform, 'cleaned_data', None) or {}
+                if not cleaned or cleaned.get('DELETE'):
+                    continue
+                ident = cleaned.get('id')
+                pk = getattr(ident, 'pk', ident) if ident is not None else None
+                if not pk:
+                    pk = getattr(fform.instance, 'pk', None)
+                if pk:
+                    keep_ids.add(int(pk))
+            leftover = related_qs
+            if keep_ids:
+                leftover = leftover.exclude(pk__in=keep_ids)
+            leftover.delete()
 
 
 def save_employee_with_formsets(

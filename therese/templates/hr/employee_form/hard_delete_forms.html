@@ -1,0 +1,26 @@
+{% if can_hard_delete and object %}
+{% for card in contract_cards %}
+    {% if card.contract_pk %}
+    <form id="hard-delete-contract-{{ card.contract_pk }}" method="post"
+          action="{% url 'hr:contract_hard_delete' object.pk card.contract_pk %}">
+        {% csrf_token %}
+    </form>
+    {% endif %}
+    {% if card.funding_formset %}
+        {% for fform in card.funding_formset %}
+            {% if fform.instance.pk %}
+            <form id="hard-delete-fa-{{ fform.instance.pk }}" method="post"
+                  action="{% url 'hr:funding_hard_delete' object.pk fform.instance.pk %}">
+                {% csrf_token %}
+            </form>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    {% for fa in card.funding_readonly %}
+    <form id="hard-delete-fa-{{ fa.pk }}" method="post"
+          action="{% url 'hr:funding_hard_delete' object.pk fa.pk %}">
+        {% csrf_token %}
+    </form>
+    {% endfor %}
+{% endfor %}
+{% endif %}

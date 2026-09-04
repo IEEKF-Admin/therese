@@ -16,7 +16,8 @@ from apps.hr.employee_access import (
     user_can_view_employee,
 )
 from apps.hr.forms import EmployeeForm, EmployeeProfileForm
-from apps.hr.models import Contract, Employee, Workgroup
+from apps.finances.models import WBSElement
+from apps.hr.models import Contract, Employee, FundingAllocation, Workgroup
 
 
 def _grant(user, *codenames):
@@ -261,6 +262,26 @@ class ContractArchiveAndDeleteTests(TestCase):
         html = response.content.decode()
         self.assertIn('form="employee-edit-form"', html)
         self.assertNotIn('method="post" action="', html.split('id="employee-edit-form"', 1)[-1].split('</form>', 1)[0])
+
+    def test_hard_delete_funding_then_edit_does_not_show_it(self):
+        wbs = WBSElement.objects.create(wbs_code='DEL-FA.1', title='Delete FA')
+        allocation = FundingAllocation.objects.create(
+            contract=self.contract,
+            employee=self.employee,
+            wbs_element=wbs,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2024, 1, 1),
+            is_active=True,
+        )
+        self.client.login(username='sysadmin', password='test')
+        response = self.client.post(
+            reverse('hr:funding_hard_delete', args=[self.employee.pk, allocation.pk]),
+            follow=True,
+        )
+        self.assertEqual(response.redirect_chain[0][1], 303)
+        self.assertFalse(FundingAllocation.objects.filter(pk=allocation.pk).exists())
+        self.assertNotContains(response, f'hard-delete-fa-{allocation.pk}')
+        self.assertNotContains(response, f'fa_c{self.contract.pk}-0-id')
 
     def test_systemadmin_can_hard_delete_contract(self):
         self.client.login(username='sysadmin', password='test')

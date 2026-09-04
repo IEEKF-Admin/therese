@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.db import models
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, UpdateView
@@ -730,7 +731,7 @@ def contract_hard_delete(request, pk, contract_pk):
     contract = get_object_or_404(Contract, pk=contract_pk, employee=employee)
     contract.delete()
     messages.success(request, 'Contract was permanently deleted.')
-    return redirect('hr:employee_update', pk=pk)
+    return _redirect_employee_edit(pk)
 
 
 @login_required
@@ -747,4 +748,11 @@ def funding_hard_delete(request, pk, fa_pk):
     allocation = get_object_or_404(FundingAllocation, pk=fa_pk, employee=employee)
     allocation.delete()
     messages.success(request, 'Funding allocation was permanently deleted.')
-    return redirect('hr:employee_update', pk=pk)
+    return _redirect_employee_edit(pk)
+
+
+def _redirect_employee_edit(pk):
+    """303 so the browser always GETs a fresh employee form after delete."""
+    response = HttpResponseRedirect(reverse('hr:employee_update', args=[pk]))
+    response.status_code = 303
+    return response

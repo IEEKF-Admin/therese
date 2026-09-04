@@ -70,6 +70,34 @@ class GlobalSettingsViewTests(TestCase):
         self.assertTrue(setting.show_add_employee_on_reallocation)
         self.assertFalse(setting.irresponsible)
 
+    def test_save_half_hours_with_localized_entitlement(self):
+        from apps.holidays.models import HolidayEntitlementRate
+        from apps.holidays.services import ensure_default_rates
+
+        ensure_default_rates()
+        self.client.login(username='sysadmin-gs', password='test')
+        url = reverse('core_settings:global_settings')
+        posted = {
+            'action': 'save_global',
+            'default_weekly_hours': '38.5',
+            'true_cost_multiplicator': '1.300',
+            'personnel_import_tolerance': '0.0250',
+            'chemical_hazard_threshold': 'any_ghs',
+            'holiday_half_day_rounding': 'up',
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '0',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            'entitlement_5_12': '30,0',
+            'entitlement_5_11': '27,5',
+        }
+        response = self.client.post(url, posted)
+        self.assertEqual(response.status_code, 302, getattr(response, 'context', None))
+        setting = GlobalSetting.get_solo()
+        self.assertEqual(setting.default_weekly_hours, Decimal('38.50'))
+        rate = HolidayEntitlementRate.objects.get(weekdays=5, contract_months=12)
+        self.assertEqual(rate.days, Decimal('30.0'))
+
     def test_hr_superassistant_is_forbidden(self):
         self.client.login(username='hr-gs', password='test')
         url = reverse('core_settings:global_settings')

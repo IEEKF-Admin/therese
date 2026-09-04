@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 
 {% block title %}Global Settings - THERESE{% endblock %}
 
@@ -108,7 +109,7 @@
                             <td>
                                 <input class="form-control" style="width:4.5rem;"
                                        name="entitlement_{{ row.weekdays }}_{{ cell.months }}"
-                                       value="{{ cell.value }}">
+                                       value="{% if cell.value != '' %}{{ cell.value|unlocalize }}{% endif %}">
                             </td>
                             {% endfor %}
                         </tr>

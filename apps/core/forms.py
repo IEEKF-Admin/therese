@@ -2,9 +2,31 @@ from django import forms
 
 from apps.core.models import GlobalSetting
 from apps.holidays.public_holidays import FEDERAL_STATES
+from apps.tasks.form_validation import DecimalCommaField
 
 
 class GlobalSettingForm(forms.ModelForm):
+    default_weekly_hours = DecimalCommaField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=0,
+        label='Default Weekly Working Hours',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+    )
+    true_cost_multiplicator = DecimalCommaField(
+        max_digits=5,
+        decimal_places=3,
+        min_value=0,
+        label='True-Cost Multiplicator',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0'}),
+    )
+    personnel_import_tolerance = DecimalCommaField(
+        max_digits=5,
+        decimal_places=4,
+        min_value=0,
+        label='Personnel import amount tolerance',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
+    )
     holiday_federal_state = forms.ChoiceField(
         required=False,
         choices=[('', 'Nationwide only')] + list(FEDERAL_STATES),

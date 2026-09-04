@@ -141,10 +141,17 @@ def global_settings(request):
                     raw = request.POST.get(f'entitlement_{weekdays}_{months}')
                     if raw in (None, ''):
                         continue
+                    from decimal import Decimal, InvalidOperation
+                    from apps.tasks.form_validation import parse_loose_decimal
+
+                    try:
+                        days = Decimal(str(parse_loose_decimal(raw)))
+                    except (InvalidOperation, ValueError, TypeError):
+                        continue
                     HolidayEntitlementRate.objects.update_or_create(
                         weekdays=weekdays,
                         contract_months=months,
-                        defaults={'days': raw},
+                        defaults={'days': days},
                     )
             messages.success(request, 'Global settings were saved.')
             return redirect('core_settings:global_settings')

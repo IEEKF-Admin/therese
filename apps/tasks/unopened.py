@@ -43,6 +43,7 @@ def unopened_tasks_queryset(user):
     qs = (
         Task.objects.exclude(status__in=CLOSED_STATUSES)
         .exclude(archived_by=employee)
+        .exclude(creator=employee)
         .exclude(pk__in=opened_ids)
     )
 

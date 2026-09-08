@@ -100,6 +100,13 @@ class UnopenedTaskNotificationTests(TestCase):
     def test_plain_user_has_no_dot(self):
         self.assertFalse(tasks_menu_needs_attention(self.creator_user))
 
+    def test_creator_does_not_see_own_tasks(self):
+        _grant(self.creator_user, Task, 'view_all_personnel_tasks', 'approve_personnel_task')
+        ids = set(unopened_tasks_for_user(self.creator_user).values_list('pk', flat=True))
+        self.assertNotIn(self.unassigned.pk, ids)
+        self.assertNotIn(self.assigned.pk, ids)
+        self.assertFalse(tasks_menu_needs_attention(self.creator_user))
+
     def test_message_variable_lists_unopened_tasks(self):
         values = build_replacement_map(self.appr_user, self.approver)
         listing = values['unopened_tasks'].as_text()

@@ -1,0 +1,62 @@
+<form method="post" id="bulk-delete-psp" class="list-panel">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_selected_psp">
+
+    <table class="table psp-manage-table">
+        <thead>
+            <tr>
+                <th class="table-checkbox-col">
+                    <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
+                </th>
+                <th class="psp-code-col">Code</th>
+                <th>Title</th>
+                <th>Cost center</th>
+                <th>Work group</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for psp in psp_elements %}
+            <tr>
+                <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ psp.pk }}"></td>
+                <td class="psp-code-col">
+                    <span style="font-family:ui-monospace,monospace;">{{ psp.wbs_code }}</span>
+                    {% if psp.is_incomplete %}
+                    <span class="employee-expiry-warning"
+                          title="Incomplete: {{ psp.missing_master_data|join:', ' }}"
+                          aria-label="Incomplete: {{ psp.missing_master_data|join:', ' }}"
+                          style="color:#dc2626; font-weight:800; margin-left:0.35rem; font-size:1.15em;">!</span>
+                    {% endif %}
+                </td>
+                <td>{{ psp.title }}</td>
+                <td>{{ psp.cost_center|default:"-" }}</td>
+                <td>{{ psp.work_group|default:"-" }}</td>
+                <td>
+                    {% if psp.is_inactive %}
+                    <span style="color:#b45309;font-size:0.85rem;">Inactive</span>
+                    {% else %}
+                    <span style="color:#059669;font-size:0.85rem;">Active</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'finances:psp_update' psp.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'finances:psp_delete' psp.pk %}" class="action-icon delete"
+                       onclick="return confirm('Delete this PSP element?');" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">No PSP elements found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if psp_elements %}
+    <div class="table-bulk-actions">
+        <button type="submit" class="btn-subtle" onclick="return confirm('Delete selected PSP elements?');">
+            Delete selected
+        </button>
+        <small>PSP elements with allocations/bookings cannot be deleted.</small>
+    </div>
+    {% endif %}
+</form>

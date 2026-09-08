@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}PSP &amp; Cost Centers - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>PSP &amp; Cost Centers</h1>
+    <div class="page-header-actions">
+        {% if active_tab == 'cost-centers' %}
+        {% if can_manage_cost_centers %}
+        <a href="{% url 'finances:cost_center_create' %}" class="btn-primary">+ New Cost Center</a>
+        {% endif %}
+        {% else %}
+        {% if can_manage_psp %}
+        <a href="{% url 'finances:psp_create' %}" class="btn-primary">+ New PSP element</a>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="settings-tabs" role="tablist">
+    {% if can_manage_psp %}
+    <a href="{% url 'finances:psp_manage' %}" class="settings-tab{% if active_tab == 'psp' %} is-active{% endif %}">PSP - Elements</a>
+    {% endif %}
+    {% if can_manage_cost_centers %}
+    <a href="{% url 'finances:psp_manage' %}?tab=cost-centers" class="settings-tab{% if active_tab == 'cost-centers' %} is-active{% endif %}">Cost Centers</a>
+    {% endif %}
+</div>
+
+{% if active_tab == 'cost-centers' %}
+{% include "finances/_cost_center_table.html" %}
+{% else %}
+{% include "finances/_psp_table.html" %}
+{% endif %}
+{% endblock %}

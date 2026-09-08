@@ -13,10 +13,10 @@
            value="{% if show_archived_contracts %}1{% else %}0{% endif %}">
 
     <div class="contract-archive-toolbar">
-        <label class="checkbox-field" style="display:inline-flex; gap:0.4rem; align-items:center; cursor:pointer;">
+        <label class="icon-toggle icon-toggle-archive" title="Show archived contracts" aria-label="Show archived contracts">
             <input type="checkbox" id="toggle-archived-contracts"
                    {% if show_archived_contracts %}checked{% endif %}>
-            <span>Show archived (inactive) contracts</span>
+            <i class="fas fa-box-archive" aria-hidden="true"></i>
         </label>
     </div>
 
@@ -56,15 +56,6 @@
                         <i class="fas fa-box-open" aria-hidden="true"></i>
                     </button>
                     {% endif %}
-                    {% if object.pk and can_hard_delete and card.contract_pk %}
-                    <button type="button" class="btn-secondary js-hard-delete"
-                            style="padding:4px 8px; font-size:0.8rem;"
-                            data-hard-delete-url="{% url 'hr:contract_hard_delete' object.pk card.contract_pk %}"
-                            data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
-                            data-hard-delete-confirm="Permanently delete this contract and its funding allocations? This cannot be undone.">
-                        Delete
-                    </button>
-                    {% endif %}
                     {% if not card.is_archived %}
                     <button type="button" class="btn-inline-remove remove-row" title="Remove contract" aria-label="Remove contract"
                             data-remove-scope="contract">
@@ -98,8 +89,13 @@
                     {% if card.is_upcoming %}
                     <span hidden>{{ form.is_active }}</span>
                     {% else %}
-                    <div class="inline-field"><label>Active</label>
-                        <div class="active-toggle-wrap">{{ form.is_active }}</div>
+                    <div class="inline-field">
+                        <label>Active</label>
+                        <label class="icon-toggle icon-toggle-active" title="Active">
+                            {{ form.is_active }}
+                            <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                            <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+                        </label>
                         {% if form.is_active.errors %}<small class="field-error">{{ form.is_active.errors|striptags }}</small>{% endif %}
                     </div>
                     {% endif %}
@@ -150,15 +146,6 @@
                                     <i class="fas fa-box-open" aria-hidden="true"></i>
                                 </button>
                                 {% endif %}
-                                {% if object.pk and can_hard_delete and fform.instance.pk %}
-                                <button type="button" class="btn-secondary js-hard-delete"
-                                        style="padding:2px 6px; font-size:0.75rem;"
-                                        data-hard-delete-url="{% url 'hr:funding_hard_delete' object.pk fform.instance.pk %}"
-                                        data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
-                                        data-hard-delete-confirm="Permanently delete this funding allocation? This cannot be undone.">
-                                    Delete
-                                </button>
-                                {% endif %}
                                 <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -175,8 +162,13 @@
                             {% if fform.instance.pk and fform.instance.temporal_ui_status == 'upcoming' %}
                             <span hidden>{{ fform.is_active }}</span>
                             {% else %}
-                            <div class="inline-field"><label>Active</label>
-                                <div class="active-toggle-wrap">{{ fform.is_active }}</div>
+                            <div class="inline-field">
+                                <label>Active</label>
+                                <label class="icon-toggle icon-toggle-active" title="Active">
+                                    {{ fform.is_active }}
+                                    <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                                    <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+                                </label>
                             </div>
                             {% endif %}
                             <div class="inline-field full"><label>Comments</label>{% if fform.comments.errors %}{{ fform.comments|add_class:"form-control error" }}{% else %}{{ fform.comments }}{% endif %}</div>
@@ -184,9 +176,9 @@
                         {% endfor %}
                     </div>
                     <div class="funding-archive-toolbar">
-                        <label style="display:inline-flex; gap:0.35rem; align-items:center; font-size:0.85rem; cursor:pointer;">
+                        <label class="icon-toggle icon-toggle-archive" title="Show archived funding allocations" aria-label="Show archived funding allocations">
                             <input type="checkbox" class="toggle-archived-fa">
-                            <span>Show archived funding allocations</span>
+                            <i class="fas fa-box-archive" aria-hidden="true"></i>
                         </label>
                     </div>
                     <button type="button" class="btn-secondary btn-add-funding" data-fa-prefix="{{ card.prefix }}">
@@ -204,15 +196,7 @@
                             </p>
                             {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
                             {% if fa.job_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Job: {{ fa.job_number }}</p>{% endif %}
-                            {% if object.pk and can_hard_delete %}
-                            <button type="button" class="btn-secondary js-hard-delete"
-                                    style="padding:4px 8px; font-size:0.8rem; margin-top:0.4rem;"
-                                    data-hard-delete-url="{% url 'hr:funding_hard_delete' object.pk fa.pk %}"
-                                    data-hard-delete-redirect="{% url 'hr:employee_update' object.pk %}"
-                                    data-hard-delete-confirm="Permanently delete this funding allocation? This cannot be undone.">
-                                Delete
-                            </button>
-                            {% endif %}
+
                         </div>
                         {% empty %}
                         <p class="text-muted" style="font-size:0.85rem;">No funding allocations.</p>
@@ -331,7 +315,13 @@
                 <div class="inline-field"><label>Weekly Hours</label>{{ empty_contract_form.weekly_hours|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Valid From</label>{{ empty_contract_form.valid_from }}</div>
                 <div class="inline-field"><label>Valid Until</label>{{ empty_contract_form.valid_until }}</div>
-                <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_contract_form.is_active }}</div></div>
+                <div class="inline-field"><label>Active</label>
+                    <label class="icon-toggle icon-toggle-active" title="Active">
+                        {{ empty_contract_form.is_active }}
+                        <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                        <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+                    </label>
+                </div>
                 <div class="inline-field"><label>Check needed</label><div class="active-toggle-wrap">{{ empty_contract_form.check_needed }}</div></div>
                 <div class="inline-field full"><label>Comments</label>{{ empty_contract_form.comments }}</div>
             </div>
@@ -346,9 +336,9 @@
                 <input type="hidden" name="fa_n__prefix__-MAX_NUM_FORMS" value="1000" id="id_fa_n__prefix__-MAX_NUM_FORMS">
                 <div class="funding-active-grid" data-fa-container></div>
                 <div class="funding-archive-toolbar">
-                    <label style="display:inline-flex; gap:0.35rem; align-items:center; font-size:0.85rem; cursor:pointer;">
+                    <label class="icon-toggle icon-toggle-archive" title="Show archived funding allocations">
                         <input type="checkbox" class="toggle-archived-fa">
-                        <span>Show archived funding allocations</span>
+                        <i class="fas fa-box-archive" aria-hidden="true"></i>
                     </label>
                 </div>
                 <button type="button" class="btn-secondary btn-add-funding" data-fa-prefix="fa_n__prefix__">+ Add funding allocation</button>
@@ -388,7 +378,13 @@
         <div class="inline-field"><label>Job Number</label>{{ empty_funding_form.job_number|add_class:"form-control" }}</div>
         <div class="inline-field"><label>Valid From</label>{{ empty_funding_form.start_date }}</div>
         <div class="inline-field"><label>Valid Until</label>{{ empty_funding_form.end_date }}</div>
-        <div class="inline-field"><label>Active</label><div class="active-toggle-wrap">{{ empty_funding_form.is_active }}</div></div>
+        <div class="inline-field"><label>Active</label>
+            <label class="icon-toggle icon-toggle-active" title="Active">
+                {{ empty_funding_form.is_active }}
+                <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+            </label>
+        </div>
         <div class="inline-field full"><label>Comments</label>{{ empty_funding_form.comments }}</div>
     </div>
     {% endif %}
@@ -856,29 +852,6 @@
             }
             return;
         }
-        const btn = e.target.closest('.js-hard-delete');
-        if (!btn) return;
-        e.preventDefault();
-        const msg = btn.getAttribute('data-hard-delete-confirm') || 'Delete this record?';
-        if (!window.confirm(msg)) return;
-        const url = btn.getAttribute('data-hard-delete-url');
-        const redirectTo = btn.getAttribute('data-hard-delete-redirect') || window.location.pathname;
-        const csrfEl = document.querySelector('#employee-edit-form [name=csrfmiddlewaretoken]');
-        const csrf = csrfEl ? csrfEl.value : '';
-        const body = new URLSearchParams();
-        if (csrf) body.set('csrfmiddlewaretoken', csrf);
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrf,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: body,
-            credentials: 'same-origin',
-            redirect: 'manual',
-        }).finally(function() {
-            window.location.replace(redirectTo);
-        });
     });
 
     // Re-enable disabled fields on submit

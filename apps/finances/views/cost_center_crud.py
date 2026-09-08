@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import DeleteView
 
@@ -22,6 +22,10 @@ from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import CostCenterForm, CostCenterYearEstimateFormSet
 from ..models import CostCenter
 from ..psp_cost_types import clear_disabled_year_estimate_amounts
+
+
+def _cost_center_hub_url():
+    return reverse('finances:psp_manage') + '?tab=cost-centers'
 
 
 def _cost_center_manage_queryset(queryset, user):
@@ -58,12 +62,15 @@ class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def test_func(self):
         return user_can_manage_cost_center(self.request.user)
 
+    def get(self, request, *args, **kwargs):
+        return redirect(reverse('finances:psp_manage') + '?tab=cost-centers')
+
     def post(self, request, *args, **kwargs):
         if request.POST.get('action') == 'delete_selected':
             ids = [i for i in request.POST.getlist('selected_ids') if i]
             if not ids:
                 messages.warning(request, "No entries selected.")
-                return redirect('finances:cost_center_manage')
+                return redirect(_cost_center_hub_url())
 
             deleted = 0
             protected = 0
@@ -87,7 +94,7 @@ class CostCenterListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                     f"{protected} cost center(s) could not be deleted "
                     "(e.g. because of linked PSP elements).",
                 )
-            return redirect('finances:cost_center_manage')
+            return redirect(_cost_center_hub_url())
         return super().post(request, *args, **kwargs)
 
 
@@ -95,7 +102,8 @@ class CostCenterCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = CostCenter
     form_class = CostCenterForm
     template_name = 'finances/cost_center_form.html'
-    success_url = reverse_lazy('finances:cost_center_manage')
+    def get_success_url(self):
+        return _cost_center_hub_url()
 
     def test_func(self):
         return user_can_manage_cost_center(self.request.user)
@@ -131,7 +139,7 @@ class CostCenterCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             formset.save()
             clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'Cost center "{self.object.cost_center}" was created.')
-            return redirect(self.success_url)
+            return redirect(self.get_success_url())
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
 
 
@@ -139,7 +147,8 @@ class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = CostCenter
     form_class = CostCenterForm
     template_name = 'finances/cost_center_form.html'
-    success_url = reverse_lazy('finances:cost_center_manage')
+    def get_success_url(self):
+        return _cost_center_hub_url()
 
     def get_queryset(self):
         return _cost_center_manage_queryset(CostCenter.objects.all(), self.request.user)
@@ -177,14 +186,15 @@ class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             formset.save()
             clear_disabled_year_estimate_amounts(self.object)
             messages.success(request, f'Cost center "{self.object.cost_center}" was updated.')
-            return redirect(self.success_url)
+            return redirect(self.get_success_url())
         return self.render_to_response(self.get_context_data(form=form, year_estimate_formset=formset))
 
 
 class CostCenterDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = CostCenter
     template_name = 'finances/cost_center_confirm_delete.html'
-    success_url = reverse_lazy('finances:cost_center_manage')
+    def get_success_url(self):
+        return _cost_center_hub_url()
 
     def get_queryset(self):
         return _cost_center_manage_queryset(CostCenter.objects.all(), self.request.user)
@@ -204,4 +214,4 @@ class CostCenterDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
                 request,
                 f'Cost center "{code}" cannot be deleted because dependent data exists (e.g. PSP elements).',
             )
-            return redirect(self.success_url)
+            return redirect(self.get_success_url())

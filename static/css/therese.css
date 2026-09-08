@@ -1122,6 +1122,54 @@ tr.is-inactive,
     font-size: 0.9rem;
 }
 
+.icon-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin: 0;
+    line-height: 1;
+}
+.icon-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+.icon-toggle i {
+    font-size: 1.15rem;
+    color: #94a3b8;
+}
+.icon-toggle .icon-toggle-on {
+    display: none;
+}
+.icon-toggle .icon-toggle-off {
+    display: inline-block;
+    color: #94a3b8;
+}
+.icon-toggle:has(input:checked) .icon-toggle-on {
+    display: inline-block;
+    color: #16a34a;
+}
+.icon-toggle:has(input:checked) .icon-toggle-off {
+    display: none;
+}
+.icon-toggle-active i {
+    font-size: 1.45rem;
+}
+.icon-toggle-archive i {
+    font-size: 1.05rem;
+    color: #64748b;
+}
+.icon-toggle-archive:hover i {
+    color: #334155;
+}
+.icon-toggle-archive:has(input:checked) i {
+    color: #b45309;
+}
+
 .task-table tr:last-child td {
     border-bottom: none;
 }
@@ -1788,6 +1836,15 @@ input.form-control:focus {
 .settings-tab.is-active {
     color: var(--primary, #0ea5e9);
     border-bottom-color: var(--primary, #0ea5e9);
+}
+a.settings-tab {
+    text-decoration: none;
+    display: inline-block;
+}
+
+.psp-manage-table .psp-code-col {
+    min-width: 14rem;
+    width: 28%;
 }
 
 .holiday-calendar {

@@ -170,12 +170,7 @@
     </a>
     {% endif %}
 
-    {% if perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or user.is_superuser %}
-    <a href="{% url 'finances:cost_center_manage' %}"
-       class="{% if 'cost-centers/manage' in request.path %}active{% endif %}">
-        <i class="fas fa-coins"></i> Cost Centers
-    </a>
-    {% endif %}
+
 
     {% if perms.finances.manage_contact_person or user.is_superuser %}
     <a href="{% url 'finances:contact_person_manage' %}"
@@ -228,10 +223,10 @@
     </a>
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or 'Finances - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'finances:psp_manage' %}"
-       class="{% if 'psp/manage' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram"></i> PSP - Elements
+       class="{% if 'psp/manage' in request.path or 'cost-centers/manage' in request.path %}active{% endif %}">
+        <i class="fas fa-project-diagram"></i> PSP &amp; Cost Centers
     </a>
     {% endif %}
 

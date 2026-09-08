@@ -18,7 +18,7 @@
         {% csrf_token %}
         <div class="form-actions">
             <button type="submit" class="btn-danger">Yes, delete</button>
-            <a href="{% url 'finances:cost_center_manage' %}" class="btn-secondary">Cancel</a>
+            <a href="{% url 'finances:psp_manage' %}?tab=cost-centers" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>

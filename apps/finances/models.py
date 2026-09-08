@@ -325,6 +325,22 @@ class WBSElement(BaseModel):
         short_title = (self.title[:80] + '...') if len(self.title) > 80 else self.title
         return f"{self.wbs_code} - {short_title}"
 
+    def missing_master_data(self):
+        missing = []
+        if not self.cost_center_id:
+            missing.append('Cost center')
+        if not self.period_start:
+            missing.append('Period start')
+        if not (self.third_party_funder_identifier or '').strip():
+            missing.append('Third-party funder identifier')
+        if not self.third_party_funding_commitment:
+            missing.append('Third-party funding commitment')
+        return missing
+
+    @property
+    def is_incomplete(self):
+        return bool(self.missing_master_data())
+
 
 class PSPYearlyCostAmounts(BaseModel):
     """

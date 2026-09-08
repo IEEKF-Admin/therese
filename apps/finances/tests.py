@@ -61,6 +61,11 @@ class WBSElementFormTests(TestCase):
         self.assertIsNone(psp.responsible_person)
         self.assertEqual(form.fields['cost_center'].empty_label, 'Unknown')
         self.assertEqual(form.fields['responsible_person'].empty_label, 'Unknown')
+        self.assertTrue(psp.is_incomplete)
+        self.assertIn('Cost center', psp.missing_master_data())
+        self.assertIn('Period start', psp.missing_master_data())
+        self.assertIn('Third-party funder identifier', psp.missing_master_data())
+        self.assertIn('Third-party funding commitment', psp.missing_master_data())
 
     def test_valid_form_saves_with_cost_center(self):
         form = WBSElementForm(data={
@@ -551,6 +556,23 @@ class PSPManageAccessTests(TestCase):
         view = PSPListView()
         view.request = request
         self.assertIn(orphan, list(view.get_queryset()))
+
+    def test_manage_hub_uses_tabs_and_marks_incomplete_psp(self):
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        response = client.get('/finances/psp/manage/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PSP &amp; Cost Centers')
+        self.assertContains(response, 'PSP - Elements')
+        self.assertNotContains(response, '>Responsible<')
+        incomplete = WBSElement.objects.create(
+            wbs_code='INCOMPLETE-1',
+            title='Needs data',
+            work_group=self.workgroup_a,
+        )
+        response = client.get('/finances/psp/manage/')
+        self.assertContains(response, 'Incomplete:')
+        self.assertContains(response, incomplete.wbs_code)
 
     def test_create_rejects_missing_work_group(self):
         from apps.finances.forms import WBSElementForm

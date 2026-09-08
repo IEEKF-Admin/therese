@@ -8,10 +8,15 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.edit import DeleteView
 
+from apps.finances.cost_center_access import (
+    filter_cost_centers_for_user,
+    user_can_manage_cost_center,
+    user_manages_all_cost_centers,
+)
 from apps.finances.psp_access import (
     filter_psp_for_user,
     psp_workgroup_queryset_for_user,
@@ -20,7 +25,7 @@ from apps.finances.psp_access import (
 )
 from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
-from ..models import WBSElement
+from ..models import CostCenter, WBSElement
 from ..psp_cost_types import clear_disabled_year_estimate_amounts
 
 
@@ -98,20 +103,85 @@ def _configure_work_group_field(form, user, *, instance=None):
 
 class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = WBSElement
-    template_name = 'finances/psp_list.html'
+    template_name = 'finances/psp_cost_center_manage.html'
     context_object_name = 'psp_elements'
 
     def get_queryset(self):
+        if not user_can_manage_psp(self.request.user):
+            return WBSElement.objects.none()
         queryset = WBSElement.objects.select_related(
             'work_group', 'responsible_person', 'cost_center',
         )
         return _psp_manage_queryset(queryset, self.request.user)
 
     def test_func(self):
-        return user_can_manage_psp(self.request.user)
+        user = self.request.user
+        return user_can_manage_psp(user) or user_can_manage_cost_center(user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        can_psp = user_can_manage_psp(user)
+        can_cc = user_can_manage_cost_center(user)
+        tab = (self.request.GET.get('tab') or '').strip()
+        if tab == 'cost-centers' and can_cc:
+            active_tab = 'cost-centers'
+        elif can_psp:
+            active_tab = 'psp'
+        else:
+            active_tab = 'cost-centers'
+        cost_centers = CostCenter.objects.none()
+        if can_cc:
+            cost_qs = CostCenter.objects.select_related('work_group').order_by('cost_center')
+            if user_manages_all_cost_centers(user):
+                cost_centers = cost_qs
+            else:
+                cost_centers = filter_cost_centers_for_user(cost_qs, user)
+        context.update({
+            'can_manage_psp': can_psp,
+            'can_manage_cost_centers': can_cc,
+            'active_tab': active_tab,
+            'cost_centers': cost_centers,
+        })
+        return context
 
     def post(self, request, *args, **kwargs):
-        if request.POST.get('action') == 'delete_selected':
+        action = request.POST.get('action')
+        if action == 'delete_selected_cc':
+            if not user_can_manage_cost_center(request.user):
+                messages.error(request, 'You do not have permission to delete cost centers.')
+                return redirect(reverse('finances:psp_manage') + '?tab=cost-centers')
+            ids = [i for i in request.POST.getlist('selected_ids') if i]
+            if not ids:
+                messages.warning(request, "No entries selected.")
+                return redirect(reverse('finances:psp_manage') + '?tab=cost-centers')
+            deleted = 0
+            protected = 0
+            for pk in ids:
+                try:
+                    cc_qs = CostCenter.objects.filter(pk=pk)
+                    if not user_manages_all_cost_centers(request.user):
+                        cc_qs = filter_cost_centers_for_user(cc_qs, request.user)
+                    obj = cc_qs.get()
+                    obj.delete()
+                    deleted += 1
+                except CostCenter.DoesNotExist:
+                    pass
+                except ProtectedError:
+                    protected += 1
+            if deleted:
+                messages.success(request, f"{deleted} cost center(s) deleted.")
+            if protected:
+                messages.error(
+                    request,
+                    f"{protected} cost center(s) could not be deleted "
+                    "(e.g. because of linked PSP elements).",
+                )
+            return redirect(reverse('finances:psp_manage') + '?tab=cost-centers')
+        if action in ('delete_selected', 'delete_selected_psp'):
+            if not user_can_manage_psp(request.user):
+                messages.error(request, 'You do not have permission to delete PSP elements.')
+                return redirect('finances:psp_manage')
             ids = [i for i in request.POST.getlist('selected_ids') if i]
             if not ids:
                 messages.warning(request, "No entries selected.")

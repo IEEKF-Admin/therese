@@ -49,7 +49,7 @@ class ThereseLoginView(LoginView):
         return super().form_valid(form)
 
 
-from datetime import datetime
+from datetime import datetime, time as dt_time
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -73,6 +73,19 @@ def _parse_trigger_datetime(dt_value):
         return None
 
 
+def _parse_schedule_time(value):
+    if not value:
+        return None
+    try:
+        parts = str(value).split(':')
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        second = int(parts[2]) if len(parts) > 2 else 0
+        return dt_time(hour, minute, second)
+    except (ValueError, TypeError, IndexError):
+        return None
+
+
 def _login_popup_config_dict(config):
     trigger_dt = ''
     if config.trigger_datetime:
@@ -87,6 +100,10 @@ def _login_popup_config_dict(config):
         'link_to': config.link_to,
         'x_months': config.x_months,
         'trigger_datetime': trigger_dt,
+        'schedule_time': config.schedule_time.strftime('%H:%M') if config.schedule_time else '',
+        'schedule_weekdays': [
+            int(part) for part in (config.schedule_weekdays or '').split(',') if part.strip().isdigit()
+        ],
         'text': config.text,
         'email_subject': config.email_subject or '',
         'email_html': config.email_html or '',
@@ -116,6 +133,7 @@ def messaging(request):
         user_can_configure_email,
         user_can_manage_messaging,
     )
+    from apps.accounts.schedule_triggers import WEEKDAY_CHOICES
     from apps.accounts.template_variables import GROUP_LABELS, VARIABLES, catalog_by_trigger, variable_token
     from apps.core.html_sanitize import sanitize_html
     from apps.core.mail import send_therese_test_email
@@ -188,6 +206,12 @@ def messaging(request):
             x = request.POST.get('x_months')
             config.x_months = int(x) if x else None
             config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
+            from apps.accounts.schedule_triggers import encode_schedule_weekdays
+
+            config.schedule_time = _parse_schedule_time(request.POST.get('schedule_time'))
+            config.schedule_weekdays = encode_schedule_weekdays(
+                request.POST.getlist('schedule_weekdays')
+            )
             config.enabled = bool(request.POST.get('enabled'))
             match_mode = request.POST.get('audience_match_mode', 'or')
             config.audience_match_mode = match_mode if match_mode in ('or', 'and') else 'or'
@@ -206,6 +230,7 @@ def messaging(request):
         'configs': configs,
         'configs_data': [_login_popup_config_dict(c) for c in configs],
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
+        'weekday_choices': WEEKDAY_CHOICES,
         'link_choices': LoginPopupConfig.LINK_CHOICES,
         'audience_match_choices': LoginPopupConfig.AUDIENCE_MATCH_CHOICES,
         'variable_catalog': catalog_by_trigger(),

@@ -43,6 +43,9 @@ def task_detail(request, pk):
     if isinstance(task, HttpResponseBase):
         return task
 
+    from ..unopened import mark_task_opened
+    mark_task_opened(request.user, task)
+
     from ..task_protocol import try_handle_message_only_post
     message_response = try_handle_message_only_post(request, task)
     if message_response is not None:

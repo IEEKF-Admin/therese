@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time as dt_time, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -20,7 +20,11 @@ from apps.accounts.template_variables import (
     render_placeholders,
 )
 from apps.accounts.scheduler import should_start_scheduler
-from apps.accounts.trigger_emails import send_due_contract_emails, send_login_time_trigger_emails
+from apps.accounts.trigger_emails import (
+    send_due_contract_emails,
+    send_due_scheduled_emails,
+    send_login_time_trigger_emails,
+)
 from apps.hr.models import Contract, Employee
 from apps.tasks.models import GenericTextTask, PersonnelReallocationTask, PurchaseOrderTask, TaskComment
 
@@ -460,6 +464,68 @@ class ContractEmailSchedulerTests(TestCase):
             self.assertFalse(should_start_scheduler(['manage.py', 'runserver']))
 
 
+class ScheduledTriggerTests(TestCase):
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            'scheduser',
+            password='test',
+            first_name='Sam',
+            last_name='Delta',
+            email='sam@example.org',
+        )
+        self.employee = Employee.objects.create(
+            employee_number='E-SCHED',
+            first_name='Sam',
+            last_name='Delta',
+            email_professional='sam@institute.org',
+            user=self.user,
+        )
+        self.config = LoginPopupConfig.objects.create(
+            name='Monday briefing',
+            trigger='scheduled',
+            text='Briefing {{ first_name }}',
+            email_subject='Briefing {{ first_name }}',
+            email_html='<p>Hello {{ first_name }}</p>',
+            show_popup=True,
+            send_email=True,
+            enabled=True,
+            schedule_time=dt_time(9, 0),
+            schedule_weekdays='0',
+        )
+
+    def _aware(self, year, month, day, hour, minute):
+        naive = datetime(year, month, day, hour, minute)
+        return timezone.make_aware(naive, timezone.get_current_timezone())
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_sends_after_time_on_selected_weekday(self):
+        now = self._aware(2026, 9, 7, 9, 5)
+        self.assertEqual(now.weekday(), 0)
+        sent = send_due_scheduled_emails(now=now)
+        self.assertEqual(sent, 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['sam@institute.org'])
+        self.assertIn('Hello Sam', mail.outbox[0].alternatives[0][0])
+        sent_again = send_due_scheduled_emails(now=now)
+        self.assertEqual(sent_again, 0)
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_does_not_send_before_time_or_on_other_weekday(self):
+        too_early = self._aware(2026, 9, 7, 8, 59)
+        tuesday = self._aware(2026, 9, 8, 9, 5)
+        self.assertEqual(send_due_scheduled_emails(now=too_early), 0)
+        self.assertEqual(send_due_scheduled_emails(now=tuesday), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_popup_shows_after_occurrence_until_acknowledged(self):
+        tuesday = self._aware(2026, 9, 8, 10, 0)
+        with patch('django.utils.timezone.now', return_value=tuesday):
+            results = evaluate_login_popups(self.user, employee=self.employee)
+        self.assertEqual(len(results), 1)
+        self.assertIn('Briefing Sam', results[0]['text'])
+
+
 class EmailTemplateSettingsTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -490,6 +556,7 @@ class EmailTemplateSettingsTests(TestCase):
         self.assertContains(response, 'New purchase order (procurement) created')
         self.assertContains(response, 'New personnel task created')
         self.assertContains(response, 'First login (welcome / profile completion)')
+        self.assertContains(response, 'Recurring schedule (time and weekdays)')
         self.assertContains(response, 'Email body')
         self.assertContains(response, '{{ first_name }}')
 
@@ -513,6 +580,29 @@ class EmailTemplateSettingsTests(TestCase):
         self.assertFalse(created.show_popup)
         self.assertEqual(created.email_subject, 'New task {{ task_title }}')
         self.assertIn('Assigned {{ task_title }}', created.email_html)
+
+    def test_group_can_save_scheduled_trigger(self):
+        self.client.login(username='mail-admin', password='test')
+        response = self.client.post(
+            reverse('core_settings:messaging'),
+            {
+                'action': 'save_config',
+                'trigger': 'scheduled',
+                'name': 'Weekly reminder',
+                'send_email': 'on',
+                'schedule_time': '09:15',
+                'schedule_weekdays': ['0', '2', '4'],
+                'email_subject': 'Reminder',
+                'email_html': '<p>Weekly</p>',
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        created = LoginPopupConfig.objects.get(name='Weekly reminder')
+        self.assertEqual(created.trigger, 'scheduled')
+        self.assertEqual(created.schedule_time, dt_time(9, 15))
+        self.assertEqual(created.schedule_weekdays, '0,2,4')
+        self.assertIn('09:15', created.schedule_summary())
+        self.assertIn('Mon', created.schedule_summary())
 
     def test_login_popup_settings_shows_reaction_checkboxes(self):
         assistant = CustomUser.objects.create_user('hr-super', password='test')

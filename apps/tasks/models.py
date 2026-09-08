@@ -215,6 +215,37 @@ class TaskComment(BaseModel):
         return f'{timestamp} {username}: {self.text}'
 
 
+class TaskInitialOpen(BaseModel):
+    """Records that a user has opened a task detail page at least once."""
+
+    user = models.ForeignKey(
+        'accounts.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='task_initial_opens',
+        verbose_name='User',
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='initial_opens',
+        verbose_name='Task',
+    )
+    opened_at = models.DateTimeField(auto_now_add=True, verbose_name='Opened at')
+
+    class Meta:
+        verbose_name = 'Task initial open'
+        verbose_name_plural = 'Task initial opens'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'task'],
+                name='task_initial_open_user_task_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} opened {self.task_id}'
+
+
 class TaskAttachment(BaseModel):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='task_attachments/%Y/%m/%d/')

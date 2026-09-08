@@ -57,6 +57,7 @@ class LoginPopupConfig(models.Model):
             'New message on a task created by the user (by someone else)',
         ),
         ('login_after_datetime', 'Login after specific date/time'),
+        ('scheduled', 'Recurring schedule (time and weekdays)'),
         ('checklist_assigned', 'New checklist assigned to the user'),
         (
             'chemical_item_incomplete',
@@ -128,6 +129,16 @@ class LoginPopupConfig(models.Model):
     link_to = models.CharField(max_length=50, choices=LINK_CHOICES, blank=True, help_text="For popup: where to redirect on OK.")
     x_months = models.PositiveIntegerField(null=True, blank=True, help_text="For 'contract_ending_soon' or 'any_contract_ending_soon' trigger.")
     trigger_datetime = models.DateTimeField(null=True, blank=True, help_text="For 'login_after_datetime' trigger.")
+    schedule_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Local time of day for the recurring schedule trigger.",
+    )
+    schedule_weekdays = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="Comma-separated weekdays for the recurring schedule (0=Monday … 6=Sunday).",
+    )
     enabled = models.BooleanField(default=True)
     audience_match_mode = models.CharField(
         max_length=3,
@@ -166,6 +177,16 @@ class LoginPopupConfig(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.get_trigger_display()}"
+
+    def schedule_summary(self):
+        if self.trigger != 'scheduled':
+            return ''
+        from apps.accounts.schedule_triggers import WEEKDAY_SHORT, parse_schedule_weekdays
+
+        days = parse_schedule_weekdays(self.schedule_weekdays)
+        day_label = ', '.join(WEEKDAY_SHORT[d] for d in days) if days else 'no days'
+        time_label = self.schedule_time.strftime('%H:%M') if self.schedule_time else '—'
+        return f'{time_label} · {day_label}'
 
     def has_audience_restrictions(self):
         if self.pk:

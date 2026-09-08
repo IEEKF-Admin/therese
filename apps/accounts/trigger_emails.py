@@ -129,6 +129,29 @@ def notify_subject(trigger, user, employee, reference_key, **context):
         deliver_trigger_email(config, user, employee, reference_key, **context)
 
 
+def send_due_scheduled_emails(now=None):
+    """Send recurring-schedule emails for occurrences that are due today."""
+    from apps.accounts.models import CustomUser
+    from apps.accounts.schedule_triggers import current_due_schedule_occurrence
+
+    sent = 0
+    users = list(CustomUser.objects.filter(is_active=True))
+    for config in enabled_email_configs('scheduled'):
+        due = current_due_schedule_occurrence(config, now=now)
+        if not due:
+            continue
+        _day, reference_key = due
+        for user in users:
+            if deliver_trigger_email(
+                config,
+                user,
+                _employee_of(user),
+                reference_key,
+            ):
+                sent += 1
+    return sent
+
+
 def send_login_time_trigger_emails(user, employee=None):
     """first_login and login_after_datetime still fire when the user logs in."""
     if user is None:

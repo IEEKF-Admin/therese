@@ -8,6 +8,7 @@ from apps.checklists.access import (
 from apps.documents.sidebar_notifications import documents_menu_needs_attention
 from apps.holidays.access import holidays_menu_needs_attention, user_can_approve_workgroup
 from apps.holidays.features import holiday_flags
+from apps.tasks.unopened import tasks_menu_needs_attention
 
 
 def user_groups(request):
@@ -27,6 +28,7 @@ def user_groups(request):
             'holiday_flags': flags,
             'holidays_menu_needs_attention': holidays_menu_needs_attention(request.user),
             'user_can_approve_holidays': flags['approval'] and user_can_approve_workgroup(request.user),
+            'tasks_menu_needs_attention': tasks_menu_needs_attention(request.user),
         }
     return {
         'user_groups': [],
@@ -38,4 +40,5 @@ def user_groups(request):
         'holiday_flags': {'module': False, 'planning': False, 'approval': False, 'gantt': False},
         'holidays_menu_needs_attention': False,
         'user_can_approve_holidays': False,
+        'tasks_menu_needs_attention': False,
     }

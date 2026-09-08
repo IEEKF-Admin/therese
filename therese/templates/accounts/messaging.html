@@ -18,8 +18,10 @@
 <p style="color:#64748b;margin-bottom:2rem;">
     Contract-ending emails are sent when a matching user logs in, and also
     automatically about once an hour while the THERESE server is running
-    (no Windows Task Scheduler needed). People who never log in are covered
-    as long as the server stays up.
+    (no Windows Task Scheduler needed). Recurring schedule emails are sent
+    about once a minute after the chosen time on the chosen weekdays.
+    People who never log in are covered as long as the server stays up.
+    Schedule popups appear at the next login after that occurrence.
 </p>
 
 {{ configs_data|json_script:"login-popup-configs-data" }}
@@ -51,7 +53,12 @@
         <tr>
             <td class="table-checkbox-col"><input type="checkbox" name="selected_configs" value="{{ config.pk }}"></td>
             <td>{{ config.name }}</td>
-            <td>{{ config.get_trigger_display }}</td>
+            <td>
+                {{ config.get_trigger_display }}
+                {% if config.trigger == 'scheduled' and config.schedule_summary %}
+                <br><small style="color:#64748b;">{{ config.schedule_summary }}</small>
+                {% endif %}
+            </td>
             <td>{{ config.show_popup|yesno:"Yes,No" }}</td>
             <td>{{ config.send_email|yesno:"Yes,No" }}</td>
             <td>{{ config.get_link_to_display|default:"-" }}</td>
@@ -123,6 +130,21 @@
             <div id="x-months-field" style="display:none; margin-top: 0.5rem;">
                 <label>X Months</label>
                 <input type="number" name="x_months" id="config-x-months" class="form-control" min="1">
+            </div>
+
+            <div id="schedule-field" style="display:none; margin-top: 0.5rem;">
+                <label>Time of day</label>
+                <input type="time" name="schedule_time" id="config-schedule-time" class="form-control">
+                <p class="field-hint" style="margin:0.35rem 0 0.5rem;">Local server time. Emails go out after this time on the selected days.</p>
+                <label>Weekdays</label>
+                <div id="config-schedule-weekdays" style="display:flex; flex-wrap:wrap; gap:0.35rem 1rem; margin-top:0.35rem;">
+                    {% for value, label in weekday_choices %}
+                    <label style="font-weight:normal; display:inline-flex; align-items:center; gap:0.35rem;">
+                        <input type="checkbox" name="schedule_weekdays" value="{{ value }}" class="config-schedule-weekday">
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -433,10 +455,18 @@ function renderVariableChips(boxId, insertFn) {
     });
 }
 
+function setScheduleWeekdays(values) {
+    var wanted = new Set((values || []).map(String));
+    document.querySelectorAll('.config-schedule-weekday').forEach(function(box) {
+        box.checked = wanted.has(String(box.value));
+    });
+}
+
 function toggleFields() {
     var trigger = document.getElementById('config-trigger').value;
     document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
     document.getElementById('datetime-field').style.display = (trigger === 'login_after_datetime') ? 'block' : 'none';
+    document.getElementById('schedule-field').style.display = (trigger === 'scheduled') ? 'block' : 'none';
     renderVariableChips('popup-variable-chips', function(token) {
         insertAtCursor(document.getElementById('config-text'), token);
     });
@@ -468,6 +498,8 @@ function editConfig(pk) {
     document.getElementById('config-link').value = cfg.link_to || '';
     document.getElementById('config-x-months').value = cfg.x_months != null ? cfg.x_months : '';
     document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
+    document.getElementById('config-schedule-time').value = cfg.schedule_time || '';
+    setScheduleWeekdays(cfg.schedule_weekdays);
     document.getElementById('config-text').value = cfg.text || '';
     document.getElementById('config-email-subject').value = cfg.email_subject || '';
     setEmailHtml(cfg.email_html || '');
@@ -493,6 +525,7 @@ function resetForm() {
     setMultiSelectValues('config-target-users', []);
     setMultiSelectValues('config-target-workgroups', []);
     setMultiSelectValues('config-target-groups', []);
+    setScheduleWeekdays([]);
     toggleFields();
 }
 

@@ -5,8 +5,12 @@
     {# Groups remain the way permissions are assigned in Admin. #}
 
     <a href="{% url 'tasks:my_tasks' %}"
-       class="{% if '/tasks/' in request.path and '/tasks/create' not in request.path and '/tasks/standard-orders' not in request.path %}active{% endif %}">
-        <i class="fas fa-tasks"></i> My Tasks
+       class="sidebar-link-with-badge {% if '/tasks/' in request.path and '/tasks/create' not in request.path and '/tasks/standard-orders' not in request.path %}active{% endif %}">
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-tasks"></i>
+            {% if tasks_menu_needs_attention %}<span class="menu-notification-dot" aria-label="Unopened tasks"></span>{% endif %}
+        </span>
+        <span>My Tasks</span>
     </a>
 
     {% if has_employee %}

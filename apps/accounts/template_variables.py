@@ -137,6 +137,11 @@ VARIABLES = [
         'group': 'lists',
     },
     {
+        'key': 'unopened_tasks',
+        'label': 'Open tasks you have not opened yet',
+        'group': 'lists',
+    },
+    {
         'key': 'personnel_tasks',
         'label': 'Visible unarchived personnel tasks',
         'group': 'lists',
@@ -241,6 +246,7 @@ VARIABLES = [
 TRIGGER_GROUPS = {
     'first_login': ['person', 'lists'],
     'login_after_datetime': ['person', 'lists'],
+    'scheduled': ['person', 'lists'],
     'contract_ending_soon': ['person', 'contract', 'lists'],
     'any_contract_ending_soon': ['person', 'contract', 'lists'],
     'new_task_assigned': ['person', 'task', 'lists'],
@@ -535,6 +541,15 @@ def list_ending_contracts(employee, months=6):
     return TemplateList(headers, rows)
 
 
+def list_unopened_tasks(user):
+    from apps.tasks.unopened import unopened_tasks_for_user
+
+    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    if user is None:
+        return TemplateList(headers, [])
+    return _task_list(unopened_tasks_for_user(user))
+
+
 def list_incomplete_chemical_items(employee):
     headers = ['CAS', 'Name', 'Product', 'Missing']
     if employee is None:
@@ -782,6 +797,7 @@ def build_replacement_map(
     values['purchase_orders'] = list_purchase_orders(user, employee)
     values['my_purchase_orders'] = list_my_purchase_orders(employee)
     values['assigned_tasks'] = list_assigned_tasks(employee)
+    values['unopened_tasks'] = list_unopened_tasks(user)
     values['personnel_tasks'] = list_personnel_tasks(user, employee)
     values['my_personnel_tasks'] = list_my_personnel_tasks(employee)
     values['ending_contracts'] = list_ending_contracts(employee)

@@ -1696,31 +1696,39 @@ a.btn-secondary:hover {
     grid-template-columns: minmax(12rem, 22rem);
 }
 
-.recruitment-field-grid {
+.recruitment-field-grid,
+.employee-field-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.65rem 0.9rem;
 }
 
-.recruitment-field-grid.cols-3 {
+.recruitment-field-grid.cols-3,
+.employee-field-grid.cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.recruitment-field-grid .span-2 {
+.recruitment-field-grid .span-2,
+.employee-field-grid .span-2 {
     grid-column: span 2;
 }
 
 .recruitment-field-grid .span-3,
-.recruitment-field-grid .span-all {
+.recruitment-field-grid .span-all,
+.employee-field-grid .span-3,
+.employee-field-grid .span-all {
     grid-column: 1 / -1;
 }
 
 .recruitment-field-grid .recruitment-field,
-.recruitment-field-grid .aligned-field {
+.recruitment-field-grid .aligned-field,
+.employee-field-grid .employee-field,
+.employee-field-grid .aligned-field {
     margin-bottom: 0;
 }
 
-.recruitment-field label {
+.recruitment-field label,
+.employee-field label {
     display: block;
     margin-bottom: 0.3rem;
     font-weight: 500;
@@ -1729,7 +1737,10 @@ a.btn-secondary:hover {
 
 .recruitment-field.is-short .form-control,
 .recruitment-field.is-short select,
-.recruitment-field.is-short .form-readonly {
+.recruitment-field.is-short .form-readonly,
+.employee-field.is-short .form-control,
+.employee-field.is-short select,
+.employee-field.is-short .form-readonly {
     max-width: 12rem;
 }
 
@@ -2222,12 +2233,17 @@ textarea.error {
     .recruitment-payscale-row,
     .recruitment-field-grid,
     .recruitment-field-grid.cols-3,
-    .recruitment-task-info .recruitment-field-grid {
+    .recruitment-task-info .recruitment-field-grid,
+    .employee-field-grid,
+    .employee-field-grid.cols-3,
+    .employee-card-row {
         grid-template-columns: 1fr;
     }
 
     .recruitment-field-grid .span-2,
-    .recruitment-field-grid .span-3 {
+    .recruitment-field-grid .span-3,
+    .employee-field-grid .span-2,
+    .employee-field-grid .span-3 {
         grid-column: auto;
     }
 }
@@ -2824,6 +2840,70 @@ div.year-estimate-row {
 
 .employee-form-heading h1 {
     margin: 0;
+}
+
+.employee-form-header {
+    align-items: flex-start;
+}
+
+.employee-form-photo {
+    width: 7.5rem;
+    height: 7.5rem;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    background: #f1f5f9;
+    flex: 0 0 auto;
+}
+
+.employee-card-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: start;
+}
+
+.employee-card-row > [hidden] {
+    display: none !important;
+}
+
+.employee-card-row:has(> [hidden]) {
+    grid-template-columns: 1fr;
+}
+
+.employee-form .employee-two-col {
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.employee-form .full-block {
+    margin-bottom: 1rem;
+}
+
+.employee-toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.5rem;
+    margin-bottom: 0.9rem;
+}
+
+.employee-toggle-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 8rem;
+}
+
+.employee-toggle-item > label {
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0;
+}
+
+.employee-toggle-item .field-hint {
+    max-width: 16rem;
 }
 
 .employee-form {

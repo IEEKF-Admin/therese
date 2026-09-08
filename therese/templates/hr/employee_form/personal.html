@@ -1,62 +1,64 @@
-﻿{% load widget_tweaks %}
-<div class="form-section">
-    <h3>Status</h3>
-    {% if form.is_external %}
-    <div class="aligned-field">
-        <label>{{ form.is_external.label }}</label>
-        <div class="active-toggle-wrap">{{ form.is_external }}</div>
-        <small class="field-hint">Not an institute employee. Employee number is optional. Link a login account for groups and checklists.</small>
-    </div>
-    {% endif %}
-    {% if form.is_pending %}
-    <div class="aligned-field">
-        <label>{{ form.is_pending.label }}</label>
-        <div class="active-toggle-wrap">{{ form.is_pending }}</div>
-        <small class="field-hint">Created from an import — still pending review.</small>
-    </div>
-    {% endif %}
-    {% if form.check_needed %}
-    <div class="aligned-field">
-        <label>{{ form.check_needed.label }}</label>
-        <div class="active-toggle-wrap">{{ form.check_needed }}</div>
-        <small class="field-hint">Manual review required. Uncheck before linking a login account.</small>
-    </div>
-    {% endif %}
-</div>
-
+{% load widget_tweaks %}
 <div class="form-section">
     <h3>Personal Information</h3>
-    <div class="aligned-field"><label>{{ form.employee_number.label }}</label>{% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number|add_class:"form-control" }}{% endif %}</div>
+    {% if form.is_external or form.is_pending or form.check_needed %}
+    <div class="employee-toggle-row">
+        {% if form.is_external %}
+        <div class="employee-toggle-item">
+            <label>{{ form.is_external.label }}</label>
+            {% include "hr/employee_form/_icon_toggle.html" with toggle_field=form.is_external title=form.is_external.label %}
+            <small class="field-hint">Not an institute employee. Employee number is optional. Link a login account for groups and checklists.</small>
+        </div>
+        {% endif %}
+        {% if form.is_pending %}
+        <div class="employee-toggle-item">
+            <label>{{ form.is_pending.label }}</label>
+            {% include "hr/employee_form/_icon_toggle.html" with toggle_field=form.is_pending title=form.is_pending.label %}
+            <small class="field-hint">Created from an import — still pending review.</small>
+        </div>
+        {% endif %}
+        {% if form.check_needed %}
+        <div class="employee-toggle-item">
+            <label>{{ form.check_needed.label }}</label>
+            {% include "hr/employee_form/_icon_toggle.html" with toggle_field=form.check_needed title=form.check_needed.label %}
+            <small class="field-hint">Manual review required. Uncheck before linking a login account.</small>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if form.job %}{{ form.job.as_hidden }}{% endif %}
-    <div class="aligned-field"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field"><label>{{ form.first_name.label }}</label>{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field"><label>{{ form.last_name.label }}</label>{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field"><label>{{ form.gender.label }}</label>{% if form.gender.errors %}{{ form.gender|add_class:"form-control error" }}{% else %}{{ form.gender|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field" data-institute-only><label>{{ form.date_of_birth.label }}</label>{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field" data-institute-only><label>{{ form.country_of_origin.label }}</label>{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}</div>
-    <div class="aligned-field" data-institute-only><label>{{ form.place_of_birth.label }}</label>{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}</div>
+    <div class="employee-field-grid">
+        <div class="aligned-field employee-field is-short"><label>{{ form.employee_number.label }}</label>{% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field is-short"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field"><label>{{ form.first_name.label }}</label>{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field"><label>{{ form.last_name.label }}</label>{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field is-short"><label>{{ form.gender.label }}</label>{% if form.gender.errors %}{{ form.gender|add_class:"form-control error" }}{% else %}{{ form.gender|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field is-short" data-institute-only><label>{{ form.date_of_birth.label }}</label>{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field" data-institute-only><label>{{ form.country_of_origin.label }}</label>{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}</div>
+        <div class="aligned-field employee-field" data-institute-only><label>{{ form.place_of_birth.label }}</label>{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}</div>
+    </div>
 </div>
 
 {% if form.user or show_reset_password %}
 <div class="form-section account-section">
     <h3>Account</h3>
-    {% if form.user %}
-    <div class="aligned-field">
-        <label>{{ form.user.label }}</label>
-        {% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}
-        {% if form.user.errors %}<small class="field-error">{{ form.user.errors|striptags }}</small>{% endif %}
+    <div class="employee-field-grid">
+        {% if form.user %}
+        <div class="aligned-field employee-field span-all">
+            <label>{{ form.user.label }}</label>
+            {% if form.user.errors %}{{ form.user|add_class:"form-control error" }}{% else %}{{ form.user|add_class:"form-control" }}{% endif %}
+            {% if form.user.errors %}<small class="field-error">{{ form.user.errors|striptags }}</small>{% endif %}
+        </div>
+        {% endif %}
+        {% if show_reset_password %}
+        <div class="aligned-field employee-field account-danger-zone">
+            <label>Password</label>
+            <button type="submit" form="employee-reset-password-form" class="btn-secondary"
+                    onclick="return confirm('Generate a new password and email it to this user?');">
+                Reset Password
+            </button>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
-    {% if show_reset_password %}
-    <div class="aligned-field account-danger-zone">
-        <label>Password</label>
-        <button type="submit" form="employee-reset-password-form" class="btn-secondary"
-                onclick="return confirm('Generate a new password and email it to this user?');">
-            Reset Password
-        </button>
-    </div>
-    {% endif %}
 </div>
 {% endif %}
-
-

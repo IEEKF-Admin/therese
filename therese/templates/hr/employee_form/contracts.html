@@ -101,7 +101,7 @@
                     {% endif %}
                     <div class="inline-field">
                         <label title="Manual review after import">Check needed</label>
-                        <div class="active-toggle-wrap">{{ form.check_needed }}</div>
+                        {% include "hr/employee_form/_icon_toggle.html" with toggle_field=form.check_needed title="Check needed" %}
                     </div>
                     {% if form.instance.check_needed %}
                     <div class="inline-field full">
@@ -322,7 +322,9 @@
                         <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
                     </label>
                 </div>
-                <div class="inline-field"><label>Check needed</label><div class="active-toggle-wrap">{{ empty_contract_form.check_needed }}</div></div>
+                <div class="inline-field"><label>Check needed</label>
+                    {% include "hr/employee_form/_icon_toggle.html" with toggle_field=empty_contract_form.check_needed title="Check needed" %}
+                </div>
                 <div class="inline-field full"><label>Comments</label>{{ empty_contract_form.comments }}</div>
             </div>
             <div class="funding-block" data-fa-prefix="fa_n__prefix__">

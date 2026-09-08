@@ -5,6 +5,7 @@ Do not remove any existing requirements from this module without explicit instru
 """
 
 from django.db import transaction
+from django.urls import reverse
 
 from ...document_utils import (
     copy_recruitment_documents_to_employee,
@@ -12,6 +13,7 @@ from ...document_utils import (
     process_document_uploads,
     user_can_manage_employee_documents,
 )
+from ...models import EmployeeDocumentType
 from apps.tasks.models import PersonnelRecruitmentTask
 from apps.tasks.utils import can_create_employee_from_recruitment
 
@@ -25,9 +27,28 @@ def employee_document_context(request, employee=None):
     blocks = get_document_blocks_for_template(employee)
     for block in blocks:
         block['can_delete_any'] = request.user.has_perm('hr.manage_employee') or request.user.is_superuser
+    profile_picture_url = ''
+    if employee and employee.pk:
+        for block in blocks:
+            if block['type'] == EmployeeDocumentType.PROFILE_PICTURE and block.get('versions'):
+                version = block['versions'][0]
+                if version.file:
+                    profile_picture_url = reverse(
+                        'hr:employee_document_view',
+                        args=[employee.pk, version.pk],
+                    )
+                break
+        if not profile_picture_url:
+            picture = getattr(employee, 'profile_picture', None)
+            if picture:
+                try:
+                    profile_picture_url = picture.url
+                except ValueError:
+                    profile_picture_url = ''
     return {
         'document_blocks': blocks,
         'can_upload_documents': can_upload,
+        'profile_picture_url': profile_picture_url,
     }
 
 

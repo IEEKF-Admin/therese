@@ -34,12 +34,18 @@ from apps.hr.models import Contract, Employee, FundingAllocation, Workgroup
 class WBSElementFormTests(TestCase):
     def setUp(self):
         self.cost_center = CostCenter.objects.create(cost_center='4711/2026')
+        self.pi = Employee.objects.create(
+            employee_number='PI-PSP', first_name='Pat', last_name='PI',
+        )
+        self.workgroup = Workgroup.objects.create(
+            short_name='WG-P', long_name='PSP Group', pi=self.pi,
+        )
 
-    def test_cost_center_required_in_editor(self):
+    def test_unknown_cost_center_and_responsible_person_allowed(self):
         form = WBSElementForm(data={
             'wbs_code': 'D-999.0001.1',
             'title': 'Test PSP',
-            'work_group': '',
+            'work_group': str(self.workgroup.pk),
             'responsible_person': '',
             'cost_center': '',
             'period_start': '',
@@ -49,14 +55,18 @@ class WBSElementFormTests(TestCase):
             'comment': '',
             'third_party_funder_identifier': '',
         })
-        self.assertFalse(form.is_valid())
-        self.assertIn('cost_center', form.errors)
+        self.assertTrue(form.is_valid(), form.errors)
+        psp = form.save()
+        self.assertIsNone(psp.cost_center)
+        self.assertIsNone(psp.responsible_person)
+        self.assertEqual(form.fields['cost_center'].empty_label, 'Unknown')
+        self.assertEqual(form.fields['responsible_person'].empty_label, 'Unknown')
 
     def test_valid_form_saves_with_cost_center(self):
         form = WBSElementForm(data={
             'wbs_code': 'D-999.0002.1',
             'title': 'Test PSP 2',
-            'work_group': '',
+            'work_group': str(self.workgroup.pk),
             'responsible_person': '',
             'cost_center': self.cost_center.pk,
             'period_start': '',
@@ -75,7 +85,7 @@ class WBSElementFormTests(TestCase):
         form = WBSElementForm(data={
             'wbs_code': 'D-999.0002.2',
             'title': 'Period test',
-            'work_group': '',
+            'work_group': str(self.workgroup.pk),
             'responsible_person': '',
             'cost_center': self.cost_center.pk,
             'period_start': '2026-03',
@@ -96,7 +106,7 @@ class WBSElementFormTests(TestCase):
             data={
                 'wbs_code': 'D-999.0002.3',
                 'title': 'Funding file test',
-                'work_group': '',
+                'work_group': str(self.workgroup.pk),
                 'responsible_person': '',
                 'cost_center': self.cost_center.pk,
                 'period_start': '',
@@ -129,7 +139,7 @@ class WBSElementFormTests(TestCase):
             data={
                 'wbs_code': 'D-999.0002.4',
                 'title': 'Long funding file name',
-                'work_group': '',
+                'work_group': str(self.workgroup.pk),
                 'responsible_person': '',
                 'cost_center': self.cost_center.pk,
                 'period_start': '',
@@ -206,7 +216,7 @@ class WBSElementYearEstimateFormSetTests(TestCase):
             data={
                 'wbs_code': self.psp.wbs_code,
                 'title': self.psp.title,
-                'work_group': '',
+                'work_group': str(self.workgroup.pk),
                 'responsible_person': '',
                 'cost_center': self.cost_center.pk,
                 'period_start': '',

@@ -38,7 +38,7 @@ def _nested_formset_needs_save(cform, nested_fs):
     cleaned = getattr(cform, 'cleaned_data', None) or {}
     if cleaned.get('DELETE'):
         return False
-    if not cleaned.get('is_active', True):
+    if cleaned.get('is_archived'):
         return False
     return True
 
@@ -57,7 +57,7 @@ def _save_nested_on_contract(nested, saved_by_index, *, inactive_skip=True):
             contract = saved_by_index.get(index)
         if contract is None or not contract.pk:
             continue
-        if inactive_skip and not contract.is_active:
+        if inactive_skip and getattr(contract, 'is_archived', False):
             continue
         nested_fs.instance = contract
         instances = nested_fs.save(commit=False)

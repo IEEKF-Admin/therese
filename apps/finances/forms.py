@@ -121,7 +121,7 @@ class WBSElementForm(forms.ModelForm):
             'title': 'Short description of the PSP element.',
             'work_group': 'Assigned work group.',
             'responsible_person': 'Person responsible for this PSP element.',
-            'cost_center': 'Exactly one cost center (required).',
+            'cost_center': 'Cost center, or Unknown.',
             'subject_to_annual_recurrence': 'Whether this PSP element repeats annually.',
             'is_inactive': 'Inactive PSP elements are hidden from selection dropdowns.',
             'comment': 'Optional notes.',
@@ -132,8 +132,10 @@ class WBSElementForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['cost_center'].queryset = CostCenter.objects.all().order_by('cost_center')
-        self.fields['cost_center'].required = True
-        self.fields['cost_center'].empty_label = '— Select cost center —'
+        self.fields['cost_center'].required = False
+        self.fields['cost_center'].empty_label = 'Unknown'
+        self.fields['responsible_person'].required = False
+        self.fields['responsible_person'].empty_label = 'Unknown'
         # Manual create/edit requires a work group (orphan PSPs only via bulk import).
         self.fields['work_group'].required = True
         self.fields['work_group'].empty_label = '— Select work group —'
@@ -143,12 +145,6 @@ class WBSElementForm(forms.ModelForm):
             self.fields['third_party_funding_commitment'].max_length = 255
         for flag in PSP_COST_TYPE_FLAG_FIELDS:
             self.fields[flag].required = False
-
-    def clean_cost_center(self):
-        cost_center = self.cleaned_data.get('cost_center')
-        if not cost_center:
-            raise ValidationError('Cost center is required.')
-        return cost_center
 
     def clean(self):
         cleaned = super().clean()

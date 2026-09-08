@@ -7,7 +7,32 @@ from django.test import TestCase
 
 from apps.finances.models import CostCenter, WBSElement
 from apps.hr.models import Contract, Employee, FundingAllocation
-from apps.hr.validity import dedupe_allocations_as_of, select_contract_as_of
+from apps.hr.validity import dedupe_allocations_as_of, select_contract_as_of, temporal_status
+
+
+class TemporalStatusTests(TestCase):
+    def test_future_inactive_is_upcoming_not_archived(self):
+        as_of = date(2026, 9, 8)
+        self.assertEqual(
+            temporal_status(date(2027, 1, 1), date(2027, 12, 31), is_active=False, as_of=as_of),
+            'upcoming',
+        )
+
+    def test_ended_is_archived(self):
+        as_of = date(2026, 9, 8)
+        self.assertEqual(
+            temporal_status(date(2024, 1, 1), date(2025, 12, 31), is_active=False, as_of=as_of),
+            'archived',
+        )
+
+    def test_manual_archive_flag(self):
+        as_of = date(2026, 9, 8)
+        self.assertEqual(
+            temporal_status(
+                date(2026, 1, 1), None, is_active=False, is_archived=True, as_of=as_of,
+            ),
+            'archived',
+        )
 
 
 class ContractSoftSelectTests(TestCase):

@@ -365,14 +365,33 @@ def _url_with_query(url, **params):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
+def _flag_from_post(cform, data, inst, name, *, default=False):
+    if data is not None:
+        raw = data.get(cform.add_prefix(name))
+        return raw in ('on', 'true', 'True', '1')
+    return bool(getattr(inst, name, default))
+
+
 def _is_active_from_post(cform, data, inst):
     is_existing = bool(getattr(inst, 'pk', None))
     if not is_existing:
         return True
-    if data is not None:
-        raw = data.get(cform.add_prefix('is_active'))
-        return raw in ('on', 'true', 'True', '1')
-    return bool(inst.is_active)
+    return _flag_from_post(cform, data, inst, 'is_active', default=True)
+
+
+def _contract_period_status(cform, data, inst):
+    from apps.hr.validity import temporal_status
+    is_existing = bool(getattr(inst, 'pk', None))
+    is_active = True if not is_existing else _is_active_from_post(cform, data, inst)
+    is_archived = False if not is_existing else _flag_from_post(
+        cform, data, inst, 'is_archived', default=False,
+    )
+    return temporal_status(
+        getattr(inst, 'valid_from', None),
+        getattr(inst, 'valid_until', None),
+        is_active=is_active,
+        is_archived=is_archived,
+    )
 
 
 def _cards_from_nested(nested_funding, nested_salary, data=None):
@@ -383,6 +402,9 @@ def _cards_from_nested(nested_funding, nested_salary, data=None):
         inst = cform.instance
         is_existing = bool(getattr(inst, 'pk', None))
         is_active = _is_active_from_post(cform, data, inst)
+        period_status = _contract_period_status(cform, data, inst)
+        is_archived = period_status == 'archived'
+        is_upcoming = period_status == 'upcoming'
         ss_pair = salary_by_index.get(index)
         ss_fs = ss_pair[1] if ss_pair else None
         if is_existing:
@@ -394,19 +416,22 @@ def _cards_from_nested(nested_funding, nested_salary, data=None):
         cards.append({
             'index': index,
             'form': cform,
-            'funding_formset': fa_fs if is_active else None,
-            'salary_formset': ss_fs if is_active else None,
+            'funding_formset': fa_fs if not is_archived else None,
+            'salary_formset': ss_fs if not is_archived else None,
             'prefix': fa_fs.prefix if fa_fs else fa_prefix,
             'salary_prefix': ss_fs.prefix if ss_fs else ss_prefix,
             'is_existing': is_existing,
             'is_active': is_active,
+            'is_archived': is_archived,
+            'is_upcoming': is_upcoming,
+            'period_status': period_status,
             'contract_pk': inst.pk if is_existing else None,
             'funding_readonly': list(
                 inst.funding_allocations.order_by('start_date', 'end_date', 'pk')
-            ) if is_existing and not is_active else [],
+            ) if is_existing and is_archived else [],
             'salary_readonly': list(
                 inst.salary_supplements.order_by('-created_at', 'pk')
-            ) if is_existing and not is_active else [],
+            ) if is_existing and is_archived else [],
         })
     return cards
 
@@ -453,7 +478,7 @@ def _contract_ui_context(request, employee, task=None):
     for card in built['contract_cards']:
         cform = card['form']
         inst = cform.instance
-        if inst.pk and not inst.is_active and data is None:
+        if inst.pk and card.get('is_archived') and data is None:
             card['funding_readonly'] = list(
                 inst.funding_allocations.order_by('start_date', 'end_date', 'pk')
             )
@@ -480,10 +505,12 @@ def _contract_ui_context(request, employee, task=None):
                 request.method != 'POST'
                 and bool(employee.pk)
                 and any(card.get('is_existing') for card in cards)
-                and not any(card.get('is_active') for card in cards)
+                and not any(card.get('period_status') == 'current' for card in cards)
             )
         ),
-        'show_funding_help': any(card.get('is_active') for card in cards),
+        'show_funding_help': any(
+            card.get('period_status') in ('current', 'upcoming') for card in cards
+        ),
     }
 
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Messaging - THERESE{% endblock %}
 
@@ -139,30 +140,75 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="form-row">
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
             <div>
                 <label>Target users</label>
-                <select name="target_users" id="config-target-users" class="form-control" multiple size="6">
-                    {% for u in all_users %}
-                    <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
-                    {% endfor %}
-                </select>
+                <div class="dual-list-widget" data-dual-list>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Available</div>
+                        <select multiple class="form-select dual-list-available" size="8" aria-label="Available target users">
+                            {% for u in all_users %}
+                            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="dual-list-actions">
+                        <button type="button" class="btn-secondary dual-list-add" title="Add selected" aria-label="Add selected">&rarr;</button>
+                        <button type="button" class="btn-secondary dual-list-remove" title="Remove selected" aria-label="Remove selected">&larr;</button>
+                        <button type="button" class="btn-subtle dual-list-add-all" title="Add all" aria-label="Add all">&raquo;</button>
+                        <button type="button" class="btn-subtle dual-list-remove-all" title="Remove all" aria-label="Remove all">&laquo;</button>
+                    </div>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Selected</div>
+                        <select name="target_users" id="config-target-users" class="form-select dual-list-selected" multiple size="8" aria-label="Selected target users"></select>
+                    </div>
+                </div>
             </div>
             <div>
                 <label>Target work groups</label>
-                <select name="target_workgroups" id="config-target-workgroups" class="form-control" multiple size="6">
-                    {% for wg in all_workgroups %}
-                    <option value="{{ wg.pk }}">{{ wg.short_name }} — {{ wg.long_name }}</option>
-                    {% endfor %}
-                </select>
+                <div class="dual-list-widget" data-dual-list>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Available</div>
+                        <select multiple class="form-select dual-list-available" size="8" aria-label="Available work groups">
+                            {% for wg in all_workgroups %}
+                            <option value="{{ wg.pk }}">{{ wg.short_name }} — {{ wg.long_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="dual-list-actions">
+                        <button type="button" class="btn-secondary dual-list-add" title="Add selected" aria-label="Add selected">&rarr;</button>
+                        <button type="button" class="btn-secondary dual-list-remove" title="Remove selected" aria-label="Remove selected">&larr;</button>
+                        <button type="button" class="btn-subtle dual-list-add-all" title="Add all" aria-label="Add all">&raquo;</button>
+                        <button type="button" class="btn-subtle dual-list-remove-all" title="Remove all" aria-label="Remove all">&laquo;</button>
+                    </div>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Selected</div>
+                        <select name="target_workgroups" id="config-target-workgroups" class="form-select dual-list-selected" multiple size="8" aria-label="Selected work groups"></select>
+                    </div>
+                </div>
             </div>
             <div>
                 <label>Target Django groups</label>
-                <select name="target_groups" id="config-target-groups" class="form-control" multiple size="6">
-                    {% for g in all_groups %}
-                    <option value="{{ g.pk }}">{{ g.name }}</option>
-                    {% endfor %}
-                </select>
+                <div class="dual-list-widget" data-dual-list>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Available</div>
+                        <select multiple class="form-select dual-list-available" size="8" aria-label="Available Django groups">
+                            {% for g in all_groups %}
+                            <option value="{{ g.pk }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="dual-list-actions">
+                        <button type="button" class="btn-secondary dual-list-add" title="Add selected" aria-label="Add selected">&rarr;</button>
+                        <button type="button" class="btn-secondary dual-list-remove" title="Remove selected" aria-label="Remove selected">&larr;</button>
+                        <button type="button" class="btn-subtle dual-list-add-all" title="Add all" aria-label="Add all">&raquo;</button>
+                        <button type="button" class="btn-subtle dual-list-remove-all" title="Remove all" aria-label="Remove all">&laquo;</button>
+                    </div>
+                    <div class="dual-list-panel">
+                        <div class="dual-list-heading">Selected</div>
+                        <select name="target_groups" id="config-target-groups" class="form-select dual-list-selected" multiple size="8" aria-label="Selected Django groups"></select>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -311,6 +357,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<link rel="stylesheet" href="{% static 'css/dual_list_select.css' %}">
+<script src="{% static 'js/dual_list_select.js' %}"></script>
 <style>
 .variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
 .variable-chip {
@@ -396,6 +444,10 @@ function toggleFields() {
 }
 
 function setMultiSelectValues(selectId, values) {
+    if (typeof window.setDualListValues === 'function') {
+        window.setDualListValues(selectId, values);
+        return;
+    }
     var select = document.getElementById(selectId);
     if (!select) return;
     var valueSet = new Set((values || []).map(String));

@@ -23,10 +23,11 @@
     <div id="contract-cards-container">
         {% for card in contract_cards %}
         {% with form=card.form %}
-        <div class="contract-card{% if not card.is_active %} is-archived{% if not show_archived_contracts %} is-hidden-archive{% endif %}{% endif %}"
+        <div class="contract-card{% if card.is_archived %} is-archived{% if not show_archived_contracts %} is-hidden-archive{% endif %}{% elif card.is_upcoming %} is-upcoming{% endif %}"
              data-contract-index="{{ card.index }}"
              data-contract-pk="{{ card.contract_pk|default:'' }}"
-             data-active="{% if card.is_active %}1{% else %}0{% endif %}">
+             data-active="{% if card.is_active %}1{% else %}0{% endif %}"
+             data-period="{{ card.period_status|default:'current' }}">
             <div class="contract-card-header">
                 <h4>
                     {% if card.is_existing %}
@@ -35,13 +36,26 @@
                     {% else %}
                         New contract
                     {% endif %}
-                    {% if not card.is_active %}
+                    {% if card.is_archived %}
                     <span class="badge badge-archived">Archived</span>
+                    {% elif card.is_upcoming %}
+                    <span class="badge badge-upcoming">Upcoming</span>
+                    {% elif card.is_active %}
+                    <span class="badge badge-active">Current</span>
                     {% else %}
-                    <span class="badge badge-active">Active</span>
+                    <span class="badge badge-upcoming">Not current</span>
                     {% endif %}
                 </h4>
                 <div class="contract-card-actions">
+                    {% if not card.is_archived %}
+                    <button type="button" class="btn-inline-archive js-archive-item" title="Move to archive" aria-label="Move to archive">
+                        <i class="fas fa-box-archive" aria-hidden="true"></i>
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn-inline-archive js-unarchive-item" title="Restore from archive" aria-label="Restore from archive">
+                        <i class="fas fa-box-open" aria-hidden="true"></i>
+                    </button>
+                    {% endif %}
                     {% if object.pk and can_hard_delete and card.contract_pk %}
                     <button type="button" class="btn-secondary js-hard-delete"
                             style="padding:4px 8px; font-size:0.8rem;"
@@ -51,7 +65,7 @@
                         Delete
                     </button>
                     {% endif %}
-                    {% if card.is_active %}
+                    {% if not card.is_archived %}
                     <button type="button" class="btn-inline-remove remove-row" title="Remove contract" aria-label="Remove contract"
                             data-remove-scope="contract">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -63,9 +77,10 @@
                 </div>
             </div>
 
-            <div class="contract-card-body{% if not card.is_active %} is-readonly{% endif %}">
+            <div class="contract-card-body{% if card.is_archived %} is-readonly{% endif %}">
                 {{ form.id }}
                 <span hidden>{{ form.DELETE }}</span>
+                <span hidden>{{ form.is_archived }}</span>
                 <div class="contract-fields-grid">
                     <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
@@ -80,10 +95,14 @@
                     <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Valid From</label>{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}</div>
                     <div class="inline-field"><label>Valid Until</label>{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}</div>
+                    {% if card.is_upcoming %}
+                    <span hidden>{{ form.is_active }}</span>
+                    {% else %}
                     <div class="inline-field"><label>Active</label>
                         <div class="active-toggle-wrap">{{ form.is_active }}</div>
                         {% if form.is_active.errors %}<small class="field-error">{{ form.is_active.errors|striptags }}</small>{% endif %}
                     </div>
+                    {% endif %}
                     <div class="inline-field">
                         <label title="Manual review after import">Check needed</label>
                         <div class="active-toggle-wrap">{{ form.check_needed }}</div>
@@ -99,7 +118,7 @@
                 <div class="funding-block" data-fa-prefix="{{ card.prefix }}">
                     <div class="funding-block-header">
                         <h5>Funding Allocations</h5>
-                        {% if card.is_active and card.funding_formset %}
+                        {% if card.funding_formset %}
                         <span class="funding-pct-hint text-muted" data-pct-hint>Active % sum: <strong data-pct-sum>—</strong></span>
                         {% endif %}
                     </div>
@@ -108,12 +127,29 @@
                     {{ card.funding_formset.management_form }}
                     <div class="funding-active-grid" data-fa-container>
                         {% for fform in card.funding_formset %}
-                        <div class="funding-item{% if fform.instance.pk and not fform.instance.is_active %} is-inactive is-archived-fa{% endif %}"
-                             data-fa-active="{% if fform.instance.pk and not fform.instance.is_active %}0{% else %}1{% endif %}">
+                        <div class="funding-item{% if fform.instance.pk and fform.instance.temporal_ui_status == 'archived' %} is-inactive is-archived-fa{% elif fform.instance.pk and fform.instance.temporal_ui_status == 'upcoming' %} is-upcoming-fa{% endif %}"
+                             data-fa-active="{% if fform.instance.pk and fform.instance.temporal_ui_status == 'archived' %}0{% else %}1{% endif %}"
+                             data-period="{{ fform.instance.temporal_ui_status|default:'current' }}">
                             {{ fform.id }}
                             <span hidden>{{ fform.DELETE }}</span>
+                            <span hidden>{{ fform.is_archived }}</span>
                             <div class="funding-item-top">
-                                <span class="funding-item-label">Allocation</span>
+                                <span class="funding-item-label">Allocation
+                                    {% if fform.instance.pk and fform.instance.temporal_ui_status == 'upcoming' %}
+                                    <span class="badge badge-upcoming">Upcoming</span>
+                                    {% elif fform.instance.pk and fform.instance.temporal_ui_status == 'archived' %}
+                                    <span class="badge badge-archived">Archived</span>
+                                    {% endif %}
+                                </span>
+                                {% if fform.instance.temporal_ui_status != 'archived' %}
+                                <button type="button" class="btn-inline-archive js-archive-item" title="Move to archive" aria-label="Move to archive">
+                                    <i class="fas fa-box-archive" aria-hidden="true"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn-inline-archive js-unarchive-item" title="Restore from archive" aria-label="Restore from archive">
+                                    <i class="fas fa-box-open" aria-hidden="true"></i>
+                                </button>
+                                {% endif %}
                                 {% if object.pk and can_hard_delete and fform.instance.pk %}
                                 <button type="button" class="btn-secondary js-hard-delete"
                                         style="padding:2px 6px; font-size:0.75rem;"
@@ -136,9 +172,13 @@
                             <div class="inline-field"><label>Job Number</label>{% if fform.job_number.errors %}{{ fform.job_number|add_class:"form-control error" }}{% else %}{{ fform.job_number|add_class:"form-control" }}{% endif %}</div>
                             <div class="inline-field"><label>Valid From</label>{% if fform.start_date.errors %}{{ fform.start_date|add_class:"form-control error" }}{% else %}{{ fform.start_date }}{% endif %}</div>
                             <div class="inline-field"><label>Valid Until</label>{% if fform.end_date.errors %}{{ fform.end_date|add_class:"form-control error" }}{% else %}{{ fform.end_date }}{% endif %}</div>
+                            {% if fform.instance.pk and fform.instance.temporal_ui_status == 'upcoming' %}
+                            <span hidden>{{ fform.is_active }}</span>
+                            {% else %}
                             <div class="inline-field"><label>Active</label>
                                 <div class="active-toggle-wrap">{{ fform.is_active }}</div>
                             </div>
+                            {% endif %}
                             <div class="inline-field full"><label>Comments</label>{% if fform.comments.errors %}{{ fform.comments|add_class:"form-control error" }}{% else %}{{ fform.comments }}{% endif %}</div>
                         </div>
                         {% endfor %}
@@ -276,6 +316,7 @@
         <div class="contract-card-body">
             {{ empty_contract_form.id }}
             <span hidden>{{ empty_contract_form.DELETE }}</span>
+            <span hidden>{{ empty_contract_form.is_archived }}</span>
             <div class="contract-fields-grid">
                 <div class="inline-field"><label>Pay Scale Group</label>{{ empty_contract_form.pay_scale_group|add_class:"form-control" }}</div>
                 <div class="inline-field"><label>Experience Level</label>{{ empty_contract_form.experience_level|add_class:"form-control" }}</div>
@@ -331,6 +372,7 @@
     <div class="funding-item" data-fa-active="1">
         {{ empty_funding_form.id }}
         <span hidden>{{ empty_funding_form.DELETE }}</span>
+        <span hidden>{{ empty_funding_form.is_archived }}</span>
         <div class="funding-item-top">
             <span class="funding-item-label">Allocation</span>
             <button type="button" class="btn-inline-remove remove-row" title="Remove allocation" aria-label="Remove allocation" data-remove-scope="funding">
@@ -488,13 +530,16 @@
         if (activeCb && !activeCb.dataset.bound) {
             activeCb.dataset.bound = '1';
             activeCb.addEventListener('change', function() {
+                if ((item.getAttribute('data-period') || '') === 'upcoming') return;
                 setFaInactive(item, !activeCb.checked);
                 if (!activeCb.checked) item.classList.add('is-archived-fa');
                 else item.classList.remove('is-archived-fa');
                 applyFaArchiveVisibility(card);
                 updatePctSum(card);
             });
-            setFaInactive(item, !activeCb.checked);
+            if ((item.getAttribute('data-period') || '') !== 'upcoming') {
+                setFaInactive(item, !activeCb.checked);
+            }
         }
         item.querySelectorAll('.fa-pct, input[name$="-workhours_percentage"]').forEach(function(inp) {
             if (inp.dataset.pctBound) return;
@@ -509,16 +554,12 @@
     function applyFaArchiveVisibility(card) {
         const toggle = card.querySelector('.toggle-archived-fa');
         const show = toggle && toggle.checked;
-        card.querySelectorAll('.funding-item.is-archived-fa, .funding-item.is-inactive').forEach(function(item) {
+        card.querySelectorAll('.funding-item.is-archived-fa').forEach(function(item) {
             if (isDeleteMarked(item.querySelector('input[name$="-DELETE"]'))) {
                 item.style.display = 'none';
                 return;
             }
-            const activeCb = item.querySelector('input[name$="-is_active"]');
-            const inactive = activeCb ? !activeCb.checked : item.classList.contains('is-inactive');
-            if (inactive) {
-                item.style.display = show ? '' : 'none';
-            }
+            item.style.display = show ? '' : 'none';
         });
         updatePctSum(card);
     }
@@ -536,11 +577,11 @@
         applyFaArchiveVisibility(card);
         updatePctSum(card);
 
-        // Readonly archived contract fields
-        if (card.classList.contains('is-archived') || card.getAttribute('data-active') === '0') {
+        // Readonly archived contract fields (not upcoming)
+        if (card.classList.contains('is-archived') || card.getAttribute('data-period') === 'archived') {
             card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
                 const name = el.getAttribute('name') || '';
-                if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
+                if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-is_archived') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
                 if (el.tagName === 'SELECT' || el.type === 'checkbox') el.disabled = true;
                 else el.setAttribute('readonly', 'readonly');
                 el.classList.add('is-inactive-field');
@@ -568,7 +609,7 @@
                     card.setAttribute('data-active', '0');
                     card.querySelectorAll('.contract-fields-grid input, .contract-fields-grid select, .contract-fields-grid textarea').forEach(function(el) {
                         const name = el.getAttribute('name') || '';
-                        if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
+                        if (name.indexOf('-is_active') !== -1 || name.indexOf('-check_needed') !== -1 || name.indexOf('-is_archived') !== -1 || name.indexOf('-DELETE') !== -1 || el.type === 'hidden') return;
                         if (el.tagName === 'SELECT' || el.type === 'checkbox') el.disabled = true;
                         else el.setAttribute('readonly', 'readonly');
                         el.classList.add('is-inactive-field');
@@ -765,7 +806,56 @@
         if (card) updatePctSum(card);
     });
 
+    function setArchiveFlag(scope, archived) {
+        const arch = scope.querySelector('input[name$="-is_archived"]');
+        const act = scope.querySelector('.contract-fields-grid input[name$="-is_active"], input[name$="-is_active"]');
+        if (arch) {
+            if (arch.type === 'checkbox') arch.checked = !!archived;
+            arch.value = archived ? 'on' : '';
+        }
+        if (archived && act) {
+            if (act.type === 'checkbox') act.checked = false;
+        }
+    }
+
     document.addEventListener('click', function(e) {
+        const archiveBtn = e.target.closest('.js-archive-item');
+        if (archiveBtn) {
+            const card = archiveBtn.closest('.contract-card');
+            const faItem = archiveBtn.closest('.funding-item');
+            if (faItem && faItem.contains(archiveBtn)) {
+                setArchiveFlag(faItem, true);
+                faItem.classList.add('is-archived-fa', 'is-inactive');
+                faItem.setAttribute('data-period', 'archived');
+                const c = faItem.closest('.contract-card');
+                if (c) applyFaArchiveVisibility(c);
+                return;
+            }
+            if (card) {
+                setArchiveFlag(card, true);
+                card.classList.add('is-archived');
+                card.setAttribute('data-period', 'archived');
+                card.setAttribute('data-active', '0');
+            }
+            return;
+        }
+        const unarchiveBtn = e.target.closest('.js-unarchive-item');
+        if (unarchiveBtn) {
+            const faItem = unarchiveBtn.closest('.funding-item');
+            const card = unarchiveBtn.closest('.contract-card');
+            if (faItem && faItem.contains(unarchiveBtn)) {
+                setArchiveFlag(faItem, false);
+                faItem.classList.remove('is-archived-fa', 'is-inactive');
+                faItem.style.display = '';
+                return;
+            }
+            if (card) {
+                setArchiveFlag(card, false);
+                card.classList.remove('is-archived', 'is-hidden-archive');
+                card.setAttribute('data-period', 'current');
+            }
+            return;
+        }
         const btn = e.target.closest('.js-hard-delete');
         if (!btn) return;
         e.preventDefault();

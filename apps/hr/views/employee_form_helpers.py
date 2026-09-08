@@ -244,6 +244,15 @@ def build_contract_cards(
                 extra=len(ss_init), initial=ss_init or None,
             )
 
+        from apps.hr.validity import temporal_status
+        is_active = bool(getattr(contract, 'is_active', True)) if is_existing else True
+        is_archived_flag = bool(getattr(contract, 'is_archived', False)) if is_existing else False
+        period_status = 'current' if not is_existing else temporal_status(
+            getattr(contract, 'valid_from', None),
+            getattr(contract, 'valid_until', None),
+            is_active=is_active,
+            is_archived=is_archived_flag,
+        )
         cards.append({
             'index': index,
             'form': cform,
@@ -252,7 +261,10 @@ def build_contract_cards(
             'prefix': fa_prefix,
             'salary_prefix': ss_prefix,
             'is_existing': is_existing,
-            'is_active': bool(getattr(contract, 'is_active', True)) if is_existing else True,
+            'is_active': is_active,
+            'is_archived': period_status == 'archived',
+            'is_upcoming': period_status == 'upcoming',
+            'period_status': period_status,
             'contract_pk': contract.pk if is_existing else None,
         })
 

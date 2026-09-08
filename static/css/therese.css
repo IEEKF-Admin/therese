@@ -516,6 +516,34 @@ input[readonly].form-control {
     border-color: #9ca3af;
 }
 
+.contract-card.is-upcoming {
+    background: #f8fafc;
+    border-color: #93c5fd;
+    border-style: dashed;
+}
+
+.contract-card.is-upcoming .contract-card-header {
+    background: #eff6ff;
+}
+
+.funding-item.is-upcoming-fa {
+    border: 1px dashed #93c5fd;
+    background: #f8fafc;
+}
+
+.btn-inline-archive {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.95rem;
+}
+
+.btn-inline-archive:hover {
+    color: var(--primary);
+}
+
 .contract-card.is-hidden-archive {
     display: none !important;
 }
@@ -561,6 +589,15 @@ input[readonly].form-control {
     padding: 0.15rem 0.45rem;
     border-radius: 999px;
     border: 1px solid #9ca3af;
+}
+
+.badge-upcoming {
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
 }
 
 .contract-card-body {

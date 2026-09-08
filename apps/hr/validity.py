@@ -38,12 +38,24 @@ def apply_past_end_deactivation(instance, *, end_attr: str, as_of: date | None =
     as_of = resolve_as_of(as_of)
     end = getattr(instance, end_attr, None)
     if end is not None and end < as_of:
-        if getattr(instance, 'is_active', True):
-            instance.is_active = False
-            return True
         instance.is_active = False
+        if hasattr(instance, 'is_archived'):
+            instance.is_archived = True
         return True
     return False
+
+
+def temporal_status(start, end, *, is_active, is_archived=False, as_of=None) -> str:
+    """'upcoming', 'current', or 'archived' for a dated HR row."""
+    as_of = resolve_as_of(as_of)
+    ended = end is not None and end < as_of
+    if is_archived or ended:
+        return 'archived'
+    if start and start > as_of:
+        return 'upcoming'
+    if is_active:
+        return 'current'
+    return 'archived'
 
 
 def _require_active_flag(as_of: date) -> bool:

@@ -265,7 +265,7 @@ class ContractForm(forms.ModelForm):
             'pay_scale_group', 'experience_level', 'monthly_salary',
             'job_number',
             'weekly_hours', 'valid_from', 'valid_until', 'is_active',
-            'check_needed', 'comments',
+            'is_archived', 'check_needed', 'comments',
         ]
         widgets = {
             'valid_from': forms.DateInput(attrs={
@@ -280,6 +280,9 @@ class ContractForm(forms.ModelForm):
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'is-active-toggle',
+            }),
+            'is_archived': forms.CheckboxInput(attrs={
+                'class': 'is-archived-toggle',
             }),
             'check_needed': forms.CheckboxInput(attrs={
                 'class': 'is-active-toggle',
@@ -435,6 +438,7 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             'start_date',
             'end_date',
             'is_active',
+            'is_archived',
             'comments',
         ]
         widgets = {
@@ -457,6 +461,9 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'is-active-toggle',
+            }),
+            'is_archived': forms.CheckboxInput(attrs={
+                'class': 'is-archived-toggle',
             }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }

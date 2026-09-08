@@ -458,6 +458,11 @@ class Contract(BaseModel):
             "Valid Until is in the past."
         ),
     )
+    is_archived = models.BooleanField(
+        default=False,
+        verbose_name="Archived",
+        help_text="Moved to archive (ended or archived by hand). Upcoming contracts stay unarchived.",
+    )
     check_needed = models.BooleanField(
         default=False,
         verbose_name="Check needed",
@@ -527,13 +532,28 @@ class Contract(BaseModel):
                 was_active = True
         if was_active and not self.is_active:
             self.check_needed = False
+            from apps.hr.validity import temporal_status
+            if temporal_status(
+                self.valid_from, self.valid_until,
+                is_active=False, is_archived=self.is_archived,
+            ) != 'upcoming':
+                self.is_archived = True
         super().save(*args, **kwargs)
-        # Expired / inactive contract → all its funding allocations inactive.
-        if not self.is_active:
-            self.funding_allocations.filter(is_active=True).update(is_active=False)
+        if self.is_archived:
+            self.funding_allocations.filter(is_active=True).update(
+                is_active=False, is_archived=True,
+            )
         elif was_active is False and self.is_active:
-            # Re-activated contract does not auto-reactivate FAs (manual).
             pass
+
+    def temporal_ui_status(self):
+        from apps.hr.validity import temporal_status
+        return temporal_status(
+            self.valid_from,
+            self.valid_until,
+            is_active=bool(self.is_active),
+            is_archived=bool(getattr(self, 'is_archived', False)),
+        )
 
     def get_monthly_salary(self):
         """
@@ -816,6 +836,11 @@ class FundingAllocation(BaseModel):
             "Valid Until is in the past."
         ),
     )
+    is_archived = models.BooleanField(
+        default=False,
+        verbose_name="Archived",
+        help_text="Moved to archive (ended or archived by hand). Upcoming allocations stay unarchived.",
+    )
 
     comments = models.TextField(blank=True, verbose_name="Comments")
     # Marked by import when payroll/admin data for this allocation is confirmed.
@@ -850,6 +875,15 @@ class FundingAllocation(BaseModel):
             f"({self.workhours_percentage}%)"
         )
 
+    def temporal_ui_status(self):
+        from apps.hr.validity import temporal_status
+        return temporal_status(
+            self.start_date,
+            self.end_date,
+            is_active=bool(self.is_active),
+            is_archived=bool(getattr(self, 'is_archived', False)),
+        )
+
     def is_open_on(self, as_of=None) -> bool:
         """True if this allocation is open on ``as_of`` (see apps.hr.validity)."""
         from apps.hr.validity import _require_active_flag, resolve_as_of
@@ -881,16 +915,18 @@ class FundingAllocation(BaseModel):
         if self.contract_id:
             contract = self.contract
             self.employee_id = contract.employee_id
-            if not contract.is_active:
+            if getattr(contract, 'is_archived', False):
                 self.is_active = False
+                self.is_archived = True
 
     def save(self, *args, **kwargs):
         # Keep date order sane; soft overlap rule lives in validity helpers.
         if self.contract_id:
             contract = self.contract
             self.employee_id = contract.employee_id
-            if not contract.is_active:
+            if getattr(contract, 'is_archived', False):
                 self.is_active = False
+                self.is_archived = True
         self.full_clean()
         super().save(*args, **kwargs)
 

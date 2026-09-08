@@ -244,6 +244,27 @@ class ContractArchiveAndDeleteTests(TestCase):
             check_needed=False,
         )
 
+    def test_future_contract_is_upcoming_not_archived(self):
+        future = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('20.000'),
+            valid_from=date(2027, 1, 1),
+            valid_until=date(2027, 12, 31),
+            is_active=False,
+            is_archived=False,
+        )
+        self.client.login(username='sysadmin', password='test')
+        response = self.client.get(reverse('hr:employee_update', args=[self.employee.pk]))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('badge-upcoming', html)
+        self.assertIn('Upcoming', html)
+        cards = response.context['contract_cards']
+        future_card = next(c for c in cards if c.get('contract_pk') == future.pk)
+        self.assertTrue(future_card['is_upcoming'])
+        self.assertFalse(future_card['is_archived'])
+        self.assertIsNotNone(future_card['funding_formset'])
+
     def test_archiving_clears_check_needed(self):
         self.contract.check_needed = True
         self.contract.save()

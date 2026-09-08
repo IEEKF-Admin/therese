@@ -72,9 +72,50 @@
         syncHidden();
     }
 
+    function setDualListValues(selectedSelect, values) {
+        var selected = typeof selectedSelect === 'string'
+            ? document.getElementById(selectedSelect)
+            : selectedSelect;
+        if (!selected) return;
+        var root = selected.closest('[data-dual-list]');
+        if (!root) return;
+        initDualList(root);
+        var available = root.querySelector('.dual-list-available');
+        if (!available) return;
+        var valueSet = new Set((values || []).map(String));
+        Array.prototype.slice.call(selected.options).forEach(function(opt) {
+            available.appendChild(opt);
+        });
+        Array.prototype.slice.call(available.options).forEach(function(opt) {
+            if (valueSet.has(String(opt.value))) {
+                opt.selected = false;
+                selected.appendChild(opt);
+            }
+        });
+        sortOptions(available);
+        sortOptions(selected);
+        var holder = root.querySelector('[data-dual-list-values]');
+        if (holder) {
+            var fieldName = holder.getAttribute('data-dual-list-values');
+            holder.innerHTML = '';
+            if (fieldName) {
+                Array.prototype.forEach.call(selected.options, function(opt) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = fieldName;
+                    input.value = opt.value;
+                    holder.appendChild(input);
+                });
+            }
+        }
+    }
+
     function initAll() {
         document.querySelectorAll('[data-dual-list]').forEach(initDualList);
     }
+
+    window.setDualListValues = setDualListValues;
+    window.initDualListWidgets = initAll;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initAll);

@@ -24,17 +24,19 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="form-section" style="margin-bottom:1.5rem;">
+        <div class="form-section recruitment-card recruitment-task-info"{% if 'Personnel - Approval Rights' in user_groups %} data-show-copy="1"{% endif %}>
             <h3>Task Information</h3>
-            <div class="aligned-field">
-                <label>Assigned to</label>
-                {% if can_set_assignee and can_edit_fields %}
-                    {{ form.assignee|add_class:"form-control" }}
-                    <small class="field-hint-de">Zugewiesen an</small>
-                {% else %}
-                    <span class="form-readonly">{{ task.assignee.get_full_name|default:"— Not assigned yet" }}</span>
-                    {{ form.assignee.as_hidden }}
-                {% endif %}
+            <div class="recruitment-field-grid">
+                <div class="recruitment-field">
+                    <label>Assigned to</label>
+                    {% if can_set_assignee and can_edit_fields %}
+                        {{ form.assignee|add_class:"form-control" }}
+                        <small class="field-hint-de">Zugewiesen an</small>
+                    {% else %}
+                        <span class="form-readonly">{{ task.assignee.get_full_name|default:"— Not assigned yet" }}</span>
+                        {{ form.assignee.as_hidden }}
+                    {% endif %}
+                </div>
             </div>
         </div>
 

@@ -1,124 +1,125 @@
 {% load widget_tweaks %}
 {% include "tasks/recruitment/_styles.html" %}
 
-<div class="form-section recruitment-full-block">
+<div class="recruitment-layout"{% if 'Personnel - Approval Rights' in user_groups %} data-show-copy="1"{% endif %}>
+
+<div class="form-section recruitment-card">
     <h3>Position</h3>
-    <div class="aligned-field recruitment-field" data-recruitment-field="job">
-        <label>{{ form.job.label }} <span class="required-marker" data-required-for="job" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.job.errors %}{{ form.job|add_class:"form-control error" }}{% else %}{{ form.job }}{% endif %}{% else %}<span class="form-readonly">{{ task.job.name }}</span>{% endif %}
-        <small class="field-hint-de">Jobbezeichnung</small>
-        <small class="field-explanation-text" data-field-help="job"></small>
-        <div id="recruitment-job-help-text"
-             class="recruitment-job-help"
-             style="{% if not task.job_id or not task.job.help_text %}display:none; {% endif %}margin-top:0.65rem; padding:0.75rem 0.9rem; border-radius:8px; background:#eff6ff; border:1px solid #93c5fd; color:#1e3a8a; white-space:pre-wrap; font-size:0.92rem; line-height:1.45;"
-             aria-live="polite">{% if task.job_id and task.job.help_text %}{{ task.job.help_text }}{% endif %}</div>
-    </div>
-    <div class="recruitment-payscale-row">
-        <div class="recruitment-payscale-field recruitment-field" data-recruitment-field="working_as">
+    <div class="recruitment-field-grid cols-3">
+        <div class="aligned-field recruitment-field span-all" data-recruitment-field="job">
+            <label>{{ form.job.label }} <span class="required-marker" data-required-for="job" style="color:#ef4444;">*</span></label>
+            {% if can_edit_fields|default:True %}{% if form.job.errors %}{{ form.job|add_class:"form-control error" }}{% else %}{{ form.job }}{% endif %}{% else %}<span class="form-readonly">{{ task.job.name }}</span>{% endif %}
+            <small class="field-hint-de">Jobbezeichnung</small>
+            <small class="field-explanation-text" data-field-help="job"></small>
+            <div id="recruitment-job-help-text"
+                 class="recruitment-job-help"
+                 style="{% if not task.job_id or not task.job.help_text %}display:none; {% endif %}margin-top:0.65rem; padding:0.75rem 0.9rem; border-radius:8px; background:#eff6ff; border:1px solid #93c5fd; color:#1e3a8a; white-space:pre-wrap; font-size:0.92rem; line-height:1.45;"
+                 aria-live="polite">{% if task.job_id and task.job.help_text %}{{ task.job.help_text }}{% endif %}</div>
+        </div>
+        <div class="recruitment-field" data-recruitment-field="working_as">
             <label>{{ form.working_as.label }}</label>
             {% if can_edit_fields|default:True %}{% if form.working_as.errors %}{{ form.working_as|add_class:"form-control error" }}{% else %}{{ form.working_as|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.working_as|default:"—" }}</span>{% endif %}
             <small class="field-hint-de">Tätigkeit</small>
             <small class="field-explanation-text" data-field-help="working_as"></small>
         </div>
-        <div class="recruitment-payscale-field recruitment-field" data-recruitment-field="pay_scale_group">
+        <div class="recruitment-field is-short" data-recruitment-field="pay_scale_group">
             <label>{{ form.pay_scale_group.label }}</label>
             {% if can_edit_fields|default:True %}{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group }}{% endif %}{% else %}<span class="form-readonly">{{ task.pay_scale_group|default:task.job.pay_scale_group|default:"—" }}</span>{% endif %}
             <small class="field-hint-de">Entgeltstufe (TV-L)</small>
             <small class="field-explanation-text" data-field-help="pay_scale_group"></small>
         </div>
-        <div class="recruitment-payscale-field recruitment-field" data-recruitment-field="experience_level">
+        <div class="recruitment-field is-short" data-recruitment-field="experience_level">
             <label>{{ form.experience_level.label }}</label>
             {% if can_edit_fields|default:True %}{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level }}{% endif %}{% else %}<span class="form-readonly">{{ task.experience_level|default:task.job.experience_level|default:"—" }}</span>{% endif %}
             <small class="field-hint-de">Erfahrungsstufe</small>
             <small class="field-explanation-text" data-field-help="experience_level"></small>
         </div>
-    </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="weekly_hours">
-        <label>{{ form.weekly_hours.label }}</label>
-        {% if can_edit_fields|default:True %}{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.weekly_hours|default:"—" }}</span>{% endif %}
-        <small class="field-hint-de">Wochenarbeitszeit (Vertrag)</small>
-        <small class="field-explanation-text" data-field-help="weekly_hours"></small>
-        <p class="field-hint-de" style="margin-top:0.35rem;" id="recruitment-workload-hint">
-            Workload vs full-time
-            (<span id="recruitment-default-weekly-hours">{{ default_weekly_hours|default:"39.00" }}</span> h):
-            <strong id="recruitment-workload-percent">—</strong>
-        </p>
-    </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="monthly_salary">
-        <label>{{ form.monthly_salary.label }}</label>
-        {% if can_edit_fields|default:True %}{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_estimated_monthly_salary|default:"—" }}</span>{% endif %}
-        <small class="field-hint-de">Theoretisches Monatsgehalt bei 100 % — TV-L/geschätztes Job-Gehalt oder manuell</small>
-        <small class="field-explanation-text" data-field-help="monthly_salary"></small>
-        <div id="recruitment-monthly-costs-hint"
-             data-true-cost-multiplicator="{{ true_cost_multiplicator|default:'1.3' }}"
-             data-default-weekly-hours="{{ default_weekly_hours|default:'39.00' }}"
-             style="margin-top:0.85rem; padding:0.85rem 1rem; border-radius:8px; background:#ecfdf5; border:1px solid #6ee7b7;">
-            <div style="font-size:0.85rem; color:#065f46; font-weight:600; margin-bottom:0.25rem;">
-                Estimated Monthly Costs
-            </div>
-            <div id="recruitment-monthly-costs-value"
-                 style="font-size:1.65rem; font-weight:800; color:#047857; line-height:1.2;">
-                {% if task.get_estimated_monthly_costs %}{{ task.get_estimated_monthly_costs }} €{% else %}—{% endif %}
-            </div>
-            <div style="font-size:0.8rem; color:#047857; margin-top:0.35rem;">
-                Theoretical 100% salary × workload% × true-cost multiplicator
-                <span class="field-hint-de">· Theoretisches Gehalt × Stellenanteil × Nebenkostenfaktor</span>
+        <div class="recruitment-field is-short" data-recruitment-field="weekly_hours">
+            <label>{{ form.weekly_hours.label }}</label>
+            {% if can_edit_fields|default:True %}{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.weekly_hours|default:"—" }}</span>{% endif %}
+            <small class="field-hint-de">Wochenarbeitszeit (Vertrag)</small>
+            <small class="field-explanation-text" data-field-help="weekly_hours"></small>
+            <p class="field-hint-de" style="margin-top:0.35rem;" id="recruitment-workload-hint">
+                Workload vs full-time
+                (<span id="recruitment-default-weekly-hours">{{ default_weekly_hours|default:"39.00" }}</span> h):
+                <strong id="recruitment-workload-percent">—</strong>
+            </p>
+        </div>
+        <div class="recruitment-field" data-recruitment-field="monthly_salary">
+            <label>{{ form.monthly_salary.label }}</label>
+            {% if can_edit_fields|default:True %}{% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_estimated_monthly_salary|default:"—" }}</span>{% endif %}
+            <small class="field-hint-de">Theoretisches Monatsgehalt bei 100 % — TV-L/geschätztes Job-Gehalt oder manuell</small>
+            <small class="field-explanation-text" data-field-help="monthly_salary"></small>
+        </div>
+        <div class="recruitment-field" data-recruitment-field="estimated_monthly_costs">
+            <div id="recruitment-monthly-costs-hint"
+                 data-true-cost-multiplicator="{{ true_cost_multiplicator|default:'1.3' }}"
+                 data-default-weekly-hours="{{ default_weekly_hours|default:'39.00' }}"
+                 class="recruitment-costs-box">
+                <div class="recruitment-costs-label">Estimated Monthly Costs</div>
+                <div id="recruitment-monthly-costs-value" class="form-readonly recruitment-costs-value">
+                    {% if task.get_estimated_monthly_costs %}{{ task.get_estimated_monthly_costs }} €{% else %}—{% endif %}
+                </div>
+                <div class="recruitment-costs-hint">
+                    Theoretical 100% salary × workload% × true-cost multiplicator
+                    <span class="field-hint-de">· Theoretisches Gehalt × Stellenanteil × Nebenkostenfaktor</span>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="recruitment-two-col">
-    <div class="left-col">
-        <div class="form-section">
-            <h3>Personal Information</h3>
-            <div class="aligned-field recruitment-field" data-recruitment-field="prefix">
+<div class="recruitment-card-row">
+    <div class="form-section recruitment-card">
+        <h3>Personal Information</h3>
+        <div class="recruitment-field-grid">
+            <div class="recruitment-field is-short" data-recruitment-field="prefix">
                 <label>{{ form.prefix.label }}</label>
                 {% if can_edit_fields|default:True %}{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.prefix|default:"—" }}</span>{% endif %}
                 <small class="field-hint-de">Präfix / Titel</small>
             </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="first_name">
-                <label>{{ form.first_name.label }} <span class="required-marker" data-required-for="first_name" style="color:#ef4444;">*</span></label>
-                {% if can_edit_fields|default:True %}{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.first_name }}</span>{% endif %}
-                <small class="field-hint-de">Vorname</small>
-            </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="last_name">
-                <label>{{ form.last_name.label }} <span class="required-marker" data-required-for="last_name" style="color:#ef4444;">*</span></label>
-                {% if can_edit_fields|default:True %}{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.last_name }}</span>{% endif %}
-                <small class="field-hint-de">Nachname</small>
-            </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="gender">
+            <div class="recruitment-field is-short" data-recruitment-field="gender">
                 <label>{{ form.gender.label }}</label>
                 {% if can_edit_fields|default:True %}{% if form.gender.errors %}{{ form.gender|add_class:"form-control error" }}{% else %}{{ form.gender|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.get_gender_display }}</span>{% endif %}
                 <small class="field-hint-de">Geschlecht</small>
             </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="date_of_birth">
+            <div class="recruitment-field" data-recruitment-field="first_name">
+                <label>{{ form.first_name.label }} <span class="required-marker" data-required-for="first_name" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.first_name.errors %}{{ form.first_name|add_class:"form-control error" }}{% else %}{{ form.first_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.first_name }}</span>{% endif %}
+                <small class="field-hint-de">Vorname</small>
+            </div>
+            <div class="recruitment-field" data-recruitment-field="last_name">
+                <label>{{ form.last_name.label }} <span class="required-marker" data-required-for="last_name" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.last_name.errors %}{{ form.last_name|add_class:"form-control error" }}{% else %}{{ form.last_name|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.last_name }}</span>{% endif %}
+                <small class="field-hint-de">Nachname</small>
+            </div>
+            <div class="recruitment-field is-short" data-recruitment-field="date_of_birth">
                 <label>{{ form.date_of_birth.label }} <span class="required-marker" data-required-for="date_of_birth" style="color:#ef4444;">*</span></label>
                 {% if can_edit_fields|default:True %}{% if form.date_of_birth.errors %}{{ form.date_of_birth|add_class:"form-control error" }}{% else %}{{ form.date_of_birth|add_class:"date-picker form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.date_of_birth }}</span>{% endif %}
                 <small class="field-hint-de">Geburtsdatum</small>
             </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="country_of_origin">
-                <label>{{ form.country_of_origin.label }} <span class="required-marker" data-required-for="country_of_origin" style="color:#ef4444;">*</span></label>
-                {% if can_edit_fields|default:True %}{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country_of_origin }}</span>{% endif %}
-                <small class="field-hint-de">Herkunftsland</small>
-            </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="place_of_birth">
+            <div class="recruitment-field" data-recruitment-field="place_of_birth">
                 <label>{{ form.place_of_birth.label }} <span class="required-marker" data-required-for="place_of_birth" style="color:#ef4444;">*</span></label>
                 {% if can_edit_fields|default:True %}{% if form.place_of_birth.errors %}{{ form.place_of_birth|add_class:"form-control error" }}{% else %}{{ form.place_of_birth|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.place_of_birth }}</span>{% endif %}
                 <small class="field-hint-de">Geburtsort</small>
             </div>
+            <div class="recruitment-field span-all" data-recruitment-field="country_of_origin">
+                <label>{{ form.country_of_origin.label }} <span class="required-marker" data-required-for="country_of_origin" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.country_of_origin.errors %}{{ form.country_of_origin|add_class:"form-control error" }}{% else %}{{ form.country_of_origin|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country_of_origin }}</span>{% endif %}
+                <small class="field-hint-de">Herkunftsland</small>
+            </div>
         </div>
     </div>
 
-    <div class="right-col">
-        <div class="form-section">
-            <h3>Contact</h3>
-            <div class="aligned-field recruitment-field" data-recruitment-field="email_private">
+    <div class="form-section recruitment-card">
+        <h3>Contact</h3>
+        <div class="recruitment-field-grid">
+            <div class="recruitment-field span-all" data-recruitment-field="email_private">
                 <label>{{ form.email_private.label }} <span class="required-marker" data-required-for="email_private" style="color:#ef4444;">*</span></label>
                 {% if can_edit_fields|default:True %}{% if form.email_private.errors %}{{ form.email_private|add_class:"form-control error" }}{% else %}{{ form.email_private|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.email_private }}</span>{% endif %}
                 <small class="field-hint-de">Private E-Mail</small>
             </div>
-            <div class="aligned-field recruitment-field" data-recruitment-field="private_phone_number">
+            <div class="recruitment-field" data-recruitment-field="private_phone_number">
                 <label>{{ form.private_phone_number.label }}</label>
                 {% if can_edit_fields|default:True %}{% if form.private_phone_number.errors %}{{ form.private_phone_number|add_class:"form-control error" }}{% else %}{{ form.private_phone_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.private_phone_number|default:"—" }}</span>{% endif %}
                 <small class="field-hint-de">Private Telefonnummer</small>
@@ -127,87 +128,104 @@
     </div>
 </div>
 
-<div class="form-section recruitment-full-block">
-    <h3>Private Address</h3>
-    <div class="aligned-field recruitment-field" data-recruitment-field="street">
-        <label>{{ form.street.label }} <span class="required-marker" data-required-for="street" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.street.errors %}{{ form.street|add_class:"form-control error" }}{% else %}{{ form.street|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.street }}</span>{% endif %}
+<div class="recruitment-card-row">
+    <div class="form-section recruitment-card">
+        <h3>Private Address</h3>
+        <div class="recruitment-field-grid cols-3">
+            <div class="recruitment-field span-2" data-recruitment-field="street">
+                <label>{{ form.street.label }} <span class="required-marker" data-required-for="street" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.street.errors %}{{ form.street|add_class:"form-control error" }}{% else %}{{ form.street|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.street }}</span>{% endif %}
+                <small class="field-hint-de">Straßenname</small>
+            </div>
+            <div class="recruitment-field is-short" data-recruitment-field="house_number">
+                <label>{{ form.house_number.label }} <span class="required-marker" data-required-for="house_number" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.house_number.errors %}{{ form.house_number|add_class:"form-control error" }}{% else %}{{ form.house_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.house_number }}</span>{% endif %}
+                <small class="field-hint-de">Hausnummer</small>
+            </div>
+            <div class="recruitment-field is-short" data-recruitment-field="postal_code">
+                <label>{{ form.postal_code.label }} <span class="required-marker" data-required-for="postal_code" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.postal_code.errors %}{{ form.postal_code|add_class:"form-control error" }}{% else %}{{ form.postal_code|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.postal_code }}</span>{% endif %}
+                <small class="field-hint-de">Postleitzahl</small>
+            </div>
+            <div class="recruitment-field" data-recruitment-field="city">
+                <label>{{ form.city.label }} <span class="required-marker" data-required-for="city" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.city.errors %}{{ form.city|add_class:"form-control error" }}{% else %}{{ form.city|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.city }}</span>{% endif %}
+                <small class="field-hint-de">Ort</small>
+            </div>
+            <div class="recruitment-field" data-recruitment-field="country">
+                <label>{{ form.country.label }} <span class="required-marker" data-required-for="country" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.country.errors %}{{ form.country|add_class:"form-control error" }}{% else %}{{ form.country|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country }}</span>{% endif %}
+                <small class="field-hint-de">Land</small>
+            </div>
+        </div>
     </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="house_number">
-        <label>{{ form.house_number.label }} <span class="required-marker" data-required-for="house_number" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.house_number.errors %}{{ form.house_number|add_class:"form-control error" }}{% else %}{{ form.house_number|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.house_number }}</span>{% endif %}
-    </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="postal_code">
-        <label>{{ form.postal_code.label }} <span class="required-marker" data-required-for="postal_code" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.postal_code.errors %}{{ form.postal_code|add_class:"form-control error" }}{% else %}{{ form.postal_code|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.postal_code }}</span>{% endif %}
-    </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="city">
-        <label>{{ form.city.label }} <span class="required-marker" data-required-for="city" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.city.errors %}{{ form.city|add_class:"form-control error" }}{% else %}{{ form.city|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.city }}</span>{% endif %}
-    </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="country">
-        <label>{{ form.country.label }} <span class="required-marker" data-required-for="country" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.country.errors %}{{ form.country|add_class:"form-control error" }}{% else %}{{ form.country|add_class:"form-control" }}{% endif %}{% else %}<span class="form-readonly">{{ task.country }}</span>{% endif %}
+
+    <div class="form-section recruitment-card">
+        <h3>Contract Period</h3>
+        <div class="recruitment-field-grid">
+            <div class="recruitment-field is-short" data-recruitment-field="valid_from">
+                <label>{{ form.valid_from.label }} <span class="required-marker" data-required-for="valid_from" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_from }}</span>{% endif %}
+                <small class="field-hint-de">Vertragsbeginn</small>
+            </div>
+            <div class="recruitment-field is-short" data-recruitment-field="valid_until">
+                <label>{{ form.valid_until.label }} <span class="required-marker" data-required-for="valid_until" style="color:#ef4444;">*</span></label>
+                {% if can_edit_fields|default:True %}{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_until|default:"—" }}</span>{% endif %}
+                <small class="field-hint-de">Vertragsende</small>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="form-section recruitment-full-block">
-    <h3>Qualification</h3>
-    <div class="aligned-field recruitment-field" data-recruitment-field="qualification">
-        <label>{{ form.qualification.label }} <span class="required-marker" data-required-for="qualification" style="color:#ef4444;"></span></label>
-        {% if can_edit_fields|default:True %}{% if form.qualification.errors %}{{ form.qualification|add_class:"form-control error" }}{% else %}{{ form.qualification }}{% endif %}{% else %}<span class="form-readonly">{{ task.qualification|default:"—"|linebreaksbr }}</span>{% endif %}
-        <small class="field-hint-de">Qualifikation</small>
+<div class="recruitment-card-row">
+    <div class="form-section recruitment-card">
+        <h3>Qualification</h3>
+        <div class="recruitment-field" data-recruitment-field="qualification">
+            <label>{{ form.qualification.label }} <span class="required-marker" data-required-for="qualification" style="color:#ef4444;"></span></label>
+            {% if can_edit_fields|default:True %}{% if form.qualification.errors %}{{ form.qualification|add_class:"form-control error" }}{% else %}{{ form.qualification }}{% endif %}{% else %}<span class="form-readonly">{{ task.qualification|default:"—"|linebreaksbr }}</span>{% endif %}
+            <small class="field-hint-de">Qualifikation</small>
+        </div>
     </div>
-</div>
 
-<div class="form-section recruitment-full-block">
-    <h3>Contract Period</h3>
-    <div class="aligned-field recruitment-field" data-recruitment-field="valid_from">
-        <label>{{ form.valid_from.label }} <span class="required-marker" data-required-for="valid_from" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.valid_from.errors %}{{ form.valid_from|add_class:"form-control error" }}{% else %}{{ form.valid_from }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_from }}</span>{% endif %}
-        <small class="field-hint-de">Vertragsbeginn</small>
+    <div class="form-section recruitment-card">
+        <h3>Limitation</h3>
+        {% include "tasks/recruitment/_limitation_reason_fields.html" %}
     </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="valid_until">
-        <label>{{ form.valid_until.label }} <span class="required-marker" data-required-for="valid_until" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_until|default:"—" }}</span>{% endif %}
-        <small class="field-hint-de">Vertragsende</small>
-    </div>
-</div>
-
-<div class="form-section recruitment-full-block">
-    <h3>Limitation</h3>
-    {% include "tasks/recruitment/_limitation_reason_fields.html" %}
 </div>
 
 {% include "tasks/recruitment/_funding_allocations.html" %}
 
-<div class="form-section recruitment-full-block">
+<div class="form-section recruitment-card">
     <h3>Required Documents</h3>
     <p style="color:#64748b; font-size:0.9rem;">Re-uploading replaces the current file on the task.</p>
-    <div class="aligned-field recruitment-field" data-recruitment-field="cv_file">
-        <label>{{ form.cv_file.label }} <span class="required-marker" data-required-for="cv_file" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}
-            {{ form.cv_file }}
-            {% if task.cv_file %}<small>Current file on record.</small>{% endif %}
-            {% if stashed_uploads and stashed_uploads.cv_file %}
-            <small class="field-hint-de" style="display:block; margin-top:0.35rem; color:#166534;">
-                Bereits hochgeladen: {{ stashed_uploads.cv_file.name }} (bleibt erhalten, wenn Sie das Formular erneut absenden)
-            </small>
-            {% endif %}
-        {% else %}<strong>{% if task.cv_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
-        <small class="field-hint-de">Lebenslauf</small>
+    <div class="recruitment-field-grid">
+        <div class="recruitment-field" data-recruitment-field="cv_file">
+            <label>{{ form.cv_file.label }} <span class="required-marker" data-required-for="cv_file" style="color:#ef4444;">*</span></label>
+            {% if can_edit_fields|default:True %}
+                {{ form.cv_file }}
+                {% if task.cv_file %}<small>Current file on record.</small>{% endif %}
+                {% if stashed_uploads and stashed_uploads.cv_file %}
+                <small class="field-hint-de" style="display:block; margin-top:0.35rem; color:#166534;">
+                    Bereits hochgeladen: {{ stashed_uploads.cv_file.name }} (bleibt erhalten, wenn Sie das Formular erneut absenden)
+                </small>
+                {% endif %}
+            {% else %}<strong>{% if task.cv_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
+            <small class="field-hint-de">Lebenslauf</small>
+        </div>
+        <div class="recruitment-field" data-recruitment-field="latest_degree_certificate_file">
+            <label>{{ form.latest_degree_certificate_file.label }} <span class="required-marker" data-required-for="latest_degree_certificate_file" style="color:#ef4444;">*</span></label>
+            {% if can_edit_fields|default:True %}
+                {{ form.latest_degree_certificate_file }}
+                {% if task.latest_degree_certificate_file %}<small>Current file on record.</small>{% endif %}
+                {% if stashed_uploads and stashed_uploads.latest_degree_certificate_file %}
+                <small class="field-hint-de" style="display:block; margin-top:0.35rem; color:#166534;">
+                    Bereits hochgeladen: {{ stashed_uploads.latest_degree_certificate_file.name }} (bleibt erhalten, wenn Sie das Formular erneut absenden)
+                </small>
+                {% endif %}
+            {% else %}<strong>{% if task.latest_degree_certificate_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
+            <small class="field-hint-de">Zeugnis des letzten Abschlusses</small>
+        </div>
     </div>
-    <div class="aligned-field recruitment-field" data-recruitment-field="latest_degree_certificate_file">
-        <label>{{ form.latest_degree_certificate_file.label }} <span class="required-marker" data-required-for="latest_degree_certificate_file" style="color:#ef4444;">*</span></label>
-        {% if can_edit_fields|default:True %}
-            {{ form.latest_degree_certificate_file }}
-            {% if task.latest_degree_certificate_file %}<small>Current file on record.</small>{% endif %}
-            {% if stashed_uploads and stashed_uploads.latest_degree_certificate_file %}
-            <small class="field-hint-de" style="display:block; margin-top:0.35rem; color:#166534;">
-                Bereits hochgeladen: {{ stashed_uploads.latest_degree_certificate_file.name }} (bleibt erhalten, wenn Sie das Formular erneut absenden)
-            </small>
-            {% endif %}
-        {% else %}<strong>{% if task.latest_degree_certificate_file %}Uploaded{% else %}—{% endif %}</strong>{% endif %}
-        <small class="field-hint-de">Zeugnis des letzten Abschlusses</small>
-    </div>
+</div>
+
 </div>

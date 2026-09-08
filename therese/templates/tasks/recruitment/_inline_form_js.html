@@ -74,6 +74,9 @@
         if (typeof window.syncFundingPercentageColumns === 'function') {
             window.syncFundingPercentageColumns();
         }
+        if (typeof initFieldCopyButtons === 'function') {
+            initFieldCopyButtons();
+        }
     };
 
     window.syncFundingPercentageColumns = function() {
@@ -117,10 +120,75 @@
         }
     });
 
+    function fieldCopyText(field) {
+        const input = field.querySelector('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), select, textarea');
+        if (input) {
+            if (input.tagName === 'SELECT') {
+                const opt = input.options[input.selectedIndex];
+                return opt ? String(opt.text || '').trim() : '';
+            }
+            return String(input.value || '').trim();
+        }
+        const ro = field.querySelector('.form-readonly, .recruitment-costs-value');
+        if (ro) return String(ro.innerText || '').replace(/\s+/g, ' ').trim();
+        return '';
+    }
+
+    function isCopyableText(text) {
+        if (!text) return false;
+        if (text === '—' || text === '---------') return false;
+        if (text.indexOf('Select') === 0 || text.indexOf('— Select') === 0) return false;
+        return true;
+    }
+
+    function addCopyButton(field) {
+        if (field.closest('.empty-form-template')) return;
+        if (field.querySelector('.btn-copy-field')) return;
+        if (field.querySelector('input[type="file"]')) return;
+        const control = field.querySelector(
+            'input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), select, textarea, .form-readonly, .recruitment-costs-box'
+        );
+        if (!control) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-copy-field';
+        btn.title = 'Copy';
+        btn.setAttribute('aria-label', 'Copy');
+        btn.innerHTML = '<i class="fas fa-copy" aria-hidden="true"></i>';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const text = fieldCopyText(field);
+            if (!isCopyableText(text) || !navigator.clipboard) return;
+            navigator.clipboard.writeText(text).then(function() {
+                btn.classList.add('is-copied');
+                btn.title = 'Copied';
+                setTimeout(function() {
+                    btn.classList.remove('is-copied');
+                    btn.title = 'Copy';
+                }, 1200);
+            });
+        });
+        const wrap = document.createElement('div');
+        wrap.className = 'recruitment-field-control';
+        control.parentNode.insertBefore(wrap, control);
+        wrap.appendChild(control);
+        wrap.appendChild(btn);
+    }
+
+    function initFieldCopyButtons(root) {
+        const scopes = root
+            ? (root.matches && root.matches('[data-show-copy="1"]') ? [root] : root.querySelectorAll('[data-show-copy="1"]'))
+            : document.querySelectorAll('[data-show-copy="1"]');
+        scopes.forEach(function(scope) {
+            scope.querySelectorAll('.recruitment-field').forEach(addCopyButton);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof window.syncFundingPercentageColumns === 'function') {
             window.syncFundingPercentageColumns();
         }
+        initFieldCopyButtons();
     });
 })();
 </script>

@@ -1,5 +1,5 @@
 {% load widget_tweaks %}
-<div class="form-section full-width recruitment-full-block recruitment-field" data-recruitment-field="funding_allocations">
+<div class="form-section full-width recruitment-card recruitment-field" data-recruitment-field="funding_allocations">
     <h3>Funding Allocations</h3>
     <p style="color:#64748b; font-size:0.9rem; margin-top:-0.5rem; margin-bottom:1rem;">
         PSP-Element oder Cost Center und prozentualer Arbeitszeitanteil gehören zusammen. Planstellen-Nummer optional pro Zeile.
@@ -12,17 +12,17 @@
             <div class="recruitment-funding-row inline-form-row funding-row">
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
-                <div class="inline-field">
+                <div class="inline-field recruitment-field">
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}
                     <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
-                <div class="inline-field funding-percentage-field">
+                <div class="inline-field funding-percentage-field recruitment-field is-short">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control" }}{% endif %}
                     <small class="field-hint-de">Prozent der Wochenarbeitszeit</small>
                 </div>
-                <div class="inline-field">
+                <div class="inline-field recruitment-field is-short">
                     <label>Plan Position Number</label>
                     {% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}
                     <small class="field-hint-de">Planstellen-Nummer</small>
@@ -39,17 +39,17 @@
             <div class="recruitment-funding-row inline-form-row funding-row">
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
-                <div class="inline-field">
+                <div class="inline-field recruitment-field">
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {{ fform.funding_source|add_class:"form-control" }}
                     <small class="field-hint-de">PSP-Element oder Kostenstelle</small>
                 </div>
-                <div class="inline-field funding-percentage-field">
+                <div class="inline-field funding-percentage-field recruitment-field is-short">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {{ fform.workhours_percentage|add_class:"form-control" }}
                     <small class="field-hint-de">Prozent der Wochenarbeitszeit</small>
                 </div>
-                <div class="inline-field">
+                <div class="inline-field recruitment-field is-short">
                     <label>Plan Position Number</label>
                     {{ fform.plan_position_number|add_class:"form-control" }}
                     <small class="field-hint-de">Planstellen-Nummer</small>
@@ -79,9 +79,9 @@
             <tbody>
                 {% for allocation in task.funding_allocations.all %}
                 <tr>
-                    <td>{{ allocation.funding_target_label }}</td>
-                    <td>{{ allocation.workhours_percentage }}%</td>
-                    <td>{{ allocation.plan_position_number|default:"—" }}</td>
+                    <td class="recruitment-field"><span class="form-readonly">{{ allocation.funding_target_label }}</span></td>
+                    <td class="recruitment-field"><span class="form-readonly">{{ allocation.workhours_percentage }}%</span></td>
+                    <td class="recruitment-field"><span class="form-readonly">{{ allocation.plan_position_number|default:"—" }}</span></td>
                 </tr>
                 {% endfor %}
             </tbody>

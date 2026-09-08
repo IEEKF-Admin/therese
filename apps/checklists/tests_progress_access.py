@@ -73,7 +73,7 @@ class ChecklistProgressAccessTests(TestCase):
         resp = client.get('/checklists/progress/workgroup/')
         self.assertEqual(resp.status_code, 200)
         content = resp.content.decode()
-        self.assertIn('Checklist Progress', content)
+        self.assertIn('Checklists', content)
         self.assertIn('In A', content)
         self.assertIn('In B', content)
         self.assertIn('CL-A, CL-B', content)

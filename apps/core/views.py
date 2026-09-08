@@ -109,11 +109,14 @@ def global_settings(request):
         ensure_account_email_templates,
         save_account_email_templates_from_post,
     )
-    from apps.accounts.permissions import user_can_edit_global_settings
+    from apps.accounts.permissions import user_can_edit_global_settings, user_is_hr_superassistant
     from apps.core.forms import GlobalSettingForm
     from apps.core.models import GlobalSetting
+    from apps.tasks.views.workflow_admin import workflow_config_list_rows
 
-    if not user_can_edit_global_settings(request.user):
+    can_edit_global = user_can_edit_global_settings(request.user)
+    can_manage_workflow = user_is_hr_superassistant(request.user) or can_edit_global
+    if not can_edit_global and not can_manage_workflow:
         raise PermissionDenied
 
     setting = GlobalSetting.get_solo()
@@ -126,6 +129,8 @@ def global_settings(request):
     custom_qs = HolidayCustomDay.objects.order_by('day')
 
     if request.method == 'POST':
+        if not can_edit_global:
+            raise PermissionDenied
         action = request.POST.get('action')
         if action == 'save_account_emails':
             save_account_email_templates_from_post(request.POST, request.FILES)
@@ -171,6 +176,13 @@ def global_settings(request):
                 for months in range(12, 0, -1)
             ],
         })
+    requested_tab = (request.GET.get('tab') or '').strip()
+    if requested_tab == 'workflow' and can_manage_workflow:
+        settings_default_tab = 'workflow'
+    elif can_edit_global:
+        settings_default_tab = 'general'
+    else:
+        settings_default_tab = 'workflow'
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
@@ -179,4 +191,8 @@ def global_settings(request):
         'custom_formset': custom_formset,
         'entitlement_grid': entitlement_grid,
         'month_range': range(12, 0, -1),
+        'can_edit_global': can_edit_global,
+        'can_manage_workflow': can_manage_workflow,
+        'workflow_rows': workflow_config_list_rows() if can_manage_workflow else [],
+        'settings_default_tab': settings_default_tab,
     })

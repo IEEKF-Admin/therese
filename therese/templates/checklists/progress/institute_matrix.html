@@ -4,13 +4,14 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Checklist Progress <small class="field-hint-de">Checklisten-Fortschritt (Institut)</small></h1>
+    <h1>Checklists <small class="field-hint-de">Checklisten</small></h1>
     {% if selected_employee %}
     <div class="page-header-actions">
         <a href="{% url 'checklists:progress_institute' %}" class="btn-secondary">&larr; Back</a>
     </div>
     {% endif %}
 </div>
+{% include "checklists/_tabs.html" %}
 
 {% if selected_employee %}
 <p class="page-subtitle">{{ selected_employee.get_full_name }}</p>

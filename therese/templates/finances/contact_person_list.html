@@ -7,9 +7,8 @@
     <h1>{{ title }}</h1>
     <div class="page-header-actions">
         {% if can_manage %}
-        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Manage contacts</a>
+        <a href="{% url 'finances:contact_person_create' %}" class="btn-primary">+ New contact person</a>
         {% endif %}
-        <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
     </div>
 </div>
 
@@ -40,6 +39,9 @@
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Comments</th>
+                {% if can_manage %}
+                <th>Actions</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -57,10 +59,20 @@
                     {% endif %}
                 </td>
                 <td>{{ person.comments|default:"—" }}</td>
+                {% if can_manage %}
+                <td>
+                    <a href="{% url 'finances:contact_person_update' person.pk %}"
+                       class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a href="{% url 'finances:contact_person_delete' person.pk %}"
+                       class="action-icon delete"
+                       onclick="return confirm('Delete this contact person?');"
+                       title="Delete"><i class="fas fa-trash-alt"></i></a>
+                </td>
+                {% endif %}
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" class="text-muted">No contact persons found.</td>
+                <td colspan="{% if can_manage %}7{% else %}6{% endif %}" class="text-muted">No contact persons found.</td>
             </tr>
             {% endfor %}
         </tbody>

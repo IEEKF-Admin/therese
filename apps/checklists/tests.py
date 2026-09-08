@@ -939,7 +939,7 @@ class YourChecklistsEditorTests(TestCase):
         self.client.login(username='cl-editor', password='test')
         response = self.client.get(reverse('checklists:my_list'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Your Checklists')
+        self.assertContains(response, 'Checklists')
         self.assertContains(response, 'Assigned to you')
         self.assertContains(response, 'You can edit')
         self.assertContains(response, 'Sam Subject')

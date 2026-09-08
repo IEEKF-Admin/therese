@@ -10,13 +10,19 @@
 </div>
 
 <div class="settings-tabs" role="tablist">
+    {% if can_edit_global %}
     <button type="button" class="settings-tab is-active" data-tab="general">General</button>
     <button type="button" class="settings-tab" data-tab="personnel">Personnel &amp; finances</button>
     <button type="button" class="settings-tab" data-tab="chemicals">Chemicals</button>
     <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
     <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
+    {% endif %}
+    {% if can_manage_workflow %}
+    <button type="button" class="settings-tab{% if not can_edit_global %} is-active{% endif %}" data-tab="workflow">Task Workflow</button>
+    {% endif %}
 </div>
 
+{% if can_edit_global %}
 <div class="card settings-tab-panel is-active" data-panel="general" style="margin-bottom:2rem;">
     <form method="post" id="global-settings-form">
         {% csrf_token %}
@@ -124,7 +130,16 @@
         </div>
     </form>
 </div>
+{% endif %}
 
+{% if can_manage_workflow %}
+<div class="card settings-tab-panel" data-panel="workflow" style="display:{% if can_edit_global %}none{% else %}{% endif %}; margin-bottom:2rem;">
+    <h2 class="section-heading">Task Workflow Coordinators</h2>
+    {% include "tasks/workflow_admin/_config_table.html" %}
+</div>
+{% endif %}
+
+{% if can_edit_global %}
 <div class="card settings-tab-panel" data-panel="emails" style="display:none; margin-bottom:2rem;">
 {{ account_email_variables|json_script:"account-email-variables" }}
 <h2 class="section-heading" id="account-emails">Account emails</h2>
@@ -175,6 +190,7 @@
     </div>
 </form>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -236,21 +252,32 @@ document.addEventListener('DOMContentLoaded', function() {
             panel.style.display = match ? '' : 'none';
             panel.classList.toggle('is-active', match);
         });
+        var standalone = (name === 'emails' || name === 'workflow');
         var formCard = document.querySelector('.card.settings-tab-panel[data-panel="general"]');
         if (formCard) {
-            formCard.style.display = (name === 'emails') ? 'none' : '';
+            formCard.style.display = standalone ? 'none' : '';
         }
         var emails = document.querySelector('.settings-tab-panel[data-panel="emails"]');
         if (emails) emails.style.display = (name === 'emails') ? '' : 'none';
+        var workflow = document.querySelector('.settings-tab-panel[data-panel="workflow"]');
+        if (workflow) workflow.style.display = (name === 'workflow') ? '' : 'none';
         document.querySelectorAll('#global-settings-form .settings-tab-panel').forEach(function(panel) {
             panel.style.display = panel.getAttribute('data-panel') === name ? '' : 'none';
         });
         var generalSection = document.querySelector('#global-settings-form > .form-section');
         if (generalSection) generalSection.style.display = name === 'general' ? '' : 'none';
+        var path = window.location.pathname;
+        if (name === 'workflow') {
+            history.replaceState(null, '', path + '?tab=workflow');
+        } else {
+            history.replaceState(null, '', path);
+        }
     }
     tabs.forEach(function(tab) {
         tab.addEventListener('click', function() { showTab(tab.getAttribute('data-tab')); });
     });
+    var initial = '{{ settings_default_tab|default:"general"|escapejs }}';
+    showTab(initial);
 });
 </script>
 {% include "documents/includes/wysiwyg.html" %}

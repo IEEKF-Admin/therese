@@ -6,7 +6,7 @@
 <div class="page-header">
     <h1>Delete contact person</h1>
     <div class="page-header-actions">
-        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">← Back</a>
+        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">← Back</a>
     </div>
 </div>
 
@@ -22,7 +22,7 @@
     <form method="post" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
         {% csrf_token %}
         <button type="submit" class="btn-danger">Delete</button>
-        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Cancel</a>
+        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}

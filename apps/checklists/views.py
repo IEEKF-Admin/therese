@@ -20,6 +20,8 @@ from django.views.decorators.http import require_POST
 from apps.checklists.access import (
     acknowledge_instance,
     archive_editor_instance,
+    checklist_progress_url_name,
+    checklists_tab_context,
     editor_archive_ids_for_user,
     editor_work_complete,
     employees_in_user_workgroups,
@@ -31,6 +33,7 @@ from apps.checklists.access import (
     user_can_edit_node,
     user_can_fill_instance,
     user_can_manage,
+    user_can_view_checklist_progress,
     user_can_view_instance_readonly,
 )
 from apps.checklists.models import (
@@ -185,17 +188,21 @@ def my_list(request):
             ).order_by('subject__last_name', 'subject__first_name', '-assigned_at')
         )
     if not assigned and not open_editor and not archived_editor and not archived_ids:
+        if user_can_view_checklist_progress(request.user):
+            return redirect(reverse(checklist_progress_url_name(request.user)))
         messages.info(request, 'You have no checklists. / Sie haben keine Checklisten.')
         return redirect('tasks:my_tasks')
     for inst in assigned:
         acknowledge_instance(request.user, inst)
-    return render(request, 'checklists/my_list.html', {
+    context = {
         'assigned_instances': assigned,
         'editor_groups': _editor_groups(request.user, open_editor),
         'archived_editor_groups': _editor_groups(request.user, archived_editor),
         'show_editor_archive': show_editor_archive,
         'has_editor_archive': bool(archived_ids),
-    })
+    }
+    context.update(checklists_tab_context(request.user, 'mine'))
+    return render(request, 'checklists/my_list.html', context)
 
 
 @login_required
@@ -717,12 +724,14 @@ def progress_workgroup(request):
     employees = employees_in_user_workgroups(request.user)
     templates = ChecklistTemplate.objects.order_by('name_en')
     rows = _progress_matrix(employees, templates)
-    return render(request, 'checklists/progress/workgroup_matrix.html', {
+    context = {
         'workgroups': workgroups,
         'workgroup': workgroups[0] if len(workgroups) == 1 else None,
         'templates': templates,
         'rows': rows,
-    })
+    }
+    context.update(checklists_tab_context(request.user, 'progress'))
+    return render(request, 'checklists/progress/workgroup_matrix.html', context)
 
 
 def _int_query_param(request, name):
@@ -794,6 +803,7 @@ def progress_institute(request):
         )
         context['selected_employee'] = employee
         context['instance_rows'] = _progress_instance_rows(instances)
+        context.update(checklists_tab_context(request.user, 'progress'))
         return render(request, 'checklists/progress/institute_matrix.html', context)
 
     if template_id:
@@ -803,6 +813,7 @@ def progress_institute(request):
         ).order_by('subject__last_name', 'subject__first_name', '-assigned_at')
         context['selected_template'] = template
         context['instance_rows'] = _progress_instance_rows(instances)
+        context.update(checklists_tab_context(request.user, 'progress'))
         return render(request, 'checklists/progress/institute_matrix.html', context)
 
     employees = list(
@@ -831,6 +842,7 @@ def progress_institute(request):
         }
         for employee in employees
     ]
+    context.update(checklists_tab_context(request.user, 'progress'))
     return render(request, 'checklists/progress/institute_matrix.html', context)
 
 

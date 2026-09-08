@@ -14,27 +14,29 @@ from apps.tasks.workflow_config import (
 )
 
 
-class TaskWorkflowConfigListView(AssistingAdminMixin, View):
-    template_name = 'tasks/workflow_admin/config_list.html'
+def workflow_config_list_rows():
+    workgroups = Workgroup.objects.select_related('pi').order_by('short_name')
+    rows = []
+    for workgroup in workgroups:
+        assignment_count = TaskWorkflowCoordinator.objects.filter(workgroup=workgroup).count()
+        configured_types = (
+            TaskWorkflowCoordinator.objects.filter(workgroup=workgroup)
+            .values_list('task_type', flat=True)
+            .distinct()
+            .count()
+        )
+        rows.append({
+            'workgroup': workgroup,
+            'assignment_count': assignment_count,
+            'configured_types': configured_types,
+            'total_types': len(Task.TASK_TYPES),
+        })
+    return rows
 
+
+class TaskWorkflowConfigListView(AssistingAdminMixin, View):
     def get(self, request):
-        workgroups = Workgroup.objects.select_related('pi').order_by('short_name')
-        rows = []
-        for workgroup in workgroups:
-            assignment_count = TaskWorkflowCoordinator.objects.filter(workgroup=workgroup).count()
-            configured_types = (
-                TaskWorkflowCoordinator.objects.filter(workgroup=workgroup)
-                .values_list('task_type', flat=True)
-                .distinct()
-                .count()
-            )
-            rows.append({
-                'workgroup': workgroup,
-                'assignment_count': assignment_count,
-                'configured_types': configured_types,
-                'total_types': len(Task.TASK_TYPES),
-            })
-        return render(request, self.template_name, {'rows': rows})
+        return redirect(reverse('core_settings:global_settings') + '?tab=workflow')
 
 
 class TaskWorkflowConfigUpdateView(AssistingAdminMixin, View):

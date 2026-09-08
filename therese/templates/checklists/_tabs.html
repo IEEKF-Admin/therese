@@ -1,0 +1,12 @@
+{% if checklists_show_tabs %}
+<div class="settings-tabs" role="tablist">
+    {% if checklists_show_mine_tab %}
+    <a href="{% url 'checklists:my_list' %}"
+       class="settings-tab{% if checklists_active_tab == 'mine' %} is-active{% endif %}">Your Checklists</a>
+    {% endif %}
+    {% if checklists_show_progress_tab %}
+    <a href="{% url checklists_progress_url_name %}"
+       class="settings-tab{% if checklists_active_tab == 'progress' %} is-active{% endif %}">Checklist Progress</a>
+    {% endif %}
+</div>
+{% endif %}

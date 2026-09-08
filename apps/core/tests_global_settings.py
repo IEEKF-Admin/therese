@@ -98,11 +98,21 @@ class GlobalSettingsViewTests(TestCase):
         rate = HolidayEntitlementRate.objects.get(weekdays=5, contract_months=12)
         self.assertEqual(rate.days, Decimal('30.0'))
 
-    def test_hr_superassistant_is_forbidden(self):
+    def test_hr_superassistant_sees_workflow_tab_only(self):
         self.client.login(username='hr-gs', password='test')
         url = reverse('core_settings:global_settings')
-        self.assertEqual(self.client.get(url).status_code, 403)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Task Workflow Coordinators')
+        self.assertNotContains(response, 'Default Weekly Working Hours')
         self.assertEqual(
             self.client.post(url, {'action': 'save_global', 'default_weekly_hours': '10'}).status_code,
             403,
         )
+
+    def test_systemadmin_sees_workflow_tab(self):
+        self.client.login(username='sysadmin-gs', password='test')
+        response = self.client.get(reverse('core_settings:global_settings') + '?tab=workflow')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Task Workflow')
+        self.assertContains(response, 'Task Workflow Coordinators')

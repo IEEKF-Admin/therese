@@ -7,7 +7,7 @@
 <div class="page-header">
     <h1>{{ title }}</h1>
     <div class="page-header-actions">
-        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">← Back to manage list</a>
+        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">← Back to list</a>
     </div>
 </div>
 
@@ -69,7 +69,7 @@
 
     <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
         <button type="submit" class="btn-primary">Save</button>
-        <a href="{% url 'finances:contact_person_manage' %}" class="btn-secondary">Cancel</a>
+        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">Cancel</a>
     </div>
 </form>
 {% endblock %}

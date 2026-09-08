@@ -48,7 +48,8 @@ class ContactPersonViewTests(TestCase):
         self.assertContains(response, 'Muster')
         self.assertContains(response, 'Erika')
         self.assertContains(response, 'erika@example.com')
-        self.assertNotContains(response, 'Delete selected')
+        self.assertNotContains(response, 'New contact person')
+        self.assertNotContains(response, 'fa-edit')
 
     def test_manage_create_and_edit(self):
         self._user_with_perms(
@@ -60,8 +61,13 @@ class ContactPersonViewTests(TestCase):
         client.login(username='manager', password='test')
 
         response = client.get('/finances/contact-persons/manage/')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.endswith('/finances/contact-persons/'))
+
+        response = client.get('/finances/contact-persons/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'New contact person')
+        self.assertContains(response, 'fa-edit')
 
         response = client.post(
             '/finances/contact-persons/manage/new/',

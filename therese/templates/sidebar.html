@@ -54,14 +54,14 @@
     </a>
     {% endif %}
 
-    {% if user_has_active_checklists %}
-    <a href="{% url 'checklists:my_list' %}"
-       class="sidebar-link-with-badge {% if '/checklists/my' in request.path %}active{% endif %}">
+    {% if user_has_active_checklists or user_can_view_checklist_progress %}
+    <a href="{% url checklists_hub_url_name %}"
+       class="sidebar-link-with-badge {% if '/checklists/my' in request.path or '/checklists/progress/' in request.path %}active{% endif %}">
         <span class="sidebar-icon-wrap">
             <i class="fas fa-clipboard-check"></i>
             {% if checklists_menu_needs_attention %}<span class="menu-notification-dot" aria-label="New checklists to fill"></span>{% endif %}
         </span>
-        <span>Your Checklists</span>
+        <span>Checklists</span>
     </a>
     {% endif %}
 
@@ -111,26 +111,13 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.tasks.create_personnel_task or perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or perms.checklists.view_institute_progress or perms.checklists.view_workgroup_progress or user.is_superuser %}
+    {% if perms.tasks.create_personnel_task or perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
     <div class="sidebar-heading">Personnel Management</div>
 
     {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
     <a href="{% url 'hr:employee_list' %}"
        class="{% if '/hr/employees' in request.path or request.path == '/hr/' %}active{% endif %}">
         <i class="fas fa-users"></i> Employees
-    </a>
-    {% endif %}
-
-    {# Institute-wide progress takes precedence over workgroup-scoped (superset). #}
-    {% if perms.checklists.view_institute_progress %}
-    <a href="{% url 'checklists:progress_institute' %}"
-       class="{% if '/checklists/progress/' in request.path %}active{% endif %}">
-        <i class="fas fa-th-large"></i> Checklist Progress
-    </a>
-    {% elif perms.checklists.view_workgroup_progress %}
-    <a href="{% url 'checklists:progress_workgroup' %}"
-       class="{% if '/checklists/progress/' in request.path %}active{% endif %}">
-        <i class="fas fa-th"></i> Checklist Progress
     </a>
     {% endif %}
 
@@ -158,28 +145,19 @@
     {% endif %}
     {% if perms.finances.view_contact_person_list or perms.finances.manage_contact_person or user.is_superuser %}
     <a href="{% url 'finances:contact_person_list' %}"
-       class="{% if '/contact-persons/' in request.path and '/manage' not in request.path %}active{% endif %}">
+       class="{% if '/contact-persons/' in request.path %}active{% endif %}">
         <i class="fas fa-address-book"></i> Contact Persons
     </a>
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.finances.manage_contact_person or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or 'Finances - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if perms.hr.manage_location or user.is_superuser %}
     <a href="{% url 'hr:location_management' %}"
        class="{% if 'location' in request.path %}active{% endif %}">
         <i class="fas fa-building"></i> Buildings / Rooms / Phones
-    </a>
-    {% endif %}
-
-
-
-    {% if perms.finances.manage_contact_person or user.is_superuser %}
-    <a href="{% url 'finances:contact_person_manage' %}"
-       class="{% if 'contact-persons/manage' in request.path %}active{% endif %}">
-        <i class="fas fa-user-edit"></i> Contact Persons
     </a>
     {% endif %}
 
@@ -206,9 +184,9 @@
     </a>
     {% endif %}
 
-    {% if 'Systemadmin' in user_groups or user.is_superuser %}
+    {% if 'Systemadmin' in user_groups or 'HR - Superassistant' in user_groups or user.is_superuser %}
     <a href="{% url 'core_settings:global_settings' %}"
-       class="{% if '/settings/global' in request.path %}active{% endif %}">
+       class="{% if '/settings/global' in request.path or '/tasks/admin/workflow' in request.path %}active{% endif %}">
         <i class="fas fa-sliders-h"></i> Global Settings
     </a>
     {% endif %}
@@ -231,13 +209,6 @@
     <a href="{% url 'finances:psp_manage' %}"
        class="{% if 'psp/manage' in request.path or 'cost-centers/manage' in request.path %}active{% endif %}">
         <i class="fas fa-project-diagram"></i> PSP &amp; Cost Centers
-    </a>
-    {% endif %}
-
-    {% if 'HR - Superassistant' in user_groups or user.is_superuser %}
-    <a href="{% url 'tasks:workflow_config_manage' %}"
-       class="{% if '/tasks/admin/workflow' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram"></i> Task Workflow
     </a>
     {% endif %}
 

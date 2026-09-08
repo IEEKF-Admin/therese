@@ -2,7 +2,9 @@
 therese/context_processors.py
 """
 from apps.checklists.access import (
+    checklists_hub_url_name,
     checklists_menu_needs_attention,
+    user_can_view_checklist_progress,
     user_has_active_checklists,
 )
 from apps.documents.sidebar_notifications import documents_menu_needs_attention
@@ -24,6 +26,8 @@ def user_groups(request):
             'is_external_employee': is_external_employee,
             'documents_menu_needs_attention': documents_menu_needs_attention(request.user),
             'user_has_active_checklists': user_has_active_checklists(request.user),
+            'user_can_view_checklist_progress': user_can_view_checklist_progress(request.user),
+            'checklists_hub_url_name': checklists_hub_url_name(request.user),
             'checklists_menu_needs_attention': checklists_menu_needs_attention(request.user),
             'holiday_flags': flags,
             'holidays_menu_needs_attention': holidays_menu_needs_attention(request.user),
@@ -36,6 +40,8 @@ def user_groups(request):
         'is_external_employee': False,
         'documents_menu_needs_attention': False,
         'user_has_active_checklists': False,
+        'user_can_view_checklist_progress': False,
+        'checklists_hub_url_name': 'checklists:my_list',
         'checklists_menu_needs_attention': False,
         'holiday_flags': {'module': False, 'planning': False, 'approval': False, 'gantt': False},
         'holidays_menu_needs_attention': False,

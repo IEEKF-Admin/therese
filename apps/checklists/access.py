@@ -119,6 +119,44 @@ def subject_active_instances(user):
     )
 
 
+def user_can_view_checklist_progress(user):
+    if not user or not user.is_authenticated:
+        return False
+    return (
+        user.is_superuser
+        or user.has_perm('checklists.view_institute_progress')
+        or user.has_perm('checklists.view_workgroup_progress')
+    )
+
+
+def checklist_progress_url_name(user):
+    if not user or not user.is_authenticated:
+        return 'checklists:my_list'
+    if user.is_superuser or user.has_perm('checklists.view_institute_progress'):
+        return 'checklists:progress_institute'
+    return 'checklists:progress_workgroup'
+
+
+def checklists_hub_url_name(user):
+    if user_has_active_checklists(user):
+        return 'checklists:my_list'
+    if user_can_view_checklist_progress(user):
+        return checklist_progress_url_name(user)
+    return 'checklists:my_list'
+
+
+def checklists_tab_context(user, active_tab):
+    show_mine = user_has_active_checklists(user) or active_tab == 'mine'
+    show_progress = user_can_view_checklist_progress(user)
+    return {
+        'checklists_active_tab': active_tab,
+        'checklists_show_mine_tab': show_mine,
+        'checklists_show_progress_tab': show_progress,
+        'checklists_progress_url_name': checklist_progress_url_name(user),
+        'checklists_show_tabs': show_mine and show_progress,
+    }
+
+
 def user_has_active_checklists(user):
     return (
         subject_active_instances(user).exists()

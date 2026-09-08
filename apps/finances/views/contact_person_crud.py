@@ -59,25 +59,11 @@ class ContactPersonListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
 
 class ContactPersonManageListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    """Manage list with edit / delete actions and create entry point."""
+    """Legacy manage URL — the list page now includes create/edit/delete."""
 
     model = ContactPerson
-    template_name = 'finances/contact_person_manage_list.html'
+    template_name = 'finances/contact_person_list.html'
     context_object_name = 'contact_persons'
-
-    def get_queryset(self):
-        qs = ContactPerson.objects.all().order_by('last_name', 'first_name')
-        q = (self.request.GET.get('q') or '').strip()
-        if q:
-            qs = qs.filter(
-                Q(last_name__icontains=q)
-                | Q(first_name__icontains=q)
-                | Q(business_area__icontains=q)
-                | Q(phone__icontains=q)
-                | Q(email__icontains=q)
-                | Q(comments__icontains=q)
-            )
-        return qs
 
     def test_func(self):
         return (
@@ -85,39 +71,18 @@ class ContactPersonManageListView(LoginRequiredMixin, UserPassesTestMixin, ListV
             or self.request.user.has_perm('finances.manage_contact_person')
         )
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Manage Contact Persons'
-        context['search_query'] = (self.request.GET.get('q') or '').strip()
-        return context
+    def get(self, request, *args, **kwargs):
+        return redirect('finances:contact_person_list')
 
     def post(self, request, *args, **kwargs):
-        if request.POST.get('action') == 'delete_selected':
-            ids = [i for i in request.POST.getlist('selected_ids') if i]
-            if not ids:
-                messages.warning(request, 'No entries selected.')
-                return redirect('finances:contact_person_manage')
-
-            deleted = 0
-            for pk in ids:
-                try:
-                    obj = ContactPerson.objects.get(pk=pk)
-                    # FK on PSP / cost center is SET_NULL — safe to delete
-                    obj.delete()
-                    deleted += 1
-                except ContactPerson.DoesNotExist:
-                    pass
-            if deleted:
-                messages.success(request, f'{deleted} contact person(s) deleted.')
-            return redirect('finances:contact_person_manage')
-        return super().post(request, *args, **kwargs)
+        return redirect('finances:contact_person_list')
 
 
 class ContactPersonCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = ContactPerson
     form_class = ContactPersonForm
     template_name = 'finances/contact_person_form.html'
-    success_url = reverse_lazy('finances:contact_person_manage')
+    success_url = reverse_lazy('finances:contact_person_list')
 
     def test_func(self):
         return (
@@ -143,7 +108,7 @@ class ContactPersonUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
     model = ContactPerson
     form_class = ContactPersonForm
     template_name = 'finances/contact_person_form.html'
-    success_url = reverse_lazy('finances:contact_person_manage')
+    success_url = reverse_lazy('finances:contact_person_list')
 
     def test_func(self):
         return (
@@ -168,7 +133,7 @@ class ContactPersonUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
 class ContactPersonDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = ContactPerson
     template_name = 'finances/contact_person_confirm_delete.html'
-    success_url = reverse_lazy('finances:contact_person_manage')
+    success_url = reverse_lazy('finances:contact_person_list')
 
     def test_func(self):
         return (

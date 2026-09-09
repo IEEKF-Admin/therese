@@ -144,7 +144,9 @@ class GesamtberichtPspParser(ReportParser):
                 'code': code,
                 'cc': _cell_str(row[col_cc] if col_cc is not None and col_cc < len(row) else None),
                 'text': _cell_str(row[col_text] if col_text is not None and col_text < len(row) else None),
-                'funder': _cell_str(row[col_def] if col_def is not None and col_def < len(row) else None),
+                'project_definition': _cell_str(
+                    row[col_def] if col_def is not None and col_def < len(row) else None
+                ),
                 'period_end': (
                     _parse_german_date(row[col_end])
                     if col_end is not None and col_end < len(row)
@@ -199,8 +201,12 @@ class GesamtberichtPspParser(ReportParser):
 
         for parent_code in parent_codes:
             ident = parent_rows.get(parent_code) or {}
-            title = (ident.get('text') or budget_titles.get(parent_code) or '').strip()
-            funder = (ident.get('funder') or '').strip()
+            title = (
+                ident.get('project_definition')
+                or ident.get('text')
+                or budget_titles.get(parent_code)
+                or ''
+            ).strip()
             parent_cc = ident.get('cc') or ''
             if not parent_cc or is_placeholder_cost_center(parent_cc):
                 for child in child_rows.get(parent_code, []):
@@ -219,14 +225,14 @@ class GesamtberichtPspParser(ReportParser):
                 warnings.append(
                     f'Cost center from file looks invalid/placeholder: {parent_cc!r}'
                 )
-            if ident.get('code') is None and not ident.get('text'):
-                warnings.append('Parent row missing in identity table; title/funder may be incomplete.')
+            if ident.get('code') is None and not ident.get('project_definition') and not ident.get('text'):
+                warnings.append('Parent row missing in identity table; title may be incomplete.')
 
             result.parents.append(ParsedPspParent(
                 wbs_code=parent_code,
                 source_filename=filename,
                 title=title,
-                third_party_funder_identifier=funder,
+                third_party_funder_identifier='',
                 cost_center_code=parent_cc,
                 cost_center_is_placeholder=is_placeholder_cost_center(parent_cc),
                 period_end=ident.get('period_end'),

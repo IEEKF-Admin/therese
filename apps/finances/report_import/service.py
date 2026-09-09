@@ -409,7 +409,7 @@ def analyze_uploaded_files(
     )
     if any(p.get('fill_empty_only') for p in parents):
         global_warnings.append(
-            'Gesamtbericht: new PSP elements use the file Text as title. '
+            'Gesamtbericht: new PSP elements use Projektdefinition as title. '
             'On existing elements, empty master data is filled only — '
             'titles and richer Einzelbericht fields are kept. '
             'Financial snapshots are written only when cost-type child rows (.1–.9) exist.'

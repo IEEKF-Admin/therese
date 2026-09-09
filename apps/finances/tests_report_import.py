@@ -741,8 +741,8 @@ class GesamtberichtParserTests(TestCase):
         by_code = {p.wbs_code: p for p in result.parents}
 
         one = by_code['G-100.0001']
-        self.assertEqual(one.title, 'Gesamt Parent One')
-        self.assertEqual(one.third_party_funder_identifier, 'DFG-ABC')
+        self.assertEqual(one.title, 'DFG-ABC')
+        self.assertEqual(one.third_party_funder_identifier, '')
         self.assertEqual(one.cost_center_code, '0001/991000')
         self.assertFalse(one.cost_center_is_placeholder)
         self.assertEqual(one.period_end, date(2028, 12, 31))
@@ -754,8 +754,8 @@ class GesamtberichtParserTests(TestCase):
         self.assertNotIn('parent_total', one.cost_types)
 
         two = by_code['G-200.0002']
-        self.assertEqual(two.title, 'Parent Only Title')
-        self.assertEqual(two.third_party_funder_identifier, 'Other Funder')
+        self.assertEqual(two.title, 'Other Funder')
+        self.assertEqual(two.third_party_funder_identifier, '')
         self.assertTrue(two.cost_center_is_placeholder)
         self.assertIsNone(two.period_end)
         self.assertEqual(two.cost_types, {})
@@ -776,7 +776,7 @@ class GesamtberichtImportServiceTests(TestCase):
         one = next(p for p in plan['parents'] if p['wbs_code'] == 'G-100.0001')
         self.assertEqual(one['action'], 'create')
         self.assertFalse(one['needs_title'])
-        self.assertEqual(one['proposed_title'], 'Gesamt Parent One')
+        self.assertEqual(one['proposed_title'], 'DFG-ABC')
         self.assertTrue(one['fill_empty_only'])
         self.assertTrue(one['has_financials'])
         two = next(p for p in plan['parents'] if p['wbs_code'] == 'G-200.0002')
@@ -789,8 +789,8 @@ class GesamtberichtImportServiceTests(TestCase):
         self.assertEqual(summary['psp_created'], 2)
 
         wbs = WBSElement.objects.get(wbs_code='G-100.0001')
-        self.assertEqual(wbs.title, 'Gesamt Parent One')
-        self.assertEqual(wbs.third_party_funder_identifier, 'DFG-ABC')
+        self.assertEqual(wbs.title, 'DFG-ABC')
+        self.assertEqual(wbs.third_party_funder_identifier, '')
         self.assertEqual(wbs.cost_center.cost_center, '991000')
         self.assertTrue(wbs.has_material_costs)
         self.assertTrue(wbs.has_personnel_costs)
@@ -799,7 +799,7 @@ class GesamtberichtImportServiceTests(TestCase):
         self.assertEqual(true.material_costs, Decimal('1200'))
 
         stub = WBSElement.objects.get(wbs_code='G-200.0002')
-        self.assertEqual(stub.title, 'Parent Only Title')
+        self.assertEqual(stub.title, 'Other Funder')
         self.assertIsNone(stub.cost_center)
         self.assertFalse(stub.year_estimates.exists())
         self.assertFalse(
@@ -836,7 +836,7 @@ class GesamtberichtImportServiceTests(TestCase):
 
         empty_plan = next(p for p in plan['parents'] if p['wbs_code'] == 'G-200.0002')
         diff_fields = {d['field'] for d in empty_plan['field_diffs']}
-        self.assertIn('third_party_funder_identifier', diff_fields)
+        self.assertNotIn('third_party_funder_identifier', diff_fields)
 
         plan, errors = merge_user_decisions(plan, {})
         self.assertEqual(errors, [])
@@ -853,7 +853,7 @@ class GesamtberichtImportServiceTests(TestCase):
 
         empty.refresh_from_db()
         self.assertEqual(empty.title, 'Keep Empty Title')
-        self.assertEqual(empty.third_party_funder_identifier, 'Other Funder')
+        self.assertEqual(empty.third_party_funder_identifier, '')
         self.assertIsNone(empty.period_end)
         self.assertIsNone(empty.cost_center)
 

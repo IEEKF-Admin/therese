@@ -4,6 +4,7 @@ import logging
 from datetime import date, timedelta
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.login_popups import user_matches_audience
@@ -67,10 +68,6 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
         return False
     if not user_matches_audience(user, config):
         return False
-    if TriggerEmailSend.objects.filter(
-        config=config, user=user, reference_key=reference_key
-    ).exists():
-        return False
     html_template = (config.email_html or '').strip()
     if not html_template:
         return False
@@ -81,6 +78,16 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
             config.pk,
             user.pk,
         )
+        return False
+    key = str(reference_key or '')[:191]
+    try:
+        with transaction.atomic():
+            TriggerEmailSend.objects.create(
+                config=config,
+                user=user,
+                reference_key=key,
+            )
+    except IntegrityError:
         return False
     replacements = build_replacement_map(
         user,
@@ -113,12 +120,10 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
             config.pk,
             user.pk,
         )
+        TriggerEmailSend.objects.filter(
+            config=config, user=user, reference_key=key,
+        ).delete()
         return False
-    TriggerEmailSend.objects.get_or_create(
-        config=config,
-        user=user,
-        reference_key=reference_key,
-    )
     return True
 
 
@@ -141,11 +146,16 @@ def send_due_scheduled_emails(now=None):
         if not due:
             continue
         _day, reference_key = due
+        from apps.accounts.schedule_triggers import required_lists_are_filled
+
         for user in users:
+            employee = _employee_of(user)
+            if not required_lists_are_filled(config, user, employee):
+                continue
             if deliver_trigger_email(
                 config,
                 user,
-                _employee_of(user),
+                employee,
                 reference_key,
             ):
                 sent += 1

@@ -509,8 +509,42 @@ class ScheduledTriggerTests(TestCase):
         sent_again = send_due_scheduled_emails(now=now)
         self.assertEqual(sent_again, 0)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            TriggerEmailSend.objects.filter(config=self.config, user=self.user).count(),
+            1,
+        )
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_claim_prevents_duplicate_send_for_same_occurrence(self):
+        from apps.accounts.trigger_emails import deliver_trigger_email
+
+        now = self._aware(2026, 9, 7, 9, 5)
+        from apps.accounts.schedule_triggers import current_due_schedule_occurrence
+
+        _day, key = current_due_schedule_occurrence(self.config, now=now)
+        first = deliver_trigger_email(self.config, self.user, self.employee, key)
+        second = deliver_trigger_email(self.config, self.user, self.employee, key)
+        self.assertTrue(first)
+        self.assertFalse(second)
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_skips_send_when_required_list_is_empty(self):
+        self.config.schedule_require_lists = 'ending_contracts'
+        self.config.save(update_fields=['schedule_require_lists'])
+        now = self._aware(2026, 9, 7, 9, 5)
+        self.assertEqual(send_due_scheduled_emails(now=now), 0)
+        Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2026, 1, 1),
+            valid_until=date(2026, 10, 1),
+            is_active=True,
+        )
+        self.assertEqual(send_due_scheduled_emails(now=now), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_does_not_send_before_time_or_on_other_weekday(self):
         too_early = self._aware(2026, 9, 7, 8, 59)
         tuesday = self._aware(2026, 9, 8, 9, 5)
@@ -592,6 +626,7 @@ class EmailTemplateSettingsTests(TestCase):
                 'send_email': 'on',
                 'schedule_time': '09:15',
                 'schedule_weekdays': ['0', '2', '4'],
+                'schedule_require_lists': ['unopened_tasks', 'ending_contracts'],
                 'email_subject': 'Reminder',
                 'email_html': '<p>Weekly</p>',
             },
@@ -601,6 +636,7 @@ class EmailTemplateSettingsTests(TestCase):
         self.assertEqual(created.trigger, 'scheduled')
         self.assertEqual(created.schedule_time, dt_time(9, 15))
         self.assertEqual(created.schedule_weekdays, '0,2,4')
+        self.assertEqual(created.schedule_require_lists, 'unopened_tasks,ending_contracts')
         self.assertIn('09:15', created.schedule_summary())
         self.assertIn('Mon', created.schedule_summary())
 

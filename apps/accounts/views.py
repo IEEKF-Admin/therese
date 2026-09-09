@@ -104,6 +104,9 @@ def _login_popup_config_dict(config):
         'schedule_weekdays': [
             int(part) for part in (config.schedule_weekdays or '').split(',') if part.strip().isdigit()
         ],
+        'schedule_require_lists': [
+            part.strip() for part in (config.schedule_require_lists or '').split(',') if part.strip()
+        ],
         'text': config.text,
         'email_subject': config.email_subject or '',
         'email_html': config.email_html or '',
@@ -133,7 +136,7 @@ def messaging(request):
         user_can_configure_email,
         user_can_manage_messaging,
     )
-    from apps.accounts.schedule_triggers import WEEKDAY_CHOICES
+    from apps.accounts.schedule_triggers import WEEKDAY_CHOICES, schedule_require_list_choices
     from apps.accounts.template_variables import GROUP_LABELS, VARIABLES, catalog_by_trigger, variable_token
     from apps.core.html_sanitize import sanitize_html
     from apps.core.mail import send_therese_test_email
@@ -206,11 +209,17 @@ def messaging(request):
             x = request.POST.get('x_months')
             config.x_months = int(x) if x else None
             config.trigger_datetime = _parse_trigger_datetime(request.POST.get('trigger_datetime'))
-            from apps.accounts.schedule_triggers import encode_schedule_weekdays
+            from apps.accounts.schedule_triggers import (
+                encode_schedule_require_lists,
+                encode_schedule_weekdays,
+            )
 
             config.schedule_time = _parse_schedule_time(request.POST.get('schedule_time'))
             config.schedule_weekdays = encode_schedule_weekdays(
                 request.POST.getlist('schedule_weekdays')
+            )
+            config.schedule_require_lists = encode_schedule_require_lists(
+                request.POST.getlist('schedule_require_lists')
             )
             config.enabled = bool(request.POST.get('enabled'))
             match_mode = request.POST.get('audience_match_mode', 'or')
@@ -231,6 +240,7 @@ def messaging(request):
         'configs_data': [_login_popup_config_dict(c) for c in configs],
         'trigger_choices': LoginPopupConfig.TRIGGER_CHOICES,
         'weekday_choices': WEEKDAY_CHOICES,
+        'schedule_require_list_choices': schedule_require_list_choices(),
         'link_choices': LoginPopupConfig.LINK_CHOICES,
         'audience_match_choices': LoginPopupConfig.AUDIENCE_MATCH_CHOICES,
         'variable_catalog': catalog_by_trigger(),

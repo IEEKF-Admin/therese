@@ -139,6 +139,10 @@ class LoginPopupConfig(models.Model):
         blank=True,
         help_text="Comma-separated weekdays for the recurring schedule (0=Monday … 6=Sunday).",
     )
+    schedule_require_lists = models.TextField(
+        blank=True,
+        help_text="Comma-separated list variable keys that must be non-empty before a scheduled email is sent.",
+    )
     enabled = models.BooleanField(default=True)
     audience_match_mode = models.CharField(
         max_length=3,

@@ -307,12 +307,18 @@ def evaluate_login_popups(
                         task_for_text = comment_for_text.task
 
         elif config.trigger == 'scheduled':
-            from apps.accounts.schedule_triggers import last_due_schedule_occurrence
+            from apps.accounts.schedule_triggers import (
+                last_due_schedule_occurrence,
+                required_lists_are_filled,
+            )
 
             due = last_due_schedule_occurrence(config, now=now)
             if due:
                 _day, reference_key = due
-                if reference_key not in acknowledged:
+                if (
+                    reference_key not in acknowledged
+                    and required_lists_are_filled(config, user, employee)
+                ):
                     show = True
                     ack_reference_keys = [reference_key]
 

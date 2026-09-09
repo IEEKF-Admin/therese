@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import tempfile
 import threading
 import time
 
@@ -14,6 +15,7 @@ SCHEDULE_INTERVAL_SECONDS = 60
 CONTRACT_INTERVAL_SECONDS = 60 * 60
 STARTUP_DELAY_SECONDS = 60
 _started = False
+_lock_file = None
 
 
 def should_start_scheduler(argv=None):
@@ -79,10 +81,40 @@ def _loop():
         time.sleep(SCHEDULE_INTERVAL_SECONDS)
 
 
+def _acquire_singleton_lock():
+    """Keep only one scheduler on this machine (e.g. several gunicorn workers)."""
+    global _lock_file
+    path = os.path.join(tempfile.gettempdir(), 'therese-trigger-email-scheduler.lock')
+    handle = open(path, 'a+b')
+    handle.seek(0)
+    if handle.read(1) != b'1':
+        handle.seek(0)
+        handle.write(b'1')
+        handle.flush()
+    handle.seek(0)
+    try:
+        if os.name == 'nt':
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return False
+    _lock_file = handle
+    return True
+
+
 def start_trigger_email_scheduler():
     """Start a daemon thread for scheduled and contract-window trigger emails."""
     global _started
     if _started or not should_start_scheduler():
+        return
+    if not _acquire_singleton_lock():
+        logger.info('Trigger email scheduler not started (another process holds the lock).')
         return
     _started = True
     thread = threading.Thread(

@@ -145,6 +145,19 @@
                     </label>
                     {% endfor %}
                 </div>
+                <label style="margin-top:0.85rem;">Send only if these lists are not empty</label>
+                <p class="field-hint" style="margin:0.2rem 0 0.4rem;">
+                    Optional. The email is sent to a recipient only when every selected list has at least one row.
+                    Leave empty to send regardless of list content.
+                </p>
+                <div id="config-schedule-require-lists" style="display:flex; flex-direction:column; gap:0.25rem; max-height:14rem; overflow:auto; padding:0.35rem 0;">
+                    {% for value, label in schedule_require_list_choices %}
+                    <label style="font-weight:normal; display:inline-flex; align-items:flex-start; gap:0.4rem;">
+                        <input type="checkbox" name="schedule_require_lists" value="{{ value }}" class="config-schedule-require-list">
+                        <span><code>{{ value }}</code> — {{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -462,6 +475,13 @@ function setScheduleWeekdays(values) {
     });
 }
 
+function setScheduleRequireLists(values) {
+    var wanted = new Set((values || []).map(String));
+    document.querySelectorAll('.config-schedule-require-list').forEach(function(box) {
+        box.checked = wanted.has(String(box.value));
+    });
+}
+
 function toggleFields() {
     var trigger = document.getElementById('config-trigger').value;
     document.getElementById('x-months-field').style.display = (trigger === 'contract_ending_soon' || trigger === 'any_contract_ending_soon') ? 'block' : 'none';
@@ -500,6 +520,7 @@ function editConfig(pk) {
     document.getElementById('config-datetime').value = cfg.trigger_datetime || '';
     document.getElementById('config-schedule-time').value = cfg.schedule_time || '';
     setScheduleWeekdays(cfg.schedule_weekdays);
+    setScheduleRequireLists(cfg.schedule_require_lists);
     document.getElementById('config-text').value = cfg.text || '';
     document.getElementById('config-email-subject').value = cfg.email_subject || '';
     setEmailHtml(cfg.email_html || '');
@@ -526,6 +547,7 @@ function resetForm() {
     setMultiSelectValues('config-target-workgroups', []);
     setMultiSelectValues('config-target-groups', []);
     setScheduleWeekdays([]);
+    setScheduleRequireLists([]);
     toggleFields();
 }
 

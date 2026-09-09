@@ -15,6 +15,16 @@ WEEKDAY_CHOICES = [
 ]
 WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+SCHEDULE_REQUIRE_LIST_PREFIXES = (
+    'purchase_orders',
+    'my_purchase_orders',
+    'assigned_tasks',
+    'unopened_tasks',
+    'personnel_tasks',
+    'my_personnel_tasks',
+    'ending_contracts',
+)
+
 
 def parse_schedule_weekdays(raw):
     days = []
@@ -70,6 +80,61 @@ def last_due_schedule_occurrence(config, now=None):
         if occurrence <= local:
             return day, schedule_reference_key(day)
     return None
+
+
+def schedule_require_list_choices():
+    from apps.accounts.template_variables import VARIABLES
+
+    choices = []
+    for var in VARIABLES:
+        if var.get('group') != 'lists':
+            continue
+        key = var['key']
+        if any(key == prefix or key.startswith(prefix + '_') for prefix in SCHEDULE_REQUIRE_LIST_PREFIXES):
+            choices.append((key, var['label']))
+    return choices
+
+
+def parse_schedule_require_lists(raw):
+    allowed = {key for key, _label in schedule_require_list_choices()}
+    keys = []
+    for part in str(raw or '').split(','):
+        key = part.strip()
+        if key and key in allowed and key not in keys:
+            keys.append(key)
+    return keys
+
+
+def encode_schedule_require_lists(values):
+    allowed = {key for key, _label in schedule_require_list_choices()}
+    keys = []
+    for value in values or []:
+        key = str(value).strip()
+        if key in allowed and key not in keys:
+            keys.append(key)
+    return ','.join(keys)
+
+
+def list_value_is_empty(value):
+    from apps.accounts.template_variables import TemplateList
+
+    if value is None:
+        return True
+    if isinstance(value, TemplateList):
+        return not value.rows
+    text = str(value).strip()
+    return text in ('', 'None', '—', '-')
+
+
+def required_lists_are_filled(config, user, employee, replacements=None):
+    keys = parse_schedule_require_lists(getattr(config, 'schedule_require_lists', ''))
+    if not keys:
+        return True
+    if replacements is None:
+        from apps.accounts.template_variables import build_replacement_map
+
+        replacements = build_replacement_map(user, employee)
+    return all(not list_value_is_empty(replacements.get(key)) for key in keys)
 
 
 def current_due_schedule_occurrence(config, now=None):

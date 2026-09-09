@@ -111,12 +111,17 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.tasks.create_personnel_task or perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
+    {% if perms.tasks.create_personnel_task or perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or perms.hr.manage_working_group or user.is_superuser %}
     <div class="sidebar-heading">Personnel Management</div>
 
     {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
     <a href="{% url 'hr:employee_list' %}"
-       class="{% if '/hr/employees' in request.path or request.path == '/hr/' %}active{% endif %}">
+       class="{% if '/hr/employees' in request.path or request.path == '/hr/' or '/hr/workgroups' in request.path %}active{% endif %}">
+        <i class="fas fa-users"></i> Employees
+    </a>
+    {% elif perms.hr.manage_working_group %}
+    <a href="{% url 'hr:workgroup_list' %}"
+       class="{% if '/hr/workgroups' in request.path %}active{% endif %}">
         <i class="fas fa-users"></i> Employees
     </a>
     {% endif %}
@@ -151,7 +156,7 @@
     {% endif %}
     {% endif %}
 
-    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.hr.manage_location or perms.hr.manage_working_group or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or 'Finances - Superassistant' in user_groups or user.is_superuser %}
+    {% if perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or perms.finances.manage_cost_center or perms.finances.manage_all_cost_centers or perms.hr.manage_location or perms.documents.manage_document or perms.checklists.manage_checklist or perms.core.configure_email or 'HR - Superassistant' in user_groups or 'Finances - Superassistant' in user_groups or user.is_superuser %}
     <div class="sidebar-heading">Administration</div>
 
     {% if perms.hr.manage_location or user.is_superuser %}
@@ -162,12 +167,8 @@
     {% endif %}
 
     {% if perms.documents.manage_document or user.is_superuser %}
-    <a href="{% url 'documents:manage_categories' %}"
-       class="{% if '/documents/manage/categories' in request.path %}active{% endif %}">
-        <i class="fas fa-folder-tree"></i> Document Categories
-    </a>
     <a href="{% url 'documents:manage_list' %}"
-       class="{% if '/documents/manage/' in request.path and '/documents/manage/categories' not in request.path %}active{% endif %}">
+       class="{% if '/documents/manage/' in request.path %}active{% endif %}">
         <i class="fas fa-file-alt"></i> Documents &amp; SOPs
     </a>
     {% endif %}
@@ -181,13 +182,6 @@
     <a href="{% url 'tasks:limitation_reason_manage' %}"
        class="{% if '/tasks/admin/limitation-reasons' in request.path %}active{% endif %}">
         <i class="fas fa-file-signature"></i> Limitation Reasons
-    </a>
-    {% endif %}
-
-    {% if 'Systemadmin' in user_groups or 'HR - Superassistant' in user_groups or user.is_superuser %}
-    <a href="{% url 'core_settings:global_settings' %}"
-       class="{% if '/settings/global' in request.path or '/tasks/admin/workflow' in request.path %}active{% endif %}">
-        <i class="fas fa-sliders-h"></i> Global Settings
     </a>
     {% endif %}
 
@@ -212,12 +206,6 @@
     </a>
     {% endif %}
 
-    {% if perms.hr.manage_working_group or user.is_superuser %}
-    <a href="{% url 'hr:workgroup_list' %}"
-       class="{% if 'workgroup' in request.path %}active{% endif %}">
-        <i class="fas fa-users-cog"></i> Working Groups
-    </a>
-    {% endif %}
     {% endif %}
 
     {% if perms.finances.import_pay_scale or perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}
@@ -228,18 +216,19 @@
         <i class="fas fa-table"></i> Pay Scales / TV-L
     </a>
     {% endif %}
-    {% if perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}
-    <a href="{% url 'finances:third_party_funding_import' %}"
-       class="{% if 'import/third-party-funding' in request.path and 'history' not in request.path %}active{% endif %}">
+    {% if perms.finances.import_third_party_funding_report or perms.finances.import_pay_scale or 'Finances - Superassistant' in user_groups or user.is_superuser %}
+    <a href="{% if perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}{% url 'finances:third_party_funding_import' %}{% else %}{% url 'finances:third_party_funding_import_history' %}{% endif %}"
+       class="{% if 'import/third-party-funding' in request.path %}active{% endif %}">
         <i class="fas fa-file-excel"></i> Third-party Funding Reports
     </a>
     {% endif %}
-    {# History: all users who may run any tracked import (funding and/or pay scales) #}
-    {% if perms.finances.import_third_party_funding_report or perms.finances.import_pay_scale or 'Finances - Superassistant' in user_groups or user.is_superuser %}
-    <a href="{% url 'finances:third_party_funding_import_history' %}"
-       class="{% if 'import/third-party-funding/history' in request.path %}active{% endif %}">
-        <i class="fas fa-history"></i> Funding Import History
-    </a>
     {% endif %}
+
+    {% if 'Systemadmin' in user_groups or 'HR - Superassistant' in user_groups or user.is_superuser %}
+    <div class="sidebar-heading">System Administration</div>
+    <a href="{% url 'core_settings:global_settings' %}"
+       class="{% if '/settings/global' in request.path or '/tasks/admin/workflow' in request.path %}active{% endif %}">
+        <i class="fas fa-sliders-h"></i> Global Settings
+    </a>
     {% endif %}
 </nav>

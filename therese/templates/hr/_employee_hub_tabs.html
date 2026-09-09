@@ -1,0 +1,10 @@
+{% if perms.hr.manage_working_group %}
+<div class="settings-tabs" role="tablist">
+    {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
+    <a href="{% url 'hr:employee_list' %}"
+       class="settings-tab{% if '/hr/workgroups' not in request.path %} is-active{% endif %}">Employees</a>
+    {% endif %}
+    <a href="{% url 'hr:workgroup_list' %}"
+       class="settings-tab{% if '/hr/workgroups' in request.path %} is-active{% endif %}">Working Groups</a>
+</div>
+{% endif %}

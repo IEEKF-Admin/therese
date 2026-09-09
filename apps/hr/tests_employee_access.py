@@ -111,6 +111,19 @@ class EmployeeAccessTests(TestCase):
         self.assertIn('View', response.content.decode())
         self.assertNotIn('<html', response.content.decode().lower())
 
+    def test_employee_list_shows_workgroup_tab_not_sidebar_item(self):
+        wg_ct = ContentType.objects.get_for_model(Workgroup)
+        self.manager.user_permissions.add(
+            Permission.objects.get(content_type=wg_ct, codename='manage_working_group')
+        )
+        client = Client()
+        client.login(username='manager', password='test')
+        resp = client.get('/hr/employees/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'settings-tab')
+        self.assertContains(resp, reverse('hr:workgroup_list'))
+        self.assertNotContains(resp, 'fa-users-cog')
+
     def test_list_view_respects_scope(self):
         client = Client()
         client.login(username='viewer', password='test')

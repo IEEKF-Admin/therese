@@ -13,12 +13,11 @@
         </p>
     </div>
     <div class="page-header-actions">
-        <a href="{% url 'finances:third_party_funding_import_history' %}" class="btn-secondary">
-            Upload history
-        </a>
         <a href="{% url 'tasks:my_tasks' %}" class="btn-secondary">← Back to My Tasks</a>
     </div>
 </div>
+
+{% include "finances/_funding_import_tabs.html" %}
 
 <form method="post" enctype="multipart/form-data" class="form-card" style="max-width: 40rem;">
     {% csrf_token %}

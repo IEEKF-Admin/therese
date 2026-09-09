@@ -1,0 +1,8 @@
+<div class="settings-tabs" role="tablist">
+    {% if perms.finances.import_third_party_funding_report or 'Finances - Superassistant' in user_groups or user.is_superuser %}
+    <a href="{% url 'finances:third_party_funding_import' %}"
+       class="settings-tab{% if 'history' not in request.path %} is-active{% endif %}">Import</a>
+    {% endif %}
+    <a href="{% url 'finances:third_party_funding_import_history' %}"
+       class="settings-tab{% if 'history' in request.path %} is-active{% endif %}">History</a>
+</div>

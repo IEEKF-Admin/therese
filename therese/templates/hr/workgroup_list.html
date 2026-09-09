@@ -10,6 +10,8 @@
     </div>
 </div>
 
+{% include "hr/_employee_hub_tabs.html" %}
+
 <form method="post" id="bulk-delete-form" class="list-panel">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected">

@@ -616,6 +616,8 @@ class ReportImportViewTests(TestCase):
         response = self.client.get('/finances/import/third-party-funding/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Reference year')
+        self.assertContains(response, 'History')
+        self.assertNotContains(response, 'Funding Import History')
 
 
 def _write_budget_header(ws, row: int):

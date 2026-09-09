@@ -46,6 +46,8 @@ class GlobalSettingsViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Global Settings')
+        self.assertContains(response, 'System Administration')
+        self.assertNotContains(response, 'Document Categories')
         self.assertContains(response, 'Default Weekly Working Hours')
         self.assertContains(response, 'Account emails')
         posted = self.client.post(url, {

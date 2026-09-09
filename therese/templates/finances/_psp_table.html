@@ -18,7 +18,7 @@
         </thead>
         <tbody>
             {% for psp in psp_elements %}
-            <tr>
+            <tr{% if psp.is_inactive %} class="is-inactive"{% endif %}>
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ psp.pk }}"></td>
                 <td class="psp-code-col">
                     <span style="font-family:ui-monospace,monospace;">{{ psp.wbs_code }}</span>

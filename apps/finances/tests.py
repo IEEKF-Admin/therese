@@ -557,6 +557,40 @@ class PSPManageAccessTests(TestCase):
         view.request = request
         self.assertIn(orphan, list(view.get_queryset()))
 
+    def test_list_hides_inactive_psp_unless_toggled(self):
+        inactive = WBSElement.objects.create(
+            wbs_code='WBS-A-INACTIVE',
+            title='Inactive PSP',
+            cost_center=self.cost_center,
+            work_group=self.workgroup_a,
+            is_inactive=True,
+        )
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        hidden = client.get('/finances/psp/manage/')
+        self.assertEqual(hidden.status_code, 200)
+        self.assertNotContains(hidden, inactive.wbs_code)
+        self.assertContains(hidden, 'Show inactive')
+        shown = client.get('/finances/psp/manage/', {'show_inactive': '1'})
+        self.assertContains(shown, inactive.wbs_code)
+
+    def test_psp_edit_has_previous_next_in_code_order(self):
+        extra = WBSElement.objects.create(
+            wbs_code='WBS-A-2',
+            title='Second A',
+            cost_center=self.cost_center,
+            work_group=self.workgroup_a,
+        )
+        client = Client()
+        client.login(username='psp-group-manager', password='test')
+        first = client.get(f'/finances/psp/manage/{self.psp_group_a.pk}/edit/')
+        self.assertEqual(first.status_code, 200)
+        self.assertContains(first, f'/finances/psp/manage/{extra.pk}/edit/')
+        self.assertContains(first, 'Next →')
+        second = client.get(f'/finances/psp/manage/{extra.pk}/edit/')
+        self.assertContains(second, f'/finances/psp/manage/{self.psp_group_a.pk}/edit/')
+        self.assertContains(second, '← Previous')
+
     def test_manage_hub_uses_tabs_and_marks_incomplete_psp(self):
         client = Client()
         client.login(username='psp-group-manager', password='test')

@@ -1,0 +1,14 @@
+{% if prev_item_url or next_item_url %}
+<nav class="record-nav" aria-label="Record navigation">
+    {% if prev_item_url %}
+    <a href="{{ prev_item_url }}" class="btn-secondary">← Previous</a>
+    {% else %}
+    <span class="btn-secondary record-nav-disabled">← Previous</span>
+    {% endif %}
+    {% if next_item_url %}
+    <a href="{{ next_item_url }}" class="btn-secondary">Next →</a>
+    {% else %}
+    <span class="btn-secondary record-nav-disabled">Next →</span>
+    {% endif %}
+</nav>
+{% endif %}

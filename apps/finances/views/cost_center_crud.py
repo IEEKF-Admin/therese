@@ -18,6 +18,7 @@ from apps.finances.cost_center_access import (
     user_can_manage_cost_center,
     user_manages_all_cost_centers,
 )
+from apps.core.record_nav import adjacent_item_urls
 from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import CostCenterForm, CostCenterYearEstimateFormSet
 from ..models import CostCenter
@@ -174,6 +175,14 @@ class CostCenterUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         else:
             context['year_estimate_formset'] = CostCenterYearEstimateFormSet(instance=self.object)
         context['title'] = 'Edit Cost Center'
+        nav_qs = _cost_center_manage_queryset(
+            CostCenter.objects.all(), self.request.user,
+        ).order_by('cost_center', 'pk')
+        prev_url, next_url = adjacent_item_urls(
+            nav_qs, self.object.pk, 'finances:cost_center_update',
+        )
+        context['prev_item_url'] = prev_url
+        context['next_item_url'] = next_url
         return context
 
     def post(self, request, *args, **kwargs):

@@ -12,6 +12,15 @@
         {% endif %}
         {% else %}
         {% if can_manage_psp %}
+        <form method="get" class="inactive-switch-form">
+            <label class="switch-toggle">
+                <span>Show inactive</span>
+                <input type="checkbox" name="show_inactive" value="1"
+                       {% if show_inactive %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <span class="switch-track" aria-hidden="true"></span>
+            </label>
+        </form>
         <a href="{% url 'finances:psp_create' %}" class="btn-primary">+ New PSP element</a>
         {% endif %}
         {% endif %}

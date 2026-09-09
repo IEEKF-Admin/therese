@@ -135,6 +135,21 @@ class EmployeeAccessTests(TestCase):
             follow.content.decode(),
         )
 
+    def test_employee_edit_has_previous_next_by_name(self):
+        emp_c = Employee.objects.create(
+            employee_number='C1', first_name='In', last_name='C',
+        )
+        self.wg_a.members.add(emp_c)
+        client = Client()
+        client.login(username='manager', password='test')
+        # last_name order among wg_a: A (emp_a), Ager (manager), C (emp_c), Er (viewer)
+        middle = client.get(f'/hr/employees/{emp_c.pk}/edit/')
+        self.assertEqual(middle.status_code, 200)
+        self.assertContains(middle, f'/hr/employees/{self.manager_emp.pk}/edit/')
+        self.assertContains(middle, f'/hr/employees/{self.viewer_emp.pk}/edit/')
+        self.assertContains(middle, '← Previous')
+        self.assertContains(middle, 'Next →')
+
     def test_edit_blocked_outside_workgroup(self):
         client = Client()
         client.login(username='manager', password='test')

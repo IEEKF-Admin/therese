@@ -85,6 +85,18 @@ def filter_employees_for_user(queryset, user):
     return queryset.filter(workgroups__in=wg_ids).distinct()
 
 
+def filter_employees_for_manage(queryset, user):
+    """Employees the user may edit, in list order."""
+    if user_manages_all_employees(user):
+        return queryset
+    if not user.has_perm('hr.manage_employee'):
+        return queryset.none()
+    wg_ids = user_workgroup_ids(user)
+    if not wg_ids:
+        return queryset.none()
+    return queryset.filter(workgroups__in=wg_ids).distinct()
+
+
 def user_can_view_employee(user, employee: Employee) -> bool:
     if not user_can_view_employee_list(user) or employee is None:
         return False

@@ -33,7 +33,9 @@ from ..employee_form_helpers import (
     salary_prefix_for_existing,
     salary_prefix_for_new,
 )
+from apps.core.record_nav import adjacent_item_urls
 from apps.hr.employee_access import (
+    filter_employees_for_manage,
     filter_employees_for_user,
     user_can_manage_employee,
     user_can_manage_employees,
@@ -678,6 +680,14 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                 if c.get('salary_formset') is not None
             ]
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
+        nav_qs = filter_employees_for_manage(
+            Employee.objects.all(), self.request.user,
+        ).order_by('last_name', 'first_name', 'pk')
+        prev_item_url, next_item_url = adjacent_item_urls(
+            nav_qs, employee.pk, 'hr:employee_update',
+        )
+        context['prev_item_url'] = prev_item_url
+        context['next_item_url'] = next_item_url
         context['current_payscales_json'] = current_payscales_json()
         context.update(employee_document_context(self.request, self.object))
         from apps.accounts.permissions import user_can_reset_user_password

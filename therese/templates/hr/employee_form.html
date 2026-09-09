@@ -225,6 +225,7 @@
     <div class="employee-form-heading">
         <a href="{% url 'hr:employee_list' %}" class="back-link">← Back to List</a>
         <h1>{% if object %}Edit{% else %}Create{% endif %} Employee</h1>
+        {% include "includes/record_nav.html" %}
     </div>
     {% if profile_picture_url %}
     <img src="{{ profile_picture_url }}" alt="Profile picture" class="employee-form-photo">

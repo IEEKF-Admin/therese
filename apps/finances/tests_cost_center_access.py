@@ -2,7 +2,7 @@
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from django.test import RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase
 
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames, assign_permissions_to_groups
@@ -112,3 +112,18 @@ class CostCenterManageAccessTests(TestCase):
         pks = set(queryset.values_list('pk', flat=True))
         self.assertIn(self.cc_a.pk, pks)
         self.assertNotIn(self.cc_b.pk, pks)
+
+    def test_cost_center_edit_has_previous_next(self):
+        extra = CostCenter.objects.create(
+            cost_center='CC-MGR-C',
+            work_group=self.workgroup_a,
+        )
+        client = Client()
+        client.login(username='cc-group-manager', password='test')
+        first = client.get(f'/finances/cost-centers/manage/{self.cc_a.pk}/edit/')
+        self.assertEqual(first.status_code, 200)
+        self.assertContains(first, f'/finances/cost-centers/manage/{extra.pk}/edit/')
+        self.assertContains(first, 'Next →')
+        second = client.get(f'/finances/cost-centers/manage/{extra.pk}/edit/')
+        self.assertContains(second, f'/finances/cost-centers/manage/{self.cc_a.pk}/edit/')
+        self.assertContains(second, '← Previous')

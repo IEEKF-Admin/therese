@@ -23,10 +23,15 @@ from apps.finances.psp_access import (
     user_can_manage_psp,
     user_manages_all_psp,
 )
+from apps.core.record_nav import adjacent_item_urls
 from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import CostCenter, WBSElement
 from ..psp_cost_types import clear_disabled_year_estimate_amounts
+
+
+def _show_inactive_psp(request) -> bool:
+    return (request.GET.get('show_inactive') or '').strip() in {'1', 'on', 'true', 'yes'}
 
 
 def _psp_delete_blocker_labels(wbs_element):
@@ -111,8 +116,11 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             return WBSElement.objects.none()
         queryset = WBSElement.objects.select_related(
             'work_group', 'responsible_person', 'cost_center',
-        )
-        return _psp_manage_queryset(queryset, self.request.user)
+        ).order_by('wbs_code', 'pk')
+        queryset = _psp_manage_queryset(queryset, self.request.user)
+        if not _show_inactive_psp(self.request):
+            queryset = queryset.filter(is_inactive=False)
+        return queryset
 
     def test_func(self):
         user = self.request.user
@@ -142,6 +150,7 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             'can_manage_cost_centers': can_cc,
             'active_tab': active_tab,
             'cost_centers': cost_centers,
+            'show_inactive': _show_inactive_psp(self.request),
         })
         return context
 
@@ -303,6 +312,14 @@ class PSPUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             context['year_estimate_formset'] = WBSElementYearEstimateFormSet(instance=self.object)
         context['title'] = 'Edit PSP element'
         context['hide_work_group_field'] = False
+        nav_qs = _psp_manage_queryset(
+            WBSElement.objects.all(), self.request.user,
+        ).order_by('wbs_code', 'pk')
+        prev_url, next_url = adjacent_item_urls(
+            nav_qs, self.object.pk, 'finances:psp_update',
+        )
+        context['prev_item_url'] = prev_url
+        context['next_item_url'] = next_url
         return context
 
     def post(self, request, *args, **kwargs):

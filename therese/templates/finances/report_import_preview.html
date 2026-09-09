@@ -139,6 +139,12 @@
         {% endif %}
 
         {% if plan.import_scopes.psp and not parent.personnel_only_stub %}
+        {% if parent.fill_empty_only %}
+        <p class="text-muted" style="font-size:0.85rem;">
+            Gesamtbericht: empty master data only
+            {% if parent.has_financials %}; financials from child rows{% else %}; no financial snapshots{% endif %}.
+        </p>
+        {% endif %}
         {% if parent.needs_title %}
         <div class="form-field">
             <label for="title__{{ parent.wbs_code }}">Title for new PSP element (required)</label>
@@ -146,6 +152,8 @@
                    id="title__{{ parent.wbs_code }}" required
                    placeholder="Enter PSP title">
         </div>
+        {% elif parent.action == 'create' and parent.proposed_title %}
+        <p><strong>Title from file:</strong> {{ parent.proposed_title }}</p>
         {% else %}
         <p><strong>Existing title (unchanged):</strong> {{ parent.existing_title }}</p>
         {% endif %}
@@ -160,6 +168,12 @@
                     <th>Period start / end</th>
                     <td>{{ parent.period_start|default:"—" }} → {{ parent.period_end|default:"—" }}</td>
                 </tr>
+                {% if parent.will_set_inactive %}
+                <tr>
+                    <th>Status</th>
+                    <td>Will be set <strong>inactive</strong> (period end is in the past)</td>
+                </tr>
+                {% endif %}
                 <tr>
                     <th>Contact</th>
                     <td>
@@ -214,7 +228,7 @@
         {% endif %}
 
         {% if parent.field_diffs %}
-        <h4>Field updates</h4>
+        <h4>{% if parent.fill_empty_only %}Empty fields to fill{% else %}Field updates{% endif %}</h4>
         <table class="table" style="width:100%;">
             <thead>
                 <tr><th>Field</th><th>Current</th><th>From file</th></tr>
@@ -243,6 +257,9 @@
             {% endfor %}
         </ul>
 
+        {% if parent.has_financials == False %}
+        <p class="text-muted">No cost-type child rows — financial snapshots will not be written.</p>
+        {% else %}
         <h4>
             Lifetime plan (Freigegebenes Budget → overwrite)
             {% if parent.year_estimate.action == 'update' %}
@@ -300,6 +317,7 @@
                 </tr>
             </tbody>
         </table>
+        {% endif %}{# has_financials #}
 
         {% if parent.year_plausibility_warning %}
         <p class="text-warning">

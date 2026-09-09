@@ -121,6 +121,30 @@ def split_wbs_code(code: str) -> tuple[str, str | None]:
     return text, None
 
 
+def load_uebersicht_rows(file_obj) -> tuple[list[list] | None, list[str], str | None]:
+    """Load sheet Übersicht. Returns (rows, sheetnames, error)."""
+    try:
+        data = file_obj.read() if hasattr(file_obj, 'read') else file_obj
+        if isinstance(data, bytes):
+            wb = load_workbook(BytesIO(data), data_only=True, read_only=True)
+        else:
+            wb = load_workbook(file_obj, data_only=True, read_only=True)
+    except Exception as exc:  # noqa: BLE001 - surface parse errors in UI
+        return None, [], f'Could not open workbook: {exc}'
+
+    try:
+        names = list(wb.sheetnames)
+        if 'Übersicht' not in names:
+            return None, names, (
+                f'Sheet "Übersicht" not found. Available: {", ".join(names)}'
+            )
+        ws = wb['Übersicht']
+        rows = [list(row) for row in ws.iter_rows(values_only=True)]
+        return rows, names, None
+    finally:
+        wb.close()
+
+
 class UebersichtPspParser(ReportParser):
     """Parse the first logical overview sheet of a Drittmittelbericht workbook."""
 
@@ -129,29 +153,14 @@ class UebersichtPspParser(ReportParser):
 
     def parse(self, file_obj, filename: str) -> ParsedReportFile:
         result = ParsedReportFile(filename=filename, report_kind=self.report_kind)
-        try:
-            data = file_obj.read() if hasattr(file_obj, 'read') else file_obj
-            if isinstance(data, bytes):
-                wb = load_workbook(BytesIO(data), data_only=True, read_only=True)
-            else:
-                wb = load_workbook(file_obj, data_only=True, read_only=True)
-        except Exception as exc:  # noqa: BLE001 - surface parse errors in UI
-            result.errors.append(f'Could not open workbook: {exc}')
+        rows, _names, error = load_uebersicht_rows(file_obj)
+        if error:
+            result.errors.append(error)
             return result
+        return self.parse_rows(rows, filename)
 
-        try:
-            if self.sheet_name not in wb.sheetnames:
-                result.errors.append(
-                    f'Sheet "{self.sheet_name}" not found. Available: {", ".join(wb.sheetnames)}'
-                )
-                return result
-            ws = wb[self.sheet_name]
-            rows = []
-            for row in ws.iter_rows(values_only=True):
-                rows.append(list(row))
-        finally:
-            wb.close()
-
+    def parse_rows(self, rows: list[list], filename: str) -> ParsedReportFile:
+        result = ParsedReportFile(filename=filename, report_kind=self.report_kind)
         parent = self._parse_sheet_rows(rows, filename)
         if parent is None:
             result.errors.append('No parent PSP code found on Übersicht sheet.')

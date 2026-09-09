@@ -19,6 +19,11 @@ from apps.finances.models import (
     WBSElementTrueYearlySpending,
     WBSElementYearEstimate,
 )
+from apps.finances.report_import.parsers import detect_and_parse
+from apps.finances.report_import.parsers.gesamtbericht import (
+    GesamtberichtPspParser,
+    report_date_from_filename,
+)
 from apps.finances.report_import.parsers.personalkosten import extract_beleg_date_range
 from apps.finances.report_import.parsers.uebersicht import UebersichtPspParser
 from apps.core.import_tracking import (
@@ -266,6 +271,18 @@ class UebersichtParserTests(TestCase):
 
 
 class CostCenterLookupTests(TestCase):
+    def test_creates_with_code_after_slash(self):
+        from apps.finances.report_import.service import get_or_create_cost_center
+
+        cc, created = get_or_create_cost_center('0001/991000')
+        self.assertTrue(created)
+        self.assertEqual(cc.cost_center, '991000')
+
+        again, created_again = get_or_create_cost_center('0001/991000')
+        self.assertFalse(created_again)
+        self.assertEqual(again.pk, cc.pk)
+        self.assertEqual(CostCenter.objects.filter(cost_center__contains='991000').count(), 1)
+
     def test_matches_short_code_when_file_has_prefix(self):
         from apps.finances.report_import.service import find_cost_center, get_or_create_cost_center
 
@@ -342,7 +359,7 @@ class ReportImportServiceTests(TestCase):
         self.assertFalse(wbs.subject_to_annual_recurrence)
         self.assertTrue(wbs.has_material_costs)
         self.assertTrue(wbs.has_personnel_costs)
-        self.assertEqual(wbs.cost_center.cost_center, '0001/991000')
+        self.assertEqual(wbs.cost_center.cost_center, '991000')
         self.assertEqual(wbs.contact_person.last_name, 'Muster')
 
         # Non-annual: single lifetime plan (technical year = project start year 2026)
@@ -599,3 +616,347 @@ class ReportImportViewTests(TestCase):
         response = self.client.get('/finances/import/third-party-funding/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Reference year')
+
+
+def _write_budget_header(ws, row: int):
+    ws.cell(row, 2, 'Projekt')
+    ws.cell(row, 3, 'PSP Bezeichnung')
+    ws.cell(row, 5, 'Freigegebenes Budget')
+    ws.cell(row, 6, 'Ist-Kosten')
+    ws.cell(row, 8, 'Obligo')
+    ws.cell(row, 9, 'Personalobligo')
+    ws.cell(row, 10, 'Restaufplan')
+    ws.cell(row, 11, 'Verfügt')
+    ws.cell(row, 12, 'Verfügbar')
+
+
+def _build_gesamtbericht_workbook() -> bytes:
+    """Two parents: one with .1/.2 children, one parent-only with placeholder CC."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Übersicht'
+    ws['B2'] = 'Projekt'
+    ws['C2'] = 'Kostenstelle'
+    ws['D2'] = 'Text'
+    ws['G2'] = 'Projektdefinition'
+    ws['J2'] = 'Projektende'
+    ws['K2'] = 'Projektleitung'
+
+    ws['B3'] = 'G-100.0001'
+    ws['C3'] = '0001/991000'
+    ws['D3'] = 'Gesamt Parent One'
+    ws['G3'] = 'DFG-ABC'
+    ws['J3'] = date(2028, 12, 31)
+    ws['B4'] = 'G-100.0001.1'
+    ws['C4'] = '0001/991000'
+    ws['D4'] = 'Sachaufwendungen'
+    ws['G4'] = 'DFG-ABC'
+    ws['J4'] = date(2028, 12, 31)
+    ws['B5'] = 'G-100.0001.2'
+    ws['C5'] = '0001/991000'
+    ws['D5'] = 'Personalaufwendungen'
+    ws['G5'] = 'DFG-ABC'
+    ws['J5'] = date(2028, 12, 31)
+
+    ws['B6'] = 'G-200.0002'
+    ws['C6'] = '0001/#'
+    ws['D6'] = 'Parent Only Title'
+    ws['G6'] = 'Other Funder'
+    ws['J6'] = '#'
+
+    _write_budget_header(ws, 8)
+    ws['B9'] = 'G-100.0001'
+    ws['C9'] = 'Gesamt Parent One'
+    ws['E9'] = 0
+    ws['F9'] = 0
+    ws['H9'] = 0
+    ws['I9'] = 0
+    ws['K9'] = 0
+    ws['B10'] = 'G-100.0001.1'
+    ws['C10'] = 'Sachaufwendungen'
+    ws['E10'] = 10000
+    ws['F10'] = 1000
+    ws['H10'] = 200
+    ws['I10'] = 0
+    ws['K10'] = 1200
+    ws['B11'] = 'G-100.0001.2'
+    ws['C11'] = 'Personalaufwendungen'
+    ws['E11'] = 50000
+    ws['F11'] = 5000
+    ws['H11'] = 0
+    ws['I11'] = 8000
+    ws['K11'] = 13000
+    ws['E12'] = 60000
+    ws['F12'] = 6000
+    ws['H12'] = 200
+    ws['I12'] = 8000
+    ws['K12'] = 14200
+
+    _write_budget_header(ws, 14)
+    ws['B15'] = 'G-200.0002'
+    ws['C15'] = 'Parent Only Title'
+    ws['E15'] = 99999
+    ws['F15'] = 1
+    ws['H15'] = 2
+    ws['I15'] = 3
+    ws['K15'] = 4
+    ws['E16'] = 99999
+    ws['F16'] = 1
+    ws['H16'] = 2
+    ws['I16'] = 3
+    ws['K16'] = 4
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+class GesamtberichtParserTests(TestCase):
+    def test_filename_date(self):
+        self.assertEqual(
+            report_date_from_filename('Drittmittelbericht Gesamtbericht070926.xlsx'),
+            date(2026, 9, 7),
+        )
+
+    def test_detects_gesamtbericht_by_filename_and_headers(self):
+        data = _build_gesamtbericht_workbook()
+        by_name = detect_and_parse(data, 'Drittmittelbericht Gesamtbericht070926.xlsx')
+        self.assertEqual(by_name.report_kind, 'psp_gesamtbericht')
+        self.assertFalse(by_name.errors)
+
+        by_header = detect_and_parse(data, 'summary.xlsx')
+        self.assertEqual(by_header.report_kind, 'psp_gesamtbericht')
+
+        einzel = detect_and_parse(_build_sample_workbook(), 'sample.xlsx')
+        self.assertEqual(einzel.report_kind, 'psp_uebersicht')
+        self.assertEqual(len(einzel.parents), 1)
+
+    def test_parses_parents_children_and_skips_parent_totals(self):
+        data = _build_gesamtbericht_workbook()
+        result = GesamtberichtPspParser().parse(
+            data, 'Drittmittelbericht Gesamtbericht070926.xlsx'
+        )
+        self.assertFalse(result.errors)
+        self.assertEqual(len(result.parents), 2)
+        by_code = {p.wbs_code: p for p in result.parents}
+
+        one = by_code['G-100.0001']
+        self.assertEqual(one.title, 'Gesamt Parent One')
+        self.assertEqual(one.third_party_funder_identifier, 'DFG-ABC')
+        self.assertEqual(one.cost_center_code, '0001/991000')
+        self.assertFalse(one.cost_center_is_placeholder)
+        self.assertEqual(one.period_end, date(2028, 12, 31))
+        self.assertEqual(one.report_created_on, date(2026, 9, 7))
+        self.assertEqual(one.cost_types['1'].approved_budget, Decimal('10000'))
+        self.assertEqual(one.cost_types['1'].verfuegt, Decimal('1200'))
+        self.assertEqual(one.cost_types['1'].obligo, Decimal('200'))
+        self.assertEqual(one.cost_types['2'].personal_obligo, Decimal('8000'))
+        self.assertNotIn('parent_total', one.cost_types)
+
+        two = by_code['G-200.0002']
+        self.assertEqual(two.title, 'Parent Only Title')
+        self.assertEqual(two.third_party_funder_identifier, 'Other Funder')
+        self.assertTrue(two.cost_center_is_placeholder)
+        self.assertIsNone(two.period_end)
+        self.assertEqual(two.cost_types, {})
+
+
+class GesamtberichtImportServiceTests(TestCase):
+    def test_create_uses_title_from_file_without_post(self):
+        data = _build_gesamtbericht_workbook()
+        upload = SimpleUploadedFile(
+            'Drittmittelbericht Gesamtbericht070926.xlsx', data
+        )
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        self.assertEqual(len(plan['parents']), 2)
+        one = next(p for p in plan['parents'] if p['wbs_code'] == 'G-100.0001')
+        self.assertEqual(one['action'], 'create')
+        self.assertFalse(one['needs_title'])
+        self.assertEqual(one['proposed_title'], 'Gesamt Parent One')
+        self.assertTrue(one['fill_empty_only'])
+        self.assertTrue(one['has_financials'])
+        two = next(p for p in plan['parents'] if p['wbs_code'] == 'G-200.0002')
+        self.assertFalse(two['has_financials'])
+        self.assertFalse(two['cost_center']['needs_user_choice'])
+
+        plan, errors = merge_user_decisions(plan, {})
+        self.assertEqual(errors, [])
+        summary = apply_import_plan(plan)
+        self.assertEqual(summary['psp_created'], 2)
+
+        wbs = WBSElement.objects.get(wbs_code='G-100.0001')
+        self.assertEqual(wbs.title, 'Gesamt Parent One')
+        self.assertEqual(wbs.third_party_funder_identifier, 'DFG-ABC')
+        self.assertEqual(wbs.cost_center.cost_center, '991000')
+        self.assertTrue(wbs.has_material_costs)
+        self.assertTrue(wbs.has_personnel_costs)
+        self.assertEqual(wbs.year_estimates.get().material_costs, Decimal('10000'))
+        true = WBSElementTrueYearlySpending.objects.get(wbs_element=wbs)
+        self.assertEqual(true.material_costs, Decimal('1200'))
+
+        stub = WBSElement.objects.get(wbs_code='G-200.0002')
+        self.assertEqual(stub.title, 'Parent Only Title')
+        self.assertIsNone(stub.cost_center)
+        self.assertFalse(stub.year_estimates.exists())
+        self.assertFalse(
+            WBSElementTrueYearlySpending.objects.filter(wbs_element=stub).exists()
+        )
+
+    def test_update_fills_empty_master_data_only(self):
+        cc_old = CostCenter.objects.create(cost_center='888888')
+        rich = WBSElement.objects.create(
+            wbs_code='G-100.0001',
+            title='Rich Title',
+            cost_center=cc_old,
+            third_party_funder_identifier='RICH-FUNDER',
+            period_end=date(2030, 1, 1),
+            subject_to_annual_recurrence=True,
+        )
+        empty = WBSElement.objects.create(
+            wbs_code='G-200.0002',
+            title='Keep Empty Title',
+        )
+        data = _build_gesamtbericht_workbook()
+        upload = SimpleUploadedFile(
+            'Drittmittelbericht Gesamtbericht070926.xlsx', data
+        )
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        rich_plan = next(p for p in plan['parents'] if p['wbs_code'] == 'G-100.0001')
+        self.assertEqual(rich_plan['action'], 'update')
+        self.assertFalse(rich_plan['needs_title'])
+        self.assertEqual(rich_plan['field_diffs'], [])
+
+        empty_plan = next(p for p in plan['parents'] if p['wbs_code'] == 'G-200.0002')
+        diff_fields = {d['field'] for d in empty_plan['field_diffs']}
+        self.assertIn('third_party_funder_identifier', diff_fields)
+
+        plan, errors = merge_user_decisions(plan, {})
+        self.assertEqual(errors, [])
+        apply_import_plan(plan)
+
+        rich.refresh_from_db()
+        self.assertEqual(rich.title, 'Rich Title')
+        self.assertEqual(rich.third_party_funder_identifier, 'RICH-FUNDER')
+        self.assertEqual(rich.period_end, date(2030, 1, 1))
+        self.assertEqual(rich.cost_center_id, cc_old.pk)
+        self.assertTrue(rich.subject_to_annual_recurrence)
+        self.assertTrue(rich.has_material_costs)
+        self.assertTrue(rich.has_personnel_costs)
+
+        empty.refresh_from_db()
+        self.assertEqual(empty.title, 'Keep Empty Title')
+        self.assertEqual(empty.third_party_funder_identifier, 'Other Funder')
+        self.assertIsNone(empty.period_end)
+        self.assertIsNone(empty.cost_center)
+
+    def test_past_projektende_sets_inactive(self):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Übersicht'
+        ws['B2'] = 'Projekt'
+        ws['C2'] = 'Kostenstelle'
+        ws['D2'] = 'Text'
+        ws['G2'] = 'Projektdefinition'
+        ws['J2'] = 'Projektende'
+        ws['B3'] = 'G-300.0003'
+        ws['C3'] = '0001/991000'
+        ws['D3'] = 'Ended Project'
+        ws['G3'] = 'Funder X'
+        ws['J3'] = date(2020, 6, 1)
+        buf = BytesIO()
+        wb.save(buf)
+        data = buf.getvalue()
+
+        upload = SimpleUploadedFile('Gesamtbericht010120.xlsx', data)
+        plan = analyze_uploaded_files(
+            [upload],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        parent = plan['parents'][0]
+        self.assertTrue(parent['will_set_inactive'])
+        plan, errors = merge_user_decisions(plan, {})
+        self.assertEqual(errors, [])
+        apply_import_plan(plan)
+        wbs = WBSElement.objects.get(wbs_code='G-300.0003')
+        self.assertTrue(wbs.is_inactive)
+        self.assertEqual(wbs.period_end, date(2020, 6, 1))
+
+        # Existing future end is kept (fill-empty) → stay active
+        rich = WBSElement.objects.create(
+            wbs_code='G-300.0004',
+            title='Still running',
+            period_end=date(2030, 1, 1),
+        )
+        wb2 = Workbook()
+        ws2 = wb2.active
+        ws2.title = 'Übersicht'
+        ws2['B2'] = 'Projekt'
+        ws2['C2'] = 'Kostenstelle'
+        ws2['D2'] = 'Text'
+        ws2['G2'] = 'Projektdefinition'
+        ws2['J2'] = 'Projektende'
+        ws2['B3'] = 'G-300.0004'
+        ws2['C3'] = '0001/991000'
+        ws2['D3'] = 'Ended in file'
+        ws2['G3'] = 'Funder X'
+        ws2['J3'] = date(2020, 1, 1)
+        buf2 = BytesIO()
+        wb2.save(buf2)
+        upload2 = SimpleUploadedFile('Gesamtbericht010121.xlsx', buf2.getvalue())
+        plan2 = analyze_uploaded_files(
+            [upload2],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        rich_plan = plan2['parents'][0]
+        self.assertFalse(rich_plan['will_set_inactive'])
+        plan2, errors = merge_user_decisions(plan2, {})
+        self.assertEqual(errors, [])
+        apply_import_plan(plan2)
+        rich.refresh_from_db()
+        self.assertEqual(rich.period_end, date(2030, 1, 1))
+        self.assertFalse(rich.is_inactive)
+
+        # Existing past end, still active → inactivate
+        old = WBSElement.objects.create(
+            wbs_code='G-300.0005',
+            title='Already ended',
+            period_end=date(2019, 12, 31),
+            is_inactive=False,
+        )
+        wb3 = Workbook()
+        ws3 = wb3.active
+        ws3.title = 'Übersicht'
+        ws3['B2'] = 'Projekt'
+        ws3['C2'] = 'Kostenstelle'
+        ws3['D2'] = 'Text'
+        ws3['G2'] = 'Projektdefinition'
+        ws3['J2'] = 'Projektende'
+        ws3['B3'] = 'G-300.0005'
+        ws3['C3'] = '0001/991000'
+        ws3['D3'] = 'Already ended'
+        ws3['G3'] = 'Funder X'
+        ws3['J3'] = date(2019, 12, 31)
+        buf3 = BytesIO()
+        wb3.save(buf3)
+        upload3 = SimpleUploadedFile('Gesamtbericht010122.xlsx', buf3.getvalue())
+        plan3 = analyze_uploaded_files(
+            [upload3],
+            import_year=2026,
+            import_scopes={'psp': True, 'personnel': False},
+        )
+        self.assertTrue(plan3['parents'][0]['will_set_inactive'])
+        plan3, errors = merge_user_decisions(plan3, {})
+        self.assertEqual(errors, [])
+        apply_import_plan(plan3)
+        old.refresh_from_db()
+        self.assertTrue(old.is_inactive)

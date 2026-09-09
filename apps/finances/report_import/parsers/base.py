@@ -52,6 +52,7 @@ class ParsedPspParent:
     """
     wbs_code: str
     source_filename: str
+    title: str = ''
     third_party_funder_identifier: str = ''
     cost_center_code: str = ''
     cost_center_is_placeholder: bool = False

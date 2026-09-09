@@ -71,6 +71,23 @@ def _date(value) -> date | None:
         return None
 
 
+def _resulting_period_end(parent: dict, existing: WBSElement | None) -> date | None:
+    """Period end that will be stored after this import."""
+    file_end = _date(parent.get('period_end'))
+    if existing is None:
+        return file_end
+    fill_empty = bool(parent.get('fill_empty_only'))
+    if file_end and (not fill_empty or existing.period_end is None):
+        return file_end
+    return existing.period_end
+
+
+def _period_end_is_past(period_end: date | None, today: date | None = None) -> bool:
+    if period_end is None:
+        return False
+    return period_end < (today or date.today())
+
+
 def cost_center_lookup_candidates(code: str) -> list[str]:
     """
     Codes to try when matching a file cost center to the database.
@@ -111,20 +128,34 @@ def find_cost_center(code: str) -> CostCenter | None:
     return None
 
 
+def stored_cost_center_code(code: str) -> str:
+    """
+    Name stored for a newly created cost center.
+
+    SAP-style ``0001/991000`` is stored as ``991000`` (the part after ``/``).
+    Codes without a slash are kept as given.
+    """
+    raw = (code or '').strip()
+    if '/' not in raw:
+        return raw
+    suffix = raw.rsplit('/', 1)[-1].strip()
+    return suffix or raw
+
+
 def get_or_create_cost_center(code: str) -> tuple[CostCenter, bool]:
     """
     Resolve a cost center without duplicating prefix variants.
 
     If ``0001/991000`` is imported and ``991000`` already exists, reuses it.
-    Creates only when no flexible match is found (stored under the file code).
+    New rows are stored under the local part after ``/``.
     """
     existing = find_cost_center(code)
     if existing:
         return existing, False
-    raw = (code or '').strip()
-    if not raw:
+    stored = stored_cost_center_code(code)
+    if not stored:
         raise ValueError('Cost center code is empty.')
-    return CostCenter.objects.get_or_create(cost_center=raw)
+    return CostCenter.objects.get_or_create(cost_center=stored)
 
 
 # Import scope keys (orders reserved for a later PO import pass).
@@ -346,8 +377,12 @@ def analyze_uploaded_files(
         parsed_dict['upload_meta'] = meta
         file_results.append(parsed_dict)
         upload_meta.append(meta)
+        fill_empty = parsed.report_kind == 'psp_gesamtbericht'
         for parent in parsed.parents:
-            parents.append(parent.to_dict())
+            item = parent.to_dict()
+            item['report_kind'] = parsed.report_kind
+            item['fill_empty_only'] = fill_empty
+            parents.append(item)
 
     plan_parents = []
     global_warnings = []
@@ -372,6 +407,13 @@ def analyze_uploaded_files(
         'The same file content cannot be re-imported for scopes already done; '
         'reports older than the latest imported report for the same PSP element are blocked.'
     )
+    if any(p.get('fill_empty_only') for p in parents):
+        global_warnings.append(
+            'Gesamtbericht: new PSP elements use the file Text as title. '
+            'On existing elements, empty master data is filled only — '
+            'titles and richer Einzelbericht fields are kept. '
+            'Financial snapshots are written only when cost-type child rows (.1–.9) exist.'
+        )
 
     for parent in parents:
         plan_parents.append(_enrich_parent_against_db(parent, import_year, snapshot_date))
@@ -630,8 +672,14 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
     item['action'] = 'update' if existing else 'create'
     item['existing_pk'] = existing.pk if existing else None
     item['existing_title'] = existing.title if existing else ''
-    item['needs_title'] = existing is None
-    item['proposed_title'] = ''
+    fill_empty = bool(item.get('fill_empty_only'))
+    file_title = (item.get('title') or '').strip()
+    if existing is None:
+        item['proposed_title'] = file_title
+        item['needs_title'] = not bool(file_title)
+    else:
+        item['proposed_title'] = ''
+        item['needs_title'] = False
 
     # Cost center resolution (flexible: ``0001/991000`` ↔ ``991000``)
     file_cc = (item.get('cost_center_code') or '').strip()
@@ -650,6 +698,9 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
                 matched_via = 'prefix_stripped'
 
     needs_cc_choice = placeholder or (not file_cc)
+    if fill_empty:
+        # Do not block a multi-PSP summary import on placeholder cost centers.
+        needs_cc_choice = False
     item['cost_center'] = {
         'file_code': file_cc,
         'is_placeholder': placeholder,
@@ -661,10 +712,16 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
         'needs_user_choice': needs_cc_choice,
         'suggested_pk': existing_cc.pk if existing_cc else None,
         'suggested_code': existing_cc_code,
-        'selected_pk': matched_cc.pk if matched_cc else None,
+        'selected_pk': (
+            matched_cc.pk if matched_cc
+            else (existing_cc.pk if fill_empty and existing_cc else None)
+        ),
         'selected_code': (
             '' if needs_cc_choice
-            else (matched_cc.cost_center if matched_cc else file_cc)
+            else (
+                matched_cc.cost_center if matched_cc
+                else ('' if placeholder else file_cc)
+            )
         ),
     }
 
@@ -672,15 +729,16 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
     diffs = []
     if existing:
         funder = item.get('third_party_funder_identifier') or ''
-        if funder and funder != (existing.third_party_funder_identifier or ''):
+        old_funder = existing.third_party_funder_identifier or ''
+        if funder and funder != old_funder and (not fill_empty or not old_funder):
             diffs.append({
                 'field': 'third_party_funder_identifier',
                 'label': 'Third-party funder identifier',
-                'old': existing.third_party_funder_identifier or '',
+                'old': old_funder,
                 'new': funder,
             })
         ps = _date(item.get('period_start'))
-        if ps and existing.period_start != ps:
+        if ps and existing.period_start != ps and (not fill_empty or existing.period_start is None):
             diffs.append({
                 'field': 'period_start',
                 'label': 'Period start',
@@ -688,7 +746,7 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
                 'new': ps.isoformat(),
             })
         pe = _date(item.get('period_end'))
-        if pe and existing.period_end != pe:
+        if pe and existing.period_end != pe and (not fill_empty or existing.period_end is None):
             diffs.append({
                 'field': 'period_end',
                 'label': 'Period end',
@@ -696,6 +754,12 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
                 'new': pe.isoformat(),
             })
     item['field_diffs'] = diffs
+
+    resulting_end = _resulting_period_end(item, existing)
+    already_inactive = bool(existing and existing.is_inactive)
+    item['will_set_inactive'] = (
+        _period_end_is_past(resulting_end) and not already_inactive
+    )
 
     # Cost-type flags to set
     flags_to_set = []
@@ -802,7 +866,10 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
         'personal': str(personal_total) if personal_total is not None else None,
         'exists': existing_obligo is not None,
     }
-    item['snapshot_conflict'] = bool(existing_true or existing_obligo)
+    item['has_financials'] = bool(item.get('cost_types'))
+    item['snapshot_conflict'] = bool(
+        item['has_financials'] and (existing_true or existing_obligo)
+    )
 
     # Contact
     contact = item.get('contact') or {}
@@ -1051,11 +1118,18 @@ def apply_import_plan(plan: dict, *, uploaded_by=None) -> dict:
                 continue
             detail = {'wbs_code': parent['wbs_code'], 'actions': []}
             wbs = _upsert_psp(parent, summary, detail)
-            _apply_year_estimate(wbs, parent, import_year, summary, detail)
-            _apply_true_spending(
-                wbs, parent, snapshot_date, update_snapshots, summary, detail
-            )
-            _apply_obligo(wbs, parent, snapshot_date, update_snapshots, summary, detail)
+            if parent.get('has_financials', True):
+                _apply_year_estimate(wbs, parent, import_year, summary, detail)
+                _apply_true_spending(
+                    wbs, parent, snapshot_date, update_snapshots, summary, detail
+                )
+                _apply_obligo(
+                    wbs, parent, snapshot_date, update_snapshots, summary, detail
+                )
+            else:
+                detail['actions'].append(
+                    'financial snapshots skipped (no cost-type child rows)'
+                )
             summary['details'].append(detail)
     else:
         summary['details'].append({
@@ -1166,7 +1240,9 @@ def _resolve_cost_center(parent: dict, summary: dict) -> CostCenter | None:
     if pk:
         return CostCenter.objects.get(pk=pk)
 
-    code = (cc_info.get('selected_code') or cc_info.get('file_code') or '').strip()
+    code = (cc_info.get('selected_code') or '').strip()
+    if not code and not cc_info.get('is_placeholder'):
+        code = (cc_info.get('file_code') or '').strip()
     if not code:
         return None
     cc, created = get_or_create_cost_center(code)
@@ -1205,6 +1281,8 @@ def _upsert_psp(parent: dict, summary: dict, detail: dict) -> WBSElement:
         title = (parent.get('proposed_title') or '').strip()
         if not title:
             raise ValueError(f'Title missing for new PSP {wbs_code}')
+        period_end = _date(parent.get('period_end'))
+        mark_inactive = _period_end_is_past(period_end)
         wbs = WBSElement(
             wbs_code=wbs_code,
             title=title,
@@ -1212,48 +1290,61 @@ def _upsert_psp(parent: dict, summary: dict, detail: dict) -> WBSElement:
             contact_person=contact,
             third_party_funder_identifier=parent.get('third_party_funder_identifier') or '',
             period_start=_date(parent.get('period_start')),
-            period_end=_date(parent.get('period_end')),
+            period_end=period_end,
             # Übersicht import is for non-annual projects (one plan for full runtime).
             subject_to_annual_recurrence=False,
+            is_inactive=mark_inactive,
         )
         for flag_info in parent.get('flags') or []:
             setattr(wbs, flag_info['flag'], True)
         wbs.save()
         summary['psp_created'] += 1
         detail['actions'].append('created PSP (non-annual)')
+        if mark_inactive:
+            detail['actions'].append('marked inactive (period end in the past)')
         return wbs
 
     # Update existing — never change title
     changed = []
+    fill_empty = bool(parent.get('fill_empty_only'))
     funder = parent.get('third_party_funder_identifier') or ''
     if funder and funder != (existing.third_party_funder_identifier or ''):
-        existing.third_party_funder_identifier = funder
-        changed.append('third_party_funder_identifier')
+        if not fill_empty or not (existing.third_party_funder_identifier or ''):
+            existing.third_party_funder_identifier = funder
+            changed.append('third_party_funder_identifier')
 
     ps = _date(parent.get('period_start'))
     if ps and existing.period_start != ps:
-        existing.period_start = ps
-        changed.append('period_start')
+        if not fill_empty or existing.period_start is None:
+            existing.period_start = ps
+            changed.append('period_start')
     pe = _date(parent.get('period_end'))
     if pe and existing.period_end != pe:
-        existing.period_end = pe
-        changed.append('period_end')
+        if not fill_empty or existing.period_end is None:
+            existing.period_end = pe
+            changed.append('period_end')
 
-    if existing.subject_to_annual_recurrence:
+    if existing.subject_to_annual_recurrence and not fill_empty:
         existing.subject_to_annual_recurrence = False
         changed.append('subject_to_annual_recurrence')
 
     if cost_center and existing.cost_center_id != cost_center.pk:
-        existing.cost_center = cost_center
-        changed.append('cost_center')
+        if not fill_empty or not existing.cost_center_id:
+            existing.cost_center = cost_center
+            changed.append('cost_center')
     if contact and existing.contact_person_id != contact.pk:
-        existing.contact_person = contact
-        changed.append('contact_person')
+        if not fill_empty:
+            existing.contact_person = contact
+            changed.append('contact_person')
 
     for flag_info in parent.get('flags') or []:
         if not getattr(existing, flag_info['flag'], False):
             setattr(existing, flag_info['flag'], True)
             changed.append(flag_info['flag'])
+
+    if not existing.is_inactive and _period_end_is_past(existing.period_end):
+        existing.is_inactive = True
+        changed.append('is_inactive')
 
     if changed:
         existing.save()

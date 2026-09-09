@@ -49,7 +49,10 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
         }
 
     def __init__(self, *args, **kwargs):
+        show_job_number = kwargs.pop('show_job_number', False)
         super().__init__(*args, **kwargs)
+        if not show_job_number:
+            self.fields.pop('job_number', None)
         # Extra rows may be left blank; existing allocations must still validate
         # when the user only changes assignee/status.
         self.empty_permitted = not bool(self.instance and self.instance.pk)
@@ -119,9 +122,15 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
 
 class BaseReallocationFundingFormSet(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
+        self.show_job_number = kwargs.pop('show_job_number', False)
         super().__init__(*args, **kwargs)
         for form in self.forms:
             form.empty_permitted = not bool(form.instance and form.instance.pk)
+
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs['show_job_number'] = self.show_job_number
+        return kwargs
 
     def clean(self):
         super().clean()

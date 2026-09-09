@@ -28,10 +28,12 @@
                     <label>Plan Position Number</label>
                     {% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}
                 </div>
+                {% if funding_formset.show_job_number %}
                 <div class="inline-field">
                     <label>Job Number</label>
                     {% if fform.job_number.errors %}{{ fform.job_number|add_class:"form-control error" }}{% else %}{{ fform.job_number|add_class:"form-control" }}{% endif %}
                 </div>
+                {% endif %}
                 <div class="inline-field full">
                     <label>Notes</label>
                     {% if fform.notes.errors %}{{ fform.notes|add_class:"form-control error" }}{% else %}{{ fform.notes|add_class:"form-control" }}{% endif %}
@@ -60,10 +62,12 @@
                     <label>Plan Position Number</label>
                     {{ fform.plan_position_number|add_class:"form-control" }}
                 </div>
+                {% if funding_formset.show_job_number %}
                 <div class="inline-field">
                     <label>Job Number</label>
                     {{ fform.job_number|add_class:"form-control" }}
                 </div>
+                {% endif %}
                 <div class="inline-field full">
                     <label>Notes</label>
                     {{ fform.notes|add_class:"form-control" }}

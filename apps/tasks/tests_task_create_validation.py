@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.test import Client, TestCase
 
 from apps.accounts.models import CustomUser
 from apps.finances.models import CostCenter, WBSElement
@@ -321,6 +321,29 @@ class ReallocationFundingFormsetEditTests(TestCase):
         form = ReallocationFundingAllocationForm()
         self.assertFalse(form.use_required_attribute)
 
+    def test_job_number_hidden_by_default_visible_when_enabled(self):
+        hidden = ReallocationFundingAllocationForm()
+        self.assertNotIn('job_number', hidden.fields)
+        shown = ReallocationFundingAllocationForm(show_job_number=True)
+        self.assertIn('job_number', shown.fields)
+        formset = ReallocationFundingFormSet(instance=self.task)
+        self.assertFalse(formset.show_job_number)
+        self.assertNotIn('job_number', formset.forms[0].fields)
+        privileged = ReallocationFundingFormSet(
+            instance=self.task, show_job_number=True,
+        )
+        self.assertTrue(privileged.show_job_number)
+        self.assertIn('job_number', privileged.forms[0].fields)
+
+    def test_edit_without_job_number_keeps_existing_value(self):
+        self.allocation_wbs.job_number = 'KEEP-ME'
+        self.allocation_wbs.save(update_fields=['job_number'])
+        formset = ReallocationFundingFormSet(self._edit_data(), instance=self.task)
+        self.assertTrue(formset.is_valid(), formset.non_form_errors() or formset.errors)
+        formset.save()
+        self.allocation_wbs.refresh_from_db()
+        self.assertEqual(self.allocation_wbs.job_number, 'KEEP-ME')
+
     def test_unchanged_existing_allocations_are_valid_on_edit(self):
         formset = ReallocationFundingFormSet(self._edit_data(), instance=self.task)
         self.assertTrue(formset.is_valid(), formset.non_form_errors() or formset.errors)
@@ -396,3 +419,28 @@ class GenericRequestValidationTests(TestCase):
             is_creation=True,
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class ChooseTaskTypePageTests(TestCase):
+    def test_create_page_omits_purchase_order_and_general_request(self):
+        user = CustomUser.objects.create_user('chooser', password='test')
+        user.password_changed = True
+        user.save(update_fields=['password_changed'])
+        Employee.objects.create(
+            employee_number='E-CHOOSE',
+            first_name='Choose',
+            last_name='User',
+            user=user,
+        )
+        po_ct = ContentType.objects.get_for_model(PurchaseOrderTask)
+        user.user_permissions.add(
+            Permission.objects.get(content_type=po_ct, codename='create_personnel_task'),
+            Permission.objects.get(content_type=po_ct, codename='create_purchase_order'),
+        )
+        client = Client()
+        client.login(username='chooser', password='test')
+        response = client.get('/tasks/create/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Personnel Reallocation')
+        self.assertNotContains(response, '>Purchase Order<')
+        self.assertNotContains(response, 'General Request')

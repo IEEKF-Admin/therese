@@ -20,6 +20,10 @@ from ....forms import (
 from ....recruitment_form_helpers import build_recruitment_template_context
 from ....reallocation_apply import ApplyReallocationError, apply_reallocation_funding, build_apply_preview
 from ....utils import is_personnel_approver, is_personnel_coordinator
+
+
+def _show_reallocation_job_number(user) -> bool:
+    return is_personnel_coordinator(user) or is_personnel_approver(user)
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
 from ....task_protocol import extract_new_message, record_task_update
@@ -83,7 +87,11 @@ def handle_standard_personnel_detail(request, task):
             is_creation=False,
         )
         if task_type == 'personnel_reallocation':
-            funding_formset = ReallocationFundingFormSet(request.POST, instance=task)
+            funding_formset = ReallocationFundingFormSet(
+                request.POST,
+                instance=task,
+                show_job_number=_show_reallocation_job_number(request.user),
+            )
             form_ok = form.is_valid() and funding_formset.is_valid()
         else:
             form_ok = form.is_valid()
@@ -121,7 +129,10 @@ def handle_standard_personnel_detail(request, task):
             is_creation=False,
         )
         if task_type == 'personnel_reallocation':
-            funding_formset = ReallocationFundingFormSet(instance=task)
+            funding_formset = ReallocationFundingFormSet(
+                instance=task,
+                show_job_number=_show_reallocation_job_number(request.user),
+            )
 
     is_archived_by_user = employee and employee in task.archived_by.all()
 

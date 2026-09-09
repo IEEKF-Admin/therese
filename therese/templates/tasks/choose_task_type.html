@@ -31,14 +31,6 @@ Do not remove any existing requirements from this header without explicit instru
     </p>
 
     <div class="task-type-grid">
-        {% if can_create_purchase %}
-        <a href="{% url 'tasks:task_create' %}?type=purchase_order" class="task-type-card">
-            <i class="fas fa-shopping-cart fa-3x"></i>
-            <h3>Purchase Order</h3>
-            <p>Request new equipment, materials or services</p>
-        </a>
-        {% endif %}
-
         {% if can_create_personnel %}
         <a href="{% url 'tasks:task_create' %}?type=personnel_reallocation" class="task-type-card">
             <i class="fas fa-exchange-alt fa-3x"></i>
@@ -62,14 +54,6 @@ Do not remove any existing requirements from this header without explicit instru
             <i class="fas fa-user-plus fa-3x"></i>
             <h3>Personnel Recruitment</h3>
             <p>Initiate hiring for a new employee</p>
-        </a>
-        {% endif %}
-
-        {% if can_create_generic %}
-        <a href="{% url 'tasks:task_create' %}?type=generic_text" class="task-type-card">
-            <i class="fas fa-comment-dots fa-3x"></i>
-            <h3>General Request</h3>
-            <p>Any other matter or free text request</p>
         </a>
         {% endif %}
     </div>

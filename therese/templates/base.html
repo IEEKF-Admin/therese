@@ -83,11 +83,45 @@
                     if (el._flatpickr) el._flatpickr.destroy();
                 });
 
+                function parseEuropeanDateInput(datestr) {
+                    if (datestr instanceof Date) {
+                        return isNaN(datestr.getTime()) ? undefined : datestr;
+                    }
+                    var s = String(datestr || '').trim();
+                    if (!s) return undefined;
+                    var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (iso) {
+                        return new Date(
+                            parseInt(iso[1], 10),
+                            parseInt(iso[2], 10) - 1,
+                            parseInt(iso[3], 10)
+                        );
+                    }
+                    var m = s.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2}|\d{4})$/);
+                    if (!m) return undefined;
+                    var day = parseInt(m[1], 10);
+                    var month = parseInt(m[2], 10);
+                    var yearPart = m[3];
+                    var year = yearPart.length === 2
+                        ? 2000 + parseInt(yearPart, 10)
+                        : parseInt(yearPart, 10);
+                    var d = new Date(year, month - 1, day);
+                    if (
+                        d.getFullYear() !== year
+                        || d.getMonth() !== month - 1
+                        || d.getDate() !== day
+                    ) {
+                        return undefined;
+                    }
+                    return d;
+                }
+
                 flatpickr(".date-picker", {
                     dateFormat: "d.m.Y",
                     allowInput: true,
                     locale: "de",
-                    disableMobile: true
+                    disableMobile: true,
+                    parseDate: parseEuropeanDateInput,
                 });
 
                 console.log('%c[THERESE] Date pickers initialized (European format DD.MM.YYYY)', 'color:#16a34a');

@@ -25,6 +25,7 @@ from django import forms
 from django.forms.models import inlineformset_factory
 
 from apps.accounts.models import CustomUser
+from apps.core.dates import EuropeanDateField
 from .models import (
     Employee, Building, Room, PhoneNumber, RoomStorageItem, Contract,
     FundingAllocation, SalarySupplement, Workgroup
@@ -259,6 +260,9 @@ class MinimalEmployeeCreateForm(forms.ModelForm):
 
 # = INLINE FORMS =
 class ContractForm(forms.ModelForm):
+    valid_from = EuropeanDateField(required=True)
+    valid_until = EuropeanDateField(required=False)
+
     class Meta:
         model = Contract
         fields = [
@@ -427,6 +431,8 @@ class ContractForm(forms.ModelForm):
 class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
     # Declared on the class so Django admin inlines include it in base_fields.
     funding_source = FundingSourceField()
+    start_date = EuropeanDateField(required=True)
+    end_date = EuropeanDateField(required=False)
 
     class Meta:
         model = FundingAllocation

@@ -38,7 +38,8 @@ class ParsedCostTypeAmounts:
     suffix: str
     label: str = ''
     approved_budget: Decimal | None = None  # Freigegebenes Budget -> year estimate
-    verfuegt: Decimal | None = None  # Verfügt -> true yearly spending
+    ist_kosten: Decimal | None = None  # Ist-Kosten -> true yearly spending
+    verfuegt: Decimal | None = None  # Verfügt (Ist + Obligo); not stored as Actual
     obligo: Decimal | None = None  # Obligo column
     personal_obligo: Decimal | None = None  # Personalobligo column
 

@@ -827,11 +827,11 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
         } if existing_estimate else {},
     }
 
-    # True spending from Verfügt
-    verfuegt_amounts = {}
+    # True spending from Ist-Kosten (not Verfügt = Ist + Obligo)
+    ist_amounts = {}
     for suffix, data in (item.get('cost_types') or {}).items():
         _flag, amount_field = SUFFIX_TO_COST_TYPE[suffix]
-        verfuegt_amounts[amount_field] = data.get('verfuegt')
+        ist_amounts[amount_field] = data.get('ist_kosten')
 
     existing_true = None
     if existing:
@@ -857,7 +857,7 @@ def _enrich_parent_against_db(parent: dict, import_year: int, snapshot_date: dat
 
     item['true_spending'] = {
         'date_of_update': snapshot_date.isoformat(),
-        'amounts': verfuegt_amounts,
+        'amounts': ist_amounts,
         'exists': existing_true is not None,
     }
     item['obligo'] = {

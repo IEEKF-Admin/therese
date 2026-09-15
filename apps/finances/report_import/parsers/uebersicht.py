@@ -300,6 +300,7 @@ class UebersichtPspParser(ReportParser):
                 suffix=suffix,
                 label=b.get('designation') or COST_TYPE_LABELS.get(suffix, ''),
                 approved_budget=b.get('approved_budget'),
+                ist_kosten=b.get('ist_kosten'),
                 verfuegt=b.get('verfuegt'),
                 obligo=b.get('obligo'),
                 personal_obligo=b.get('personal_obligo'),
@@ -375,8 +376,8 @@ class UebersichtPspParser(ReportParser):
             'code': code,
             'designation': designation,
             'approved_budget': _parse_decimal(values[4]),  # E
-            'ist_kosten': _parse_decimal(values[5]),  # F (not stored; Verfügt is used)
+            'ist_kosten': _parse_decimal(values[5]),  # F Ist-Kosten -> true spending
             'obligo': _parse_decimal(values[6]),  # G
             'personal_obligo': _parse_decimal(values[8]),  # I
-            'verfuegt': _parse_decimal(values[10]),  # K
+            'verfuegt': _parse_decimal(values[10]),  # K (not stored as Actual)
         }

@@ -265,6 +265,7 @@ class UebersichtParserTests(TestCase):
         self.assertIn('1', parent.cost_types)
         self.assertIn('2', parent.cost_types)
         self.assertEqual(parent.cost_types['1'].approved_budget, Decimal('10000'))
+        self.assertEqual(parent.cost_types['1'].ist_kosten, Decimal('1000'))
         self.assertEqual(parent.cost_types['1'].verfuegt, Decimal('1200'))
         self.assertEqual(parent.cost_types['2'].personal_obligo, Decimal('8000'))
         self.assertIn(2027, parent.last_booking_years)
@@ -547,8 +548,8 @@ class ReportImportServiceTests(TestCase):
         true = WBSElementTrueYearlySpending.objects.get(
             wbs_element=wbs, date_of_update=date.today()
         )
-        self.assertEqual(true.material_costs, Decimal('1200'))
-        self.assertEqual(true.personnel_costs, Decimal('13000'))
+        self.assertEqual(true.material_costs, Decimal('1000'))
+        self.assertEqual(true.personnel_costs, Decimal('5000'))
 
         obligo = WBSElementObligo.objects.get(
             wbs_element=wbs, date_of_update=date.today()
@@ -583,7 +584,7 @@ class ReportImportServiceTests(TestCase):
         true = WBSElementTrueYearlySpending.objects.get(
             wbs_element=wbs, date_of_update=date.today()
         )
-        self.assertEqual(true.material_costs, Decimal('1200'))
+        self.assertEqual(true.material_costs, Decimal('1000'))
 
 
 class ReportImportViewTests(TestCase):
@@ -750,6 +751,7 @@ class GesamtberichtParserTests(TestCase):
         self.assertEqual(one.period_end, date(2028, 12, 31))
         self.assertEqual(one.report_created_on, date(2026, 9, 7))
         self.assertEqual(one.cost_types['1'].approved_budget, Decimal('10000'))
+        self.assertEqual(one.cost_types['1'].ist_kosten, Decimal('1000'))
         self.assertEqual(one.cost_types['1'].verfuegt, Decimal('1200'))
         self.assertEqual(one.cost_types['1'].obligo, Decimal('200'))
         self.assertEqual(one.cost_types['2'].personal_obligo, Decimal('8000'))
@@ -798,7 +800,7 @@ class GesamtberichtImportServiceTests(TestCase):
         self.assertTrue(wbs.has_personnel_costs)
         self.assertEqual(wbs.year_estimates.get().material_costs, Decimal('10000'))
         true = WBSElementTrueYearlySpending.objects.get(wbs_element=wbs)
-        self.assertEqual(true.material_costs, Decimal('1200'))
+        self.assertEqual(true.material_costs, Decimal('1000'))
 
         stub = WBSElement.objects.get(wbs_code='G-200.0002')
         self.assertEqual(stub.title, 'Other Funder')

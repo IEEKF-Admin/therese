@@ -184,6 +184,7 @@ class GesamtberichtPspParser(ReportParser):
                     suffix=suffix,
                     label=parsed.get('designation') or COST_TYPE_LABELS.get(suffix, ''),
                     approved_budget=parsed.get('approved_budget'),
+                    ist_kosten=parsed.get('ist_kosten'),
                     verfuegt=parsed.get('verfuegt'),
                     obligo=parsed.get('obligo'),
                     personal_obligo=parsed.get('personal_obligo'),
@@ -265,7 +266,9 @@ class GesamtberichtPspParser(ReportParser):
         col_obligo = None
         col_personal = None
         col_verfuegt = None
+        col_ist = None
         for key, idx in header_map.items():
+            norm = key.replace(' ', '').replace('_', '')
             if 'freigegebenes' in key and 'budget' in key:
                 col_budget = idx
             elif key == 'obligo':
@@ -274,6 +277,8 @@ class GesamtberichtPspParser(ReportParser):
                 col_personal = idx
             elif key in {'verfügt', 'verfuegt'}:
                 col_verfuegt = idx
+            elif 'ist-kosten' in norm or norm == 'istkosten':
+                col_ist = idx
 
         def _val(col: int | None):
             if col is None or col >= len(row):
@@ -284,6 +289,7 @@ class GesamtberichtPspParser(ReportParser):
             'code': code,
             'designation': _cell_str(_val(col_name)),
             'approved_budget': _parse_decimal(_val(col_budget)),
+            'ist_kosten': _parse_decimal(_val(col_ist)),
             'obligo': _parse_decimal(_val(col_obligo)),
             'personal_obligo': _parse_decimal(_val(col_personal)),
             'verfuegt': _parse_decimal(_val(col_verfuegt)),

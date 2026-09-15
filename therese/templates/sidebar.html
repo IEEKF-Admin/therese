@@ -81,13 +81,9 @@
     <div class="sidebar-heading">Ordering</div>
 
     {% if perms.tasks.create_purchase_order %}
-    <a href="{% url 'tasks:task_create' %}?type=purchase_order"
-       class="{% if 'type=purchase_order' in request.get_full_path and 'variant=quote' not in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-shopping-cart"></i> New Purchase Order
-    </a>
-    <a href="{% url 'tasks:task_create' %}?type=purchase_order&amp;variant=quote"
-       class="{% if 'variant=quote' in request.get_full_path %}active{% endif %}">
-        <i class="fas fa-file-pdf"></i> Order with Quote
+    <a href="{% url 'tasks:choose_order_type' %}"
+       class="{% if '/tasks/create/order' in request.path or request.GET.type == 'purchase_order' %}active{% endif %}">
+        <i class="fas fa-shopping-cart"></i> New Order
     </a>
     {% endif %}
 
@@ -128,7 +124,7 @@
 
     {% if perms.tasks.create_personnel_task or user.is_superuser %}
     <a href="{% url 'tasks:choose_task_type' %}"
-       class="{% if '/tasks/create' in request.path %}active{% endif %}">
+       class="{% if '/tasks/create' in request.path and '/tasks/create/order' not in request.path and request.GET.type != 'purchase_order' %}active{% endif %}">
         <i class="fas fa-user-plus"></i> Pers. Measures
     </a>
     {% endif %}

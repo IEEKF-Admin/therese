@@ -19,6 +19,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import CreateView
 from django.contrib import messages
 from django.urls import reverse, reverse_lazy
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 
 from django.utils import timezone
@@ -492,7 +494,6 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 def choose_task_type(request):
     """Auswahl des Task-Typs"""
     user = request.user
-    user_groups = list(user.groups.values_list('name', flat=True)) if user.is_authenticated else []
     has_employee = user.is_authenticated and hasattr(user, 'employee') and user.employee is not None
 
     context = {
@@ -501,4 +502,17 @@ def choose_task_type(request):
         'can_create_generic': has_employee,
     }
     return render(request, 'tasks/choose_task_type.html', context)
+
+
+@login_required
+def choose_order_type(request):
+    """Choose between a standard purchase order and an order with quote."""
+    user = request.user
+    has_employee = hasattr(user, 'employee') and user.employee is not None
+    if not (
+        has_employee
+        and (user.has_perm('tasks.create_purchase_order') or user.has_perm('tasks.view_all_purchase_orders'))
+    ):
+        raise PermissionDenied
+    return render(request, 'tasks/choose_order_type.html')
 

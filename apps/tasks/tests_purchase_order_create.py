@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.finances.models import CostCenter, WBSElement
@@ -24,6 +25,18 @@ class PurchaseOrderCreateFormTests(TestCase):
             last_name='User',
             user=self.user,
         )
+        self.user.password_changed = True
+        self.user.save(update_fields=['password_changed'])
+        self.client = Client()
+
+    def test_order_type_chooser_lists_both_variants(self):
+        self.client.login(username='buyer', password='test')
+        response = self.client.get(reverse('tasks:choose_order_type'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'New Purchase Order')
+        self.assertContains(response, 'Order with Quote')
+        self.assertContains(response, 'type=purchase_order')
+        self.assertContains(response, 'variant=quote')
 
     def test_initial_message_optional_on_creation(self):
         form = PurchaseOrderTaskForm(

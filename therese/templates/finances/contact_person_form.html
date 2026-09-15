@@ -22,7 +22,7 @@
 </div>
 {% endif %}
 
-<form method="post" class="form-card" style="max-width: 36rem;">
+<form method="post" id="contact-person-form" class="form-card contact-person-form" style="max-width: 36rem;">
     {% csrf_token %}
 
     <div class="form-field">
@@ -67,9 +67,10 @@
         {{ form.comments.errors }}
     </div>
 
-    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
-        <button type="submit" class="btn-primary">Save</button>
-        <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">Cancel</a>
-    </div>
 </form>
+
+<div class="employee-sticky-actions">
+    <button type="submit" class="btn-primary" form="contact-person-form">Save</button>
+    <a href="{% url 'finances:contact_person_list' %}" class="btn-secondary">Cancel</a>
+</div>
 {% endblock %}

@@ -78,12 +78,7 @@
             }
 
             try {
-                // Clean up any previous instances
-                document.querySelectorAll('.date-picker').forEach(function(el) {
-                    if (el._flatpickr) el._flatpickr.destroy();
-                });
-
-                function parseEuropeanDateInput(datestr) {
+                window.parseEuropeanDateInput = function(datestr) {
                     if (datestr instanceof Date) {
                         return isNaN(datestr.getTime()) ? undefined : datestr;
                     }
@@ -97,7 +92,7 @@
                             parseInt(iso[3], 10)
                         );
                     }
-                    var m = s.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2}|\d{4})$/);
+                    var m = s.match(/(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4}|\d{2})/);
                     if (!m) return undefined;
                     var day = parseInt(m[1], 10);
                     var month = parseInt(m[2], 10);
@@ -114,14 +109,21 @@
                         return undefined;
                     }
                     return d;
-                }
+                };
+                window.formatEuropeanDate = function(d) {
+                    function pad(n) { return n < 10 ? '0' + n : String(n); }
+                    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear();
+                };
 
-                flatpickr(".date-picker", {
-                    dateFormat: "d.m.Y",
-                    allowInput: true,
-                    locale: "de",
-                    disableMobile: true,
-                    parseDate: parseEuropeanDateInput,
+                document.querySelectorAll('.date-picker').forEach(function(el) {
+                    if (el._flatpickr) return;
+                    flatpickr(el, {
+                        dateFormat: "d.m.Y",
+                        allowInput: true,
+                        locale: "de",
+                        disableMobile: true,
+                        parseDate: window.parseEuropeanDateInput,
+                    });
                 });
 
                 console.log('%c[THERESE] Date pickers initialized (European format DD.MM.YYYY)', 'color:#16a34a');

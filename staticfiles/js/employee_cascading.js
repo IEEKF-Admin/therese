@@ -45,7 +45,7 @@
                 phoneSelect.innerHTML = '<option value="">— Select Phone —</option>';
                 data.forEach(phone => {
                     const opt = document.createElement('option');
-                    opt.value = phone.phone_number;
+                    opt.value = phone.id;
                     opt.textContent = phone.phone_number;
                     phoneSelect.appendChild(opt);
                 });

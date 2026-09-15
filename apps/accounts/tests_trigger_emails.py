@@ -467,6 +467,15 @@ class ContractEmailSchedulerTests(TestCase):
         with patch.dict('os.environ', {'THERESE_DISABLE_SCHEDULER': '1', 'RUN_MAIN': 'true'}):
             self.assertFalse(should_start_scheduler(['manage.py', 'runserver']))
 
+    def test_scheduler_does_not_start_under_gunicorn(self):
+        env = {'THERESE_RUN_SCHEDULER': '', 'THERESE_DISABLE_SCHEDULER': ''}
+        with patch.dict('os.environ', env, clear=False):
+            self.assertFalse(should_start_scheduler(['gunicorn', 'therese.wsgi:application']))
+
+    def test_scheduler_starts_with_explicit_runner_flag(self):
+        with patch.dict('os.environ', {'THERESE_RUN_SCHEDULER': '1'}, clear=False):
+            self.assertTrue(should_start_scheduler(['gunicorn', 'therese.wsgi:application']))
+
 
 class ScheduledTriggerTests(TestCase):
     def setUp(self):

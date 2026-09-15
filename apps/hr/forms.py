@@ -35,6 +35,27 @@ from apps.finances.funding_sources import FundingSourceField, FundingSourceFormM
 from apps.finances.models import PayScale
 
 
+def _posted_phone_pk(raw):
+    if raw in (None, ''):
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _phone_for_employee(instance):
+    """Pick one PhoneNumber row for the stored office-phone string (room first)."""
+    if not instance or not getattr(instance, 'phone_number', None):
+        return None
+    qs = PhoneNumber.objects.filter(phone_number=instance.phone_number)
+    if getattr(instance, 'room_id', None):
+        in_room = qs.filter(room_id=instance.room_id)
+        if in_room.exists():
+            qs = in_room
+    return qs.order_by('pk').first()
+
+
 # Explicit fields only — never bind `user` via mass assignment.
 EMPLOYEE_MANAGE_FIELDS = [
     'employee_number', 'is_external', 'user', 'prefix', 'first_name', 'last_name', 'gender',
@@ -71,7 +92,6 @@ class EmployeeForm(forms.ModelForm):
         required=False,
         empty_label="— Select Room first —",
         label="Office Phone",
-        to_field_name='phone_number'
     )
 
     class Meta:
@@ -114,35 +134,37 @@ class EmployeeForm(forms.ModelForm):
             # Create mode: no building selected yet
             room_field.queryset = Room.objects.none()
 
-        # Phone: cascade from room — empty until a room is chosen
+        # Phone: cascade from room. Options use PK so duplicate numbers do not crash.
         phone_field = self.fields['phone_number']
         phone_field.widget.attrs.update({'class': 'phone-select form-control', 'id': 'id_phone_number'})
-
-        # Preserve phone from POST (re-render after error) or from instance (edit)
-        phone_to_preserve = None
-        if self.is_bound and self.data.get('phone_number'):
-            phone_to_preserve = self.data.get('phone_number')
-        elif instance and instance.phone_number:
-            phone_to_preserve = instance.phone_number
+        posted_pk = _posted_phone_pk(self.data.get('phone_number')) if self.is_bound else None
+        current_phone = _phone_for_employee(instance)
 
         if self.is_bound and self.data.get('room'):
-            # POST: phones for the submitted room
-            phone_field.queryset = PhoneNumber.objects.filter(room_id=self.data['room'])
-            if phone_to_preserve:
-                phone_field.initial = phone_to_preserve
-        elif instance and instance.phone_number:
-            # Edit mode: include the employee's phone and pre-select it
-            phone_field.queryset = PhoneNumber.objects.filter(phone_number=instance.phone_number)
-            phone_field.initial = instance.phone_number
+            phone_field.queryset = PhoneNumber.objects.filter(
+                room_id=self.data['room'],
+            ).order_by('phone_number', 'pk')
+            if posted_pk:
+                phone_field.initial = posted_pk
+                if not phone_field.queryset.filter(pk=posted_pk).exists():
+                    phone_field.queryset = (
+                        phone_field.queryset | PhoneNumber.objects.filter(pk=posted_pk)
+                    ).distinct()
+        elif instance and instance.room_id:
+            phone_field.queryset = PhoneNumber.objects.filter(
+                room_id=instance.room_id,
+            ).order_by('phone_number', 'pk')
+            if current_phone:
+                phone_field.initial = current_phone.pk
+                if not phone_field.queryset.filter(pk=current_phone.pk).exists():
+                    phone_field.queryset = (
+                        phone_field.queryset | PhoneNumber.objects.filter(pk=current_phone.pk)
+                    ).distinct()
+        elif current_phone:
+            phone_field.queryset = PhoneNumber.objects.filter(pk=current_phone.pk)
+            phone_field.initial = current_phone.pk
         else:
-            # Create mode: no room selected yet
             phone_field.queryset = PhoneNumber.objects.none()
-
-        # Ensure preserved phone stays in queryset when room filter would exclude it
-        if phone_to_preserve and phone_field.queryset is not None:
-            if not phone_field.queryset.filter(phone_number=phone_to_preserve).exists():
-                preserved_qs = PhoneNumber.objects.filter(phone_number=phone_to_preserve)
-                phone_field.queryset = (phone_field.queryset | preserved_qs).distinct()
 
         if 'employee_number' in self.fields:
             self.fields['employee_number'].required = False
@@ -209,7 +231,8 @@ class EmployeeForm(forms.ModelForm):
             if self.instance and self.instance.pk and self.instance.phone_number:
                 return self.instance.phone_number
             return ''
-        # Ensure it's a string
+        if isinstance(phone, PhoneNumber):
+            return phone.phone_number
         return str(phone) if phone else ''
 
 

@@ -19,7 +19,11 @@ _lock_file = None
 
 
 def should_start_scheduler(argv=None):
-    """True only for the live web process, not tests or management commands."""
+    """True only for an intended runner, never for Gunicorn request workers.
+
+    Gunicorn/uwsgi/daphne/hypercorn stay off unless THERESE_RUN_SCHEDULER=1
+    (dedicated extra process). runserver still starts with RUN_MAIN=true.
+    """
     if os.environ.get('THERESE_DISABLE_SCHEDULER') == '1':
         return False
     if os.environ.get('PYTEST_CURRENT_TEST'):
@@ -33,8 +37,12 @@ def should_start_scheduler(argv=None):
         return False
     if 'runserver' in argv:
         return os.environ.get('RUN_MAIN') == 'true'
-    executable = os.path.basename(argv[0]).lower() if argv else ''
-    return executable in {'gunicorn', 'uwsgi', 'daphne', 'hypercorn'}
+    explicit = os.environ.get('THERESE_RUN_SCHEDULER') == '1'
+    servers = {'gunicorn', 'uwsgi', 'daphne', 'hypercorn'}
+    names = {os.path.basename(str(part)).lower() for part in argv}
+    if names & servers:
+        return explicit
+    return explicit
 
 
 def _run_due_scheduled_emails():

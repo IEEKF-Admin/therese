@@ -574,6 +574,36 @@ class PSPManageAccessTests(TestCase):
         shown = client.get('/finances/psp/manage/', {'show_inactive': '1'})
         self.assertContains(shown, inactive.wbs_code)
 
+    def test_list_hides_extern_psp_and_cost_centers_unless_toggled(self):
+        from apps.hr.extern import ensure_extern_defaults
+
+        workgroup, _pi = ensure_extern_defaults()
+        extern_psp = WBSElement.objects.create(
+            wbs_code='WBS-EXTERN-1',
+            title='Extern PSP',
+            cost_center=self.cost_center,
+            work_group=workgroup,
+        )
+        extern_cc = CostCenter.objects.create(
+            cost_center='EXT-CC-1',
+            work_group=workgroup,
+        )
+        client = Client()
+        client.login(username='psp-assisting-admin', password='test')
+        hidden = client.get('/finances/psp/manage/')
+        self.assertEqual(hidden.status_code, 200)
+        self.assertContains(hidden, 'Show Extern')
+        self.assertNotContains(hidden, extern_psp.wbs_code)
+        shown = client.get('/finances/psp/manage/', {'show_extern': '1'})
+        self.assertContains(shown, extern_psp.wbs_code)
+        hidden_cc = client.get('/finances/psp/manage/', {'tab': 'cost-centers'})
+        self.assertNotContains(hidden_cc, extern_cc.cost_center)
+        shown_cc = client.get(
+            '/finances/psp/manage/',
+            {'tab': 'cost-centers', 'show_extern': '1'},
+        )
+        self.assertContains(shown_cc, extern_cc.cost_center)
+
     def test_psp_edit_has_previous_next_in_code_order(self):
         extra = WBSElement.objects.create(
             wbs_code='WBS-A-2',

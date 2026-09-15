@@ -87,6 +87,18 @@ class UnopenedTaskNotificationTests(TestCase):
         self.assertFalse(unopened_tasks_for_user(self.appr_user).exists())
         self.assertFalse(tasks_menu_needs_attention(self.appr_user))
 
+    def test_task_list_shows_unread_dot_and_target_name(self):
+        self.assigned.task_number = 'PE-2099-0001'
+        self.assigned.title = 'PE-2099-0001'
+        self.assigned.save(update_fields=['task_number', 'title'])
+        client = Client()
+        client.login(username='approver', password='test')
+        response = client.get(reverse('tasks:my_tasks'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'task-item-unread-dot')
+        self.assertContains(response, 'Personnel Reallocation - Pat Person')
+        self.assertNotContains(response, 'PE-2099-0001')
+
     def test_opening_detail_clears_notification(self):
         client = Client()
         client.login(username='approver', password='test')

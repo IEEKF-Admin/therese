@@ -445,6 +445,7 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             'end_date',
             'is_active',
             'is_archived',
+            'import_completed',
             'comments',
         ]
         widgets = {
@@ -471,6 +472,9 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             'is_archived': forms.CheckboxInput(attrs={
                 'class': 'is-archived-toggle',
             }),
+            'import_completed': forms.CheckboxInput(attrs={
+                'class': 'import-completed-toggle',
+            }),
             'comments': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 
@@ -489,6 +493,9 @@ class FundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
             self.fields['is_active'].required = False
             if not getattr(self.instance, 'pk', None):
                 self.fields['is_active'].initial = True
+        if 'import_completed' in self.fields:
+            self.fields['import_completed'].label = 'Import completed'
+            self.fields['import_completed'].required = False
 
 # = FORMSETS =
 # Prefer apps.hr.views.employee_form_helpers (chronological formsets used by UI).

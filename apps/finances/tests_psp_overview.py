@@ -18,6 +18,7 @@ from apps.finances.models import (
 from apps.finances.views.psp_overview import (
     build_psp_financial_overview,
     calculate_funding_cost,
+    funding_cost_breakdown,
 )
 from apps.hr.models import Contract, Employee, FundingAllocation
 
@@ -63,6 +64,16 @@ class CalculateFundingCostTests(TestCase):
             self.alloc, date(2026, 1, 1), date(2026, 12, 31)
         )
         self.assertEqual(cost, Decimal('7800.00'))
+        calc = funding_cost_breakdown(
+            self.alloc, date(2026, 1, 1), date(2026, 12, 31)
+        )
+        self.assertEqual(calc['base_salary'], Decimal('1000.00'))
+        self.assertEqual(calc['monthly_true_cost'], Decimal('1300.00'))
+        self.assertEqual(calc['monthly_allocated'], Decimal('650.00'))
+        self.assertEqual(calc['months'], 12)
+        self.assertEqual(calc['period_cost'], Decimal('7800.00'))
+        self.assertEqual(calc['overlap_start'], date(2026, 1, 1))
+        self.assertEqual(calc['overlap_end'], date(2026, 12, 31))
 
 
 class BuildPspOverviewTests(TestCase):
@@ -252,5 +263,47 @@ class PspOverviewViewTests(TestCase):
         wbs = WBSElement.objects.get(wbs_code='P-VIEW.1')
         response = self.client.get(f'/finances/psp-elements/{wbs.pk}/personnel/?year=2026')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Assigned personnel')
+        self.assertContains(response, 'Personalkosten in the overview')
         self.assertContains(response, 'Back to PSP overview')
+
+    def test_personnel_detail_shows_calculation_inputs(self):
+        wbs = WBSElement.objects.get(wbs_code='P-VIEW.1')
+        wbs.has_personnel_costs = True
+        wbs.subject_to_annual_recurrence = True
+        wbs.save()
+        employee = Employee.objects.create(
+            employee_number='E-PSP-DET',
+            first_name='Niels',
+            last_name='Bohr',
+        )
+        contract = Contract.objects.create(
+            employee=employee,
+            valid_from=date(2026, 1, 1),
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('1000.00'),
+            is_active=True,
+        )
+        FundingAllocation.objects.create(
+            contract=contract,
+            employee=employee,
+            wbs_element=wbs,
+            workhours_percentage=Decimal('50.00'),
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            import_completed=False,
+        )
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={'true_cost_multiplicator': Decimal('1.300')},
+        )
+        response = self.client.get(f'/finances/psp-elements/{wbs.pk}/personnel/?year=2026')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Niels Bohr')
+        self.assertContains(response, 'Base salary (100% workload)')
+        self.assertContains(response, '1.000,00')
+        self.assertContains(response, 'Monthly allocated')
+        self.assertContains(response, '650,00')
+        self.assertContains(response, 'Inclusive calendar months')
+        self.assertContains(response, '7.800,00')
+        self.assertContains(response, 'Total Actual')
+        self.assertContains(response, 'Total Not booked')

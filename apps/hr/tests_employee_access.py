@@ -312,6 +312,62 @@ class ContractArchiveAndDeleteTests(TestCase):
         self.assertIn('form="employee-edit-form"', html)
         self.assertNotIn('method="post" action="', html.split('id="employee-edit-form"', 1)[-1].split('</form>', 1)[0])
 
+    def test_save_sets_funding_import_completed(self):
+        wbs = WBSElement.objects.create(wbs_code='IMP-FA.1', title='Import FA')
+        allocation = FundingAllocation.objects.create(
+            contract=self.contract,
+            employee=self.employee,
+            wbs_element=wbs,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2024, 1, 1),
+            is_active=True,
+            import_completed=False,
+        )
+        prefix = f'fa_c{self.contract.pk}'
+        self.client.login(username='sysadmin', password='test')
+        get = self.client.get(reverse('hr:employee_update', args=[self.employee.pk]))
+        self.assertContains(get, 'Import completed')
+        self.assertContains(get, f'{prefix}-0-import_completed')
+        response = self.client.post(
+            reverse('hr:employee_update', args=[self.employee.pk]),
+            {
+                'employee_number': 'DEL-1',
+                'first_name': 'Del',
+                'last_name': 'Ete',
+                'gender': 'X',
+                'country': 'Germany',
+                'contracts-TOTAL_FORMS': '1',
+                'contracts-INITIAL_FORMS': '1',
+                'contracts-MIN_NUM_FORMS': '0',
+                'contracts-MAX_NUM_FORMS': '1000',
+                'contracts-0-id': str(self.contract.pk),
+                'contracts-0-weekly_hours': '20.000',
+                'contracts-0-valid_from': '01.01.2024',
+                'contracts-0-is_active': 'on',
+                f'{prefix}-TOTAL_FORMS': '1',
+                f'{prefix}-INITIAL_FORMS': '1',
+                f'{prefix}-MIN_NUM_FORMS': '0',
+                f'{prefix}-MAX_NUM_FORMS': '1000',
+                f'{prefix}-0-id': str(allocation.pk),
+                f'{prefix}-0-workhours_percentage': '100.00',
+                f'{prefix}-0-start_date': '01.01.2024',
+                f'{prefix}-0-is_active': 'on',
+                f'{prefix}-0-import_completed': 'on',
+                f'{prefix}-0-funding_source': f'wbs:{wbs.pk}',
+                'ss_c' + str(self.contract.pk) + '-TOTAL_FORMS': '0',
+                'ss_c' + str(self.contract.pk) + '-INITIAL_FORMS': '0',
+                'ss_c' + str(self.contract.pk) + '-MIN_NUM_FORMS': '0',
+                'ss_c' + str(self.contract.pk) + '-MAX_NUM_FORMS': '1000',
+                'Workgroup_members-TOTAL_FORMS': '0',
+                'Workgroup_members-INITIAL_FORMS': '0',
+                'Workgroup_members-MIN_NUM_FORMS': '0',
+                'Workgroup_members-MAX_NUM_FORMS': '1000',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303), getattr(response, 'context', None))
+        allocation.refresh_from_db()
+        self.assertTrue(allocation.import_completed)
+
     def test_save_honours_funding_delete_flag(self):
         wbs = WBSElement.objects.create(wbs_code='DEL-FA.2', title='Delete FA save')
         allocation = FundingAllocation.objects.create(
@@ -360,7 +416,7 @@ class ContractArchiveAndDeleteTests(TestCase):
                 f'{prefix}-0-funding_source': f'wbs:{wbs.pk}',
                 f'{prefix}-1-id': str(other.pk),
                 f'{prefix}-1-workhours_percentage': '100.00',
-                f'{prefix}-1-start_date': '01.01.2025',
+                f'{prefix}-1-start_date': '01.01.2024',
                 f'{prefix}-1-is_active': 'on',
                 f'{prefix}-1-funding_source': f'wbs:{wbs.pk}',
                 'ss_c' + str(self.contract.pk) + '-TOTAL_FORMS': '0',

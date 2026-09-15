@@ -6,6 +6,17 @@
 <div class="page-header">
     <h1>PSP &amp; Cost Centers</h1>
     <div class="page-header-actions">
+        <form method="get" class="inactive-switch-form">
+            {% if active_tab == 'cost-centers' %}<input type="hidden" name="tab" value="cost-centers">{% endif %}
+            {% if show_inactive %}<input type="hidden" name="show_inactive" value="1">{% endif %}
+            <label class="switch-toggle">
+                <span>Show Extern</span>
+                <input type="checkbox" name="show_extern" value="1"
+                       {% if show_extern %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <span class="switch-track" aria-hidden="true"></span>
+            </label>
+        </form>
         {% if active_tab == 'cost-centers' %}
         {% if can_manage_cost_centers %}
         <a href="{% url 'finances:cost_center_create' %}" class="btn-primary">+ New Cost Center</a>
@@ -13,6 +24,7 @@
         {% else %}
         {% if can_manage_psp %}
         <form method="get" class="inactive-switch-form">
+            {% if show_extern %}<input type="hidden" name="show_extern" value="1">{% endif %}
             <label class="switch-toggle">
                 <span>Show inactive</span>
                 <input type="checkbox" name="show_inactive" value="1"
@@ -29,10 +41,10 @@
 
 <div class="settings-tabs" role="tablist">
     {% if can_manage_psp %}
-    <a href="{% url 'finances:psp_manage' %}" class="settings-tab{% if active_tab == 'psp' %} is-active{% endif %}">PSP - Elements</a>
+    <a href="{{ psp_tab_href }}" class="settings-tab{% if active_tab == 'psp' %} is-active{% endif %}">PSP - Elements</a>
     {% endif %}
     {% if can_manage_cost_centers %}
-    <a href="{% url 'finances:psp_manage' %}?tab=cost-centers" class="settings-tab{% if active_tab == 'cost-centers' %} is-active{% endif %}">Cost Centers</a>
+    <a href="{{ cc_tab_href }}" class="settings-tab{% if active_tab == 'cost-centers' %} is-active{% endif %}">Cost Centers</a>
     {% endif %}
 </div>
 

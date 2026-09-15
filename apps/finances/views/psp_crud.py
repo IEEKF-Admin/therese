@@ -4,6 +4,8 @@ PSP / WBS element CRUD views.
 Do not remove any existing requirements from this module without explicit instruction.
 """
 
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models.deletion import ProtectedError
@@ -24,6 +26,7 @@ from apps.finances.psp_access import (
     user_manages_all_psp,
 )
 from apps.core.record_nav import adjacent_item_urls
+from apps.hr.extern import exclude_extern_workgroup
 from apps.hr.workgroup_access import get_user_workgroups
 from ..forms import WBSElementForm, WBSElementYearEstimateFormSet
 from ..models import CostCenter, WBSElement
@@ -32,6 +35,10 @@ from ..psp_cost_types import clear_disabled_year_estimate_amounts
 
 def _show_inactive_psp(request) -> bool:
     return (request.GET.get('show_inactive') or '').strip() in {'1', 'on', 'true', 'yes'}
+
+
+def _show_extern_psp(request) -> bool:
+    return (request.GET.get('show_extern') or '').strip() in {'1', 'on', 'true', 'yes'}
 
 
 def _psp_delete_blocker_labels(wbs_element):
@@ -120,6 +127,8 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         queryset = _psp_manage_queryset(queryset, self.request.user)
         if not _show_inactive_psp(self.request):
             queryset = queryset.filter(is_inactive=False)
+        if not _show_extern_psp(self.request):
+            queryset = exclude_extern_workgroup(queryset)
         return queryset
 
     def test_func(self):
@@ -139,18 +148,38 @@ class PSPListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         else:
             active_tab = 'cost-centers'
         cost_centers = CostCenter.objects.none()
+        show_inactive = _show_inactive_psp(self.request)
+        show_extern = _show_extern_psp(self.request)
         if can_cc:
             cost_qs = CostCenter.objects.select_related('work_group').order_by('cost_center')
             if user_manages_all_cost_centers(user):
                 cost_centers = cost_qs
             else:
                 cost_centers = filter_cost_centers_for_user(cost_qs, user)
+            if not show_extern:
+                cost_centers = exclude_extern_workgroup(cost_centers)
+
+        def _qs(**params):
+            cleaned = {k: v for k, v in params.items() if v}
+            return ('?' + urlencode(cleaned)) if cleaned else ''
+
+        manage_url = reverse('finances:psp_manage')
         context.update({
             'can_manage_psp': can_psp,
             'can_manage_cost_centers': can_cc,
             'active_tab': active_tab,
             'cost_centers': cost_centers,
-            'show_inactive': _show_inactive_psp(self.request),
+            'show_inactive': show_inactive,
+            'show_extern': show_extern,
+            'psp_tab_href': manage_url + _qs(
+                show_inactive='1' if show_inactive else '',
+                show_extern='1' if show_extern else '',
+            ),
+            'cc_tab_href': manage_url + _qs(
+                tab='cost-centers',
+                show_inactive='1' if show_inactive else '',
+                show_extern='1' if show_extern else '',
+            ),
         })
         return context
 

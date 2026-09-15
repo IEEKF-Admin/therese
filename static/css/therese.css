@@ -1223,7 +1223,20 @@ tr.is-inactive,
     text-decoration: none;
     font-size: 0.95rem;
     line-height: 1.3;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.task-item-unread-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dc2626;
+    flex-shrink: 0;
+    vertical-align: middle;
+    margin-right: 0.35rem;
 }
 
 .task-row .task-title:hover {

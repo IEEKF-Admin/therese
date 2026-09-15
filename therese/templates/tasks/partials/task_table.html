@@ -4,7 +4,8 @@
     <div class="task-row">
         <div class="task-row-main">
             <a href="{% url 'tasks:task_detail' task.pk %}" class="task-title">
-                {{ task.task_number|default:task.title|default:task.get_task_type_display }}
+                {% if task.pk in unopened_task_ids %}<span class="task-item-unread-dot" aria-label="Unopened"></span>{% endif %}
+                {{ task.list_label }}
             </a>
         </div>
 

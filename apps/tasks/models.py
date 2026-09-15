@@ -174,6 +174,65 @@ class Task(BaseModel):
             return mapping.get(self.status, self.status)
         return self.status
 
+    def _subclass_or_self(self, related_name):
+        from django.core.exceptions import ObjectDoesNotExist
+
+        if self.__class__.__name__.lower() == related_name:
+            return self
+        try:
+            return getattr(self, related_name)
+        except ObjectDoesNotExist:
+            return None
+
+    def target_person_name(self):
+        """Full name of the employee this task is about, if any."""
+        if self.task_type == 'purchase_order':
+            supplier = getattr(self, 'supplier', None)
+            if not supplier:
+                child = self._subclass_or_self('purchaseordertask')
+                supplier = getattr(child, 'supplier', None) if child else None
+            return (supplier or '').strip()
+        if self.task_type == 'personnel_recruitment':
+            first = getattr(self, 'first_name', None)
+            last = getattr(self, 'last_name', None)
+            if first or last:
+                return f'{first or ""} {last or ""}'.strip()
+            child = self._subclass_or_self('personnelrecruitmenttask')
+            if child:
+                return f'{child.first_name} {child.last_name}'.strip()
+            return ''
+        if self.task_type == 'generic_text':
+            recipient = getattr(self, 'recipient', None)
+            if recipient is None:
+                child = self._subclass_or_self('generictexttask')
+                recipient = getattr(child, 'recipient', None) if child else None
+            if recipient:
+                return recipient.get_full_name()
+            return ''
+        employee = getattr(self, 'employee', None)
+        if employee is not None:
+            return employee.get_full_name()
+        related = {
+            'personnel_reallocation': 'personnelreallocationtask',
+            'personnel_contract_extension': 'personnelcontractextensiontask',
+            'personnel_change_working_hours': 'personnelchangeworkinghourstask',
+        }.get(self.task_type)
+        if not related:
+            return ''
+        child = self._subclass_or_self(related)
+        employee = getattr(child, 'employee', None) if child else None
+        if employee:
+            return employee.get_full_name()
+        return ''
+
+    def list_label(self):
+        """Task type plus target person, used in /tasks/ lists instead of the ID."""
+        kind = self.get_task_type_display()
+        name = self.target_person_name()
+        if name:
+            return f'{kind} - {name}'
+        return kind
+
 
 # = Comments & attachments =
 class TaskComment(BaseModel):

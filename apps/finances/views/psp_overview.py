@@ -41,6 +41,105 @@ from apps.finances.psp_cost_types import PSP_COST_TYPES
 ZERO = Decimal('0.00')
 
 
+def _calendar_months_inclusive(start: date, end: date) -> int:
+    return (end.year - start.year) * 12 + (end.month - start.month) + 1
+
+
+def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
+    """
+    Inputs and result of one allocation cost for ``period_start``–``period_end``.
+
+    Same formula as the PSP overview:
+    monthly true cost = (base salary 100% + supplements)
+        × (weekly hours / default weekly hours) × multiplicator
+    period cost = monthly true cost × (workhours % / 100) × inclusive calendar months
+    of overlap between the allocation and the period.
+    """
+    if not period_start:
+        period_start = allocation.start_date
+    if not period_end:
+        period_end = allocation.end_date or date.today()
+
+    percentage = Decimal(allocation.workhours_percentage or 0)
+    multi = Decimal(GlobalSetting.get_true_cost_multiplicator())
+    default_hours = GlobalSetting.get_default_weekly_hours()
+    overlap_start = max(allocation.start_date, period_start)
+    alloc_end = allocation.end_date or date(9999, 12, 31)
+    overlap_end = min(alloc_end, period_end)
+    no_overlap = overlap_start > overlap_end
+
+    result = {
+        'period_start': period_start,
+        'period_end': period_end,
+        'alloc_start': allocation.start_date,
+        'alloc_end': allocation.end_date,
+        'overlap_start': None if no_overlap else overlap_start,
+        'overlap_end': None if no_overlap else overlap_end,
+        'months': 0,
+        'percentage': percentage,
+        'multiplicator': multi,
+        'default_weekly_hours': default_hours,
+        'weekly_hours': None,
+        'workload_fraction': None,
+        'base_salary': None,
+        'supplements': None,
+        'supplement_lines': [],
+        'salary_with_supplements': None,
+        'monthly_true_cost': None,
+        'monthly_allocated': None,
+        'period_cost': ZERO,
+        'contract_from': None,
+        'contract_until': None,
+        'skip_reason': '',
+    }
+    if no_overlap:
+        result['skip_reason'] = 'No overlap between allocation dates and this period.'
+        return result
+
+    result['months'] = _calendar_months_inclusive(overlap_start, overlap_end)
+    contract = allocation.employee.get_contract_as_of(overlap_start)
+    if not contract:
+        result['skip_reason'] = (
+            f'No contract open on {overlap_start.strftime("%d.%m.%Y")}.'
+        )
+        return result
+
+    result['contract_from'] = contract.valid_from
+    result['contract_until'] = contract.valid_until
+    result['weekly_hours'] = contract.weekly_hours
+    result['workload_fraction'] = contract.get_workload_fraction()
+    result['base_salary'] = _as_decimal(contract.get_monthly_salary())
+    result['supplements'] = contract.get_salary_supplements_total()
+    result['salary_with_supplements'] = contract.get_monthly_salary_with_supplements()
+    for ss in contract.salary_supplements.all():
+        if ss.fixed_amount is not None:
+            result['supplement_lines'].append({
+                'label': (ss.comment or 'Fixed amount').strip() or 'Fixed amount',
+                'amount': _as_decimal(ss.fixed_amount),
+            })
+        elif ss.percentage is not None and result['base_salary'] is not None:
+            amount = (
+                Decimal(result['base_salary']) * Decimal(ss.percentage) / Decimal('100')
+            ).quantize(Decimal('0.01'))
+            label = f'{ss.percentage} %'
+            if ss.comment:
+                label = f'{(ss.comment or "").strip()} ({label})'
+            result['supplement_lines'].append({'label': label, 'amount': amount})
+
+    full_monthly = contract.get_monthly_costs()
+    result['monthly_true_cost'] = full_monthly
+    if full_monthly is None:
+        result['skip_reason'] = 'No monthly salary / true costs on the contract.'
+        return result
+
+    monthly_allocated = (
+        Decimal(full_monthly) * (percentage / Decimal('100'))
+    ).quantize(Decimal('0.01'))
+    result['monthly_allocated'] = monthly_allocated
+    result['period_cost'] = (monthly_allocated * result['months']).quantize(Decimal('0.01'))
+    return result
+
+
 def calculate_funding_cost(allocation, period_start, period_end):
     """
     Calculate total personnel cost for a FundingAllocation over the given period.
@@ -49,36 +148,7 @@ def calculate_funding_cost(allocation, period_start, period_end):
     (100% monthly salary + supplements) × (weekly_hours / default) × multiplicator,
     then multiplies by the allocation's percentage of workhours and overlapping months.
     """
-    if not period_start:
-        period_start = allocation.start_date
-    if not period_end:
-        period_end = allocation.end_date or date.today()
-
-    overlap_start = max(allocation.start_date, period_start)
-    alloc_end = allocation.end_date or date(9999, 12, 31)
-    overlap_end = min(alloc_end, period_end)
-
-    if overlap_start > overlap_end:
-        return ZERO
-
-    contract = allocation.employee.get_contract_as_of(overlap_start)
-    if not contract:
-        return ZERO
-
-    full_monthly = contract.get_monthly_costs()
-    if full_monthly is None:
-        return ZERO
-
-    percentage = Decimal(allocation.workhours_percentage or 0)
-    prorated_monthly = Decimal(full_monthly) * (percentage / Decimal('100'))
-
-    months = (
-        (overlap_end.year - overlap_start.year) * 12
-        + (overlap_end.month - overlap_start.month)
-        + 1
-    )
-
-    return (prorated_monthly * months).quantize(Decimal('0.01'))
+    return funding_cost_breakdown(allocation, period_start, period_end)['period_cost']
 
 
 def _as_decimal(value) -> Decimal | None:
@@ -126,30 +196,28 @@ def _build_personnel_rows(allocations, period_start, period_end, *, year_start=N
     total = ZERO
     not_booked_total = ZERO
     for alloc in allocations:
-        cost = calculate_funding_cost(alloc, period_start, period_end)
-        # Not booked is always scoped to the selected Year filter.
-        not_booked_cost = calculate_funding_cost(alloc, year_start, year_end)
-        monthly = None
-        contract = alloc.employee.get_contract_as_of(period_start)
-        if contract:
-            monthly = contract.get_monthly_costs()
+        actual = funding_cost_breakdown(alloc, period_start, period_end)
+        not_booked = funding_cost_breakdown(alloc, year_start, year_end)
         import_completed = bool(getattr(alloc, 'import_completed', False))
+        not_booked_cost = not_booked['period_cost'] if not import_completed else ZERO
         rows.append({
             'employee': alloc.employee,
             'employee_name': alloc.employee.get_full_name() if alloc.employee else '—',
             'percentage': alloc.workhours_percentage,
             'start_date': alloc.start_date,
             'end_date': alloc.end_date,
-            'monthly_true_cost': monthly,
-            'period_cost': cost,
-            'not_booked_cost': not_booked_cost if not import_completed else ZERO,
+            'monthly_true_cost': actual['monthly_true_cost'],
+            'period_cost': actual['period_cost'],
+            'not_booked_cost': not_booked_cost,
             'plan_position_number': alloc.plan_position_number or '',
             'import_completed': import_completed,
             'allocation_pk': alloc.pk,
+            'actual_calc': actual,
+            'not_booked_calc': not_booked,
         })
-        total += Decimal(cost or 0)
+        total += Decimal(actual['period_cost'] or 0)
         if not import_completed:
-            not_booked_total += Decimal(not_booked_cost or 0)
+            not_booked_total += Decimal(not_booked['period_cost'] or 0)
     rows.sort(key=lambda r: r['employee_name'].lower())
     return (
         rows,
@@ -244,7 +312,8 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
             Q(end_date__isnull=True) | Q(end_date__gte=range_start),
             start_date__lte=range_end,
         )
-        .select_related('employee')
+        .select_related('employee', 'contract')
+        .prefetch_related('employee__contracts__salary_supplements')
         .order_by('employee__last_name', 'employee__first_name')
     )
     allocations = dedupe_allocations_as_of(raw_allocations, as_of)

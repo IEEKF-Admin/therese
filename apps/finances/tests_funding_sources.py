@@ -10,7 +10,8 @@ from apps.finances.funding_sources import (
 )
 from apps.finances.models import CostCenter, WBSElement
 from apps.hr.forms import FundingAllocationForm
-from apps.hr.models import Contract, Employee, FundingAllocation
+from apps.hr.extern import EXTERN_WORKGROUP_SHORT_NAME, ensure_extern_defaults
+from apps.hr.models import Contract, Employee, FundingAllocation, Workgroup
 
 
 class FundingSourceChoicesTests(TestCase):
@@ -37,6 +38,41 @@ class FundingSourceChoicesTests(TestCase):
 
         self.assertIn(f'wbs:{self.psp.pk}', flat_values)
         self.assertIn(f'cc:{self.cost_center.pk}', flat_values)
+
+    def test_extern_psp_optgroup_is_last(self):
+        workgroup, _pi = ensure_extern_defaults()
+        intern_wg = Workgroup.objects.create(
+            short_name='FUND-INT',
+            long_name='Internal',
+            pi=_pi,
+        )
+        intern = WBSElement.objects.create(
+            wbs_code='FUND-INT-1',
+            title='Internal PSP',
+            cost_center=self.cost_center,
+            work_group=intern_wg,
+        )
+        extern = WBSElement.objects.create(
+            wbs_code='FUND-EXT-1',
+            title='Extern PSP',
+            cost_center=self.cost_center,
+            work_group=workgroup,
+        )
+        groups = [
+            entry[0]
+            for entry in build_funding_source_choices()
+            if isinstance(entry[1], list)
+        ]
+        self.assertEqual(groups[-1], EXTERN_WORKGROUP_SHORT_NAME)
+        self.assertIn('PSP Elements', groups)
+        grouped = {
+            entry[0]: [value for value, _label in entry[1]]
+            for entry in build_funding_source_choices()
+            if isinstance(entry[1], list)
+        }
+        self.assertIn(f'wbs:{intern.pk}', grouped['PSP Elements'])
+        self.assertNotIn(f'wbs:{extern.pk}', grouped['PSP Elements'])
+        self.assertIn(f'wbs:{extern.pk}', grouped[EXTERN_WORKGROUP_SHORT_NAME])
 
     def test_employee_funding_form_saves_cost_center_allocation(self):
         form = FundingAllocationForm(data={

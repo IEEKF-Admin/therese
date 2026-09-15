@@ -10,19 +10,27 @@ CC_PREFIX = 'cc'
 
 
 def build_funding_source_choices():
+    from apps.hr.extern import EXTERN_WORKGROUP_SHORT_NAME, workgroup_is_extern
+
     choices = [('', '— Select PSP element or cost center —')]
-    psp_options = [
-        (f'{WBS_PREFIX}:{obj.pk}', str(obj))
-        for obj in WBSElement.objects.active().order_by('wbs_code')
-    ]
+    intern_psp = []
+    extern_psp = []
+    for obj in WBSElement.objects.active().select_related('work_group').order_by('wbs_code'):
+        option = (f'{WBS_PREFIX}:{obj.pk}', str(obj))
+        if workgroup_is_extern(obj.work_group):
+            extern_psp.append(option)
+        else:
+            intern_psp.append(option)
     cost_center_options = [
         (f'{CC_PREFIX}:{obj.pk}', str(obj))
         for obj in CostCenter.objects.order_by('cost_center')
     ]
-    if psp_options:
-        choices.append(('PSP Elements', psp_options))
+    if intern_psp:
+        choices.append(('PSP Elements', intern_psp))
     if cost_center_options:
         choices.append(('Cost Centers', cost_center_options))
+    if extern_psp:
+        choices.append((EXTERN_WORKGROUP_SHORT_NAME, extern_psp))
     return choices
 
 

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from django.test import TestCase
 
 from apps.hr.employee_list_helpers import (
+    annotate_employees_for_list,
     contract_needs_expiry_warning,
     display_contract_valid_until,
     has_seamless_followup,
@@ -61,6 +62,26 @@ class EmployeeListHelperTests(TestCase):
 
     def test_no_current_contract_warns(self):
         self.assertTrue(contract_needs_expiry_warning(None, [], as_of=self.today))
+
+    def test_expiring_soon_filter_excludes_gaps(self):
+        gap_emp = Employee.objects.create(
+            employee_number='L-GAP', first_name='No', last_name='Contract',
+        )
+        soon_emp = Employee.objects.create(
+            employee_number='L-SOON', first_name='Soon', last_name='End',
+        )
+        Contract.objects.create(
+            employee=soon_emp,
+            weekly_hours=40,
+            valid_from=date(2020, 1, 1),
+            valid_until=self.today + timedelta(days=20),
+            is_active=True,
+        )
+        annotate_employees_for_list([gap_emp, soon_emp], as_of=self.today)
+        self.assertTrue(gap_emp.list_expiry_warning)
+        self.assertFalse(gap_emp.list_expiring_soon)
+        self.assertTrue(soon_emp.list_expiry_warning)
+        self.assertTrue(soon_emp.list_expiring_soon)
 
     def test_display_valid_until_current(self):
         end = self.today + timedelta(days=10)

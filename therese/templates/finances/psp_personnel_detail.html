@@ -23,65 +23,208 @@
 
 <div class="form-card" style="margin-bottom: 1.5rem;">
     <h2 style="margin-top:0; border:none; padding:0; font-size:1.15rem;">
-        Assigned personnel — true costs
-        {% if overview.personnel_scope == 'lifetime' %}
-            (full project runtime)
-        {% else %}
-            ({{ year }})
-        {% endif %}
+        Personalkosten in the overview ({{ year }})
     </h2>
-    <p class="text-muted" style="margin:0.5rem 0 0; font-size:0.9rem;">
-        Monthly true cost = salary × multiplicator <strong>{{ multiplicator }}</strong>,
-        times the allocation workhours percentage.
-        Actual period: {{ overview.period_start }} – {{ overview.period_end }}.
-        Not booked uses only the selected year
-        ({{ overview.not_booked_period_start }} – {{ overview.not_booked_period_end }})
-        and funding allocations with Import completed = No.
+    <p class="text-muted" style="margin:0.5rem 0 1rem; font-size:0.9rem;">
+        Monthly true cost =
+        (base salary 100% + supplements)
+        × (weekly hours / default weekly hours)
+        × multiplicator <strong>{{ multiplicator }}</strong>.
+        Period cost = monthly true cost × (allocation % / 100) × inclusive calendar months
+        of overlap. January–December = 12 months; a start mid-month still counts the full month.
     </p>
-</div>
-
-{% if overview.personnel_rows %}
-<div class="form-card">
+    {% for row in overview.cost_rows %}
+    {% if row.amount_field == 'personnel_costs' %}
     <div class="year-estimate-scroll">
         <table class="table">
             <thead>
                 <tr>
-                    <th>Employee</th>
-                    <th class="text-right">% workhours</th>
-                    <th class="text-right">Monthly true cost</th>
-                    <th>Valid from</th>
-                    <th>Valid until</th>
-                    <th class="text-right">Cost in period</th>
-                    <th>Import completed</th>
+                    <th></th>
+                    <th class="text-right">Budget</th>
+                    <th class="text-right">Actual</th>
+                    <th class="text-right">Commitment</th>
+                    <th class="text-right">Not booked</th>
+                    <th class="text-right">Free budget</th>
                 </tr>
             </thead>
             <tbody>
-                {% for prow in overview.personnel_rows %}
                 <tr>
-                    <td>{{ prow.employee_name }}</td>
-                    <td class="text-right">{{ prow.percentage|de_number:2 }} %</td>
-                    <td class="text-right">
-                        {% if prow.monthly_true_cost is not None %}{{ prow.monthly_true_cost|de_number:2 }} €{% else %}—{% endif %}
-                    </td>
-                    <td>{{ prow.start_date }}</td>
-                    <td>{% if prow.end_date %}{{ prow.end_date }}{% else %}open{% endif %}</td>
-                    <td class="text-right">{{ prow.period_cost|de_number:2 }} €</td>
-                    <td>{% if prow.import_completed %}Yes{% else %}No{% endif %}</td>
-                </tr>
-                {% endfor %}
-                <tr class="psp-finance-totals">
-                    <td colspan="5"><strong>Total real personnel costs</strong></td>
-                    <td class="text-right"><strong>{{ overview.real_personnel_total|de_number:2 }} €</strong></td>
-                    <td></td>
-                </tr>
-                <tr class="psp-finance-totals">
-                    <td colspan="5"><strong>Not booked</strong> (import completed = No, year {{ year }})</td>
-                    <td class="text-right"><strong>{{ overview.not_booked_personnel_total|de_number:2 }} €</strong></td>
-                    <td></td>
+                    <td>Personalkosten</td>
+                    <td class="text-right">{% if row.plan is not None %}{{ row.plan|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.true is not None %}{{ row.true|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.obligo is not None %}{{ row.obligo|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.not_booked is not None %}{{ row.not_booked|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.free_budget is not None %}{{ row.free_budget|de_number:2 }} €{% else %}—{% endif %}</td>
                 </tr>
             </tbody>
         </table>
     </div>
+    <p class="text-muted" style="margin:0.75rem 0 0; font-size:0.85rem;">
+        <strong>Actual</strong> = sum of period costs below
+        ({% if overview.personnel_scope == 'lifetime' %}full project runtime{% else %}year {{ year }}{% endif %}:
+        {{ overview.period_start|date:"d.m.Y" }} – {{ overview.period_end|date:"d.m.Y" }}).
+        <strong>Not booked</strong> = same formula for calendar year {{ year }}
+        ({{ overview.not_booked_period_start|date:"d.m.Y" }} – {{ overview.not_booked_period_end|date:"d.m.Y" }}),
+        only allocations with Import completed = No.
+        <strong>Free budget</strong> = Budget − Actual − Commitment − Not booked.
+    </p>
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% if overview.personnel_rows %}
+{% for prow in overview.personnel_rows %}
+<div class="form-card personnel-calc-card">
+    <h2 style="margin-top:0; border:none; padding:0; font-size:1.05rem;">
+        {{ prow.employee_name }}
+        <span class="text-muted" style="font-weight:400; font-size:0.9rem;">
+            · {{ prow.percentage|de_number:2 }} %
+            · Import completed: {% if prow.import_completed %}Yes{% else %}No{% endif %}
+            {% if prow.plan_position_number %} · Plan {{ prow.plan_position_number }}{% endif %}
+        </span>
+    </h2>
+    <p class="text-muted" style="margin:0.35rem 0 0.85rem; font-size:0.85rem;">
+        Allocation {{ prow.start_date|date:"d.m.Y" }} – {% if prow.end_date %}{{ prow.end_date|date:"d.m.Y" }}{% else %}open{% endif %}
+        {% if prow.actual_calc.contract_from %}
+        · Contract {{ prow.actual_calc.contract_from|date:"d.m.Y" }} – {% if prow.actual_calc.contract_until %}{{ prow.actual_calc.contract_until|date:"d.m.Y" }}{% else %}open{% endif %}
+        {% endif %}
+    </p>
+
+    <h3 class="personnel-calc-heading">1. Monthly true cost (contract, 100% of this allocation’s contract)</h3>
+    {% if prow.actual_calc.skip_reason and prow.actual_calc.monthly_true_cost is None %}
+    <p class="text-muted" style="font-size:0.85rem;">{{ prow.actual_calc.skip_reason }}</p>
+    {% else %}
+    <table class="table personnel-calc-table">
+        <tbody>
+            <tr>
+                <td>Base salary (100% workload)</td>
+                <td class="text-right">{% if prow.actual_calc.base_salary is not None %}{{ prow.actual_calc.base_salary|de_number:2 }} €{% else %}—{% endif %}</td>
+            </tr>
+            {% for line in prow.actual_calc.supplement_lines %}
+            <tr>
+                <td>+ Supplement: {{ line.label }}</td>
+                <td class="text-right">{{ line.amount|de_number:2 }} €</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td>+ Supplements</td>
+                <td class="text-right">{% if prow.actual_calc.supplements is not None %}{{ prow.actual_calc.supplements|de_number:2 }} €{% else %}0,00 €{% endif %}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td>= Salary + supplements</td>
+                <td class="text-right">{% if prow.actual_calc.salary_with_supplements is not None %}{{ prow.actual_calc.salary_with_supplements|de_number:2 }} €{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+                <td>× Workload (weekly hours / default)</td>
+                <td class="text-right">
+                    {% if prow.actual_calc.weekly_hours is not None %}{{ prow.actual_calc.weekly_hours|de_number:2 }}{% else %}—{% endif %}
+                    /
+                    {% if prow.actual_calc.default_weekly_hours is not None %}{{ prow.actual_calc.default_weekly_hours|de_number:2 }}{% else %}—{% endif %} h
+                    = {% if prow.actual_calc.workload_fraction is not None %}{{ prow.actual_calc.workload_fraction|de_number:4 }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>× Multiplicator</td>
+                <td class="text-right">{{ prow.actual_calc.multiplicator|de_number:3 }}</td>
+            </tr>
+            <tr>
+                <td><strong>= Monthly true cost</strong></td>
+                <td class="text-right"><strong>{% if prow.actual_calc.monthly_true_cost is not None %}{{ prow.actual_calc.monthly_true_cost|de_number:2 }} €{% else %}—{% endif %}</strong></td>
+            </tr>
+            <tr>
+                <td>× Allocation workhours</td>
+                <td class="text-right">{{ prow.actual_calc.percentage|de_number:2 }} %</td>
+            </tr>
+            <tr>
+                <td><strong>= Monthly allocated</strong></td>
+                <td class="text-right"><strong>{% if prow.actual_calc.monthly_allocated is not None %}{{ prow.actual_calc.monthly_allocated|de_number:2 }} €{% else %}—{% endif %}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h3 class="personnel-calc-heading">2. Actual (overview column)</h3>
+    {% if prow.actual_calc.skip_reason %}
+    <p class="text-muted" style="font-size:0.85rem;">{{ prow.actual_calc.skip_reason }} → 0,00 €</p>
+    {% else %}
+    <table class="table personnel-calc-table">
+        <tbody>
+            <tr>
+                <td>Period</td>
+                <td class="text-right">{{ prow.actual_calc.period_start|date:"d.m.Y" }} – {{ prow.actual_calc.period_end|date:"d.m.Y" }}</td>
+            </tr>
+            <tr>
+                <td>Overlap with allocation</td>
+                <td class="text-right">{{ prow.actual_calc.overlap_start|date:"d.m.Y" }} – {{ prow.actual_calc.overlap_end|date:"d.m.Y" }}</td>
+            </tr>
+            <tr>
+                <td>Inclusive calendar months</td>
+                <td class="text-right">{{ prow.actual_calc.months }}</td>
+            </tr>
+            <tr>
+                <td><strong>Monthly allocated × months</strong></td>
+                <td class="text-right">
+                    <strong>
+                    {% if prow.actual_calc.monthly_allocated is not None %}{{ prow.actual_calc.monthly_allocated|de_number:2 }} €{% else %}—{% endif %}
+                    × {{ prow.actual_calc.months }}
+                    = {{ prow.period_cost|de_number:2 }} €
+                    </strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h3 class="personnel-calc-heading">3. Not booked (overview column, year {{ year }})</h3>
+    {% if prow.import_completed %}
+    <p class="text-muted" style="font-size:0.85rem;">Import completed = Yes → not booked 0,00 €</p>
+    {% elif prow.not_booked_calc.skip_reason %}
+    <p class="text-muted" style="font-size:0.85rem;">{{ prow.not_booked_calc.skip_reason }} → 0,00 €</p>
+    {% else %}
+    <table class="table personnel-calc-table">
+        <tbody>
+            <tr>
+                <td>Year window</td>
+                <td class="text-right">{{ prow.not_booked_calc.period_start|date:"d.m.Y" }} – {{ prow.not_booked_calc.period_end|date:"d.m.Y" }}</td>
+            </tr>
+            <tr>
+                <td>Overlap with allocation</td>
+                <td class="text-right">{{ prow.not_booked_calc.overlap_start|date:"d.m.Y" }} – {{ prow.not_booked_calc.overlap_end|date:"d.m.Y" }}</td>
+            </tr>
+            <tr>
+                <td>Inclusive calendar months</td>
+                <td class="text-right">{{ prow.not_booked_calc.months }}</td>
+            </tr>
+            <tr>
+                <td><strong>Monthly allocated × months</strong></td>
+                <td class="text-right">
+                    <strong>
+                    {% if prow.not_booked_calc.monthly_allocated is not None %}{{ prow.not_booked_calc.monthly_allocated|de_number:2 }} €{% else %}—{% endif %}
+                    × {{ prow.not_booked_calc.months }}
+                    = {{ prow.not_booked_cost|de_number:2 }} €
+                    </strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endfor %}
+
+<div class="form-card">
+    <table class="table">
+        <tbody>
+            <tr class="psp-finance-totals">
+                <td><strong>Total Actual</strong> (sum of period costs → overview Actual)</td>
+                <td class="text-right"><strong>{{ overview.real_personnel_total|de_number:2 }} €</strong></td>
+            </tr>
+            <tr class="psp-finance-totals">
+                <td><strong>Total Not booked</strong> (Import completed = No, year {{ year }} → overview Not booked)</td>
+                <td class="text-right"><strong>{{ overview.not_booked_personnel_total|de_number:2 }} €</strong></td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 {% else %}
 <div class="form-card">
@@ -99,6 +242,18 @@
 .psp-finance-totals td {
     background: #f8fafc;
     border-top: 2px solid var(--border, #e2e8f0);
+}
+.personnel-calc-card h3.personnel-calc-heading {
+    font-size: 0.85rem;
+    margin: 1rem 0 0.4rem;
+    color: #334155;
+}
+.personnel-calc-table {
+    margin: 0;
+}
+.personnel-calc-table td {
+    font-size: 0.88rem;
+    padding: 0.35rem 0.5rem;
 }
 </style>
 {% endblock %}

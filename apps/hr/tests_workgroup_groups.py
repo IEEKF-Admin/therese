@@ -6,6 +6,13 @@ from apps.finances.models import WBSElement
 from apps.hr.forms import WorkgroupForm
 from apps.hr.models import Employee, Workgroup
 from apps.hr.workgroup_access import filter_by_user_workgroups
+from apps.hr.extern import (
+    EXTERN_PI_FIRST_NAME,
+    EXTERN_PI_LAST_NAME,
+    EXTERN_WORKGROUP_SHORT_NAME,
+    ensure_extern_defaults,
+    workgroup_is_extern,
+)
 from apps.hr.workgroup_groups import sync_auth_group_for_workgroup
 
 
@@ -63,6 +70,19 @@ class WorkgroupGroupSyncTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         workgroup = form.save()
         self.assertEqual(workgroup.auth_group.name, 'Form-Lab')
+
+    def test_extern_workgroup_is_seeded(self):
+        workgroup, employee = ensure_extern_defaults()
+        again_wg, again_emp = ensure_extern_defaults()
+        self.assertEqual(workgroup.pk, again_wg.pk)
+        self.assertEqual(employee.pk, again_emp.pk)
+        self.assertEqual(workgroup.short_name, EXTERN_WORKGROUP_SHORT_NAME)
+        self.assertTrue(workgroup_is_extern(workgroup))
+        self.assertEqual(employee.first_name, EXTERN_PI_FIRST_NAME)
+        self.assertEqual(employee.last_name, EXTERN_PI_LAST_NAME)
+        self.assertTrue(employee.is_external)
+        self.assertEqual(workgroup.pi_id, employee.pk)
+        self.assertTrue(workgroup.members.filter(pk=employee.pk).exists())
 
 
 class WorkgroupPspAccessTests(TestCase):

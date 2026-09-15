@@ -6,8 +6,6 @@ Contracts own Funding Allocations (nested formsets, one card per contract).
 
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
-
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
@@ -329,16 +327,15 @@ def collect_salary_formsets_from_post(employee, contract_formset, data):
     return formsets
 
 
-def _q2(value: Decimal) -> Decimal:
-    return Decimal(value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-
 def validate_active_contract_funding_totals(contract_formset, nested_funding) -> list[str]:
     """
-    Active contract's non-deleted active FAs must sum to exactly 100%.
+    Active contract's non-deleted active FAs must sum to exactly 100%
+    on every day of the contract.
 
     ``nested_funding``: list of (index, contract_form, funding_formset)
     """
+    from apps.hr.funding_coverage import coverage_error_message
+
     errors = []
     for index, cform, fa_fs in nested_funding:
         if not hasattr(cform, 'cleaned_data') or not cform.cleaned_data:
@@ -349,8 +346,7 @@ def validate_active_contract_funding_totals(contract_formset, nested_funding) ->
             continue
         if not fa_fs.is_valid():
             continue
-        total = Decimal('0.00')
-        active_fa_count = 0
+        rows = []
         for fform in fa_fs.forms:
             if not hasattr(fform, 'cleaned_data') or not fform.cleaned_data:
                 continue
@@ -361,16 +357,24 @@ def validate_active_contract_funding_totals(contract_formset, nested_funding) ->
             pct = fform.cleaned_data.get('workhours_percentage')
             if pct is None:
                 continue
-            total += Decimal(pct)
-            active_fa_count += 1
-        total = _q2(total)
-        if total != Decimal('100.00'):
-            label = cform.cleaned_data.get('valid_from') or f'#{index + 1}'
-            errors.append(
-                f'Active funding allocations on the active contract ({label}) '
-                f'must sum to exactly 100% (currently {total}%, '
-                f'{active_fa_count} active allocation(s)).'
-            )
+            rows.append((
+                fform.cleaned_data.get('start_date'),
+                fform.cleaned_data.get('end_date'),
+                pct,
+            ))
+        valid_from = cform.cleaned_data.get('valid_from')
+        if hasattr(valid_from, 'strftime'):
+            label = valid_from.strftime('%d.%m.%Y')
+        else:
+            label = valid_from or f'#{index + 1}'
+        message = coverage_error_message(
+            label,
+            valid_from,
+            cform.cleaned_data.get('valid_until'),
+            rows,
+        )
+        if message:
+            errors.append(message)
     return errors
 
 

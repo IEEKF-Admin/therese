@@ -9,15 +9,26 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from ..models import PERSONNEL_TASK_TYPES, Task, PurchaseOrderTask
-from apps.hr.models import Employee
 from apps.accounts.permissions import GroupNames
+from apps.hr.models import Employee
 
+from ..models import PERSONNEL_TASK_TYPES, Task
+from ..unopened import unopened_tasks_queryset
 from ..utils import (
     get_purchase_orders_queryset,
     is_procurement_coordinator,
     is_procurement_approver,
     is_personnel_coordinator,
+)
+
+_TASK_LIST_RELATED = (
+    'assignee',
+    'creator',
+    'personnelreallocationtask__employee',
+    'personnelcontractextensiontask__employee',
+    'personnelchangeworkinghourstask__employee',
+    'personnelrecruitmenttask',
+    'generictexttask__recipient',
 )
 
 
@@ -76,13 +87,13 @@ def my_tasks(request):
         my_created = (
             Task.objects.filter(creator=employee, archived_by=employee)
             .exclude(task_type='purchase_order')
-            .select_related('assignee', 'creator')
+            .select_related(*_TASK_LIST_RELATED)
             .order_by('-created_at')
         )
         assigned_to_me = (
             Task.objects.filter(assignee=employee, archived_by=employee)
             .exclude(task_type='purchase_order')
-            .select_related('assignee', 'creator')
+            .select_related(*_TASK_LIST_RELATED)
             .order_by('-created_at')
         )
     else:
@@ -90,14 +101,14 @@ def my_tasks(request):
             Task.objects.filter(creator=employee)
             .exclude(task_type='purchase_order')
             .exclude(archived_by=employee)
-            .select_related('assignee', 'creator')
+            .select_related(*_TASK_LIST_RELATED)
             .order_by('-created_at')
         )
         assigned_to_me = (
             Task.objects.filter(assignee=employee)
             .exclude(task_type='purchase_order')
             .exclude(archived_by=employee)
-            .select_related('assignee', 'creator')
+            .select_related(*_TASK_LIST_RELATED)
             .order_by('-created_at')
         )
 
@@ -132,7 +143,7 @@ def my_tasks(request):
     if is_personnel_coordinator(request.user):
         personnel_qs = Task.objects.filter(
             task_type__in=PERSONNEL_TASK_TYPES,
-        ).select_related('assignee', 'creator').order_by('-created_at')
+        ).select_related(*_TASK_LIST_RELATED).order_by('-created_at')
         if is_archive_view:
             personnel_all_visible = personnel_qs.filter(archived_by=employee)
         else:
@@ -153,6 +164,9 @@ def my_tasks(request):
         'personnel_all_visible': personnel_all_visible,
         'is_archive_view': is_archive_view,
         'page_title': page_title,
+        'unopened_task_ids': set(
+            unopened_tasks_queryset(request.user).values_list('pk', flat=True)
+        ),
     }
 
     from apps.accounts.login_popups import (

@@ -34,8 +34,8 @@
             <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}filter=expiring_soon&amp;sort={{ current_sort }}&amp;dir={{ current_dir }}"
                class="btn-subtle{% if list_filter == 'expiring_soon' %} is-active{% endif %}"
                style="{% if list_filter == 'expiring_soon' %}font-weight:600;{% endif %}"
-               title="Contract ending within 3 months without seamless follow-up, or gap today">
-                Expiring soon / gaps
+               title="Contract ending within 3 months without seamless follow-up">
+                Expiring soon
             </a>
             <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}filter=check_needed&amp;sort={{ current_sort }}&amp;dir={{ current_dir }}"
                class="btn-subtle{% if list_filter == 'check_needed' %} is-active{% endif %}"

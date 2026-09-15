@@ -71,7 +71,7 @@ Do not remove any existing requirements from this header without explicit instru
                     <thead>
                         <tr>
                             <th>Supplier</th>
-                            <th>Order #</th>
+                            <th>Task</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Action</th>
@@ -80,10 +80,13 @@ Do not remove any existing requirements from this header without explicit instru
                     <tbody>
                         {% for task in po_assigned_to_me %}
                         <tr>
-                            <td><strong>{{ task.order_display_name }}</strong></td>
+                            <td>
+                                {% if task.pk in unopened_task_ids %}<span class="task-item-unread-dot" aria-label="Unopened"></span>{% endif %}
+                                <strong>{{ task.order_display_name }}</strong>
+                            </td>
                             <td>
                                 <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
-                                    Order #{{ task.pk }}
+                                    {{ task.list_label }}
                                 </a>
                             </td>
                             <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
@@ -119,7 +122,7 @@ Do not remove any existing requirements from this header without explicit instru
                     <thead>
                         <tr>
                             <th>Supplier</th>
-                            <th>Order #</th>
+                            <th>Task</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Action</th>
@@ -128,10 +131,13 @@ Do not remove any existing requirements from this header without explicit instru
                     <tbody>
                         {% for task in po_created_by_me %}
                         <tr>
-                            <td><strong>{{ task.order_display_name }}</strong></td>
+                            <td>
+                                {% if task.pk in unopened_task_ids %}<span class="task-item-unread-dot" aria-label="Unopened"></span>{% endif %}
+                                <strong>{{ task.order_display_name }}</strong>
+                            </td>
                             <td>
                                 <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
-                                    Order #{{ task.pk }}
+                                    {{ task.list_label }}
                                 </a>
                             </td>
                             <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>
@@ -169,7 +175,7 @@ Do not remove any existing requirements from this header without explicit instru
                 <thead>
                     <tr>
                         <th>Supplier</th>
-                        <th>Order #</th>
+                        <th>Task</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th>Action</th>
@@ -178,10 +184,13 @@ Do not remove any existing requirements from this header without explicit instru
                 <tbody>
                     {% for task in po_all_visible %}
                     <tr>
-                        <td><strong>{{ task.order_display_name }}</strong></td>
+                        <td>
+                            {% if task.pk in unopened_task_ids %}<span class="task-item-unread-dot" aria-label="Unopened"></span>{% endif %}
+                            <strong>{{ task.order_display_name }}</strong>
+                        </td>
                         <td>
                             <a href="{% url 'tasks:task_detail' task.pk %}" class="order-link">
-                                Order #{{ task.pk }}
+                                {{ task.list_label }}
                             </a>
                         </td>
                         <td><span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span></td>

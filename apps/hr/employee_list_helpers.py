@@ -212,6 +212,9 @@ def annotate_employees_for_list(employees: list[Employee], *, as_of: date | None
                 expiry_warning_tooltip(current, contracts, as_of=as_of)
                 if emp.list_expiry_warning else ''
             )
+        emp.list_expiring_soon = bool(
+            emp.list_expiry_warning and emp.list_current_contract is not None
+        )
     return employees
 
 

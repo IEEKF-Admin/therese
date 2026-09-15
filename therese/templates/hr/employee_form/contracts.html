@@ -4,7 +4,8 @@
     <p class="text-muted contracts-funding-help" style="font-size:0.85rem; margin-top:0;"{% if not show_funding_help %} hidden{% endif %}>
         Each contract is a card. Funding allocations belong to that contract.
         Active funding % on the <strong>active</strong> contract must sum to
-        <strong>exactly 100%</strong>. At most one active contract is allowed.
+        <strong>exactly 100% on every day</strong>. Sequential periods that
+        do not overlap are allowed. At most one active contract is allowed.
         Expired contracts and allocations are archived (read-only).
     </p>
 
@@ -171,6 +172,14 @@
                                 </label>
                             </div>
                             {% endif %}
+                            <div class="inline-field">
+                                <label title="Payroll/admin data for this allocation is confirmed">Import completed</label>
+                                <label class="icon-toggle icon-toggle-active" title="Import completed">
+                                    {{ fform.import_completed }}
+                                    <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                                    <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+                                </label>
+                            </div>
                             <div class="inline-field full"><label>Comments</label>{% if fform.comments.errors %}{{ fform.comments|add_class:"form-control error" }}{% else %}{{ fform.comments }}{% endif %}</div>
                         </div>
                         {% endfor %}
@@ -193,6 +202,7 @@
                                 <strong>{{ fa.workhours_percentage }}%</strong>
                                 · {{ fa.start_date }}{% if fa.end_date %} – {{ fa.end_date }}{% else %} (open){% endif %}
                                 · Active: {% if fa.is_active %}Yes{% else %}No{% endif %}
+                                · Import completed: {% if fa.import_completed %}Yes{% else %}No{% endif %}
                             </p>
                             {% if fa.plan_position_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Plan: {{ fa.plan_position_number }}</p>{% endif %}
                             {% if fa.job_number %}<p class="text-muted" style="margin:0; font-size:0.8rem;">Job: {{ fa.job_number }}</p>{% endif %}
@@ -387,6 +397,14 @@
                 <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
             </label>
         </div>
+        <div class="inline-field">
+            <label title="Payroll/admin data for this allocation is confirmed">Import completed</label>
+            <label class="icon-toggle icon-toggle-active" title="Import completed">
+                {{ empty_funding_form.import_completed }}
+                <i class="fas fa-toggle-on icon-toggle-on" aria-hidden="true"></i>
+                <i class="fas fa-toggle-off icon-toggle-off" aria-hidden="true"></i>
+            </label>
+        </div>
         <div class="inline-field full"><label>Comments</label>{{ empty_funding_form.comments }}</div>
     </div>
     {% endif %}
@@ -504,7 +522,7 @@
         item.querySelectorAll('input, select, textarea').forEach(function(el) {
             const name = el.getAttribute('name') || '';
             if (!name || el.type === 'hidden') return;
-            if (name.indexOf('-is_active') !== -1 || name.indexOf('-DELETE') !== -1) return;
+            if (name.indexOf('-is_active') !== -1 || name.indexOf('-import_completed') !== -1 || name.indexOf('-DELETE') !== -1) return;
             if (inactive) {
                 el.classList.add('is-inactive-field');
                 if (el.tagName === 'SELECT' || el.type === 'checkbox') {

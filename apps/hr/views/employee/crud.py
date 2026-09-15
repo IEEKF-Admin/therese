@@ -168,7 +168,7 @@ def employee_list(request):
         annotate_employees_for_list(employee_list, as_of=today, archive_mode=archive_mode)
 
     if not archive_mode and list_filter == 'expiring_soon':
-        employee_list = [e for e in employee_list if e.list_expiry_warning]
+        employee_list = [e for e in employee_list if e.list_expiring_soon]
     elif not archive_mode and list_filter == 'no_followup':
         # Same set as warning for now (warning encodes no seamless follow-up / gap)
         employee_list = [e for e in employee_list if e.list_expiry_warning]

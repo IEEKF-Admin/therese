@@ -7,7 +7,8 @@ from django.test import Client, TestCase
 
 from apps.accounts.models import CustomUser
 from apps.finances.models import CostCenter, WBSElement
-from apps.hr.models import Employee
+from apps.hr.models import Contract, Employee, FundingAllocation
+from apps.tasks.forms.personnel import current_plan_positions_by_employee_id
 from apps.tasks.forms import (
     GenericTextTaskForm,
     PersonnelContractExtensionTaskForm,
@@ -182,6 +183,35 @@ class PersonnelTaskValidationTests(TestCase):
             is_creation=True,
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_extension_prefills_plan_position_from_employee_fa(self):
+        contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2025, 1, 1),
+            is_active=True,
+        )
+        FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.employee,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('100.00'),
+            plan_position_number='PP-42',
+            start_date=date(2025, 1, 1),
+            is_active=True,
+        )
+        self.assertEqual(
+            current_plan_positions_by_employee_id(as_of=date(2026, 6, 1)).get(self.employee.pk),
+            'PP-42',
+        )
+        form = PersonnelContractExtensionTaskForm(
+            user=self.user,
+            is_creation=True,
+            initial={'employee': self.employee.pk},
+        )
+        self.assertEqual(form.initial.get('plan_position_number'), 'PP-42')
+        html = str(form['employee'])
+        self.assertIn('data-plan-position="PP-42"', html)
 
 
 class RecruitmentFundingFormsetTests(TestCase):

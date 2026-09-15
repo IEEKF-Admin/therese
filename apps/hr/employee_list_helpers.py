@@ -7,11 +7,19 @@ from typing import Iterable
 
 from django.db.models import Prefetch, Q
 
+from apps.core.models import GlobalSetting
 from apps.hr.models import Contract, Employee, FundingAllocation
 from apps.hr.validity import resolve_as_of, select_contract_as_of
 
 
 EXPIRY_WARNING_DAYS = 90
+
+
+def _expiry_warning_days() -> int:
+    try:
+        return GlobalSetting.get_employee_expiring_soon_days()
+    except Exception:
+        return EXPIRY_WARNING_DAYS
 
 
 def select_next_future_contract(contracts: Iterable[Contract], as_of: date | None = None):
@@ -56,7 +64,7 @@ def contract_needs_expiry_warning(
     contracts: Iterable[Contract],
     *,
     as_of: date | None = None,
-    within_days: int = EXPIRY_WARNING_DAYS,
+    within_days: int | None = None,
 ) -> bool:
     """
     Warning for active-employee list only (caller enforces archive mode).
@@ -68,6 +76,8 @@ def contract_needs_expiry_warning(
     """
     as_of = resolve_as_of(as_of)
     contracts = list(contracts)
+    if within_days is None:
+        within_days = _expiry_warning_days()
 
     if current is None:
         return True
@@ -207,6 +217,7 @@ def annotate_employees_for_list(employees: list[Employee], *, as_of: date | None
         else:
             emp.list_expiry_warning = contract_needs_expiry_warning(
                 current, contracts, as_of=as_of,
+                within_days=_expiry_warning_days(),
             )
             emp.list_expiry_tooltip = (
                 expiry_warning_tooltip(current, contracts, as_of=as_of)

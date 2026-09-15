@@ -5,7 +5,8 @@ from django import forms
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
 from apps.finances.funding_sources import FundingSourceFormMixin
-from apps.hr.models import Employee
+from apps.hr.models import Employee, FundingAllocation
+from apps.hr.validity import resolve_as_of
 from apps.tasks.form_validation import (
     DecimalCommaField,
     require_non_empty_text,
@@ -328,6 +329,57 @@ class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
         return cleaned_data
 
 
+class EmployeeWithPlanPositionSelect(forms.Select):
+    """Employee dropdown that carries the current plan position per option."""
+
+    def __init__(self, *args, plan_positions=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plan_positions = plan_positions or {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(
+            name, value, label, selected, index, subindex=subindex, attrs=attrs,
+        )
+        pk = getattr(value, 'value', value)
+        try:
+            pk = int(pk)
+        except (TypeError, ValueError):
+            pk = None
+        if pk is not None:
+            option['attrs']['data-plan-position'] = self.plan_positions.get(pk, '') or ''
+        return option
+
+
+def current_plan_positions_by_employee_id(as_of=None) -> dict[int, str]:
+    """Latest-start open FA plan position per employee; else latest FA with a value."""
+    as_of = resolve_as_of(as_of)
+    rows = list(
+        FundingAllocation.objects.exclude(plan_position_number='')
+        .order_by('employee_id', '-start_date', '-pk')
+        .only('employee_id', 'plan_position_number', 'start_date', 'end_date', 'is_active')
+    )
+    plan_map: dict[int, str] = {}
+    for fa in rows:
+        if fa.employee_id in plan_map:
+            continue
+        if not fa.start_date or fa.start_date > as_of:
+            continue
+        if fa.end_date is not None and fa.end_date < as_of:
+            continue
+        if not fa.is_active:
+            continue
+        value = (fa.plan_position_number or '').strip()
+        if value:
+            plan_map[fa.employee_id] = value
+    for fa in rows:
+        if fa.employee_id in plan_map:
+            continue
+        value = (fa.plan_position_number or '').strip()
+        if value:
+            plan_map[fa.employee_id] = value
+    return plan_map
+
+
 # ---------------------------------------------------------------------------
 # Personnel contract extension task
 # ---------------------------------------------------------------------------
@@ -391,6 +443,20 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             self.fields['limitation_reason'].widget.attrs.update({'class': 'form-control'})
 
         if 'employee' in self.fields:
+            if self.is_creation:
+                plan_map = current_plan_positions_by_employee_id()
+                self.fields['employee'].widget = EmployeeWithPlanPositionSelect(
+                    attrs=self.fields['employee'].widget.attrs,
+                    plan_positions=plan_map,
+                )
+                if not self.data:
+                    emp_pk = self.initial.get('employee')
+                    try:
+                        emp_pk = int(emp_pk) if emp_pk not in (None, '') else None
+                    except (TypeError, ValueError):
+                        emp_pk = None
+                    if emp_pk and not self.initial.get('plan_position_number'):
+                        self.initial['plan_position_number'] = plan_map.get(emp_pk, '')
             self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
             if not self.is_creation and getattr(self.instance, 'pk', None):

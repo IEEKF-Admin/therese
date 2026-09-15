@@ -80,6 +80,8 @@ class TemplateVariableTests(TestCase):
         )
         self.assertIn('Ben Beta', rendered)
         self.assertIn('E-VARS', rendered)
+        label = render_placeholders('{{ task_label }}', replacements)
+        self.assertIn('Personnel Reallocation - Ben Beta', label)
         keys = {item['key'] for item in catalog_for_trigger('personnel_task_created')}
         self.assertIn('personnel_employee_name', keys)
         self.assertIn('personnel_tasks', keys)
@@ -130,6 +132,8 @@ class TemplateVariableTests(TestCase):
             employee=self.employee,
         )
         self.assertIn('Open GmbH', text)
+        self.assertIn('Purchase Order - Open GmbH', text)
+        self.assertNotIn(f'#{open_po.pk}', text)
         self.assertNotIn('Coordinating GmbH', text)
         self.assertNotIn('Archived GmbH', text)
 

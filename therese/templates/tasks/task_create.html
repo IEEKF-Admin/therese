@@ -450,6 +450,14 @@ document.addEventListener('DOMContentLoaded', function() {
         enableLimitationTemplates: true,
         limitationReasons: el ? JSON.parse(el.textContent) : null,
     });
+    var emp = document.getElementById('id_employee');
+    var plan = document.getElementById('id_plan_position_number');
+    if (emp && plan) {
+        emp.addEventListener('change', function() {
+            var opt = emp.options[emp.selectedIndex];
+            plan.value = opt ? (opt.getAttribute('data-plan-position') || '') : '';
+        });
+    }
 });
 </script>
 {% endif %}

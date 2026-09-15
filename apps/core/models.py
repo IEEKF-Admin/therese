@@ -215,6 +215,15 @@ class GlobalSetting(models.Model):
             "to create a new employee with the minimal required fields."
         ),
     )
+    employee_expiring_soon_days = models.PositiveIntegerField(
+        default=90,
+        verbose_name='Employee “Expiring soon” window (days)',
+        help_text=(
+            'Employees whose current contract ends within this many days '
+            '(and who have no seamless follow-up) match the Expiring soon filter '
+            'on the employee list.'
+        ),
+    )
     CHEMICAL_HAZARD_THRESHOLD_CHOICES = [
         ('any_ghs', 'Any GHS signal, H-code, or pictogram'),
         ('signal_warning_or_danger', 'GHS signal Warning or Danger'),
@@ -329,6 +338,14 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_show_add_employee_on_reallocation(cls) -> bool:
         return bool(cls.get_solo().show_add_employee_on_reallocation)
+
+    @classmethod
+    def get_employee_expiring_soon_days(cls) -> int:
+        try:
+            days = int(cls.get_solo().employee_expiring_soon_days)
+        except (TypeError, ValueError):
+            return 90
+        return max(1, days)
 
     @classmethod
     def get_chemical_hazard_threshold(cls):

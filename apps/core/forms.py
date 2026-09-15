@@ -42,6 +42,7 @@ class GlobalSettingForm(forms.ModelForm):
             'personnel_import_tolerance',
             'chemical_hazard_threshold',
             'show_add_employee_on_reallocation',
+            'employee_expiring_soon_days',
             'irresponsible',
             'holidays_enabled',
             'holidays_planning_enabled',
@@ -63,6 +64,9 @@ class GlobalSettingForm(forms.ModelForm):
             ),
             'personnel_import_tolerance': forms.NumberInput(
                 attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'},
+            ),
+            'employee_expiring_soon_days': forms.NumberInput(
+                attrs={'class': 'form-control', 'min': '1', 'step': '1'},
             ),
             'chemical_hazard_threshold': forms.Select(attrs={'class': 'form-select'}),
             'holiday_half_day_rounding': forms.Select(attrs={'class': 'form-select'}),

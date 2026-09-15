@@ -49,6 +49,7 @@ VARIABLES = [
     {'key': 'contract_employee_name', 'label': 'Contract holder name', 'group': 'contract'},
     {'key': 'contract_employee_number', 'label': 'Contract holder number', 'group': 'contract'},
     {'key': 'task_number', 'label': 'Task number', 'group': 'task'},
+    {'key': 'task_label', 'label': 'Task label (type and target, as on /tasks/)', 'group': 'task'},
     {'key': 'task_title', 'label': 'Task title', 'group': 'task'},
     {'key': 'task_type', 'label': 'Task type', 'group': 'task'},
     {'key': 'task_status', 'label': 'Task status', 'group': 'task'},
@@ -406,43 +407,45 @@ def _unarchived(qs, employee):
     return qs.exclude(archived_by=employee)
 
 
+def _task_list_label(task):
+    getter = getattr(task, 'list_label', None)
+    if callable(getter):
+        return getter() or ''
+    return str(task)
+
+
 def _po_list(qs):
-    headers = ['Number', 'Supplier', 'Status', 'Creator', 'Assignee']
+    headers = ['Task', 'Status', 'Creator', 'Assignee']
     rows = []
     items = list(qs.select_related('creator', 'assignee').order_by('-created_at')[: LIST_MAX_ROWS + 1])
     extra = max(0, len(items) - LIST_MAX_ROWS)
     for po in items[:LIST_MAX_ROWS]:
-        number = (getattr(po, 'task_number', '') or '').strip() or f'#{po.pk}'
         rows.append((
-            number,
-            getattr(po, 'supplier', '') or '',
+            _task_list_label(po),
             _status_label(po.status) or (po.status or ''),
             _person_name(getattr(po, 'creator', None)),
             _person_name(getattr(po, 'assignee', None)),
         ))
     if extra:
-        rows.append((f'… and {extra} more', '', '', '', ''))
+        rows.append((f'… and {extra} more', '', '', ''))
     return TemplateList(headers, rows)
 
 
 def _task_list(qs):
-    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    headers = ['Task', 'Status', 'Assignee']
     items = list(
         qs.select_related('creator', 'assignee').order_by('-created_at')[: LIST_MAX_ROWS + 1]
     )
     extra = max(0, len(items) - LIST_MAX_ROWS)
     rows = []
     for task in items[:LIST_MAX_ROWS]:
-        number = (getattr(task, 'task_number', '') or '').strip() or f'#{task.pk}'
         rows.append((
-            number,
-            _choice_display(task, 'task_type'),
-            getattr(task, 'title', '') or '',
+            _task_list_label(task),
             _status_label(task.status) or (task.status or ''),
             _person_name(getattr(task, 'assignee', None)),
         ))
     if extra:
-        rows.append((f'… and {extra} more', '', '', '', ''))
+        rows.append((f'… and {extra} more', '', ''))
     return TemplateList(headers, rows)
 
 
@@ -451,7 +454,7 @@ def list_purchase_orders(user, employee, status=None):
 
     if user is None:
         return TemplateList(
-            ['Number', 'Supplier', 'Status', 'Creator', 'Assignee'],
+            ['Task', 'Status', 'Creator', 'Assignee'],
             [],
         )
     qs = _unarchived(get_purchase_orders_queryset(user), employee)
@@ -463,7 +466,7 @@ def list_purchase_orders(user, employee, status=None):
 def list_my_purchase_orders(employee, status=None):
     from apps.tasks.models import PurchaseOrderTask
 
-    headers = ['Number', 'Supplier', 'Status', 'Creator', 'Assignee']
+    headers = ['Task', 'Status', 'Creator', 'Assignee']
     if employee is None:
         return TemplateList(headers, [])
     qs = PurchaseOrderTask.objects.filter(assignee=employee)
@@ -476,7 +479,7 @@ def list_my_purchase_orders(employee, status=None):
 def list_assigned_tasks(employee, status=None):
     from apps.tasks.models import Task
 
-    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    headers = ['Task', 'Status', 'Assignee']
     if employee is None:
         return TemplateList(headers, [])
     qs = Task.objects.filter(assignee=employee)
@@ -489,7 +492,7 @@ def list_assigned_tasks(employee, status=None):
 def list_personnel_tasks(user, employee, status=None):
     from apps.tasks.utils import get_personnel_tasks_queryset
 
-    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    headers = ['Task', 'Status', 'Assignee']
     if user is None:
         return TemplateList(headers, [])
     qs = _unarchived(get_personnel_tasks_queryset(user), employee)
@@ -501,7 +504,7 @@ def list_personnel_tasks(user, employee, status=None):
 def list_my_personnel_tasks(employee, status=None):
     from apps.tasks.models import PERSONNEL_TASK_TYPES, Task
 
-    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    headers = ['Task', 'Status', 'Assignee']
     if employee is None:
         return TemplateList(headers, [])
     qs = Task.objects.filter(assignee=employee, task_type__in=PERSONNEL_TASK_TYPES)
@@ -544,7 +547,7 @@ def list_ending_contracts(employee, months=6):
 def list_unopened_tasks(user):
     from apps.tasks.unopened import unopened_tasks_for_user
 
-    headers = ['Number', 'Type', 'Title', 'Status', 'Assignee']
+    headers = ['Task', 'Status', 'Assignee']
     if user is None:
         return TemplateList(headers, [])
     return _task_list(unopened_tasks_for_user(user))
@@ -684,6 +687,7 @@ def build_replacement_map(
         'contract_employee_name': '',
         'contract_employee_number': '',
         'task_number': '',
+        'task_label': '',
         'task_title': '',
         'task_type': '',
         'task_status': '',
@@ -745,6 +749,7 @@ def build_replacement_map(
 
     if task is not None:
         values['task_number'] = getattr(task, 'task_number', '') or ''
+        values['task_label'] = _task_list_label(task)
         values['task_title'] = getattr(task, 'title', '') or ''
         values['task_type'] = _choice_display(task, 'task_type')
         values['task_status'] = getattr(task, 'status', '') or ''
@@ -764,6 +769,7 @@ def build_replacement_map(
         if task is None and getattr(comment, 'task', None) is not None:
             comment_task = comment.task
             values['task_number'] = getattr(comment_task, 'task_number', '') or ''
+            values['task_label'] = _task_list_label(comment_task)
             values['task_title'] = getattr(comment_task, 'title', '') or ''
 
     if checklist is not None:

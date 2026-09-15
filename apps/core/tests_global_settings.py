@@ -55,6 +55,7 @@ class GlobalSettingsViewTests(TestCase):
             'default_weekly_hours': '40.00',
             'true_cost_multiplicator': '1.250',
             'personnel_import_tolerance': '0.0300',
+            'employee_expiring_soon_days': '60',
             'chemical_hazard_threshold': 'signal_danger_only',
             'show_add_employee_on_reallocation': 'on',
             'holidays_enabled': 'on',
@@ -68,6 +69,7 @@ class GlobalSettingsViewTests(TestCase):
         setting = GlobalSetting.get_solo()
         self.assertEqual(setting.default_weekly_hours, Decimal('40.00'))
         self.assertEqual(setting.true_cost_multiplicator, Decimal('1.250'))
+        self.assertEqual(setting.employee_expiring_soon_days, 60)
         self.assertEqual(setting.chemical_hazard_threshold, 'signal_danger_only')
         self.assertTrue(setting.show_add_employee_on_reallocation)
         self.assertFalse(setting.irresponsible)
@@ -84,6 +86,7 @@ class GlobalSettingsViewTests(TestCase):
             'default_weekly_hours': '38.5',
             'true_cost_multiplicator': '1.300',
             'personnel_import_tolerance': '0.0250',
+            'employee_expiring_soon_days': '90',
             'chemical_hazard_threshold': 'any_ghs',
             'holiday_half_day_rounding': 'up',
             'form-TOTAL_FORMS': '2',

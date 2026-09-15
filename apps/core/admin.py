@@ -20,11 +20,13 @@ from .models import DataImportLog, GlobalSetting, StoredFile
 class GlobalSettingAdmin(admin.ModelAdmin):
     list_display = [
         'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
+        'employee_expiring_soon_days',
         'irresponsible', 'show_add_employee_on_reallocation',
         'chemical_hazard_threshold', 'updated_at',
     ]
     fields = [
         'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
+        'employee_expiring_soon_days',
         'irresponsible', 'show_add_employee_on_reallocation',
         'chemical_hazard_threshold', 'updated_at',
     ]

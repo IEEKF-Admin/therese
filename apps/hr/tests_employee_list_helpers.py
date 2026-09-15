@@ -83,6 +83,21 @@ class EmployeeListHelperTests(TestCase):
         self.assertTrue(soon_emp.list_expiry_warning)
         self.assertTrue(soon_emp.list_expiring_soon)
 
+    def test_expiring_soon_uses_global_setting_days(self):
+        from apps.core.models import GlobalSetting
+
+        GlobalSetting.objects.update_or_create(
+            pk=1, defaults={'employee_expiring_soon_days': 10},
+        )
+        c = self._contract(valid_until=self.today + timedelta(days=20))
+        self.assertFalse(
+            contract_needs_expiry_warning(c, [c], as_of=self.today),
+        )
+        GlobalSetting.objects.filter(pk=1).update(employee_expiring_soon_days=30)
+        self.assertTrue(
+            contract_needs_expiry_warning(c, [c], as_of=self.today),
+        )
+
     def test_display_valid_until_current(self):
         end = self.today + timedelta(days=10)
         c = self._contract(valid_until=end)

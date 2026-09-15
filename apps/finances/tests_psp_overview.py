@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import Client, TestCase
 
@@ -100,7 +101,7 @@ class BuildPspOverviewTests(TestCase):
             wbs_element=self.wbs,
             date_of_update=date(2026, 6, 1),
             material_costs=Decimal('2000.00'),
-            personnel_costs=Decimal('99999.00'),  # imported; overview must NOT use this
+            personnel_costs=Decimal('8000.00'),  # Ist for personnel Actual
         )
         WBSElementObligo.objects.create(
             wbs_element=self.wbs,
@@ -129,42 +130,36 @@ class BuildPspOverviewTests(TestCase):
             end_date=date(2026, 12, 31),
         )
 
-    def test_overview_uses_real_personnel_not_imported_true(self):
-        # Default WBS is non-annual → lifetime plan + full-runtime personnel
+    def test_personnel_actual_is_ist_plus_obligo_plus_not_booked(self):
         self.wbs.subject_to_annual_recurrence = False
         self.wbs.period_start = date(2026, 1, 1)
         self.wbs.period_end = date(2026, 12, 31)
         self.wbs.save()
 
         overview = build_psp_financial_overview(
-            self.wbs, 2026, Decimal('1.300')
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2026, 1, 1),
         )
         self.assertEqual(overview['plan_scope'], 'lifetime')
-        self.assertEqual(overview['personnel_scope'], 'lifetime')
         by_field = {r['amount_field']: r for r in overview['cost_rows']}
         self.assertEqual(by_field['material_costs']['plan'], Decimal('10000.00'))
         self.assertEqual(by_field['material_costs']['true'], Decimal('2000.00'))
         self.assertEqual(by_field['material_costs']['obligo'], Decimal('500.00'))
 
-        # Real personnel: 2000 * 1.3 * 100% * 12 = 31200
-        self.assertEqual(by_field['personnel_costs']['true'], Decimal('31200.00'))
-        self.assertEqual(by_field['personnel_costs']['true_source'], 'real_personnel')
-        self.assertEqual(
-            by_field['personnel_costs']['imported_true'], Decimal('99999.00')
-        )
-        # Personalobligo is shown in Obligo of Personalkosten, not as own row
+        # Not booked: 2000 * 1.3 * 100% * 12 = 31200 (import_completed=False, from 1.1.)
+        self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('31200.00'))
+        self.assertEqual(by_field['personnel_costs']['imported_true'], Decimal('8000.00'))
         self.assertEqual(by_field['personnel_costs']['obligo'], Decimal('3000.00'))
+        # Actual = Ist 8000 + Obligo 3000 + Not booked 31200 = 42200
+        self.assertEqual(by_field['personnel_costs']['true'], Decimal('42200.00'))
+        self.assertEqual(by_field['personnel_costs']['true_source'], 'ist_obligo_not_booked')
         self.assertEqual(overview['personal_obligo'], Decimal('3000.00'))
         self.assertEqual(len(overview['personnel_rows']), 1)
         self.assertEqual(by_field['material_costs']['label_de'], 'Sachkosten')
         self.assertNotIn('.', by_field['personnel_costs']['label_de'])
-        # Free budget = Budget − Actual − Commitment − Not booked
         # Material: 10000 - 2000 - 500 - 0 = 7500
         self.assertEqual(by_field['material_costs']['free_budget'], Decimal('7500.00'))
-        # Personnel: 50000 - 31200 - 3000 - 31200 = -15400
-        self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('-15400.00'))
-        # FundingAllocation.import_completed defaults False → not booked
-        self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('31200.00'))
+        # Personnel Free = Budget − Actual = 50000 - 42200 = 7800
+        self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('7800.00'))
         self.assertIsNone(by_field['material_costs']['not_booked'])
 
     def test_not_booked_excludes_import_completed_allocations(self):
@@ -176,13 +171,14 @@ class BuildPspOverviewTests(TestCase):
             import_completed=True,
         )
         overview = build_psp_financial_overview(
-            self.wbs, 2026, Decimal('1.300')
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2026, 1, 1),
         )
         by_field = {r['amount_field']: r for r in overview['cost_rows']}
-        self.assertEqual(by_field['personnel_costs']['true'], Decimal('31200.00'))
         self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('0.00'))
-        # Free budget no longer subtracts not booked when none: 50000-31200-3000=15800
-        self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('15800.00'))
+        # Actual = Ist 8000 + Obligo 3000 + Not booked 0 = 11000
+        self.assertEqual(by_field['personnel_costs']['true'], Decimal('11000.00'))
+        # Free = Budget − Actual = 50000 - 11000 = 39000
+        self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('39000.00'))
 
     def test_not_booked_uses_selected_year_and_allocation_overlap(self):
         """Not booked uses Year filter + allocation dates + % + multiplicator."""
@@ -198,16 +194,49 @@ class BuildPspOverviewTests(TestCase):
         )
         # salary 2000 * 1.3 * 50% * 6 months = 7800
         overview = build_psp_financial_overview(
-            self.wbs, 2026, Decimal('1.300')
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2026, 7, 1),
         )
         by_field = {r['amount_field']: r for r in overview['cost_rows']}
         self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('7800.00'))
         # Year 2027 has no overlapping allocation months → not booked 0
         overview_2027 = build_psp_financial_overview(
-            self.wbs, 2027, Decimal('1.300')
+            self.wbs, 2027, Decimal('1.300'), as_of=date(2026, 7, 1),
         )
         by_field_2027 = {r['amount_field']: r for r in overview_2027['cost_rows']}
         self.assertEqual(by_field_2027['personnel_costs']['not_booked'], Decimal('0.00'))
+
+    def test_not_booked_only_future_months(self):
+        self.wbs.subject_to_annual_recurrence = False
+        self.wbs.period_start = date(2026, 1, 1)
+        self.wbs.period_end = date(2026, 12, 31)
+        self.wbs.save()
+        overview = build_psp_financial_overview(
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2026, 9, 15),
+        )
+        by_field = {r['amount_field']: r for r in overview['cost_rows']}
+        # Remaining Sep–Dec = 4 months: 2000 * 1.3 * 100% * 4 = 10400
+        self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('10400.00'))
+        self.assertEqual(overview['personnel_rows'][0]['not_booked_calc']['months'], 4)
+        self.assertEqual(
+            overview['personnel_rows'][0]['not_booked_calc']['overlap_start'],
+            date(2026, 9, 15),
+        )
+        # Actual = Ist 8000 + Obligo 3000 + Not booked 10400 = 21400
+        self.assertEqual(by_field['personnel_costs']['true'], Decimal('21400.00'))
+        self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('28600.00'))
+
+    def test_not_booked_zero_when_year_already_past(self):
+        self.wbs.subject_to_annual_recurrence = False
+        self.wbs.period_start = date(2026, 1, 1)
+        self.wbs.period_end = date(2026, 12, 31)
+        self.wbs.save()
+        overview = build_psp_financial_overview(
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2027, 1, 1),
+        )
+        by_field = {r['amount_field']: r for r in overview['cost_rows']}
+        self.assertEqual(by_field['personnel_costs']['not_booked'], Decimal('0.00'))
+        # Actual = Ist 8000 + Obligo 3000 + 0 = 11000
+        self.assertEqual(by_field['personnel_costs']['true'], Decimal('11000.00'))
 
     def test_non_annual_plan_not_tied_to_filter_year(self):
         """Lifetime plan is shown even when the filter year differs from estimate.year."""
@@ -218,7 +247,7 @@ class BuildPspOverviewTests(TestCase):
         # Estimate stored under 2025 (technical key), filter year 2027
         WBSElementYearEstimate.objects.filter(wbs_element=self.wbs).update(year=2025)
         overview = build_psp_financial_overview(
-            self.wbs, 2027, Decimal('1.300')
+            self.wbs, 2027, Decimal('1.300'), as_of=date(2026, 1, 1),
         )
         self.assertEqual(overview['plan_scope'], 'lifetime')
         by_field = {r['amount_field']: r for r in overview['cost_rows']}
@@ -266,7 +295,11 @@ class PspOverviewViewTests(TestCase):
         self.assertContains(response, 'Personalkosten in the overview')
         self.assertContains(response, 'Back to PSP overview')
 
-    def test_personnel_detail_shows_calculation_inputs(self):
+    @patch(
+        'apps.finances.views.psp_overview.resolve_as_of',
+        return_value=date(2026, 1, 1),
+    )
+    def test_personnel_detail_shows_calculation_inputs(self, _as_of):
         wbs = WBSElement.objects.get(wbs_code='P-VIEW.1')
         wbs.has_personnel_costs = True
         wbs.subject_to_annual_recurrence = True
@@ -305,5 +338,5 @@ class PspOverviewViewTests(TestCase):
         self.assertContains(response, '650,00')
         self.assertContains(response, 'Inclusive calendar months')
         self.assertContains(response, '7.800,00')
+        self.assertContains(response, 'Ist + Personalobligo + Not booked')
         self.assertContains(response, 'Total Actual')
-        self.assertContains(response, 'Total Not booked')

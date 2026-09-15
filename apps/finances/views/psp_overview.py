@@ -1,8 +1,11 @@
 """
 PSP / WBS overview for authorized users.
 
-Shows per PSP element a Plan / True / Obligo table. Personnel "True" costs use
-employee funding allocations with salary × global true-cost multiplicator.
+Shows per PSP element a Plan / True / Obligo table.
+
+Personnel Actual = imported Ist + Personalobligo + Not booked.
+Not booked = remaining future months of funding allocations with
+import_completed=False (selected calendar year, from today).
 
 Do not remove any existing requirements from this module without explicit instruction.
 """
@@ -21,7 +24,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.core.models import GlobalSetting
 from apps.hr.models import FundingAllocation, Workgroup
-from apps.hr.validity import dedupe_allocations_as_of, resolve_as_of
+from apps.hr.validity import resolve_as_of
 from apps.hr.workgroup_access import get_user_workgroups
 from apps.finances.models import (
     WBSElement,
@@ -175,29 +178,39 @@ def _latest_snapshot(queryset, year: int):
     return any_row, False
 
 
-def _build_personnel_rows(allocations, period_start, period_end, *, year_start=None, year_end=None):
+def _not_booked_window(year_start, year_end, unpaid_from):
+    """Future months inside the selected calendar year (today onward)."""
+    start = year_start
+    if start is None or start < unpaid_from:
+        start = unpaid_from
+    return start, year_end
+
+
+def _build_personnel_rows(
+    allocations,
+    year_start,
+    year_end,
+    *,
+    unpaid_from=None,
+):
     """
-    Per-employee true-cost breakdown for the period.
+    Per-employee Not booked breakdown.
 
-    Returns (rows, total_all, total_not_booked).
+    Returns (rows, total_not_booked).
 
-    ``total_all`` / row ``period_cost`` use ``period_start``–``period_end``
-    (Actual column / detail list).
-
-    ``total_not_booked`` always uses the selected calendar year
-    (``year_start``–``year_end``): contract true monthly costs ×
-    workhours % × months overlapping the year and the allocation dates.
-    Only funding allocations with import_completed=False are included.
+    Not booked = contract true monthly costs × workhours % × inclusive
+    calendar months overlapping the allocation, the selected calendar year,
+    and today onward. Only ``import_completed=False``.
     """
-    if year_start is None or year_end is None:
-        year_start, year_end = period_start, period_end
+    if unpaid_from is None:
+        unpaid_from = resolve_as_of(None)
+    nb_start, nb_end = _not_booked_window(year_start, year_end, unpaid_from)
 
     rows = []
-    total = ZERO
     not_booked_total = ZERO
     for alloc in allocations:
-        actual = funding_cost_breakdown(alloc, period_start, period_end)
-        not_booked = funding_cost_breakdown(alloc, year_start, year_end)
+        monthly = funding_cost_breakdown(alloc, year_start, year_end)
+        not_booked = funding_cost_breakdown(alloc, nb_start, nb_end)
         import_completed = bool(getattr(alloc, 'import_completed', False))
         not_booked_cost = not_booked['period_cost'] if not import_completed else ZERO
         rows.append({
@@ -206,24 +219,19 @@ def _build_personnel_rows(allocations, period_start, period_end, *, year_start=N
             'percentage': alloc.workhours_percentage,
             'start_date': alloc.start_date,
             'end_date': alloc.end_date,
-            'monthly_true_cost': actual['monthly_true_cost'],
-            'period_cost': actual['period_cost'],
+            'monthly_true_cost': monthly['monthly_true_cost'],
+            'period_cost': not_booked_cost,
             'not_booked_cost': not_booked_cost,
             'plan_position_number': alloc.plan_position_number or '',
             'import_completed': import_completed,
             'allocation_pk': alloc.pk,
-            'actual_calc': actual,
+            'monthly_calc': monthly,
             'not_booked_calc': not_booked,
         })
-        total += Decimal(actual['period_cost'] or 0)
         if not import_completed:
             not_booked_total += Decimal(not_booked['period_cost'] or 0)
     rows.sort(key=lambda r: r['employee_name'].lower())
-    return (
-        rows,
-        total.quantize(Decimal('0.01')),
-        not_booked_total.quantize(Decimal('0.01')),
-    )
+    return rows, not_booked_total.quantize(Decimal('0.01'))
 
 
 def _resolve_plan_estimate(wbs: WBSElement, year: int):
@@ -273,15 +281,22 @@ def _personnel_cost_period(wbs: WBSElement, year: int) -> tuple[date, date, str]
     return start, end, 'lifetime'
 
 
-def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Decimal) -> dict:
+def build_psp_financial_overview(
+    wbs: WBSElement,
+    year: int,
+    multiplicator: Decimal,
+    *,
+    as_of: date | None = None,
+) -> dict:
     """
     Assemble Plan / True / Obligo rows for one PSP element.
 
     - Plan (annual): YearEstimate for ``year``
     - Plan (non-annual): single lifetime YearEstimate for the full project
     - True (non-personnel): latest WBSElementTrueYearlySpending (prefer in-year)
-    - True (personnel): funding allocations × salary × multiplicator over
-      year (annual) or full project runtime (non-annual)
+    - True (personnel): imported Ist + Personalobligo + Not booked
+    - Not booked (personnel): future months of funding allocations with
+      import_completed=False in the selected calendar year
     - Obligo: latest WBSElementObligo (prefer in-year) + personal field
     """
     is_annual = bool(wbs.subject_to_annual_recurrence)
@@ -295,46 +310,26 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
     )
     obligo, obligo_in_year = _latest_snapshot(wbs.obligos.all(), year)
 
-    # Load allocations that overlap either the Actual period or the selected year
-    # (so Not booked can be computed for the year even on non-annual PSPs).
-    # Soft rule: per employee on this PSP, only the open allocation with the
-    # latest start_date on the reference date wins (future starts ignored).
-    range_start = min(period_start, year_start)
-    range_end = max(period_end, year_end)
-    as_of = resolve_as_of(None)
-    if as_of > range_end:
-        as_of = range_end
-    if as_of < range_start:
-        as_of = range_start
-    raw_allocations = list(
+    today = resolve_as_of(as_of)
+    nb_start, nb_end = _not_booked_window(year_start, year_end, today)
+    # Allocations overlapping the selected year (list + Not booked).
+    # Future starts in the year are included; overlap with today onward
+    # is applied in the Not booked window.
+    allocations = list(
         FundingAllocation.objects.filter(wbs_element=wbs)
         .filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=range_start),
-            start_date__lte=range_end,
+            Q(end_date__isnull=True) | Q(end_date__gte=year_start),
+            start_date__lte=year_end,
         )
         .select_related('employee', 'contract')
         .prefetch_related('employee__contracts__salary_supplements')
         .order_by('employee__last_name', 'employee__first_name')
     )
-    allocations = dedupe_allocations_as_of(raw_allocations, as_of)
-    # Keep rows that only cover historical parts of the range (already ended
-    # before as_of) so Actual still reflects past assignments without double-counting
-    # open overlaps. If dedupe dropped everything for an employee, fall back to
-    # raw list filtered to non-open historical rows only.
-    winner_pks = {a.pk for a in allocations}
-    for alloc in raw_allocations:
-        if alloc.pk in winner_pks:
-            continue
-        # Include ended (historical) allocations that are not open on as_of
-        if alloc.end_date is not None and alloc.end_date < as_of:
-            if alloc.start_date <= range_end and alloc.end_date >= range_start:
-                allocations.append(alloc)
-    personnel_rows, real_personnel_total, not_booked_personnel_total = _build_personnel_rows(
+    personnel_rows, not_booked_personnel_total = _build_personnel_rows(
         allocations,
-        period_start,
-        period_end,
-        year_start=year_start,
-        year_end=year_end,
+        year_start,
+        year_end,
+        unpaid_from=today,
     )
 
     cost_rows = []
@@ -342,6 +337,7 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
     true_total = ZERO
     obligo_total = ZERO
     not_booked_total = ZERO
+    consumed_total = ZERO
     personal_obligo = _as_decimal(getattr(obligo, 'personal', None)) if obligo else None
 
     for flag_field, amount_field, code, label_de, label_en in PSP_COST_TYPES:
@@ -353,9 +349,6 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
         not_booked_val = None
 
         if amount_field == 'personnel_costs':
-            # True personnel = calculated from assigned employees (multiplicator).
-            true_val = real_personnel_total
-            true_source = 'real_personnel'
             imported_true = (
                 _as_decimal(getattr(true_spending, amount_field, None))
                 if true_spending else None
@@ -364,11 +357,14 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
             # not as a separate table row.
             if personal_obligo is not None:
                 obligo_val = personal_obligo
-            # Not booked (selected Year only): true costs for funding allocations
-            # with import_completed=False.
-            # cost = monthly_salary × multiplicator × (workhours% / 100) × months
-            # of overlap between allocation validity and the selected calendar year.
             not_booked_val = not_booked_personnel_total
+            # Actual = Ist + Personalobligo + Not booked
+            true_val = (
+                (imported_true or ZERO)
+                + (obligo_val or ZERO)
+                + (not_booked_val or ZERO)
+            ).quantize(Decimal('0.01'))
+            true_source = 'ist_obligo_not_booked'
         else:
             true_val = (
                 _as_decimal(getattr(true_spending, amount_field, None))
@@ -386,23 +382,25 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
             continue
 
         plan_total += plan_val or ZERO
-        # For personnel, always count real total; for others imported true
-        if amount_field == 'personnel_costs':
-            true_total += real_personnel_total or ZERO
-            not_booked_total += not_booked_val or ZERO
-        else:
-            true_total += true_val or ZERO
+        true_total += true_val or ZERO
         obligo_total += obligo_val or ZERO
+        if amount_field == 'personnel_costs':
+            not_booked_total += not_booked_val or ZERO
+            consumed = true_val or ZERO
+        else:
+            consumed = (
+                (true_val or ZERO)
+                + (obligo_val or ZERO)
+                + (not_booked_val or ZERO)
+            )
+        consumed_total += consumed
 
-        # Free budget = Budget − Actual − Commitment − Not booked
+        # Personnel Actual already includes Commitment + Not booked,
+        # so Free = Budget − Actual. Other cost types: Budget − Actual
+        # − Commitment − Not booked.
         free_budget = None
         if plan_val is not None:
-            free_budget = (
-                plan_val
-                - (true_val or ZERO)
-                - (obligo_val or ZERO)
-                - (not_booked_val or ZERO)
-            ).quantize(Decimal('0.01'))
+            free_budget = (plan_val - consumed).quantize(Decimal('0.01'))
 
         cost_rows.append({
             'code': code,
@@ -419,9 +417,7 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
             'free_budget': free_budget,
         })
 
-    free_budget_total = (
-        plan_total - true_total - obligo_total - not_booked_total
-    ).quantize(Decimal('0.01'))
+    free_budget_total = (plan_total - consumed_total).quantize(Decimal('0.01'))
 
     return {
         'wbs': wbs,
@@ -431,8 +427,8 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
         'personnel_scope': personnel_scope,
         'period_start': period_start,
         'period_end': period_end,
-        'not_booked_period_start': year_start,
-        'not_booked_period_end': year_end,
+        'not_booked_period_start': nb_start,
+        'not_booked_period_end': nb_end,
         'multiplicator': multiplicator,
         'estimate': estimate,
         'estimate_technical_year': estimate.year if estimate else None,
@@ -450,7 +446,14 @@ def build_psp_financial_overview(wbs: WBSElement, year: int, multiplicator: Deci
         'not_booked_total': not_booked_total.quantize(Decimal('0.01')),
         'free_budget_total': free_budget_total,
         'personnel_rows': personnel_rows,
-        'real_personnel_total': real_personnel_total,
+        'personnel_ist': (
+            _as_decimal(getattr(true_spending, 'personnel_costs', None))
+            if true_spending else None
+        ),
+        'personnel_actual_total': next(
+            (r['true'] for r in cost_rows if r['amount_field'] == 'personnel_costs'),
+            ZERO,
+        ),
         'not_booked_personnel_total': not_booked_personnel_total,
         'has_data': bool(cost_rows or personnel_rows or personal_obligo is not None),
     }
@@ -622,10 +625,10 @@ def _export_csv(overviews, year):
                 year,
                 f"Personnel detail: {prow['employee_name']} ({prow['percentage']}%)",
                 '',
-                prow['period_cost'],
-                'real_personnel',
                 '',
-                '' if prow.get('import_completed') else prow['period_cost'],
+                'not_booked',
+                '',
+                prow.get('not_booked_cost', ''),
                 '',
             ])
     return response

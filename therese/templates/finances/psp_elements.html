@@ -121,11 +121,7 @@
                     </th>
                     <th scope="col" class="text-right">
                         Actual
-                        {% if overview.personnel_scope == 'lifetime' %}
-                        <br><span class="col-subhint">costs · personnel: full runtime</span>
-                        {% else %}
-                        <br><span class="col-subhint">costs · personnel: {{ year }}</span>
-                        {% endif %}
+                        <br><span class="col-subhint">personnel: Ist + Obligo + Not booked</span>
                     </th>
                     <th scope="col" class="text-right">
                         Commitment

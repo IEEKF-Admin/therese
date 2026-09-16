@@ -55,6 +55,12 @@ class MinimalEmployeeCreateTests(TestCase):
 
         self.client = Client()
 
+    def test_form_paste_guard_is_loaded(self):
+        self.client.login(username='quick-mgr', password='test')
+        response = self.client.get(reverse('hr:employee_quick_create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'form_paste_guard')
+
     def test_forbidden_without_manage_permission(self):
         self.client.login(username='quick-other', password='test')
         response = self.client.get(reverse('hr:employee_quick_create'))

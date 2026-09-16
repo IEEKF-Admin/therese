@@ -26,6 +26,11 @@ class EmployeeQuerySet(models.QuerySet):
     def institute(self):
         return self.filter(is_external=False)
 
+    def visible(self):
+        from apps.hr.extern import exclude_extern_pi
+
+        return exclude_extern_pi(self)
+
 
 class Building(BaseModel):
     number = models.CharField(max_length=20, unique=True, verbose_name="Building Number")
@@ -1083,4 +1088,12 @@ class Workgroup(models.Model):
 
     def __str__(self):
         return f"{self.short_name} ({self.long_name})"
+
+    @property
+    def pi_display(self):
+        from apps.hr.extern import workgroup_is_extern
+
+        if workgroup_is_extern(self):
+            return '—'
+        return self.pi
 

@@ -30,6 +30,7 @@ from .models import (
     Employee, Building, Room, PhoneNumber, RoomStorageItem, Contract,
     FundingAllocation, SalarySupplement, Workgroup
 )
+from .extern import workgroup_is_extern
 from .workgroup_groups import sync_auth_group_for_workgroup
 from apps.finances.funding_sources import FundingSourceField, FundingSourceFormMixin
 from apps.finances.models import PayScale
@@ -544,6 +545,16 @@ class WorkgroupForm(forms.ModelForm):
             'pi': forms.Select(attrs={'class': 'form-select'}),
             'members': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 8}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        visible = Employee.objects.visible().order_by('last_name', 'first_name')
+        self.fields['members'].queryset = visible
+        if workgroup_is_extern(self.instance):
+            self.fields.pop('pi', None)
+            self.fields['short_name'].disabled = True
+        else:
+            self.fields['pi'].queryset = visible
 
     def save(self, commit=True):
         instance = super().save(commit=False)

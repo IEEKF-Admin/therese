@@ -56,7 +56,7 @@ class GenericTextTaskForm(forms.ModelForm):
             self.fields['due_date'].widget.attrs.update({'class': 'form-control'})
 
         if 'recipient' in self.fields:
-            self.fields['recipient'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['recipient'].queryset = Employee.objects.visible().order_by('last_name', 'first_name')
             self.fields['recipient'].empty_label = "— Please select a recipient —"
             self.fields['recipient'].required = True
 

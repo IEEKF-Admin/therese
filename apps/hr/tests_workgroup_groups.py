@@ -1,5 +1,7 @@
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.finances.models import WBSElement
@@ -82,7 +84,55 @@ class WorkgroupGroupSyncTests(TestCase):
         self.assertEqual(employee.last_name, EXTERN_PI_LAST_NAME)
         self.assertTrue(employee.is_external)
         self.assertEqual(workgroup.pi_id, employee.pk)
-        self.assertTrue(workgroup.members.filter(pk=employee.pk).exists())
+        self.assertFalse(workgroup.members.filter(pk=employee.pk).exists())
+        self.assertFalse(Employee.objects.visible().filter(pk=employee.pk).exists())
+        self.assertEqual(workgroup.pi_display, '—')
+
+
+class ExternPiHiddenTests(TestCase):
+    def setUp(self):
+        self.admin = CustomUser.objects.create_user('extern-hide', password='test')
+        self.admin.password_changed = True
+        self.admin.save(update_fields=['password_changed'])
+        emp_ct = ContentType.objects.get_for_model(Employee)
+        wg_ct = ContentType.objects.get_for_model(Workgroup)
+        self.admin.user_permissions.add(
+            Permission.objects.get(content_type=emp_ct, codename='can_view_all_employees'),
+            Permission.objects.get(content_type=emp_ct, codename='manage_all_employees'),
+            Permission.objects.get(content_type=wg_ct, codename='manage_working_group'),
+        )
+        Employee.objects.create(
+            employee_number='E-HIDE-ADM',
+            first_name='Admin',
+            last_name='Viewer',
+            user=self.admin,
+        )
+        self.workgroup, self.pi = ensure_extern_defaults()
+
+    def test_employee_list_omits_extern_pi(self):
+        self.client.login(username='extern-hide', password='test')
+        response = self.client.get(reverse('hr:employee_list'))
+        self.assertEqual(response.status_code, 200)
+        names = [e.get_full_name() for e in response.context['employees']]
+        self.assertNotIn('Extern Externssohn', names)
+        self.assertNotContains(response, 'Externssohn')
+
+    def test_workgroup_list_hides_extern_pi_name(self):
+        self.client.login(username='extern-hide', password='test')
+        response = self.client.get(reverse('hr:workgroup_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, EXTERN_WORKGROUP_SHORT_NAME)
+        self.assertNotContains(response, 'Externssohn')
+
+    def test_workgroup_form_omits_extern_pi_from_choices(self):
+        form = WorkgroupForm()
+        self.assertNotIn(self.pi.pk, form.fields['pi'].queryset.values_list('pk', flat=True))
+        self.assertNotIn(self.pi.pk, form.fields['members'].queryset.values_list('pk', flat=True))
+
+    def test_employee_edit_is_forbidden(self):
+        self.client.login(username='extern-hide', password='test')
+        response = self.client.get(reverse('hr:employee_update', args=[self.pi.pk]))
+        self.assertEqual(response.status_code, 302)
 
 
 class WorkgroupPspAccessTests(TestCase):

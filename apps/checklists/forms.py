@@ -125,7 +125,7 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         self.fields['file_target'].required = False
         self.fields['employee_document_type'].required = False
         self.fields['editable_by_employees'].required = False
-        self.fields['editable_by_employees'].queryset = Employee.objects.order_by(
+        self.fields['editable_by_employees'].queryset = Employee.objects.visible().order_by(
             'last_name', 'first_name',
         )
         self.fields['editable_by_groups'].required = False
@@ -269,7 +269,7 @@ class ChecklistAssignForm(forms.Form):
         self.fields['template_version'].label_from_instance = (
             lambda v: f'{v.template.name_en} ({v.version_label})'
         )
-        self.fields['employees'].queryset = Employee.objects.order_by(
+        self.fields['employees'].queryset = Employee.objects.visible().order_by(
             'last_name', 'first_name',
         )
         self.fields['employees'].label_from_instance = _employee_choice_label

@@ -240,7 +240,7 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].widget.attrs.update({'class': 'form-control'})
             self.fields['employee'].required = True
-            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['employee'].queryset = Employee.objects.visible().order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
             if not self.is_creation and getattr(self.instance, 'pk', None):
                 # Edit page shows the name as text and does not post this field.
@@ -315,7 +315,7 @@ class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
         if 'employee' in self.fields:
             self.fields['employee'].widget.attrs.update({'class': 'form-control'})
             self.fields['employee'].required = True
-            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['employee'].queryset = Employee.objects.visible().order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
             if not self.is_creation and getattr(self.instance, 'pk', None):
                 self.fields['employee'].disabled = True
@@ -502,7 +502,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
                         emp_pk = None
                     if emp_pk and not self.initial.get('plan_position_number'):
                         self.initial['plan_position_number'] = plan_map.get(emp_pk, '')
-            self.fields['employee'].queryset = Employee.objects.order_by('last_name', 'first_name')
+            self.fields['employee'].queryset = Employee.objects.visible().order_by('last_name', 'first_name')
             self.fields['employee'].empty_label = "— Select employee —"
             if not self.is_creation and getattr(self.instance, 'pk', None):
                 self.fields['employee'].disabled = True

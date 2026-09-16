@@ -35,7 +35,7 @@
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ wg.pk }}"></td>
                 <td>{{ wg.short_name }}</td>
                 <td>{{ wg.long_name }}</td>
-                <td>{{ wg.pi }}</td>
+                <td>{{ wg.pi_display }}</td>
                 <td>{{ wg.members.count }}</td>
                 <td>
                     <a href="{% url 'hr:workgroup_update' wg.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>

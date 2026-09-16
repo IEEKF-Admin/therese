@@ -272,7 +272,7 @@ def employee_list_search_q(search_query: str, *, as_of: date | None = None) -> Q
 
 
 def employees_queryset_for_list():
-    return Employee.objects.select_related(
+    return Employee.objects.visible().select_related(
         'room__building', 'cost_center', 'user',
     ).prefetch_related(
         Prefetch(

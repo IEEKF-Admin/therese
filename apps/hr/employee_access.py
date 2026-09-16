@@ -72,6 +72,9 @@ def filter_employees_for_user(queryset, user):
     """
     Restrict employee queryset by workgroup scope unless user has institute-wide rights.
     """
+    from apps.hr.extern import exclude_extern_pi
+
+    queryset = exclude_extern_pi(queryset)
     if user_sees_all_employees(user):
         return queryset
     if not (
@@ -87,6 +90,9 @@ def filter_employees_for_user(queryset, user):
 
 def filter_employees_for_manage(queryset, user):
     """Employees the user may edit, in list order."""
+    from apps.hr.extern import exclude_extern_pi
+
+    queryset = exclude_extern_pi(queryset)
     if user_manages_all_employees(user):
         return queryset
     if not user.has_perm('hr.manage_employee'):
@@ -98,6 +104,10 @@ def filter_employees_for_manage(queryset, user):
 
 
 def user_can_view_employee(user, employee: Employee) -> bool:
+    from apps.hr.extern import employee_is_extern_pi
+
+    if employee_is_extern_pi(employee):
+        return False
     if not user_can_view_employee_list(user) or employee is None:
         return False
     if user_sees_all_employees(user):
@@ -119,6 +129,10 @@ def user_can_manage_employee(user, employee: Employee | None = None) -> bool:
         return False
     if employee is None:
         return True
+    from apps.hr.extern import employee_is_extern_pi
+
+    if employee_is_extern_pi(employee):
+        return False
     if user_manages_all_employees(user):
         return True
     # Workgroup-scoped manage

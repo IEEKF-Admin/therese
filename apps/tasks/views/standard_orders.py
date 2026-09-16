@@ -70,7 +70,7 @@ def standard_order_create(request):
             try:
                 item.created_by = request.user.employee
             except (AttributeError, Employee.DoesNotExist):
-                item.created_by = Employee.objects.first()  # fallback (should not happen)
+                item.created_by = Employee.objects.visible().first()  # fallback (should not happen)
             item.save()
             messages.success(request, "Standard item created successfully.")
             return redirect('tasks:standard_orders_list')

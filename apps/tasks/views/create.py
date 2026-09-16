@@ -37,6 +37,7 @@ from ..forms import (
     PersonnelRecruitmentTaskForm,
     RecruitmentFundingFormSet,
     ReallocationFundingFormSet,
+    ExtensionFundingFormSet,
 )
 from ..recruitment_form_helpers import (
     build_recruitment_template_context,
@@ -47,6 +48,12 @@ from ..recruitment_upload_cache import (
     get_stashed_uploads,
     stash_recruitment_uploads,
 )
+from ..extension_funding import (
+    apply_snapshot_job_numbers,
+    formset_initial_from_snapshot,
+    serialize_open_funding,
+)
+from ..utils import show_personnel_funding_job_number
 from ..workflow_config import resolve_creator_workgroup
 from .redirects import redirect_to_my_tasks
 # GroupNames removed - using has_perm now
@@ -291,6 +298,7 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context = super().get_context_data(**kwargs)
         task_type = self._get_task_type()
         context['task_type'] = task_type
+        context.setdefault('can_edit', True)
         context['po_variant'] = (
             self.request.POST.get('po_variant')
             or self.request.GET.get('variant')
@@ -397,6 +405,30 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 context['funding_formset'] = ReallocationFundingFormSet(self.request.POST)
             else:
                 context['funding_formset'] = ReallocationFundingFormSet()
+
+        if task_type == 'personnel_contract_extension':
+            show_job_number = show_personnel_funding_job_number(self.request.user)
+            if self.request.method == 'POST':
+                context['funding_formset'] = ExtensionFundingFormSet(
+                    self.request.POST,
+                    show_job_number=show_job_number,
+                )
+            else:
+                snapshot = []
+                employee_pk = (self.request.GET.get('employee') or '').strip()
+                form = context.get('form')
+                if not employee_pk and form is not None:
+                    employee_pk = (form.initial or {}).get('employee') or form['employee'].value()
+                if employee_pk:
+                    from apps.hr.models import Employee
+                    employee = Employee.objects.filter(pk=employee_pk).first()
+                    snapshot = serialize_open_funding(employee)
+                initial = formset_initial_from_snapshot(snapshot)
+                context['funding_formset'] = ExtensionFundingFormSet(
+                    initial=initial,
+                    extra=max(len(initial), 1),
+                    show_job_number=show_job_number,
+                )
         return context
 
     def post(self, request, *args, **kwargs):
@@ -473,6 +505,28 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             instance = form.save()
             funding_formset.instance = instance
             funding_formset.save()
+            instance = self._assign_personnel_task_number(instance)
+            return self._redirect_after_create(
+                instance,
+                message=f'{instance.get_task_type_display()} created successfully.',
+            )
+
+        if task_type == 'personnel_contract_extension':
+            funding_formset = ExtensionFundingFormSet(
+                self.request.POST,
+                show_job_number=show_personnel_funding_job_number(self.request.user),
+            )
+            if not funding_formset.is_valid():
+                messages.error(self.request, "Please correct errors in the funding allocations.")
+                return self.render_to_response(self.get_context_data(form=form))
+
+            instance = form.save()
+            if not instance.original_funding_snapshot:
+                instance.original_funding_snapshot = serialize_open_funding(instance.employee)
+                instance.save(update_fields=['original_funding_snapshot'])
+            funding_formset.instance = instance
+            funding_formset.save()
+            apply_snapshot_job_numbers(funding_formset, instance.original_funding_snapshot)
             instance = self._assign_personnel_task_number(instance)
             return self._redirect_after_create(
                 instance,

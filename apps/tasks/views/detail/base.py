@@ -69,7 +69,10 @@ def get_task_or_404(pk, user, request=None):
     if base_task.task_type == 'personnel_contract_extension':
         task = PersonnelContractExtensionTask.objects.select_related(
             'assignee', 'creator', 'employee', 'last_changed_by'
-        ).prefetch_related('comments', 'comments__author').get(pk=pk)
+        ).prefetch_related(
+            'comments', 'comments__author',
+            'funding_allocations__wbs_element', 'funding_allocations__cost_center',
+        ).get(pk=pk)
         if not can_view_personnel_task(user, task):
             return _deny_view(request or user)
         return task

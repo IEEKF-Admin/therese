@@ -4,37 +4,46 @@
     <p style="color:#64748b; font-size:0.9rem; margin-top:-0.5rem; margin-bottom:1rem;">
         Enter one or more PSP elements / cost centers with the share of workhours and optional plan position.
     </p>
+    {% if task_type == 'personnel_contract_extension' and task.original_funding_snapshot %}
+    <p class="funding-diff-legend">
+        Compared with funding at task creation:
+        <span class="funding-legend-added">new</span>,
+        <span class="funding-legend-changed">changed</span>,
+        <span class="funding-legend-removed">removed</span>.
+    </p>
+    {% endif %}
 
     {% if funding_formset.non_form_errors %}
     <div class="alert alert-danger">{{ funding_formset.non_form_errors }}</div>
     {% endif %}
 
-    {% if can_edit|default:True %}
+    {% if can_edit|default_if_none:True %}
         {{ funding_formset.management_form }}
         <div id="reallocation-funding-container" class="funding-percentage-container">
             {% for fform in funding_formset %}
-            <div class="inline-form-row funding-row reallocation-funding-row">
+            <div class="inline-form-row funding-row reallocation-funding-row{% if fform.row_status == 'added' %} funding-row-added{% elif fform.row_status == 'changed' %} funding-row-changed{% endif %}">
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
-                <div class="inline-field">
+                {% if fform.source_allocation_id %}{{ fform.source_allocation_id }}{% endif %}
+                <div class="inline-field{% if 'funding_source' in fform.changed_fields %} funding-field-changed{% endif %}">
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {% if fform.funding_source.errors %}{{ fform.funding_source|add_class:"form-control error" }}{% else %}{{ fform.funding_source|add_class:"form-control" }}{% endif %}
                 </div>
-                <div class="inline-field funding-percentage-field">
+                <div class="inline-field funding-percentage-field{% if 'workhours_percentage' in fform.changed_fields %} funding-field-changed{% endif %}">
                     <label>Percentage of Workhours <span style="color:#ef4444;">*</span></label>
                     {% if fform.workhours_percentage.errors %}{{ fform.workhours_percentage|add_class:"form-control error" }}{% else %}{{ fform.workhours_percentage|add_class:"form-control" }}{% endif %}
                 </div>
-                <div class="inline-field">
+                <div class="inline-field{% if 'plan_position_number' in fform.changed_fields %} funding-field-changed{% endif %}">
                     <label>Plan Position Number</label>
                     {% if fform.plan_position_number.errors %}{{ fform.plan_position_number|add_class:"form-control error" }}{% else %}{{ fform.plan_position_number|add_class:"form-control" }}{% endif %}
                 </div>
                 {% if funding_formset.show_job_number %}
-                <div class="inline-field">
+                <div class="inline-field{% if 'job_number' in fform.changed_fields %} funding-field-changed{% endif %}">
                     <label>Job Number</label>
                     {% if fform.job_number.errors %}{{ fform.job_number|add_class:"form-control error" }}{% else %}{{ fform.job_number|add_class:"form-control" }}{% endif %}
                 </div>
                 {% endif %}
-                <div class="inline-field full">
+                <div class="inline-field full{% if 'notes' in fform.changed_fields %} funding-field-changed{% endif %}">
                     <label>Notes</label>
                     {% if fform.notes.errors %}{{ fform.notes|add_class:"form-control error" }}{% else %}{{ fform.notes|add_class:"form-control" }}{% endif %}
                 </div>
@@ -50,6 +59,7 @@
             <div class="inline-form-row funding-row reallocation-funding-row">
                 {{ fform.id }}
                 {{ fform.DELETE.as_hidden }}
+                {% if fform.source_allocation_id %}{{ fform.source_allocation_id }}{% endif %}
                 <div class="inline-field">
                     <label>PSP / Cost Center <span style="color:#ef4444;">*</span></label>
                     {{ fform.funding_source|add_class:"form-control" }}
@@ -79,6 +89,36 @@
             {% endwith %}
         </div>
 
+        {% if removed_funding_rows %}
+        <p class="funding-diff-legend" style="margin-top:1rem;">Removed since this task was created</p>
+        {% for row in removed_funding_rows %}
+        <div class="inline-form-row funding-row funding-row-removed">
+            <div class="inline-field">
+                <label>PSP / Cost Center</label>
+                <strong>{{ row.values.funding_target_label }}</strong>
+            </div>
+            <div class="inline-field">
+                <label>Percentage of Workhours</label>
+                <strong>{{ row.values.workhours_percentage }}%</strong>
+            </div>
+            <div class="inline-field">
+                <label>Plan Position Number</label>
+                <strong>{{ row.values.plan_position_number|default:"—" }}</strong>
+            </div>
+            {% if funding_formset.show_job_number %}
+            <div class="inline-field">
+                <label>Job Number</label>
+                <strong>{{ row.values.job_number|default:"—" }}</strong>
+            </div>
+            {% endif %}
+            <div class="inline-field full">
+                <label>Notes</label>
+                <strong>{{ row.values.notes|default:"—" }}</strong>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
         <button type="button"
                 onclick="addReallocationFundingRow()"
                 class="btn-secondary" style="margin-top:0.75rem;">
@@ -104,6 +144,10 @@
                     });
                 });
                 clone.querySelectorAll('input, select, textarea').forEach(function(el) {
+                    if (el.name && el.name.indexOf('source_allocation_id') !== -1) {
+                        el.value = '';
+                        return;
+                    }
                     if (el.type === 'hidden' && el.name && el.name.indexOf('-DELETE') === -1 && el.name.indexOf('-id') === -1) {
                         return;
                     }
@@ -115,6 +159,9 @@
                 });
                 container.appendChild(clone);
                 totalInput.value = newIndex + 1;
+                if (typeof window.initFieldCopyButtons === 'function') {
+                    window.initFieldCopyButtons(clone);
+                }
                 if (typeof window.syncFundingPercentageColumns === 'function') {
                     window.syncFundingPercentageColumns();
                 }
@@ -125,7 +172,45 @@
         })();
         </script>
     {% else %}
-        {% if task.funding_allocations.all %}
+        {% if funding_diff_rows or removed_funding_rows %}
+        <table class="table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>PSP / Cost Center</th>
+                    <th>Percentage of Workhours</th>
+                    <th>Plan Position Number</th>
+                    {% if funding_formset.show_job_number %}
+                    <th>Job Number</th>
+                    {% endif %}
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in funding_diff_rows %}
+                <tr class="{% if row.status == 'added' %}funding-row-added{% elif row.status == 'changed' %}funding-row-changed{% endif %}">
+                    <td{% if 'funding_source' in row.changed_fields %} class="funding-field-changed"{% endif %}>{{ row.values.funding_target_label }}</td>
+                    <td{% if 'workhours_percentage' in row.changed_fields %} class="funding-field-changed"{% endif %}>{{ row.values.workhours_percentage }}%</td>
+                    <td{% if 'plan_position_number' in row.changed_fields %} class="funding-field-changed"{% endif %}>{{ row.values.plan_position_number|default:"—" }}</td>
+                    {% if funding_formset.show_job_number %}
+                    <td{% if 'job_number' in row.changed_fields %} class="funding-field-changed"{% endif %}>{{ row.values.job_number|default:"—" }}</td>
+                    {% endif %}
+                    <td{% if 'notes' in row.changed_fields %} class="funding-field-changed"{% endif %}>{{ row.values.notes|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+                {% for row in removed_funding_rows %}
+                <tr class="funding-row-removed">
+                    <td>{{ row.values.funding_target_label }}</td>
+                    <td>{{ row.values.workhours_percentage }}%</td>
+                    <td>{{ row.values.plan_position_number|default:"—" }}</td>
+                    {% if funding_formset.show_job_number %}
+                    <td>{{ row.values.job_number|default:"—" }}</td>
+                    {% endif %}
+                    <td>{{ row.values.notes|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% elif task.funding_allocations.all %}
         <table class="table" style="width:100%;">
             <thead>
                 <tr>

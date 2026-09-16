@@ -1882,10 +1882,67 @@ a.btn-secondary:hover {
 .recruitment-field-control select,
 .recruitment-field-control textarea,
 .recruitment-field-control .form-readonly,
-.recruitment-field-control .recruitment-costs-box {
+.recruitment-field-control .recruitment-costs-box,
+.recruitment-field-control strong,
+.recruitment-field-control .readonly-comment {
     flex: 1 1 auto;
     min-width: 0;
 }
+
+.aligned-field > .recruitment-field-control,
+.inline-field > .recruitment-field-control {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.funding-row-added {
+    background: #ecfdf5;
+    outline: 1px solid #6ee7b7;
+    border-radius: 6px;
+}
+
+.funding-row-changed {
+    background: #fffbeb;
+}
+
+.funding-field-changed .form-control,
+.funding-field-changed strong,
+td.funding-field-changed {
+    background: #fef9c3 !important;
+    border-color: #eab308;
+}
+
+.funding-row-removed {
+    background: #fef2f2;
+    color: #991b1b;
+    text-decoration: line-through;
+    border-radius: 6px;
+    outline: 1px solid #fecaca;
+}
+
+.funding-row-removed strong,
+.funding-row-removed td {
+    text-decoration: line-through;
+}
+
+.funding-diff-legend {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 0 0 0.75rem;
+}
+
+.funding-legend-added,
+.funding-legend-changed,
+.funding-legend-removed {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.15rem;
+}
+
+.funding-legend-added { background: #ecfdf5; color: #047857; }
+.funding-legend-changed { background: #fef9c3; color: #a16207; }
+.funding-legend-removed { background: #fef2f2; color: #991b1b; text-decoration: line-through; }
 
 .btn-copy-field {
     flex: 0 0 auto;

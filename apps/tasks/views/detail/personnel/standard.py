@@ -12,25 +12,51 @@ from ....change_working_hours_apply import (
     apply_change_working_hours,
 )
 from ....forms import (
+    ExtensionFundingFormSet,
     PersonnelChangeWorkingHoursTaskForm,
     PersonnelContractExtensionTaskForm,
     PersonnelReallocationTaskForm,
     ReallocationFundingFormSet,
 )
+from ....extension_funding import attach_funding_highlights, diff_extension_funding
 from ....recruitment_form_helpers import build_recruitment_template_context
 from ....reallocation_apply import ApplyReallocationError, apply_reallocation_funding, build_apply_preview
-from ....utils import is_personnel_approver, is_personnel_coordinator
-
-
-def _show_reallocation_job_number(user) -> bool:
-    return is_personnel_coordinator(user) or is_personnel_approver(user)
+from ....task_protocol import extract_new_message, record_task_update
+from ....utils import (
+    is_personnel_approver,
+    is_personnel_coordinator,
+    show_personnel_funding_job_number,
+)
 from ....workflow_config import creator_has_coordinator_fallback
 from ...redirects import redirect_to_my_tasks
-from ....task_protocol import extract_new_message, record_task_update
 from .common import (
     personnel_documents_context,
     save_personnel_coordinator_steps,
 )
+
+
+def _show_reallocation_job_number(user) -> bool:
+    return show_personnel_funding_job_number(user)
+
+
+def _extension_job_number_context(request, task, employee):
+    """Job numbers of the current contract/FAs for an assigned personnel approver."""
+    assigned_approver = (
+        is_personnel_approver(request.user)
+        and employee is not None
+        and task.assignee_id == employee.pk
+    )
+    if not assigned_approver or not task.employee_id:
+        return {
+            'show_current_job_numbers': False,
+            'current_contract': None,
+            'current_fundings': [],
+        }
+    return {
+        'show_current_job_numbers': True,
+        'current_contract': task.employee.get_contract_as_of(),
+        'current_fundings': task.employee.get_open_funding_allocations_as_of(),
+    }
 
 
 def handle_standard_personnel_detail(request, task):
@@ -82,12 +108,20 @@ def handle_standard_personnel_detail(request, task):
     if request.method == 'POST' and can_edit:
         form = form_class(
             request.POST,
+            request.FILES,
             instance=task,
             user=request.user,
             is_creation=False,
         )
         if task_type == 'personnel_reallocation':
             funding_formset = ReallocationFundingFormSet(
+                request.POST,
+                instance=task,
+                show_job_number=_show_reallocation_job_number(request.user),
+            )
+            form_ok = form.is_valid() and funding_formset.is_valid()
+        elif task_type == 'personnel_contract_extension':
+            funding_formset = ExtensionFundingFormSet(
                 request.POST,
                 instance=task,
                 show_job_number=_show_reallocation_job_number(request.user),
@@ -133,8 +167,19 @@ def handle_standard_personnel_detail(request, task):
                 instance=task,
                 show_job_number=_show_reallocation_job_number(request.user),
             )
+        elif task_type == 'personnel_contract_extension':
+            funding_formset = ExtensionFundingFormSet(
+                instance=task,
+                show_job_number=_show_reallocation_job_number(request.user),
+            )
 
     is_archived_by_user = employee and employee in task.archived_by.all()
+    funding_diff_rows = []
+    removed_funding_rows = []
+    if task_type == 'personnel_contract_extension':
+        if funding_formset is not None:
+            attach_funding_highlights(funding_formset, task.original_funding_snapshot)
+        funding_diff_rows, removed_funding_rows = diff_extension_funding(task)
 
     context = {
         'task': task,
@@ -153,11 +198,15 @@ def handle_standard_personnel_detail(request, task):
         'task_type': task_type,
         'employee': employee,
         'is_archived_by_user': is_archived_by_user,
+        'show_copy_buttons': is_personnel_approver(request.user),
+        'funding_diff_rows': funding_diff_rows,
+        'removed_funding_rows': removed_funding_rows,
     }
     if task_type == 'personnel_reallocation':
         context['apply_preview'] = build_apply_preview(task)
     if task_type == 'personnel_contract_extension':
         context.update(build_recruitment_template_context())
+        context.update(_extension_job_number_context(request, task, employee))
     context.update(personnel_documents_context(request, task))
     return render(request, template, context)
 

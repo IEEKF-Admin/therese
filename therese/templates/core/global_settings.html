@@ -50,6 +50,7 @@
         <div class="settings-tab-panel" data-panel="chemicals" style="display:none;">
             <div class="form-section">
                 <h3>Chemicals</h3>
+                {% include "core/_settings_field.html" with field=form.chemicals_enabled %}
                 {% include "core/_settings_field.html" with field=form.chemical_hazard_threshold %}
             </div>
         </div>

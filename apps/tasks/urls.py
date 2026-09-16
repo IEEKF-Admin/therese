@@ -8,6 +8,7 @@ Do not remove any existing requirements from this module without explicit instru
 from django.urls import path
 
 from .views.dashboard import my_tasks
+from .views.ajax import ajax_employee_current_funding
 from .views.create import TaskCreateView, choose_order_type, choose_task_type
 from .views.delete import task_delete
 from .views.router import task_detail
@@ -51,6 +52,11 @@ urlpatterns = [
     path('create/', choose_task_type, name='choose_task_type'),
     path('create/order/', choose_order_type, name='choose_order_type'),
     path('create/new/', TaskCreateView.as_view(), name='task_create'),
+    path(
+        'ajax/employee-current-funding/',
+        ajax_employee_current_funding,
+        name='ajax_employee_current_funding',
+    ),
     path('<int:pk>/quote/download/', purchase_order_quote_download, name='purchase_order_quote_download'),
     path('<int:pk>/quote/replace/', purchase_order_quote_replace, name='purchase_order_quote_replace'),
     path('<int:pk>/', task_detail, name='task_detail'),

@@ -351,8 +351,11 @@ def evaluate_login_popups(
                 )
 
         elif config.trigger == 'chemical_item_incomplete' and employee:
+            from apps.chemicals.features import chemicals_enabled
             from apps.chemicals.models import ChemicalItem
 
+            if not chemicals_enabled():
+                continue
             qs = ChemicalItem.objects.filter(
                 ordered_by=employee,
             ).exclude(status=ChemicalItem.Status.ARCHIVED).select_related('chemical')
@@ -424,8 +427,11 @@ def evaluate_login_popups(
                 ack_reference_keys = unacked_refs
 
         elif config.trigger == 'chemical_item_delivered' and employee and event_since:
+            from apps.chemicals.features import chemicals_enabled
             from apps.chemicals.models import ChemicalItem
 
+            if not chemicals_enabled():
+                continue
             qs = ChemicalItem.objects.filter(
                 ordered_by=employee,
                 status=ChemicalItem.Status.ACTIVE,

@@ -129,7 +129,7 @@
             }
             return String(input.value || '').trim();
         }
-        const ro = field.querySelector('.form-readonly, .recruitment-costs-value');
+        const ro = field.querySelector('.form-readonly, .recruitment-costs-value, .readonly-comment, strong');
         if (ro) return String(ro.innerText || '').replace(/\s+/g, ' ').trim();
         return '';
     }
@@ -146,7 +146,7 @@
         if (field.querySelector('.btn-copy-field')) return;
         if (field.querySelector('input[type="file"]')) return;
         const control = field.querySelector(
-            'input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), select, textarea, .form-readonly, .recruitment-costs-box'
+            'input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), select, textarea, .form-readonly, .recruitment-costs-box, .readonly-comment, strong'
         );
         if (!control) return;
         const btn = document.createElement('button');
@@ -175,14 +175,20 @@
         wrap.appendChild(btn);
     }
 
-    function initFieldCopyButtons(root) {
-        const scopes = root
-            ? (root.matches && root.matches('[data-show-copy="1"]') ? [root] : root.querySelectorAll('[data-show-copy="1"]'))
-            : document.querySelectorAll('[data-show-copy="1"]');
-        scopes.forEach(function(scope) {
-            scope.querySelectorAll('.recruitment-field').forEach(addCopyButton);
-        });
+    function fieldSelectors(scope) {
+        scope.querySelectorAll('.recruitment-field, .aligned-field, .inline-field').forEach(addCopyButton);
     }
+
+    function initFieldCopyButtons(root) {
+        if (root && root.querySelectorAll) {
+            if (document.querySelector('[data-show-copy="1"]')) {
+                fieldSelectors(root);
+            }
+            return;
+        }
+        document.querySelectorAll('[data-show-copy="1"]').forEach(fieldSelectors);
+    }
+    window.initFieldCopyButtons = initFieldCopyButtons;
 
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof window.syncFundingPercentageColumns === 'function') {

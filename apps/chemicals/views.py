@@ -5,6 +5,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.chemicals.features import chemicals_module_required
 from apps.chemicals.access import (
     filter_chemical_items_for_user,
     filter_chemicals_for_user,
@@ -32,6 +33,7 @@ from apps.tasks.models import PurchaseItem
 
 @login_required
 @require_GET
+@chemicals_module_required
 def cas_check(request):
     """Live CAS / hazard check for purchase order forms."""
     raw = request.GET.get('cas') or request.GET.get('q') or ''
@@ -39,6 +41,7 @@ def cas_check(request):
 
 
 @login_required
+@chemicals_module_required
 def chemical_list(request):
     if not user_can_view_chemical_list(request.user):
         messages.error(request, "You don't have permission to view chemicals.")
@@ -73,6 +76,7 @@ def chemical_list(request):
 
 
 @login_required
+@chemicals_module_required
 def chemical_create(request):
     """
     Manually create a Chemical (CAS master):
@@ -161,6 +165,7 @@ def chemical_create(request):
 
 
 @login_required
+@chemicals_module_required
 def chemical_edit(request, pk):
     chemical = get_object_or_404(Chemical, pk=pk)
     if not user_can_view_chemical(request.user, chemical):
@@ -205,6 +210,7 @@ def chemical_edit(request, pk):
 
 
 @login_required
+@chemicals_module_required
 def chemical_item_list(request):
     if not user_can_view_chemical_item_list(request.user):
         messages.error(request, "You don't have permission to view chemical items.")
@@ -250,6 +256,7 @@ def chemical_item_list(request):
 
 
 @login_required
+@chemicals_module_required
 def chemical_item_edit(request, pk):
     item = get_object_or_404(
         ChemicalItem.objects.select_related(

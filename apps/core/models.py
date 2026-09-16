@@ -232,6 +232,15 @@ class GlobalSetting(models.Model):
         ('any_h_code', 'Any GHS H-code'),
         ('never', 'Never auto-classify (manual only)'),
     ]
+    chemicals_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Chemicals module',
+        help_text=(
+            'Master switch. When off, Chemical Items, Substances (CAS), '
+            'purchase-order CAS checks, and related popups are hidden; '
+            'the options below are ignored.'
+        ),
+    )
     chemical_hazard_threshold = models.CharField(
         max_length=40,
         choices=CHEMICAL_HAZARD_THRESHOLD_CHOICES,
@@ -346,6 +355,10 @@ class GlobalSetting(models.Model):
         except (TypeError, ValueError):
             return 90
         return max(1, days)
+
+    @classmethod
+    def get_chemicals_enabled(cls) -> bool:
+        return bool(cls.get_solo().chemicals_enabled)
 
     @classmethod
     def get_chemical_hazard_threshold(cls):

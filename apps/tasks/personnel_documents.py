@@ -156,11 +156,7 @@ def _recruitment_documents(task):
     return documents
 
 
-def _reallocation_documents(task):
-    documents = []
-    employee = task.employee
-    prefix = getattr(employee, 'prefix', '') or ''
-    last_name = employee.last_name
+def _funding_wbs_documents(task, documents, prefix, last_name):
     seen_keys = set()
     for allocation in task.funding_allocations.select_related(
         'wbs_element', 'cost_center',
@@ -180,7 +176,32 @@ def _reallocation_documents(task):
                     last_name=last_name,
                     task=task,
                 )
-        # Cost centers no longer store third-party funding commitment files.
+
+
+def _reallocation_documents(task):
+    documents = []
+    employee = task.employee
+    prefix = getattr(employee, 'prefix', '') or ''
+    last_name = employee.last_name
+    _funding_wbs_documents(task, documents, prefix, last_name)
+    return documents
+
+
+def _extension_documents(task):
+    documents = []
+    employee = task.employee
+    prefix = getattr(employee, 'prefix', '') or ''
+    last_name = getattr(employee, 'last_name', '') or ''
+    _add_file_document(
+        documents,
+        key='project_description',
+        label='Project Description',
+        file_field=getattr(task, 'project_description_file', None),
+        prefix=prefix,
+        last_name=last_name,
+        task=task,
+    )
+    _funding_wbs_documents(task, documents, prefix, last_name)
     return documents
 
 
@@ -192,6 +213,8 @@ def get_personnel_task_documents(task):
         return _recruitment_documents(task)
     if task.task_type == 'personnel_reallocation':
         return _reallocation_documents(task)
+    if task.task_type == 'personnel_contract_extension':
+        return _extension_documents(task)
     return []
 
 

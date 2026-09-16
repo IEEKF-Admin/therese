@@ -97,6 +97,11 @@ def is_personnel_approver(user):
     return user.is_superuser or user.has_perm('tasks.approve_personnel_task')
 
 
+def show_personnel_funding_job_number(user):
+    """Job Number on personnel funding inlines: coordinators and approvers only."""
+    return is_personnel_coordinator(user) or is_personnel_approver(user)
+
+
 def can_view_purchase_order(user, task):
     """
     Decide whether *user* may open the purchase order detail view.

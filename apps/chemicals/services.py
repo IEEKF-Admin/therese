@@ -31,6 +31,10 @@ def sync_purchase_item_chemical(purchase_item, *, force_refresh: bool = False) -
     - Creates draft ChemicalItem once per purchase line when dangerous
     - Does nothing further if item already linked and still dangerous
     """
+    from apps.chemicals.features import chemicals_enabled
+
+    if not chemicals_enabled():
+        return None
     cas = normalize_cas(getattr(purchase_item, 'cas_number', None) or '')
     if not cas:
         if getattr(purchase_item, 'is_dangerous', False):
@@ -90,6 +94,10 @@ def sync_purchase_item_chemical(purchase_item, *, force_refresh: bool = False) -
 
 def _activate_chemical_for_purchase_item(purchase_item):
     """Activate linked ChemicalItem on first (partial) delivery."""
+    from apps.chemicals.features import chemicals_enabled
+
+    if not chemicals_enabled():
+        return
     ci = ChemicalItem.objects.filter(purchase_item=purchase_item).first()
     if ci and ci.status != ChemicalItem.Status.ARCHIVED:
         if ci.status != ChemicalItem.Status.ACTIVE or not ci.delivered_at:
@@ -266,6 +274,10 @@ def apply_chemical_item_fields_from_purchase_form(purchase_item, data: dict) -> 
 
 def apply_chemical_fields_from_item_formset(formset) -> int:
     """Apply chem_* extras from a PurchaseItem formset. Returns number of items updated."""
+    from apps.chemicals.features import chemicals_enabled
+
+    if not chemicals_enabled():
+        return 0
     count = 0
     for form in formset.forms:
         if not getattr(form, 'cleaned_data', None):

@@ -31,7 +31,7 @@
 </div>
 
 <div class="card">
-    {% if form.errors or task_type == 'purchase_order' and item_formset.errors or task_type == 'personnel_recruitment' and funding_formset.errors %}
+    {% if form.errors or task_type == 'purchase_order' and item_formset.errors or task_type == 'personnel_recruitment' and funding_formset.errors or task_type == 'personnel_reallocation' and funding_formset.errors or task_type == 'personnel_contract_extension' and funding_formset.errors %}
     <div class="alert alert-error" style="margin-bottom: 1.5rem;">
         <strong>Please correct the following errors:</strong>
         <ul style="margin: 0.5rem 0 0 1.25rem;">
@@ -78,7 +78,7 @@
 
     <form method="post"
           action="{% url 'tasks:task_create' %}{% if task_type %}?type={{ task_type }}{% if po_variant %}&amp;variant={{ po_variant }}{% endif %}{% endif %}"
-          {% if task_type == 'purchase_order' or task_type == 'personnel_recruitment' %}enctype="multipart/form-data"{% endif %}>
+          {% if task_type == 'purchase_order' or task_type == 'personnel_recruitment' or task_type == 'personnel_contract_extension' %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         {% if task_type %}<input type="hidden" name="task_type" value="{{ task_type }}">{% endif %}
         {% if po_variant %}<input type="hidden" name="po_variant" value="{{ po_variant }}">{% endif %}
@@ -151,11 +151,13 @@
                                 {{ item_form.product_description|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung</small>
                             </div>
+                            {% if chemicals_enabled %}
                             <div class="item-field">
                                 <label>CAS number</label>
                                 {{ item_form.cas_number|add_class:"form-control cas-number-input" }}
                                 <small class="cas-check-hint" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">CAS-Nummer (optional)</small>
                             </div>
+                            {% endif %}
                             <div class="item-field">
                                 <label>Link <span style="color:#ef4444;">*</span></label>
                                 {{ item_form.link_to_product|add_class:"form-control" }}
@@ -177,7 +179,9 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
                         </div>
+                        {% if chemicals_enabled %}
                         {% include "tasks/partials/purchase_chemical_inline.html" with form=item_form %}
+                        {% endif %}
                         <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
                     </div>
                     {% endfor %}
@@ -198,11 +202,13 @@
                                 {{ item_formset.empty_form.product_description|add_class:"form-control" }}
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Beschreibung</small>
                             </div>
+                            {% if chemicals_enabled %}
                             <div class="item-field">
                                 <label>CAS number</label>
                                 {{ item_formset.empty_form.cas_number|add_class:"form-control cas-number-input" }}
                                 <small class="cas-check-hint" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">CAS-Nummer (optional)</small>
                             </div>
+                            {% endif %}
                             <div class="item-field">
                                 <label>Link <span style="color:#ef4444;">*</span></label>
                                 {{ item_formset.empty_form.link_to_product|add_class:"form-control" }}
@@ -224,7 +230,9 @@
                                 <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Menge</small>
                             </div>
                         </div>
+                        {% if chemicals_enabled %}
                         {% include "tasks/partials/purchase_chemical_inline.html" with form=item_formset.empty_form %}
+                        {% endif %}
                         <button type="button" class="btn-danger remove-item" style="margin-top: 0.5rem;">Remove</button>
                     </div>
                 </div>
@@ -362,6 +370,17 @@
                 </div>
             </div>
 
+            {% include "tasks/reallocation/_funding_allocations.html" %}
+
+            <div class="form-section">
+                <h3>Project Description</h3>
+                <div class="aligned-field">
+                    <label>Project Description</label>
+                    {{ form.project_description_file }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Projektbeschreibung</small>
+                </div>
+            </div>
+
             <!-- Comment / Notes - full width -->
             <div class="form-section comment-full">
                 <h3>Comment / Notes</h3>
@@ -440,6 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% elif task_type == 'personnel_reallocation' %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
 {% elif task_type == 'personnel_contract_extension' %}
+{% include "tasks/recruitment/_inline_form_js.html" %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
 {{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}
 <script>
@@ -452,10 +472,49 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     var emp = document.getElementById('id_employee');
     var plan = document.getElementById('id_plan_position_number');
+    var fundingUrl = '{% url "tasks:ajax_employee_current_funding" %}';
+    function setField(row, suffix, value) {
+        var el = row.querySelector('[name$="-' + suffix + '"]');
+        if (el) el.value = value == null ? '' : value;
+    }
+    function fillFundingFromCurrent(allocations) {
+        var container = document.getElementById('reallocation-funding-container');
+        var totalInput = document.querySelector('#reallocation-funding-container')
+            ? document.querySelector('input[name="funding_allocations-TOTAL_FORMS"]')
+            : null;
+        if (!container || typeof window.addReallocationFundingRow !== 'function') return;
+        container.innerHTML = '';
+        if (totalInput) totalInput.value = '0';
+        var rows = allocations && allocations.length ? allocations : [{}];
+        rows.forEach(function(item) {
+            window.addReallocationFundingRow();
+            var row = container.lastElementChild;
+            if (!row) return;
+            setField(row, 'funding_source', item.funding_source || '');
+            setField(row, 'workhours_percentage', item.workhours_percentage || '');
+            setField(row, 'plan_position_number', item.plan_position_number || '');
+            setField(row, 'job_number', item.job_number || '');
+            setField(row, 'notes', item.notes || '');
+            setField(row, 'source_allocation_id', item.source_id || '');
+        });
+    }
     if (emp && plan) {
         emp.addEventListener('change', function() {
             var opt = emp.options[emp.selectedIndex];
             plan.value = opt ? (opt.getAttribute('data-plan-position') || '') : '';
+            var employeeId = emp.value;
+            if (!employeeId) {
+                fillFundingFromCurrent([]);
+                return;
+            }
+            fetch(fundingUrl + '?employee=' + encodeURIComponent(employeeId), {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                fillFundingFromCurrent(data.allocations || []);
+            }).catch(function() {
+                fillFundingFromCurrent([]);
+            });
         });
     }
 });
@@ -566,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+{% if chemicals_enabled %}
 // Live CAS / hazard check + chemical item inline panel
 (function() {
     var casCheckUrl = "{% url 'chemicals:cas_check' %}";
@@ -682,6 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 })();
+{% endif %}
 </script>
 {% endblock %}
 

@@ -113,6 +113,10 @@ def cache_chemical_item_previous_state(sender, instance, **kwargs):
 @receiver(post_save, sender='chemicals.ChemicalItem')
 def send_chemical_item_trigger_emails(sender, instance, created, **kwargs):
     try:
+        from apps.chemicals.features import chemicals_enabled
+
+        if not chemicals_enabled():
+            return
         from apps.accounts.trigger_emails import (
             notify_chemical_item_delivered,
             notify_chemical_item_incomplete,

@@ -18,7 +18,7 @@
     <div class="alert alert-info">No coordinator is configured for your workgroup. You can complete the coordination steps yourself.</div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data"{% if show_copy_buttons %} data-show-copy="1"{% endif %}>
         {% csrf_token %}
 
         <div class="form-section">
@@ -55,6 +55,26 @@
             </div>
         </div>
 
+        {% if show_current_job_numbers %}
+        <div class="form-section">
+            <h3>Current Job Numbers</h3>
+            <div class="aligned-field">
+                <label>Current contract</label>
+                <strong>{{ current_contract.job_number|default:"—" }}</strong>
+            </div>
+            {% if current_fundings %}
+            {% for allocation in current_fundings %}
+            <div class="aligned-field">
+                <label>{{ allocation.funding_target_label }}</label>
+                <strong>{{ allocation.job_number|default:"—" }}</strong>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted">No current funding allocations.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="form-section">
             <h3>Limitation</h3>
             <div class="aligned-field">
@@ -70,6 +90,25 @@
                 <label>Limitation Reason</label>
                 {% if can_edit %}{{ form.limitation_reason|add_class:"form-control" }}{% else %}<div class="readonly-comment">{{ task.limitation_reason|linebreaks|default:"—" }}</div>{% endif %}
                 <small class="field-hint-de">Befristungsgrund</small>
+            </div>
+        </div>
+
+        {% if funding_formset %}
+        {% include "tasks/reallocation/_funding_allocations.html" %}
+        {% endif %}
+
+        <div class="form-section">
+            <h3>Project Description</h3>
+            <div class="aligned-field">
+                <label>Project Description</label>
+                {% if can_edit %}
+                    {{ form.project_description_file }}
+                {% elif task.project_description_file %}
+                    <strong>{{ task.project_description_file.name|default:"—" }}</strong>
+                {% else %}
+                    <strong>—</strong>
+                {% endif %}
+                <small class="field-hint-de">Projektbeschreibung</small>
             </div>
         </div>
 
@@ -105,6 +144,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "tasks/recruitment/_inline_form_js.html" %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
 {{ limitation_reasons_json|json_script:"therese-limitation-reasons" }}
 <script>

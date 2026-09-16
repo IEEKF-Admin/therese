@@ -65,6 +65,7 @@
     </a>
     {% endif %}
 
+    {% if chemicals_enabled %}
     {% if perms.chemicals.view_own_chemical_items or perms.chemicals.manage_own_chemical_items or perms.chemicals.view_workgroup_chemical_items or perms.chemicals.manage_workgroup_chemical_items or perms.chemicals.view_all_chemical_items or perms.chemicals.manage_all_chemical_items or perms.chemicals.view_all_chemicals or perms.chemicals.manage_all_chemicals or user.is_superuser %}
     <div class="sidebar-heading">Chemicals</div>
     <a href="{% url 'chemicals:chemical_item_list' %}"
@@ -75,6 +76,7 @@
        class="{% if '/chemicals/substances' in request.path %}active{% endif %}">
         <i class="fas fa-atom"></i> Substances (CAS)
     </a>
+    {% endif %}
     {% endif %}
 
     {% if perms.tasks.create_purchase_order or perms.tasks.manage_standard_order or perms.tasks.view_standard_order or perms.tasks.view_all_purchase_orders or perms.tasks.change_wbs_on_purchase_order or perms.tasks.approve_purchase_order or user.is_superuser %}

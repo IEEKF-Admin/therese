@@ -13,12 +13,13 @@ from .models import (
     PersonnelReallocationTask, PersonnelChangeWorkingHoursTask,
     PersonnelContractExtensionTask,
     PersonnelRecruitmentTask, RecruitmentFundingAllocation,
-    ReallocationFundingAllocation, RecruitmentJob,
+    ReallocationFundingAllocation, ExtensionFundingAllocation, RecruitmentJob,
     RecruitmentJobFieldRule, LimitationReason, GenericTextTask,
 )
 from .forms import (
     RecruitmentFundingAllocationForm,
     ReallocationFundingAllocationForm,
+    ExtensionFundingAllocationForm,
 )
 from apps.hr.models import Employee
 # GroupNames removed (old groups deleted)
@@ -202,9 +203,15 @@ class PersonnelChangeWorkingHoursTaskAdmin(admin.ModelAdmin):
     list_filter = ['status', 'valid_from']
 
 
+class ExtensionFundingInline(admin.TabularInline):
+    model = ExtensionFundingAllocation
+    form = ExtensionFundingAllocationForm
+    extra = 1
+
+
 @admin.register(PersonnelContractExtensionTask, site=therese_admin)
 class PersonnelContractExtensionTaskAdmin(admin.ModelAdmin):
-    inlines = [TaskCommentInline, TaskAttachmentInline]
+    inlines = [ExtensionFundingInline, TaskCommentInline, TaskAttachmentInline]
     list_display = ['title', 'employee', 'valid_from', 'is_limited', 'status', 'assignee']
     list_filter = ['status', 'is_limited']
 

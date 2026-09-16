@@ -10,6 +10,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.permissions import GroupNames, assign_permissions_to_groups, get_or_create_default_groups
+from apps.core.models import GlobalSetting
 from datetime import date
 
 from apps.chemicals.lookup import evaluate_is_hazardous, normalize_cas
@@ -328,3 +329,82 @@ class ChemicalsPermissionsSmokeTests(TestCase):
             self.user.save()
         resp = self.client.get(reverse('chemicals:chemical_item_list'))
         self.assertIn(resp.status_code, (200, 302))
+
+
+class ChemicalsModuleSwitchTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='chem_mod', password='pass')
+        self.user.password_changed = True
+        self.user.is_superuser = True
+        self.user.save()
+        self.employee = Employee.objects.create(
+            employee_number='CHEM_MOD',
+            first_name='Mod',
+            last_name='Switch',
+            user=self.user,
+        )
+        self.client = Client()
+        self.client.login(username='chem_mod', password='pass')
+
+    def _disable(self):
+        setting = GlobalSetting.get_solo()
+        setting.chemicals_enabled = False
+        setting.save(update_fields=['chemicals_enabled'])
+
+    def test_pages_forbidden_when_disabled(self):
+        self._disable()
+        for name in (
+            'chemicals:chemical_item_list',
+            'chemicals:chemical_list',
+            'chemicals:chemical_create',
+            'chemicals:cas_check',
+        ):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 403, name)
+
+    def test_sidebar_hides_chemicals_when_disabled(self):
+        response = self.client.get(reverse('tasks:my_tasks'))
+        self.assertContains(response, 'Chemical Items')
+        self.assertContains(response, 'Substances (CAS)')
+        self._disable()
+        response = self.client.get(reverse('tasks:my_tasks'))
+        self.assertNotContains(response, 'Chemical Items')
+        self.assertNotContains(response, 'Substances (CAS)')
+
+    def test_create_order_hides_cas_when_disabled(self):
+        self._disable()
+        response = self.client.get(reverse('tasks:task_create') + '?type=purchase_order')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'CAS number')
+        self.assertNotContains(response, 'cas_check')
+
+    @patch('apps.chemicals.lookup.fetch_pubchem_by_cas')
+    def test_sync_skipped_when_disabled(self, mock_fetch):
+        mock_fetch.return_value = {
+            'cas_number': '50-00-0',
+            'name': 'Formaldehyde',
+            'ghs_signal_word': 'Danger',
+            'ghs_hazard_codes': ['H301'],
+            'ghs_pictograms': ['GHS06'],
+            'raw': {},
+            'error': '',
+        }
+        self._disable()
+        task = PurchaseOrderTask.objects.create(
+            creator=self.employee,
+            supplier='Sigma',
+            status='not_yet_processed',
+            priority='normal',
+        )
+        item = PurchaseItem.objects.create(
+            purchase_task=task,
+            product_name='Formaldehyde',
+            cas_number='50-00-0',
+            link_to_product='https://example.com/f',
+            order_number='F-OFF',
+            unit_price=Decimal('10.00'),
+            quantity=1,
+        )
+        self.assertIsNone(sync_purchase_item_chemical(item, force_refresh=True))
+        self.assertFalse(ChemicalItem.objects.filter(purchase_item=item).exists())
+        mock_fetch.assert_not_called()

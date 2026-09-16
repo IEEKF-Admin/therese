@@ -15,6 +15,7 @@ from apps.tasks.form_validation import (
 from apps.tasks.forms.common import _configure_personnel_assignee_field, add_initial_message_field
 from apps.tasks.models import (
     PERSONNEL_STATUSES,
+    ExtensionFundingAllocation,
     PersonnelChangeWorkingHoursTask,
     PersonnelContractExtensionTask,
     PersonnelReallocationTask,
@@ -123,10 +124,15 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
 
 class BaseReallocationFundingFormSet(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
+        extra = kwargs.pop('extra', None)
         self.show_job_number = kwargs.pop('show_job_number', False)
+        if extra is not None:
+            self.extra = extra
         super().__init__(*args, **kwargs)
         for form in self.forms:
             form.empty_permitted = not bool(form.instance and form.instance.pk)
+            form.row_status = getattr(form, 'row_status', '')
+            form.changed_fields = getattr(form, 'changed_fields', [])
 
     def get_form_kwargs(self, index):
         kwargs = super().get_form_kwargs(index)
@@ -153,6 +159,36 @@ ReallocationFundingFormSet = inlineformset_factory(
     PersonnelReallocationTask,
     ReallocationFundingAllocation,
     form=ReallocationFundingAllocationForm,
+    formset=BaseReallocationFundingFormSet,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    validate_min=False,
+)
+
+
+class ExtensionFundingAllocationForm(ReallocationFundingAllocationForm):
+    INTERNAL_FIELDS = ReallocationFundingAllocationForm.INTERNAL_FIELDS | {
+        'source_allocation_id',
+        'extension_task',
+    }
+
+    class Meta(ReallocationFundingAllocationForm.Meta):
+        model = ExtensionFundingAllocation
+        fields = [
+            'workhours_percentage', 'plan_position_number', 'job_number',
+            'notes', 'source_allocation_id',
+        ]
+        widgets = {
+            **ReallocationFundingAllocationForm.Meta.widgets,
+            'source_allocation_id': forms.HiddenInput(),
+        }
+
+
+ExtensionFundingFormSet = inlineformset_factory(
+    PersonnelContractExtensionTask,
+    ExtensionFundingAllocation,
+    form=ExtensionFundingAllocationForm,
     formset=BaseReallocationFundingFormSet,
     extra=0,
     can_delete=True,
@@ -393,7 +429,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelContractExtensionTask
         fields = ['employee', 'plan_position_number', 'valid_from', 'valid_until',
-                  'is_limited', 'limitation_reason', 'assignee', 'status']
+                  'is_limited', 'limitation_reason', 'project_description_file',
+                  'assignee', 'status']
         widgets = {
             'valid_from': forms.DateInput(attrs={
                 'type': 'text',
@@ -441,6 +478,14 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
 
         if 'limitation_reason' in self.fields:
             self.fields['limitation_reason'].widget.attrs.update({'class': 'form-control'})
+
+        if 'project_description_file' in self.fields:
+            from apps.hr.document_utils import PERSONNEL_DOCUMENT_ACCEPT
+            self.fields['project_description_file'].required = False
+            self.fields['project_description_file'].widget.attrs.update({
+                'class': 'form-control',
+                'accept': PERSONNEL_DOCUMENT_ACCEPT,
+            })
 
         if 'employee' in self.fields:
             if self.is_creation:

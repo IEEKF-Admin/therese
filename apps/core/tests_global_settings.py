@@ -50,12 +50,14 @@ class GlobalSettingsViewTests(TestCase):
         self.assertNotContains(response, 'Document Categories')
         self.assertContains(response, 'Default Weekly Working Hours')
         self.assertContains(response, 'Account emails')
+        self.assertContains(response, 'Chemicals module')
         posted = self.client.post(url, {
             'action': 'save_global',
             'default_weekly_hours': '40.00',
             'true_cost_multiplicator': '1.250',
             'personnel_import_tolerance': '0.0300',
             'employee_expiring_soon_days': '60',
+            'chemicals_enabled': 'on',
             'chemical_hazard_threshold': 'signal_danger_only',
             'show_add_employee_on_reallocation': 'on',
             'holidays_enabled': 'on',
@@ -71,8 +73,30 @@ class GlobalSettingsViewTests(TestCase):
         self.assertEqual(setting.true_cost_multiplicator, Decimal('1.250'))
         self.assertEqual(setting.employee_expiring_soon_days, 60)
         self.assertEqual(setting.chemical_hazard_threshold, 'signal_danger_only')
+        self.assertTrue(setting.chemicals_enabled)
         self.assertTrue(setting.show_add_employee_on_reallocation)
         self.assertFalse(setting.irresponsible)
+
+    def test_systemadmin_can_disable_chemicals_module(self):
+        self.client.login(username='sysadmin-gs', password='test')
+        url = reverse('core_settings:global_settings')
+        posted = self.client.post(url, {
+            'action': 'save_global',
+            'default_weekly_hours': '39.00',
+            'true_cost_multiplicator': '1.300',
+            'personnel_import_tolerance': '0.0250',
+            'employee_expiring_soon_days': '90',
+            'chemical_hazard_threshold': 'any_ghs',
+            'show_add_employee_on_reallocation': 'on',
+            'holidays_enabled': 'on',
+            'holiday_half_day_rounding': 'up',
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '0',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+        })
+        self.assertEqual(posted.status_code, 302)
+        self.assertFalse(GlobalSetting.get_solo().chemicals_enabled)
 
     def test_save_half_hours_with_localized_entitlement(self):
         from apps.holidays.models import HolidayEntitlementRate
@@ -87,6 +111,7 @@ class GlobalSettingsViewTests(TestCase):
             'true_cost_multiplicator': '1.300',
             'personnel_import_tolerance': '0.0250',
             'employee_expiring_soon_days': '90',
+            'chemicals_enabled': 'on',
             'chemical_hazard_threshold': 'any_ghs',
             'holiday_half_day_rounding': 'up',
             'form-TOTAL_FORMS': '2',

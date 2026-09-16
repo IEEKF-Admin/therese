@@ -491,6 +491,18 @@ class PersonnelContractExtensionTask(Task):
     valid_until = models.DateField(null=True, blank=True)
     is_limited = models.BooleanField(default=True)
     limitation_reason = models.TextField(blank=True)
+    project_description_file = models.FileField(
+        upload_to='extension_tasks/project_description/',
+        blank=True,
+        null=True,
+        verbose_name="Project Description",
+    )
+    original_funding_snapshot = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Original funding snapshot",
+        help_text="Employee funding allocations as they were when this extension was created.",
+    )
 
     class Meta:
         verbose_name = "Contract Extension Task"
@@ -962,6 +974,76 @@ class ReallocationFundingAllocation(BaseModel):
                     | models.Q(wbs_element__isnull=True, cost_center__isnull=False)
                 ),
                 name='reallocation_funding_allocation_one_target',
+            ),
+        ]
+
+    def __str__(self):
+        from apps.finances.funding_sources import funding_target_display
+        return f"{funding_target_display(self)} ({self.workhours_percentage}%)"
+
+    @property
+    def funding_target_label(self):
+        from apps.finances.funding_sources import funding_target_display
+        return funding_target_display(self)
+
+
+class ExtensionFundingAllocation(BaseModel):
+    """PSP/cost center + workhours percentage for a contract extension task."""
+    extension_task = models.ForeignKey(
+        PersonnelContractExtensionTask,
+        on_delete=models.CASCADE,
+        related_name='funding_allocations',
+        verbose_name="Contract Extension Task",
+    )
+    wbs_element = models.ForeignKey(
+        WBSElement,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="WBS Element",
+    )
+    cost_center = models.ForeignKey(
+        'finances.CostCenter',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='extension_funding_allocations',
+        verbose_name="Cost Center",
+    )
+    workhours_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        verbose_name="Percentage of Workhours",
+    )
+    plan_position_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Plan Position Number",
+    )
+    job_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Job Number",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    source_allocation_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Source allocation id",
+        help_text="Employee funding allocation this row was copied from.",
+    )
+
+    class Meta:
+        verbose_name = "Extension Funding Allocation"
+        verbose_name_plural = "Extension Funding Allocations"
+        ordering = ['id']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(wbs_element__isnull=False, cost_center__isnull=True)
+                    | models.Q(wbs_element__isnull=True, cost_center__isnull=False)
+                ),
+                name='extension_funding_allocation_one_target',
             ),
         ]
 

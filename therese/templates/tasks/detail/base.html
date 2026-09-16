@@ -37,7 +37,7 @@
                         {% endif %}
                         <th class="text-left col-order">Order #</th>
                         <th class="text-left col-product">Product</th>
-                        <th class="text-left col-cas">CAS</th>
+                        {% if chemicals_enabled %}<th class="text-left col-cas">CAS</th>{% endif %}
                         <th class="text-left col-description">Description</th>
                         <th class="text-left col-link">Link</th>
                         <th class="text-right">Delivered</th>
@@ -66,6 +66,7 @@
                         {% endif %}
                         <td class="text-left col-order">{{ item.order_number|default:"—" }}</td>
                         <td class="text-left col-product">{{ item.product_name }}</td>
+                        {% if chemicals_enabled %}
                         <td class="text-left col-cas">
                             {{ item.cas_number|default:"—" }}
                             {% if item.is_dangerous %}
@@ -85,6 +86,7 @@
                             </div>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="text-left col-description">{{ item.product_description|default:"—" }}</td>
                         <td class="text-left col-link">{% if item.link_to_product %}<a href="{{ item.link_to_product }}" target="_blank">Link</a>{% else %}—{% endif %}</td>
                         <td class="text-right">

@@ -40,6 +40,7 @@ class GlobalSettingForm(forms.ModelForm):
             'default_weekly_hours',
             'true_cost_multiplicator',
             'personnel_import_tolerance',
+            'chemicals_enabled',
             'chemical_hazard_threshold',
             'show_add_employee_on_reallocation',
             'employee_expiring_soon_days',

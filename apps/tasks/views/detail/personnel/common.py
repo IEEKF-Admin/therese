@@ -21,7 +21,7 @@ from ...redirects import redirect_to_my_tasks
 
 def personnel_documents_context(request, task):
     """Build template context for the personnel documents download section."""
-    can_download = can_download_personnel_documents(request.user)
+    can_download = can_download_personnel_documents(request.user, task)
     documents = get_personnel_task_documents(task) if can_download else []
     return {
         'can_download_personnel_documents': can_download,

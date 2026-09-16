@@ -23,6 +23,8 @@ from apps.tasks.forms.common import (
 )
 from apps.tasks.forms.generic import GenericTextTaskForm
 from apps.tasks.forms.personnel import (
+    ExtensionFundingAllocationForm,
+    ExtensionFundingFormSet,
     PersonnelChangeWorkingHoursTaskForm,
     PersonnelContractExtensionTaskForm,
     PersonnelReallocationTaskForm,
@@ -61,6 +63,8 @@ __all__ = [
     'PersonnelContractExtensionTaskForm',
     'ReallocationFundingAllocationForm',
     'ReallocationFundingFormSet',
+    'ExtensionFundingAllocationForm',
+    'ExtensionFundingFormSet',
     'RecruitmentFundingAllocationForm',
     'BaseRecruitmentFundingFormSet',
     'RecruitmentFundingFormSet',

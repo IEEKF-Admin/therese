@@ -357,6 +357,34 @@ class DocumentViewTests(TestCase):
             DocumentPublishPopupAck.objects.filter(user=new_user, version=v3).exists()
         )
 
+    def test_reader_cannot_open_older_published_version(self):
+        older = self.version
+        current = DocumentVersion.objects.create(
+            document=self.document,
+            version_number=2,
+            status=DocumentVersion.Status.PUBLISHED,
+            content_html='<p>Current policy</p>',
+            created_by=self.viewer,
+        )
+        self.document.current_published_version = current
+        self.document.save(update_fields=['current_published_version'])
+
+        self.client.force_login(self.viewer)
+        current_page = self.client.get(reverse('documents:detail', args=[self.document.pk]))
+        self.assertEqual(current_page.status_code, 200)
+        self.assertContains(current_page, 'Current policy')
+        self.assertNotContains(current_page, 'Other versions')
+        self.assertNotContains(current_page, 'Select version')
+
+        older_page = self.client.get(
+            reverse('documents:detail_version', args=[self.document.pk, older.pk])
+        )
+        self.assertEqual(older_page.status_code, 404)
+        older_pdf = self.client.get(
+            reverse('documents:pdf_version', args=[self.document.pk, older.pk])
+        )
+        self.assertEqual(older_pdf.status_code, 404)
+
     def test_documents_without_read_ack_do_not_popup(self):
         from apps.documents.popups import evaluate_document_publish_popups
 

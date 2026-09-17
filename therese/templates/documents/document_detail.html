@@ -19,21 +19,6 @@
         {% if not is_current_version %}· <strong>Older version</strong>{% endif %}
     </p>
 
-    {% if older_versions %}
-    <div style="margin-bottom:1rem;">
-        <label>Other versions:</label>
-        <select class="form-select" style="max-width:20rem;" onchange="if(this.value) window.location.href=this.value;">
-            <option value="">— Select version —</option>
-            {% if is_current_version %}
-            <option value="" selected>Current ({{ version.version_label }})</option>
-            {% endif %}
-            {% for ov in older_versions %}
-            <option value="{% url 'documents:detail_version' document.pk ov.pk %}">{{ ov.version_label }} ({{ ov.published_at|date:"d.m.Y" }})</option>
-            {% endfor %}
-        </select>
-    </div>
-    {% endif %}
-
     <div class="document-content" style="line-height:1.6;">
         {{ version.content_html|sanitize_html }}
     </div>

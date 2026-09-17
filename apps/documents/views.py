@@ -74,9 +74,12 @@ def _get_version_for_reading(document, user, version_pk=None):
         version = get_object_or_404(document.versions, pk=version_pk)
         if user.has_perm('documents.manage_document'):
             return version
-        if version.status != DocumentVersion.Status.PUBLISHED:
-            raise Http404
-        return version
+        if (
+            document.current_published_version_id
+            and version.pk == document.current_published_version_id
+        ):
+            return version
+        raise Http404
     if document.current_published_version_id:
         return document.current_published_version
     raise Http404
@@ -135,14 +138,9 @@ def document_detail(request, pk, version_pk=None):
                 and read_ack.status == DocumentReadAcknowledgement.Status.DECLINED
             )
 
-    older_versions = document.versions.filter(
-        status=DocumentVersion.Status.PUBLISHED,
-    ).exclude(pk=version.pk).order_by('-version_number')
-
     return render(request, 'documents/document_detail.html', {
         'document': document,
         'version': version,
-        'older_versions': older_versions,
         'read_ack': read_ack,
         'can_reconsider': can_reconsider,
         'is_current_version': version.pk == document.current_published_version_id,

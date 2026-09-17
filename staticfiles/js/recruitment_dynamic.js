@@ -155,6 +155,9 @@
             section.style.display = anyVisible ? '' : 'none';
         });
         updateFieldHelpTexts(config);
+        if (occupationTableForJob(config, jobId)) {
+            setTvlFieldsVisible(false);
+        }
     }
 
     function updateFieldHelpTexts(config) {
@@ -301,7 +304,7 @@
     }
 
     function setTvlFieldsVisible(visible) {
-        ['pay_scale_group', 'experience_level'].forEach(function(key) {
+        ['pay_scale_group', 'experience_level', 'monthly_salary'].forEach(function(key) {
             var el = document.querySelector('[data-recruitment-field="' + key + '"]');
             if (el) el.style.display = visible ? '' : 'none';
         });

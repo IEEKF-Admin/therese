@@ -426,6 +426,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if task_type == 'personnel_change_working_hours' %}
+{% include "tasks/_occupation_hours_widget.js.html" %}
+{% endif %}
 {% if task_type == 'personnel_recruitment' %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
@@ -434,6 +437,7 @@
 {{ recruitment_field_keys_json|json_script:"therese-field-keys" }}
 {{ recruitment_job_payscale_json|json_script:"therese-job-payscale" }}
 {{ recruitment_payscale_data_json|json_script:"therese-payscale-data" }}
+{{ occupation_tables_json|json_script:"therese-occupation-tables" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     function parseJsonScript(id) {
@@ -448,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
         allFieldKeys: parseJsonScript('therese-field-keys'),
         jobPayscale: parseJsonScript('therese-job-payscale'),
         payscaleData: parseJsonScript('therese-payscale-data'),
+        occupationTables: parseJsonScript('therese-occupation-tables') || [],
         defaultRequired: {
             cv_file: true,
             latest_degree_certificate_file: true,

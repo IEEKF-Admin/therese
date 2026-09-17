@@ -365,3 +365,50 @@ class GlobalSetting(models.Model):
         return cls.get_solo().chemical_hazard_threshold
 
 
+class OccupationSalaryTable(BaseModel):
+    """Named hours→pay table for special occupational groups (not TV-L)."""
+    name = models.CharField(max_length=120, unique=True, verbose_name='Name')
+
+    class Meta:
+        verbose_name = 'Occupational salary table'
+        verbose_name_plural = 'Occupational salary tables'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class OccupationSalaryRow(BaseModel):
+    table = models.ForeignKey(
+        OccupationSalaryTable,
+        on_delete=models.CASCADE,
+        related_name='rows',
+        verbose_name='Table',
+    )
+    weekly_hours = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        verbose_name='Weekly hours',
+    )
+    monthly_salary = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Monthly salary',
+        help_text='Monthly pay for this weekly working time (not a 100% reference).',
+    )
+
+    class Meta:
+        verbose_name = 'Occupational salary row'
+        verbose_name_plural = 'Occupational salary rows'
+        ordering = ['weekly_hours']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['table', 'weekly_hours'],
+                name='occupation_salary_row_hours_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.table.name}: {self.weekly_hours} h → {self.monthly_salary} €'
+
+

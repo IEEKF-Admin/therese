@@ -286,6 +286,99 @@
         return document.querySelector('[data-recruitment-weekly-hours], [name="weekly_hours"]');
     }
 
+    function quantHours(v) {
+        var n = parseFloat(String(v || '').replace(',', '.'));
+        return isNaN(n) ? '' : n.toFixed(3);
+    }
+
+    function occupationTableForJob(config, jobId) {
+        if (!jobId || !config.jobPayscale || !config.occupationTables) return null;
+        var jobData = config.jobPayscale[jobId];
+        if (!jobData || !jobData.salary_table_id) return null;
+        return config.occupationTables.find(function(t) {
+            return String(t.id) === String(jobData.salary_table_id);
+        }) || null;
+    }
+
+    function setTvlFieldsVisible(visible) {
+        ['pay_scale_group', 'experience_level'].forEach(function(key) {
+            var el = document.querySelector('[data-recruitment-field="' + key + '"]');
+            if (el) el.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function ensureHoursSelect(hoursEl) {
+        if (!hoursEl || hoursEl.tagName === 'SELECT') return hoursEl;
+        var select = document.createElement('select');
+        select.className = hoursEl.className;
+        select.name = hoursEl.name;
+        select.id = hoursEl.id;
+        select.setAttribute('data-recruitment-weekly-hours', 'true');
+        hoursEl.parentNode.replaceChild(select, hoursEl);
+        return select;
+    }
+
+    function ensureHoursInput(hoursEl) {
+        if (!hoursEl || hoursEl.tagName !== 'SELECT') return hoursEl;
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = hoursEl.className;
+        input.name = hoursEl.name;
+        input.id = hoursEl.id;
+        input.value = hoursEl.value || '';
+        input.setAttribute('inputmode', 'decimal');
+        input.setAttribute('data-recruitment-weekly-hours', 'true');
+        input.setAttribute('placeholder', 'e.g. 19,625');
+        hoursEl.parentNode.replaceChild(input, hoursEl);
+        return input;
+    }
+
+    function fillOccupationSalary(config) {
+        var hoursEl = getWeeklyHoursInput();
+        var salaryInput = getMonthlySalaryInput();
+        var jobId = getSelectedJobId();
+        var jobData = jobId && config.jobPayscale ? config.jobPayscale[jobId] : null;
+        var table = occupationTableForJob(config, jobId);
+        if (!table || !salaryInput) return Boolean(table);
+        var selected = (table.rows || []).find(function(row) {
+            return quantHours(row.hours) === quantHours(hoursEl && hoursEl.value);
+        });
+        salaryInput.value = selected && selected.fulltime ? selected.fulltime : (jobData && jobData.estimated_salary) || '';
+        salaryInput.readOnly = true;
+        salaryInput.classList.add('form-readonly');
+        return true;
+    }
+
+    function applyOccupationHours(config) {
+        var hoursEl = getWeeklyHoursInput();
+        var jobId = getSelectedJobId();
+        var jobData = jobId && config.jobPayscale ? config.jobPayscale[jobId] : null;
+        var table = occupationTableForJob(config, jobId);
+        if (!hoursEl) return Boolean(table);
+        if (!table) {
+            ensureHoursInput(hoursEl);
+            setTvlFieldsVisible(true);
+            return false;
+        }
+        setTvlFieldsVisible(false);
+        var current = quantHours(hoursEl.value) || quantHours(jobData && jobData.occupation_weekly_hours);
+        hoursEl = ensureHoursSelect(hoursEl);
+        hoursEl.innerHTML = '<option value="">— Select weekly hours —</option>';
+        (table.rows || []).forEach(function(row) {
+            var opt = document.createElement('option');
+            opt.value = row.hours;
+            opt.textContent = row.label || (row.hours + ' h');
+            hoursEl.appendChild(opt);
+        });
+        var match = (table.rows || []).find(function(row) { return quantHours(row.hours) === current; });
+        hoursEl.value = match ? match.hours : ((table.rows && table.rows[0] && table.rows[0].hours) || '');
+        var selects = getPayscaleSelects();
+        if (selects.group) selects.group.value = '';
+        if (selects.level) selects.level.value = '';
+        fillOccupationSalary(config);
+        return true;
+    }
+
     function updateJobHelpText(config) {
         const helpEl = document.getElementById('recruitment-job-help-text');
         if (!helpEl) {
@@ -316,6 +409,9 @@
         }
         const jobData = config.jobPayscale[jobId];
         if (!jobData) {
+            return;
+        }
+        if (applyOccupationHours(config)) {
             return;
         }
 
@@ -409,6 +505,11 @@
     function syncMonthlySalaryField(config) {
         const salaryInput = getMonthlySalaryInput();
         const selects = getPayscaleSelects();
+        if (occupationTableForJob(config, getSelectedJobId())) {
+            fillOccupationSalary(config);
+            updateMonthlyCostsHint();
+            return;
+        }
         if (!salaryInput) {
             updateMonthlyCostsHint();
             return;
@@ -568,6 +669,9 @@
                 refresh({ force: true });
             }
             if (event.target.matches('[data-recruitment-payscale-group], [data-recruitment-experience-level]')) {
+                syncMonthlySalaryField(config);
+            }
+            if (event.target.matches('[data-recruitment-weekly-hours], [name="weekly_hours"]')) {
                 syncMonthlySalaryField(config);
             }
             if (event.target.matches('[data-contract-date], [name="valid_from"], [name="valid_until"]')) {

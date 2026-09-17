@@ -204,6 +204,9 @@ def handle_standard_personnel_detail(request, task):
     }
     if task_type == 'personnel_reallocation':
         context['apply_preview'] = build_apply_preview(task)
+    if task_type == 'personnel_change_working_hours':
+        from apps.core.occupation_salary import occupation_form_context
+        context.update(occupation_form_context())
     if task_type == 'personnel_contract_extension':
         context.update(build_recruitment_template_context())
         context.update(_extension_job_number_context(request, task, employee))

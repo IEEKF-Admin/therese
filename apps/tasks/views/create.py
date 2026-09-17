@@ -388,6 +388,10 @@ class TaskCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         if task_type in ('personnel_recruitment', 'personnel_contract_extension'):
             context.update(build_recruitment_template_context())
 
+        if task_type == 'personnel_change_working_hours':
+            from apps.core.occupation_salary import occupation_form_context
+            context.update(occupation_form_context())
+
         if task_type == 'personnel_recruitment':
             context['stashed_uploads'] = get_stashed_uploads(self.request)
             if self.request.method == 'POST':

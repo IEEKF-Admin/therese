@@ -268,7 +268,7 @@ def build_recruitment_template_context():
     field_keys = {field_key: True for field_key, _, _ in RECRUITMENT_CONFIGURABLE_FIELDS}
     job_payscale = {}
     current_payscales = PayScale.get_current()
-    for job in visible_recruitment_jobs():
+    for job in visible_recruitment_jobs().select_related('salary_table').prefetch_related('salary_table__rows'):
         inherited = inherited_job_payscale(job)
         salary = None
         if inherited['pay_scale_group'] and inherited['experience_level'] is not None:
@@ -287,6 +287,8 @@ def build_recruitment_template_context():
             'experience_level': inherited['experience_level'],
             'estimated_salary': str(salary) if salary is not None else None,
             'has_fixed_estimate': inherited['has_fixed_estimate'],
+            'salary_table_id': inherited.get('salary_table_id'),
+            'occupation_weekly_hours': inherited.get('occupation_weekly_hours') or '',
             'help_text': inherited_job_text(job, 'help_text'),
             'dropdown_help_text': inherited_job_text(job, 'dropdown_help_text'),
         }
@@ -303,6 +305,7 @@ def build_recruitment_template_context():
         })
 
     from apps.core.models import GlobalSetting
+    from apps.core.occupation_salary import all_tables_payload
 
     # Python objects for template json_script (not pre-serialized strings).
     return {
@@ -311,6 +314,7 @@ def build_recruitment_template_context():
         'recruitment_field_keys_json': field_keys,
         'recruitment_job_payscale_json': job_payscale,
         'recruitment_payscale_data_json': payscale_data,
+        'occupation_tables_json': all_tables_payload(),
         'true_cost_multiplicator': GlobalSetting.get_true_cost_multiplicator(),
         'default_weekly_hours': GlobalSetting.get_default_weekly_hours(),
     }

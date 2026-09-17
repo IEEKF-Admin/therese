@@ -1,0 +1,70 @@
+{{ occupation_tables_json|json_script:"therese-occupation-tables" }}
+{{ employee_salary_table_ids_json|json_script:"therese-employee-salary-tables" }}
+<script>
+(function() {
+    function parseJson(id) {
+        var el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : null;
+    }
+    var tables = parseJson('therese-occupation-tables') || [];
+    var employeeTables = parseJson('therese-employee-salary-tables') || {};
+    function quantHours(v) {
+        var n = parseFloat(String(v || '').replace(',', '.'));
+        return isNaN(n) ? '' : n.toFixed(3);
+    }
+    function findTable(id) {
+        if (!id) return null;
+        return tables.find(function(t) { return String(t.id) === String(id); }) || null;
+    }
+    function hoursField() {
+        return document.querySelector('[name="new_weekly_hours"]');
+    }
+    function applyForEmployee(employeeId) {
+        var field = hoursField();
+        if (!field) return;
+        var table = findTable(employeeTables[String(employeeId)] || '');
+        var value = field.value;
+        if (table) {
+            if (field.tagName !== 'SELECT') {
+                var select = document.createElement('select');
+                select.className = field.className;
+                select.name = field.name;
+                select.id = field.id;
+                field.parentNode.replaceChild(select, field);
+                field = select;
+            }
+            var keep = quantHours(value);
+            field.innerHTML = '<option value="">— Select weekly hours —</option>';
+            (table.rows || []).forEach(function(row) {
+                var opt = document.createElement('option');
+                opt.value = row.hours;
+                opt.textContent = row.label || (row.hours + ' h');
+                field.appendChild(opt);
+            });
+            var match = (table.rows || []).find(function(row) { return quantHours(row.hours) === keep; });
+            field.value = match ? match.hours : '';
+        } else if (field.tagName === 'SELECT') {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = field.className;
+            input.name = field.name;
+            input.id = field.id;
+            input.value = value;
+            input.setAttribute('inputmode', 'decimal');
+            input.setAttribute('placeholder', 'e.g. 19,625');
+            field.parentNode.replaceChild(input, field);
+        }
+    }
+    function currentEmployeeId() {
+        var sel = document.querySelector('[name="employee"]');
+        if (sel && sel.tagName === 'SELECT') return sel.value;
+        if (sel) return sel.value;
+        return '';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        applyForEmployee(currentEmployeeId());
+        var emp = document.querySelector('select[name="employee"]');
+        if (emp) emp.addEventListener('change', function() { applyForEmployee(emp.value); });
+    });
+})();
+</script>

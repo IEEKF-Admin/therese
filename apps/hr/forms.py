@@ -63,7 +63,7 @@ EMPLOYEE_MANAGE_FIELDS = [
     'date_of_birth', 'country_of_origin', 'place_of_birth',
     'email_professional', 'email_private', 'google_account', 'private_phone_number',
     'room', 'phone_number', 'street', 'house_number', 'postal_code', 'city', 'country',
-    'website', 'job',
+    'website', 'job', 'salary_table',
     'is_pending', 'check_needed',
     # monthly_salary / cost_center / scan_of_contract / profile_picture intentionally omitted
 ]
@@ -185,6 +185,24 @@ class EmployeeForm(forms.ModelForm):
             from apps.tasks.recruitment_config import visible_recruitment_jobs
             include = instance.job if instance and getattr(instance, 'job_id', None) else None
             self.fields['job'].queryset = visible_recruitment_jobs(include=include)
+
+        if 'salary_table' in self.fields:
+            from apps.core.models import OccupationSalaryTable
+            job_table_id = ''
+            if instance and getattr(instance, 'job_id', None) and instance.job.salary_table_id:
+                job_table_id = str(instance.job.salary_table_id)
+            self.fields['salary_table'].queryset = OccupationSalaryTable.objects.order_by('name')
+            self.fields['salary_table'].required = False
+            self.fields['salary_table'].empty_label = 'From job (TV-L if the job has none)'
+            self.fields['salary_table'].label = 'Salary table'
+            self.fields['salary_table'].help_text = (
+                'Occupational table for this employee. Leave empty to use the job default.'
+            )
+            self.fields['salary_table'].widget.attrs.update({
+                'class': 'form-control',
+                'id': 'id_salary_table',
+                'data-job-salary-table': job_table_id,
+            })
 
         # Apply form-control styling to all fields
         for field in self.fields.values():
@@ -383,10 +401,23 @@ class ContractForm(forms.ModelForm):
 
         # When payscale is set, show TV-L salary as read-only (enforced again in clean).
         instance = getattr(self, 'instance', None)
+        employee = getattr(instance, 'employee', None) if instance else None
+        from apps.core.occupation_salary import table_from_employee_post
+        table = table_from_employee_post(
+            self.data if self.is_bound else None,
+            employee,
+        )
+        if table is not None:
+            self.instance._salary_table_override = table
         if instance and instance.pk and instance.pay_scale_group and instance.experience_level is not None:
             salary = instance.get_monthly_salary()
             if salary is not None:
                 self.fields['monthly_salary'].initial = salary
+            self.fields['monthly_salary'].widget.attrs['readonly'] = True
+            self.fields['monthly_salary'].widget.attrs['class'] = (
+                self.fields['monthly_salary'].widget.attrs.get('class', '') + ' form-readonly'
+            ).strip()
+        elif table is not None:
             self.fields['monthly_salary'].widget.attrs['readonly'] = True
             self.fields['monthly_salary'].widget.attrs['class'] = (
                 self.fields['monthly_salary'].widget.attrs.get('class', '') + ' form-readonly'
@@ -411,28 +442,51 @@ class ContractForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        pay_scale_group = cleaned_data.get('pay_scale_group')
-        experience_level = cleaned_data.get('experience_level')
-        has_group = bool(pay_scale_group)
-        has_level = experience_level is not None
-        if has_group != has_level:
-            message = 'Please select both pay scale group and experience level, or leave both empty.'
-            if not has_group:
-                self.add_error('pay_scale_group', message)
-            if not has_level:
-                self.add_error('experience_level', message)
-        elif has_group and has_level:
-            salary = (
-                PayScale.get_current()
-                .filter(
-                    pay_scale_group=pay_scale_group,
-                    experience_level=experience_level,
+        from apps.core.occupation_salary import (
+            fulltime_salary_from_row,
+            row_for_hours,
+            table_from_employee_post,
+        )
+        employee = getattr(self.instance, 'employee', None)
+        table = table_from_employee_post(
+            self.data if self.is_bound else None,
+            employee,
+        )
+        self.instance._salary_table_override = table
+        if table is not None:
+            row = row_for_hours(table, cleaned_data.get('weekly_hours'))
+            if row is None:
+                self.add_error(
+                    'weekly_hours',
+                    'Weekly hours must match a row in the occupational salary table.',
                 )
-                .values_list('monthly_salary', flat=True)
-                .first()
-            )
-            if salary is not None:
-                cleaned_data['monthly_salary'] = salary
+            else:
+                cleaned_data['monthly_salary'] = fulltime_salary_from_row(row)
+            cleaned_data['pay_scale_group'] = ''
+            cleaned_data['experience_level'] = None
+        else:
+            pay_scale_group = cleaned_data.get('pay_scale_group')
+            experience_level = cleaned_data.get('experience_level')
+            has_group = bool(pay_scale_group)
+            has_level = experience_level is not None
+            if has_group != has_level:
+                message = 'Please select both pay scale group and experience level, or leave both empty.'
+                if not has_group:
+                    self.add_error('pay_scale_group', message)
+                if not has_level:
+                    self.add_error('experience_level', message)
+            elif has_group and has_level:
+                salary = (
+                    PayScale.get_current()
+                    .filter(
+                        pay_scale_group=pay_scale_group,
+                        experience_level=experience_level,
+                    )
+                    .values_list('monthly_salary', flat=True)
+                    .first()
+                )
+                if salary is not None:
+                    cleaned_data['monthly_salary'] = salary
         if (
             self.instance
             and self.instance.pk

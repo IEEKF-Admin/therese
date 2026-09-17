@@ -84,6 +84,7 @@
 {{ recruitment_field_keys_json|json_script:"therese-field-keys" }}
 {{ recruitment_job_payscale_json|json_script:"therese-job-payscale" }}
 {{ recruitment_payscale_data_json|json_script:"therese-payscale-data" }}
+{{ occupation_tables_json|json_script:"therese-occupation-tables" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     function parseJsonScript(id) {
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
         allFieldKeys: parseJsonScript('therese-field-keys'),
         jobPayscale: parseJsonScript('therese-job-payscale'),
         payscaleData: parseJsonScript('therese-payscale-data'),
+        occupationTables: parseJsonScript('therese-occupation-tables') || [],
         defaultRequired: {},
     });
 });

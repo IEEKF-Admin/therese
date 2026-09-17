@@ -3,6 +3,19 @@
 
 {% block title %}Global Settings - THERESE{% endblock %}
 
+{% block extrastyle %}
+<style>
+.occ-tables { display: grid; gap: 1.25rem; }
+.occ-table { border: 1px solid #dbe3ee; border-radius: 8px; padding: 0.9rem; background: #f8fafc; }
+.occ-table-head { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.75rem; }
+.occ-table-head .form-control { flex: 1; }
+.occ-rows { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; }
+.occ-rows th { text-align: left; font-size: 0.8rem; color: #64748b; padding: 0.25rem 0.35rem; }
+.occ-rows td { padding: 0.25rem 0.35rem; vertical-align: middle; }
+.occ-rows td:last-child { width: 2.2rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <h1>Global Settings</h1>
@@ -44,6 +57,43 @@
                 {% include "core/_settings_field.html" with field=form.true_cost_multiplicator %}
                 {% include "core/_settings_field.html" with field=form.personnel_import_tolerance %}
                 {% include "core/_settings_field.html" with field=form.employee_expiring_soon_days %}
+            </div>
+            <div class="form-section">
+                <h3>Occupational salary tables</h3>
+                <p class="field-hint">Named hours→pay tables for special occupational groups (not TV-L). Vergütung is the monthly salary for those weekly hours.</p>
+                <input type="hidden" name="occ_tables_present" value="1">
+                <div id="occ-tables" class="occ-tables">
+                    {% for table in occupation_tables %}
+                    <div class="occ-table" data-table-index="{{ forloop.counter0 }}">
+                        <input type="hidden" name="occ_table_{{ forloop.counter0 }}_id" value="{{ table.pk }}">
+                        <input type="hidden" name="occ_table_{{ forloop.counter0 }}_delete" value="" class="occ-table-delete">
+                        <div class="occ-table-head">
+                            <input type="text" name="occ_table_{{ forloop.counter0 }}_name" class="form-control" value="{{ table.name }}" placeholder="Table name">
+                            <button type="button" class="btn-secondary occ-remove-table">Remove</button>
+                        </div>
+                        <table class="occ-rows">
+                            <thead><tr><th>Weekly hours</th><th>Monthly salary (€)</th><th></th></tr></thead>
+                            <tbody>
+                            {% for row in table.rows.all %}
+                            <tr>
+                                <td>
+                                    <input type="hidden" name="occ_table_{{ forloop.parentloop.counter0 }}_row_{{ forloop.counter0 }}_id" value="{{ row.pk }}">
+                                    <input type="hidden" name="occ_table_{{ forloop.parentloop.counter0 }}_row_{{ forloop.counter0 }}_delete" value="" class="occ-row-delete">
+                                    <input type="text" name="occ_table_{{ forloop.parentloop.counter0 }}_row_{{ forloop.counter0 }}_hours" class="form-control" value="{{ row.weekly_hours }}" inputmode="decimal" placeholder="e.g. 19.625">
+                                </td>
+                                <td>
+                                    <input type="text" name="occ_table_{{ forloop.parentloop.counter0 }}_row_{{ forloop.counter0 }}_pay" class="form-control" value="{{ row.monthly_salary }}" inputmode="decimal" placeholder="e.g. 2100.00">
+                                </td>
+                                <td><button type="button" class="btn-inline-remove occ-remove-row" title="Remove row">×</button></td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        <button type="button" class="btn-secondary occ-add-row">+ Add row</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn-secondary" id="occ-add-table" style="margin-top:0.75rem;">+ Add table</button>
             </div>
         </div>
 
@@ -280,6 +330,91 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     var initial = '{{ settings_default_tab|default:"general"|escapejs }}';
     showTab(initial);
+
+    (function() {
+        var wrap = document.getElementById('occ-tables');
+        if (!wrap) return;
+        function nextTableIndex() {
+            var max = -1;
+            wrap.querySelectorAll('.occ-table').forEach(function(el) {
+                var n = parseInt(el.getAttribute('data-table-index'), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return max + 1;
+        }
+        function nextRowIndex(tableEl) {
+            var max = -1;
+            tableEl.querySelectorAll('tbody tr').forEach(function(row) {
+                var hours = row.querySelector('input[name$="_hours"]');
+                if (!hours) return;
+                var match = hours.name.match(/_row_(\d+)_hours$/);
+                if (match) {
+                    var n = parseInt(match[1], 10);
+                    if (!isNaN(n) && n > max) max = n;
+                }
+            });
+            return max + 1;
+        }
+        function addRow(tableEl) {
+            var t = tableEl.getAttribute('data-table-index');
+            var r = nextRowIndex(tableEl);
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td>' +
+                '<input type="hidden" name="occ_table_' + t + '_row_' + r + '_id" value="">' +
+                '<input type="hidden" name="occ_table_' + t + '_row_' + r + '_delete" value="" class="occ-row-delete">' +
+                '<input type="text" name="occ_table_' + t + '_row_' + r + '_hours" class="form-control" inputmode="decimal" placeholder="e.g. 19.625">' +
+                '</td>' +
+                '<td><input type="text" name="occ_table_' + t + '_row_' + r + '_pay" class="form-control" inputmode="decimal" placeholder="e.g. 2100.00"></td>' +
+                '<td><button type="button" class="btn-inline-remove occ-remove-row" title="Remove row">×</button></td>';
+            tableEl.querySelector('tbody').appendChild(tr);
+        }
+        document.getElementById('occ-add-table').addEventListener('click', function() {
+            var t = nextTableIndex();
+            var el = document.createElement('div');
+            el.className = 'occ-table';
+            el.setAttribute('data-table-index', String(t));
+            el.innerHTML =
+                '<input type="hidden" name="occ_table_' + t + '_id" value="">' +
+                '<input type="hidden" name="occ_table_' + t + '_delete" value="" class="occ-table-delete">' +
+                '<div class="occ-table-head">' +
+                '<input type="text" name="occ_table_' + t + '_name" class="form-control" placeholder="Table name">' +
+                '<button type="button" class="btn-secondary occ-remove-table">Remove</button>' +
+                '</div>' +
+                '<table class="occ-rows"><thead><tr><th>Weekly hours</th><th>Monthly salary (€)</th><th></th></tr></thead><tbody></tbody></table>' +
+                '<button type="button" class="btn-secondary occ-add-row">+ Add row</button>';
+            wrap.appendChild(el);
+            addRow(el);
+        });
+        wrap.addEventListener('click', function(event) {
+            var removeTable = event.target.closest('.occ-remove-table');
+            if (removeTable) {
+                var tableEl = removeTable.closest('.occ-table');
+                var del = tableEl.querySelector('.occ-table-delete');
+                if (del) del.value = '1';
+                tableEl.style.display = 'none';
+                tableEl.querySelectorAll('input').forEach(function(inp) {
+                    if (inp.classList.contains('occ-table-delete') || inp.name && inp.name.endsWith('_id')) return;
+                    inp.disabled = true;
+                });
+                return;
+            }
+            var removeRow = event.target.closest('.occ-remove-row');
+            if (removeRow) {
+                var row = removeRow.closest('tr');
+                var del = row.querySelector('.occ-row-delete');
+                if (del) del.value = '1';
+                row.style.display = 'none';
+                row.querySelectorAll('input').forEach(function(inp) {
+                    if (inp.classList.contains('occ-row-delete') || (inp.name && inp.name.endsWith('_id'))) return;
+                    inp.disabled = true;
+                });
+                return;
+            }
+            var add = event.target.closest('.occ-add-row');
+            if (add) addRow(add.closest('.occ-table'));
+        });
+    })();
 });
 </script>
 {% include "documents/includes/wysiwyg.html" %}

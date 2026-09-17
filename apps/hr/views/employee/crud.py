@@ -580,6 +580,8 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context['next_url'] = self.request.GET.get('next') or self.request.POST.get('next') or ''
         context.update(employee_document_context(self.request))
         context['current_payscales_json'] = current_payscales_json()
+        from apps.core.occupation_salary import all_tables_payload
+        context['occupation_tables_json'] = all_tables_payload()
         from apps.accounts.permissions import user_is_systemadmin
         context['can_hard_delete'] = user_is_systemadmin(self.request.user)
         return context
@@ -689,6 +691,8 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         context['prev_item_url'] = prev_item_url
         context['next_item_url'] = next_item_url
         context['current_payscales_json'] = current_payscales_json()
+        from apps.core.occupation_salary import all_tables_payload
+        context['occupation_tables_json'] = all_tables_payload()
         context.update(employee_document_context(self.request, self.object))
         from apps.accounts.permissions import user_can_reset_user_password
         context['show_reset_password'] = (

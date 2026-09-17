@@ -335,31 +335,46 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
         cleaned_data = super().clean()
         apply_stashed_uploads(cleaned_data, self.stashed_uploads)
         strip_limitation_reason_template(cleaned_data)
-        pay_scale_group = cleaned_data.get('pay_scale_group')
-        experience_level = cleaned_data.get('experience_level')
-        has_group = bool(pay_scale_group)
-        has_level = experience_level is not None
-        if has_group != has_level:
-            message = 'Please select both Entgeltstufe and Erfahrungsstufe, or leave both empty.'
-            if not has_group:
-                self.add_error('pay_scale_group', message)
-            if not has_level:
-                self.add_error('experience_level', message)
-        elif has_group and has_level:
-            salary = (
-                PayScale.get_current()
-                .filter(
-                    pay_scale_group=pay_scale_group,
-                    experience_level=experience_level,
+        job = cleaned_data.get('job')
+        table = job.salary_table if job is not None and getattr(job, 'salary_table_id', None) else None
+        if table is not None:
+            from apps.core.occupation_salary import fulltime_salary_from_row, row_for_hours
+            row = row_for_hours(table, cleaned_data.get('weekly_hours'))
+            if row is None:
+                self.add_error(
+                    'weekly_hours',
+                    'Weekly hours must match a row in the occupational salary table.',
                 )
-                .values_list('monthly_salary', flat=True)
-                .first()
-            )
-            if salary is not None:
-                cleaned_data['monthly_salary'] = salary
-        elif not cleaned_data.get('monthly_salary'):
+            else:
+                cleaned_data['monthly_salary'] = fulltime_salary_from_row(row)
             cleaned_data['pay_scale_group'] = ''
             cleaned_data['experience_level'] = None
+        else:
+            pay_scale_group = cleaned_data.get('pay_scale_group')
+            experience_level = cleaned_data.get('experience_level')
+            has_group = bool(pay_scale_group)
+            has_level = experience_level is not None
+            if has_group != has_level:
+                message = 'Please select both Entgeltstufe and Erfahrungsstufe, or leave both empty.'
+                if not has_group:
+                    self.add_error('pay_scale_group', message)
+                if not has_level:
+                    self.add_error('experience_level', message)
+            elif has_group and has_level:
+                salary = (
+                    PayScale.get_current()
+                    .filter(
+                        pay_scale_group=pay_scale_group,
+                        experience_level=experience_level,
+                    )
+                    .values_list('monthly_salary', flat=True)
+                    .first()
+                )
+                if salary is not None:
+                    cleaned_data['monthly_salary'] = salary
+            elif not cleaned_data.get('monthly_salary'):
+                cleaned_data['pay_scale_group'] = ''
+                cleaned_data['experience_level'] = None
         # Job, contract dates, uploads, and funding rules validated dynamically.
         validate_recruitment_dynamic_rules(
             self,
@@ -395,7 +410,13 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
 # Recruitment catalog (jobs and limitation reasons)
 # ---------------------------------------------------------------------------
 class RecruitmentJobForm(forms.ModelForm):
-    """Admin form for recruitment job catalog (TV-L or fixed estimated salary)."""
+    """Admin form for recruitment job catalog (TV-L, estimate, or occupational table)."""
+
+    salary_source = forms.ChoiceField(
+        required=True,
+        label='Salary table',
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'job-salary-source'}),
+    )
 
     class Meta:
         model = RecruitmentJob
@@ -403,6 +424,8 @@ class RecruitmentJobForm(forms.ModelForm):
             'name',
             'help_text',
             'dropdown_help_text',
+            'salary_table',
+            'occupation_weekly_hours',
             'pay_scale_group',
             'experience_level',
             'estimated_monthly_salary',
@@ -420,6 +443,7 @@ class RecruitmentJobForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Shown when hovering this job in the recruitment dropdown…',
             }),
+            'salary_table': forms.HiddenInput(attrs={'id': 'job-salary-table'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'estimated_monthly_salary': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -432,6 +456,7 @@ class RecruitmentJobForm(forms.ModelForm):
             'name': 'Job name',
             'help_text': 'Help text for recruitment form',
             'dropdown_help_text': 'Dropdown hover text',
+            'occupation_weekly_hours': 'Weekly hours',
             'pay_scale_group': 'Pay scale group',
             'experience_level': 'Experience level',
             'estimated_monthly_salary': 'Estimated monthly salary (100% workload)',
@@ -440,6 +465,8 @@ class RecruitmentJobForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from apps.core.occupation_salary import hours_choices, salary_source_choices, table_from_id
+
         current = PayScale.get_current()
         groups = (
             current.values_list('pay_scale_group', flat=True)
@@ -464,6 +491,30 @@ class RecruitmentJobForm(forms.ModelForm):
                 self.fields['pay_scale_group'].initial = self.instance.pay_scale_group
             if self.instance.experience_level is not None:
                 self.fields['experience_level'].initial = str(self.instance.experience_level)
+
+        source_initial = 'tvl'
+        if self.data.get('salary_source'):
+            source_initial = self.data.get('salary_source')
+        elif self.instance and self.instance.salary_table_id:
+            source_initial = str(self.instance.salary_table_id)
+        self.fields['salary_source'].choices = salary_source_choices()
+        self.fields['salary_source'].initial = source_initial
+
+        table = table_from_id(source_initial)
+        self.fields['occupation_weekly_hours'] = forms.ChoiceField(
+            choices=[('', '— Select weekly hours —')] + hours_choices(table),
+            required=False,
+            label='Weekly hours',
+            widget=forms.Select(attrs={'class': 'form-control', 'id': 'job-occupation-hours'}),
+        )
+        if self.instance and self.instance.occupation_weekly_hours is not None:
+            from apps.core.occupation_salary import quantize_hours
+            hours = quantize_hours(self.instance.occupation_weekly_hours)
+            if hours is not None:
+                self.fields['occupation_weekly_hours'].initial = str(hours)
+        self.fields['salary_table'].required = False
+        self.fields['estimated_monthly_salary'].required = False
+
         if self.instance and getattr(self.instance, 'is_standard', False):
             self.fields['name'].disabled = True
             self.fields['name'].help_text = 'The Standard job cannot be renamed.'
@@ -476,8 +527,41 @@ class RecruitmentJobForm(forms.ModelForm):
             return None
         return int(value)
 
+    def clean_occupation_weekly_hours(self):
+        from apps.core.occupation_salary import quantize_hours
+        return quantize_hours(self.cleaned_data.get('occupation_weekly_hours'))
+
     def clean(self):
         cleaned = super().clean()
+        from apps.core.occupation_salary import (
+            fulltime_salary_from_row,
+            row_for_hours,
+            table_from_id,
+        )
+
+        source = cleaned.get('salary_source') or 'tvl'
+        table = table_from_id(source) if source != 'tvl' else None
+        if source != 'tvl' and table is None:
+            self.add_error('salary_source', 'Select a valid salary table.')
+            return cleaned
+        cleaned['salary_table'] = table
+        if table is not None:
+            cleaned['pay_scale_group'] = ''
+            cleaned['experience_level'] = None
+            row = row_for_hours(table, cleaned.get('occupation_weekly_hours'))
+            if row is None:
+                self.add_error(
+                    'occupation_weekly_hours',
+                    'Select weekly hours that exist in the occupational salary table.',
+                )
+            else:
+                cleaned['estimated_monthly_salary'] = fulltime_salary_from_row(row)
+            if self.instance and getattr(self.instance, 'is_standard', False):
+                cleaned['name'] = 'Standard'
+                cleaned['is_active'] = True
+            return cleaned
+
+        cleaned['occupation_weekly_hours'] = None
         group = cleaned.get('pay_scale_group') or ''
         level = cleaned.get('experience_level')
         estimated = cleaned.get('estimated_monthly_salary')

@@ -27,6 +27,16 @@
     </div>
     {% endif %}
     {% if form.job %}{{ form.job.as_hidden }}{% endif %}
+    {% if form.salary_table %}
+    <div class="employee-field-grid" style="margin-bottom:1rem;">
+        <div class="aligned-field employee-field">
+            <label>{{ form.salary_table.label }}</label>
+            {% if form.salary_table.errors %}{{ form.salary_table|add_class:"form-control error" }}{% else %}{{ form.salary_table }}{% endif %}
+            <small class="field-hint">{{ form.salary_table.help_text }}</small>
+            <small class="field-hint-de">Gehaltstabelle — leer = Vorgabe des Jobs</small>
+        </div>
+    </div>
+    {% endif %}
     <div class="employee-field-grid">
         <div class="aligned-field employee-field is-short"><label>{{ form.employee_number.label }}</label>{% if form.employee_number.errors %}{{ form.employee_number|add_class:"form-control error" }}{% else %}{{ form.employee_number|add_class:"form-control" }}{% endif %}</div>
         <div class="aligned-field employee-field is-short"><label>{{ form.prefix.label }}</label>{% if form.prefix.errors %}{{ form.prefix|add_class:"form-control error" }}{% else %}{{ form.prefix|add_class:"form-control" }}{% endif %}</div>

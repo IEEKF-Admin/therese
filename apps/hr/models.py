@@ -235,6 +235,15 @@ class Employee(BaseModel):
         related_name='employees',
         verbose_name="Job",
     )
+    salary_table = models.ForeignKey(
+        'core.OccupationSalaryTable',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='employees',
+        verbose_name='Salary table',
+        help_text='TV-L when empty, unless the job specifies an occupational table.',
+    )
 
     cost_center = models.ForeignKey(
         'finances.CostCenter',
@@ -509,8 +518,30 @@ class Contract(BaseModel):
                         'Deactivate the other contract first.'
                     ),
                 })
+        table = None
+        employee = getattr(self, 'employee', None)
+        if hasattr(self, '_salary_table_override'):
+            table = self._salary_table_override
+        elif employee is not None:
+            from apps.core.occupation_salary import resolve_salary_table
+            table = resolve_salary_table(employee)
+        if table:
+            from apps.core.occupation_salary import (
+                fulltime_salary_from_row,
+                row_for_hours,
+            )
+            row = row_for_hours(table, self.weekly_hours)
+            if row is None:
+                raise ValidationError({
+                    'weekly_hours': (
+                        'Weekly hours must match a row in the occupational salary table.'
+                    ),
+                })
+            self.monthly_salary = fulltime_salary_from_row(row)
+            self.pay_scale_group = ''
+            self.experience_level = None
         # When both payscale fields are set, store the TV-L monthly salary.
-        if self.pay_scale_group and self.experience_level is not None:
+        if not table and self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
             salary = (
                 PayScale.get_current()

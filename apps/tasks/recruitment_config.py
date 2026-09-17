@@ -373,6 +373,8 @@ def inherited_job_payscale(job) -> dict:
         'experience_level': None,
         'estimated_monthly_salary': None,
         'has_fixed_estimate': False,
+        'salary_table_id': None,
+        'occupation_weekly_hours': '',
     }
     if not job:
         return empty
@@ -380,6 +382,18 @@ def inherited_job_payscale(job) -> dict:
     def from_job(source):
         if not source:
             return empty
+        table_id = getattr(source, 'salary_table_id', None)
+        hours = getattr(source, 'occupation_weekly_hours', None)
+        if table_id:
+            estimate = source.get_estimated_monthly_salary()
+            return {
+                'pay_scale_group': '',
+                'experience_level': None,
+                'estimated_monthly_salary': estimate,
+                'has_fixed_estimate': False,
+                'salary_table_id': table_id,
+                'occupation_weekly_hours': str(hours) if hours is not None else '',
+            }
         group = source.pay_scale_group or ''
         level = source.experience_level
         estimate = source.estimated_monthly_salary
@@ -390,10 +404,17 @@ def inherited_job_payscale(job) -> dict:
             'experience_level': level,
             'estimated_monthly_salary': estimate,
             'has_fixed_estimate': has_estimate,
+            'salary_table_id': None,
+            'occupation_weekly_hours': '',
         }
 
     own = from_job(job)
-    has_own = bool(own['pay_scale_group']) or own['experience_level'] is not None or own['has_fixed_estimate']
+    has_own = (
+        bool(own['pay_scale_group'])
+        or own['experience_level'] is not None
+        or own['has_fixed_estimate']
+        or bool(own.get('salary_table_id'))
+    )
     if has_own or getattr(job, 'is_standard', False):
         return own
     return from_job(get_standard_job())

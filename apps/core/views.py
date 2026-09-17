@@ -111,7 +111,7 @@ def global_settings(request):
     )
     from apps.accounts.permissions import user_can_edit_global_settings, user_is_hr_superassistant
     from apps.core.forms import GlobalSettingForm
-    from apps.core.models import GlobalSetting
+    from apps.core.models import GlobalSetting, OccupationSalaryTable
     from apps.tasks.views.workflow_admin import workflow_config_list_rows
 
     can_edit_global = user_can_edit_global_settings(request.user)
@@ -141,6 +141,8 @@ def global_settings(request):
         if form.is_valid() and custom_formset.is_valid():
             form.save()
             custom_formset.save()
+            from apps.core.occupation_salary import save_occupation_tables_from_post
+            save_occupation_tables_from_post(request.POST)
             for weekdays in range(1, 6):
                 for months in range(1, 13):
                     raw = request.POST.get(f'entitlement_{weekdays}_{months}')
@@ -186,6 +188,7 @@ def global_settings(request):
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
+        'occupation_tables': OccupationSalaryTable.objects.prefetch_related('rows').order_by('name'),
         'account_email_templates': ensure_account_email_templates(),
         'account_email_variables': ACCOUNT_EMAIL_VARIABLES,
         'custom_formset': custom_formset,

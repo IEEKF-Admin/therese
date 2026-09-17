@@ -28,7 +28,9 @@
                 {% if job.is_standard %}<span class="job-standard-badge">Standard</span>{% endif %}
             </td>
             <td>
-                {% if job.pay_scale_group and job.experience_level %}
+                {% if job.salary_table_id %}
+                    {{ job.salary_table.name }}
+                {% elif job.pay_scale_group and job.experience_level %}
                     {{ job.pay_scale_group }} / {{ job.experience_level }}
                 {% elif job.estimated_monthly_salary is not None %}
                     ~ {{ job.estimated_monthly_salary }} €

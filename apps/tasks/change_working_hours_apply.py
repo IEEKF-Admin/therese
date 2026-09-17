@@ -22,6 +22,14 @@ def apply_change_working_hours(task):
             'No active contract found for this employee. '
             'The weekly hours could not be applied.'
         )
+    from django.core.exceptions import ValidationError
+
     contract.weekly_hours = hours
-    contract.save(update_fields=['weekly_hours', 'updated_at'])
+    try:
+        contract.save(update_fields=[
+            'weekly_hours', 'monthly_salary', 'pay_scale_group', 'experience_level', 'updated_at',
+        ])
+    except ValidationError as exc:
+        messages = exc.messages if hasattr(exc, 'messages') else [str(exc)]
+        raise ApplyWorkingHoursError(messages[0] if messages else str(exc)) from exc
     return contract

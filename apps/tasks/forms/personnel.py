@@ -362,6 +362,15 @@ class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
         hours = cleaned_data.get('new_weekly_hours')
         if hours is not None and hours <= 0:
             self.add_error('new_weekly_hours', 'Weekly working hours must be greater than 0.')
+        employee = cleaned_data.get('employee') or getattr(self.instance, 'employee', None)
+        if employee is not None and hours is not None:
+            from apps.core.occupation_salary import resolve_salary_table, row_for_hours
+            table = resolve_salary_table(employee)
+            if table is not None and row_for_hours(table, hours) is None:
+                self.add_error(
+                    'new_weekly_hours',
+                    'Weekly hours must match a row in the occupational salary table.',
+                )
         return cleaned_data
 
 

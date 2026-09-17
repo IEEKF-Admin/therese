@@ -218,6 +218,8 @@ def recruitment_employee_initial(task):
     }
     if task.job_id:
         initial['job'] = task.job_id
+        if task.job.salary_table_id:
+            initial['salary_table'] = task.job.salary_table_id
     return initial
 
 
@@ -227,19 +229,24 @@ def recruitment_contract_initial(task):
         'valid_until': task.valid_until,
         'is_active': True,
     }
-    if task.pay_scale_group:
-        contract_data['pay_scale_group'] = task.pay_scale_group
-    elif task.job and task.job.pay_scale_group:
-        contract_data['pay_scale_group'] = task.job.pay_scale_group
-    if task.experience_level is not None:
-        contract_data['experience_level'] = str(task.experience_level)
-    elif task.job and task.job.experience_level is not None:
-        contract_data['experience_level'] = str(task.job.experience_level)
+    job = task.job if getattr(task, 'job_id', None) else None
+    table = job.salary_table if job is not None and job.salary_table_id else None
+    if table is None:
+        if task.pay_scale_group:
+            contract_data['pay_scale_group'] = task.pay_scale_group
+        elif job and job.pay_scale_group:
+            contract_data['pay_scale_group'] = job.pay_scale_group
+        if task.experience_level is not None:
+            contract_data['experience_level'] = str(task.experience_level)
+        elif job and job.experience_level is not None:
+            contract_data['experience_level'] = str(job.experience_level)
     salary = task.get_estimated_monthly_salary()
     if salary is not None:
         contract_data['monthly_salary'] = salary
     if task.weekly_hours is not None:
         contract_data['weekly_hours'] = task.weekly_hours
+    elif table is not None and job.occupation_weekly_hours is not None:
+        contract_data['weekly_hours'] = job.occupation_weekly_hours
     return contract_data
 
 

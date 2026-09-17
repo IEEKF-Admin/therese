@@ -432,12 +432,96 @@
 </div>
 
 {{ current_payscales_json|json_script:"therese-payscale-data" }}
+{{ occupation_tables_json|json_script:"therese-occupation-tables" }}
 <script>
 (function() {
     const PAYSCALE_DATA = (function() {
         var el = document.getElementById('therese-payscale-data');
         return el ? JSON.parse(el.textContent) : {};
     })();
+    const OCC_TABLES = (function() {
+        var el = document.getElementById('therese-occupation-tables');
+        return el ? JSON.parse(el.textContent) : [];
+    })();
+
+    function quantHours(v) {
+        var n = parseFloat(String(v || '').replace(',', '.'));
+        return isNaN(n) ? '' : n.toFixed(3);
+    }
+    function findOccTable(id) {
+        if (!id) return null;
+        return OCC_TABLES.find(function(t) { return String(t.id) === String(id); }) || null;
+    }
+    function currentOccupationTable() {
+        var sel = document.getElementById('id_salary_table');
+        var id = sel && sel.value;
+        if (!id && sel) id = sel.getAttribute('data-job-salary-table') || '';
+        return findOccTable(id);
+    }
+    function setFieldWrapVisible(row, nameSuffix, visible) {
+        var field = row.querySelector('select[name$="' + nameSuffix + '"], input[name$="' + nameSuffix + '"]');
+        if (!field) return;
+        var wrap = field.closest('.inline-field');
+        if (wrap) wrap.style.display = visible ? '' : 'none';
+    }
+    function replaceHoursControl(row, table) {
+        var current = row.querySelector('input[name$="-weekly_hours"], select[name$="-weekly_hours"]');
+        if (!current) return;
+        var value = current.value;
+        if (table) {
+            if (current.tagName !== 'SELECT') {
+                var select = document.createElement('select');
+                select.className = current.className;
+                select.name = current.name;
+                select.id = current.id;
+                current.parentNode.replaceChild(select, current);
+                current = select;
+            }
+            var keep = quantHours(value);
+            current.innerHTML = '<option value="">— Select weekly hours —</option>';
+            (table.rows || []).forEach(function(item) {
+                var opt = document.createElement('option');
+                opt.value = item.hours;
+                opt.textContent = item.label || (item.hours + ' h');
+                current.appendChild(opt);
+            });
+            var match = (table.rows || []).find(function(item) { return quantHours(item.hours) === keep; });
+            current.value = match ? match.hours : '';
+            if (!current.dataset.occBound) {
+                current.dataset.occBound = '1';
+                current.addEventListener('change', function() { applyOccupationToCard(row); });
+            }
+        } else if (current.tagName === 'SELECT') {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = current.className.replace('form-readonly', '').trim();
+            input.name = current.name;
+            input.id = current.id;
+            input.value = value;
+            input.setAttribute('inputmode', 'decimal');
+            current.parentNode.replaceChild(input, current);
+        }
+    }
+    function applyOccupationToCard(row) {
+        var table = currentOccupationTable();
+        setFieldWrapVisible(row, 'pay_scale_group', !table);
+        setFieldWrapVisible(row, 'experience_level', !table);
+        replaceHoursControl(row, table);
+        var hoursEl = row.querySelector('input[name$="-weekly_hours"], select[name$="-weekly_hours"]');
+        var salaryField = row.querySelector('input[name$="-monthly_salary"], input[data-contract-monthly-salary]');
+        if (!salaryField) return;
+        if (table) {
+            var q = quantHours(hoursEl && hoursEl.value);
+            var match = (table.rows || []).find(function(item) { return quantHours(item.hours) === q; });
+            salaryField.value = match && match.fulltime ? match.fulltime : '';
+            salaryField.readOnly = true;
+            salaryField.classList.add('form-readonly');
+            var groupSelect = row.querySelector('select[name$="pay_scale_group"]');
+            var levelSelect = row.querySelector('select[name$="experience_level"]');
+            if (groupSelect) groupSelect.value = '';
+            if (levelSelect) levelSelect.value = '';
+        }
+    }
 
     function replacePrefix(str, oldP, newP) {
         return str.split(oldP).join(newP);
@@ -484,6 +568,10 @@
         if (!groupSelect || !levelSelect) return;
 
         function sync() {
+            if (currentOccupationTable()) {
+                applyOccupationToCard(row);
+                return;
+            }
             if (!salaryField) return;
             const group = groupSelect.value;
             const level = parseInt(levelSelect.value, 10);
@@ -582,6 +670,7 @@
 
     function bindCard(card) {
         attachPayscale(card);
+        applyOccupationToCard(card);
         card.querySelectorAll('.funding-item').forEach(function(item) {
             bindFundingItem(item, card);
         });
@@ -650,6 +739,13 @@
     }
 
     document.querySelectorAll('.contract-card').forEach(bindCard);
+    var salaryTableSelect = document.getElementById('id_salary_table');
+    if (salaryTableSelect && !salaryTableSelect.dataset.occBound) {
+        salaryTableSelect.dataset.occBound = '1';
+        salaryTableSelect.addEventListener('change', function() {
+            document.querySelectorAll('.contract-card').forEach(applyOccupationToCard);
+        });
+    }
 
     // Global archive toggle for contracts
     const archToggle = document.getElementById('toggle-archived-contracts');

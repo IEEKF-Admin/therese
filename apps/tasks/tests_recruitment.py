@@ -79,6 +79,25 @@ class RecruitmentJobSalaryTests(TestCase):
         )
         self.assertEqual(job.get_estimated_monthly_salary(), Decimal('3200.00'))
 
+    def test_occupation_table_estimated_salary(self):
+        from decimal import Decimal
+
+        from apps.core.models import GlobalSetting, OccupationSalaryRow, OccupationSalaryTable
+
+        GlobalSetting.objects.update_or_create(
+            pk=1, defaults={'default_weekly_hours': Decimal('39.000')},
+        )
+        table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
+        OccupationSalaryRow.objects.create(
+            table=table, weekly_hours=Decimal('19.500'), monthly_salary=Decimal('1950.00'),
+        )
+        job = RecruitmentJob.objects.create(
+            name='Occupation job',
+            salary_table=table,
+            occupation_weekly_hours=Decimal('19.500'),
+        )
+        self.assertEqual(job.get_estimated_monthly_salary(), Decimal('3900.00'))
+
     def test_job_rejects_tvl_and_estimate_together(self):
         from decimal import Decimal
         from django.core.exceptions import ValidationError

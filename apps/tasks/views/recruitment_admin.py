@@ -29,7 +29,11 @@ def _job_form_payscale_context():
             'experience_level': ps.experience_level,
             'monthly_salary': str(ps.monthly_salary),
         })
-    return {'recruitment_payscale_data_json': payscale_data}
+    from apps.core.occupation_salary import all_tables_payload
+    return {
+        'recruitment_payscale_data_json': payscale_data,
+        'occupation_tables_json': all_tables_payload(),
+    }
 
 
 def user_is_assisting_admin(user):
@@ -54,7 +58,7 @@ class RecruitmentJobListView(AssistingAdminMixin, ListView):
     context_object_name = 'jobs'
 
     def get_queryset(self):
-        return RecruitmentJob.objects.all().order_by('-is_standard', 'name')
+        return RecruitmentJob.objects.select_related('salary_table').order_by('-is_standard', 'name')
 
 
 class RecruitmentJobCreateView(AssistingAdminMixin, CreateView):

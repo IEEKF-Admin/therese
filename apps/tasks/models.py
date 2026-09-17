@@ -566,6 +566,21 @@ class RecruitmentJob(BaseModel):
             "group/level is set. Mutually exclusive with TV-L defaults."
         ),
     )
+    salary_table = models.ForeignKey(
+        'core.OccupationSalaryTable',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='recruitment_jobs',
+        verbose_name='Occupational salary table',
+    )
+    occupation_weekly_hours = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        verbose_name='Default weekly hours (occupational table)',
+    )
 
     class Meta:
         verbose_name = "Recruitment Job"
@@ -596,6 +611,19 @@ class RecruitmentJob(BaseModel):
         has_level = self.experience_level is not None
         has_tvl = has_group or has_level
         has_estimate = self.estimated_monthly_salary is not None
+        has_table = bool(self.salary_table_id)
+        if has_table:
+            self.pay_scale_group = ''
+            self.experience_level = None
+            from apps.core.occupation_salary import fulltime_salary_from_row, row_for_hours
+            row = row_for_hours(self.salary_table, self.occupation_weekly_hours)
+            if row is None:
+                raise ValidationError(
+                    'Select weekly hours that exist in the occupational salary table.'
+                )
+            self.estimated_monthly_salary = fulltime_salary_from_row(row)
+            return
+        self.occupation_weekly_hours = None
         if has_group != has_level:
             raise ValidationError(
                 'Please set both pay scale group and experience level, or leave both empty.'
@@ -606,7 +634,12 @@ class RecruitmentJob(BaseModel):
             )
 
     def get_estimated_monthly_salary(self):
-        """Theoretical monthly salary at 100% workload from TV-L or fixed estimate."""
+        """Theoretical monthly salary at 100% workload from TV-L, table, or fixed estimate."""
+        if self.salary_table_id:
+            from apps.core.occupation_salary import fulltime_salary_from_row, row_for_hours
+            row = row_for_hours(self.salary_table, self.occupation_weekly_hours)
+            if row is not None:
+                return fulltime_salary_from_row(row)
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
 

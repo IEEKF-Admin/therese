@@ -48,14 +48,22 @@
         <small class="field-hint-de">Hover-Text im Job-Dropdown beim Erstellen eines Recruitment-Tasks</small>
     </div>
 
-    <h3>Salary default (TV-L <em>or</em> estimated)</h3>
+    <h3>Salary default</h3>
     <p class="helptext" style="margin-bottom: 1rem;">
-        Provide either TV-L group/level <strong>or</strong> a fixed estimated monthly salary for 100% workload — not both.
-        Used to pre-fill recruitment tasks and estimated monthly costs.
+        Choose <strong>TV-L</strong> (group/level or a fixed 100% estimate) or an occupational salary table.
+        Occupational tables hide group/level and restrict weekly hours to the table rows.
     </p>
     {% if form.non_field_errors %}
     <div class="text-danger" style="margin-bottom:1rem;">{{ form.non_field_errors }}</div>
     {% endif %}
+    {{ form.salary_table }}
+    <div class="aligned-field" style="margin-bottom: 1rem; max-width: 28rem;">
+        <label for="{{ form.salary_source.id_for_label }}">{{ form.salary_source.label }}</label>
+        {{ form.salary_source }}
+        {% if form.salary_source.errors %}<div class="text-danger">{{ form.salary_source.errors }}</div>{% endif %}
+        <small class="field-hint-de">TV-L oder Berufsgruppentabelle</small>
+    </div>
+    <div id="job-tvl-fields">
     <div class="psp-two-col" style="margin-bottom: 1rem;">
         <div class="aligned-field">
             <label for="{{ form.pay_scale_group.id_for_label }}">{{ form.pay_scale_group.label }}</label>
@@ -70,11 +78,20 @@
             <small class="field-hint-de">Erfahrungsstufe</small>
         </div>
     </div>
+    </div>
+    <div id="job-occupation-fields" style="margin-bottom: 1rem; max-width: 22rem; display:none;">
+        <div class="aligned-field">
+            <label for="{{ form.occupation_weekly_hours.id_for_label }}">{{ form.occupation_weekly_hours.label }}</label>
+            {{ form.occupation_weekly_hours }}
+            {% if form.occupation_weekly_hours.errors %}<div class="text-danger">{{ form.occupation_weekly_hours.errors }}</div>{% endif %}
+            <small class="field-hint-de">Wochenarbeitszeit laut Tabelle</small>
+        </div>
+    </div>
     <div class="aligned-field" style="margin-bottom: 1.5rem; max-width: 22rem;">
         <label for="{{ form.estimated_monthly_salary.id_for_label }}">{{ form.estimated_monthly_salary.label }}</label>
         {{ form.estimated_monthly_salary }}
         {% if form.estimated_monthly_salary.errors %}<div class="text-danger">{{ form.estimated_monthly_salary.errors }}</div>{% endif %}
-        <small class="field-hint-de">Geschätztes Monatsgehalt bei 100 % — Alternative zu TV-L</small>
+        <small class="field-hint-de">Geschätztes Monatsgehalt bei 100 %</small>
     </div>
 
     <h3>Field rules per job</h3>
@@ -150,10 +167,21 @@
 </form>
 
 {{ recruitment_payscale_data_json|json_script:"therese-recruitment-payscale" }}
+{{ occupation_tables_json|json_script:"therese-occupation-tables" }}
 <script>
 (function() {
     var el = document.getElementById('therese-recruitment-payscale');
     const PAYSCALE_DATA = el ? JSON.parse(el.textContent) : {};
+    var occEl = document.getElementById('therese-occupation-tables');
+    const OCC_TABLES = occEl ? JSON.parse(occEl.textContent) : [];
+
+    function findOccTable(id) {
+        return OCC_TABLES.find(function(t) { return String(t.id) === String(id); }) || null;
+    }
+    function quantHours(v) {
+        var n = parseFloat(String(v || '').replace(',', '.'));
+        return isNaN(n) ? '' : n.toFixed(3);
+    }
 
     function updateJobExperienceLevels() {
         const groupSelect = document.getElementById('job-pay-scale-group');
@@ -184,11 +212,75 @@
     const groupSelect = document.getElementById('job-pay-scale-group');
     const levelSelect = document.getElementById('job-experience-level');
     const estimatedInput = document.getElementById('job-estimated-salary');
+    const sourceSelect = document.getElementById('job-salary-source');
+    const hoursSelect = document.getElementById('job-occupation-hours');
+    const hiddenTable = document.getElementById('job-salary-table');
+    const tvlFields = document.getElementById('job-tvl-fields');
+    const occFields = document.getElementById('job-occupation-fields');
+
+    function fillOccupationHours(table, current) {
+        if (!hoursSelect) return;
+        const keep = quantHours(current || hoursSelect.value);
+        hoursSelect.innerHTML = '<option value="">— Select weekly hours —</option>';
+        if (!table) return;
+        (table.rows || []).forEach(function(row) {
+            const opt = document.createElement('option');
+            opt.value = row.hours;
+            opt.textContent = row.label || (row.hours + ' h');
+            hoursSelect.appendChild(opt);
+        });
+        if (keep) {
+            const match = (table.rows || []).find(function(row) { return quantHours(row.hours) === keep; });
+            hoursSelect.value = match ? match.hours : '';
+        }
+    }
+
+    function applyOccupationSalary() {
+        if (!sourceSelect || sourceSelect.value === 'tvl' || !hoursSelect || !estimatedInput) return;
+        const table = findOccTable(sourceSelect.value);
+        if (!table) return;
+        const q = quantHours(hoursSelect.value);
+        const row = (table.rows || []).find(function(item) { return quantHours(item.hours) === q; });
+        estimatedInput.value = row && row.fulltime ? row.fulltime : '';
+        estimatedInput.readOnly = true;
+        estimatedInput.classList.add('form-readonly');
+        estimatedInput.disabled = false;
+    }
+
+    function syncSalarySource() {
+        const source = sourceSelect ? sourceSelect.value : 'tvl';
+        const isOcc = source && source !== 'tvl';
+        if (hiddenTable) hiddenTable.value = isOcc ? source : '';
+        if (tvlFields) tvlFields.style.display = isOcc ? 'none' : '';
+        if (occFields) occFields.style.display = isOcc ? '' : 'none';
+        if (isOcc) {
+            if (groupSelect) groupSelect.value = '';
+            if (levelSelect) {
+                levelSelect.innerHTML = '<option value="">— Select group first —</option>';
+                levelSelect.value = '';
+            }
+            fillOccupationHours(findOccTable(source));
+            applyOccupationSalary();
+        } else if (hoursSelect) {
+            hoursSelect.value = '';
+            if (estimatedInput) {
+                estimatedInput.readOnly = false;
+                estimatedInput.classList.remove('form-readonly');
+            }
+            syncSalaryMode();
+        }
+    }
 
     function syncSalaryMode() {
         if (!estimatedInput || !groupSelect || !levelSelect) return;
+        if (sourceSelect && sourceSelect.value && sourceSelect.value !== 'tvl') {
+            applyOccupationSalary();
+            return;
+        }
         const hasTvl = Boolean(groupSelect.value || levelSelect.value);
         const hasEstimate = Boolean(String(estimatedInput.value || '').trim());
+        estimatedInput.readOnly = false;
+        estimatedInput.classList.remove('form-readonly');
         if (hasTvl) {
             estimatedInput.value = '';
             estimatedInput.disabled = true;
@@ -232,6 +324,13 @@
             syncSalaryMode();
         });
     }
+    if (sourceSelect) {
+        sourceSelect.addEventListener('change', syncSalarySource);
+    }
+    if (hoursSelect) {
+        hoursSelect.addEventListener('change', applyOccupationSalary);
+    }
+    syncSalarySource();
     syncSalaryMode();
 
     function toggleDurationGroups() {

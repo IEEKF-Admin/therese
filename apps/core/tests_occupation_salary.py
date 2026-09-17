@@ -54,8 +54,8 @@ class OccupationSalaryModelTests(TestCase):
         job.full_clean()
         self.assertEqual(job.pay_scale_group, '')
         self.assertIsNone(job.experience_level)
-        self.assertEqual(job.estimated_monthly_salary, Decimal('3900.00'))
-        self.assertEqual(job.get_estimated_monthly_salary(), Decimal('3900.00'))
+        self.assertIsNone(job.occupation_weekly_hours)
+        self.assertIsNone(job.estimated_monthly_salary)
 
     def test_contract_hours_must_match_table(self):
         employee = Employee.objects.create(
@@ -184,15 +184,14 @@ class OccupationSalaryJobFormTests(TestCase):
             'name': 'Tech',
             'is_active': 'on',
             'salary_source': str(self.table.pk),
-            'occupation_weekly_hours': '20.000',
             'pay_scale_group': '',
             'experience_level': '',
         })
         self.assertTrue(form.is_valid(), form.errors)
         job = form.save()
         self.assertEqual(job.salary_table_id, self.table.pk)
-        self.assertEqual(job.occupation_weekly_hours, Decimal('20.000'))
-        self.assertEqual(job.estimated_monthly_salary, Decimal('4000.00'))
+        self.assertIsNone(job.occupation_weekly_hours)
+        self.assertIsNone(job.estimated_monthly_salary)
         self.assertEqual(job.pay_scale_group, '')
 
 

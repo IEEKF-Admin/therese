@@ -615,13 +615,8 @@ class RecruitmentJob(BaseModel):
         if has_table:
             self.pay_scale_group = ''
             self.experience_level = None
-            from apps.core.occupation_salary import fulltime_salary_from_row, row_for_hours
-            row = row_for_hours(self.salary_table, self.occupation_weekly_hours)
-            if row is None:
-                raise ValidationError(
-                    'Select weekly hours that exist in the occupational salary table.'
-                )
-            self.estimated_monthly_salary = fulltime_salary_from_row(row)
+            self.occupation_weekly_hours = None
+            self.estimated_monthly_salary = None
             return
         self.occupation_weekly_hours = None
         if has_group != has_level:

@@ -533,11 +533,7 @@ class RecruitmentJobForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        from apps.core.occupation_salary import (
-            fulltime_salary_from_row,
-            row_for_hours,
-            table_from_id,
-        )
+        from apps.core.occupation_salary import table_from_id
 
         source = cleaned.get('salary_source') or 'tvl'
         table = table_from_id(source) if source != 'tvl' else None
@@ -548,14 +544,8 @@ class RecruitmentJobForm(forms.ModelForm):
         if table is not None:
             cleaned['pay_scale_group'] = ''
             cleaned['experience_level'] = None
-            row = row_for_hours(table, cleaned.get('occupation_weekly_hours'))
-            if row is None:
-                self.add_error(
-                    'occupation_weekly_hours',
-                    'Select weekly hours that exist in the occupational salary table.',
-                )
-            else:
-                cleaned['estimated_monthly_salary'] = fulltime_salary_from_row(row)
+            cleaned['occupation_weekly_hours'] = None
+            cleaned['estimated_monthly_salary'] = None
             if self.instance and getattr(self.instance, 'is_standard', False):
                 cleaned['name'] = 'Standard'
                 cleaned['is_active'] = True

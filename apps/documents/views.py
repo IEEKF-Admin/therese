@@ -170,6 +170,8 @@ def document_ack_confirm(request, pk):
         user=request.user,
         defaults={'status': DocumentReadAcknowledgement.Status.CONFIRMED, 'decided_at': timezone.now()},
     )
+    from apps.checklists.services import try_auto_complete_for_document_ack
+    try_auto_complete_for_document_ack(request.user, document)
     messages.success(request, 'Read acknowledgement saved.')
     return redirect('documents:detail', pk=pk)
 
@@ -205,6 +207,8 @@ def document_ack_reconsider(request, pk):
     ack.status = DocumentReadAcknowledgement.Status.CONFIRMED
     ack.decided_at = timezone.now()
     ack.save(update_fields=['status', 'decided_at'])
+    from apps.checklists.services import try_auto_complete_for_document_ack
+    try_auto_complete_for_document_ack(request.user, document)
     messages.success(request, 'You confirmed the document.')
     return redirect('documents:detail', pk=pk)
 

@@ -36,7 +36,8 @@ class ChecklistTemplateNodeInline(admin.TabularInline):
     extra = 0
     fields = (
         'parent', 'sort_order', 'node_kind', 'field_type', 'choice_key',
-        'label_en', 'label_de', 'required_for_completion', 'visible_to_subject',
+        'label_en', 'label_de', 'acknowledge_document',
+        'required_for_completion', 'visible_to_subject',
     )
     ordering = ('sort_order', 'pk')
 

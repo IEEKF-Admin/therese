@@ -14,6 +14,11 @@
     <label for="{{ form.field_type.id_for_label }}">Field type</label>
     {{ form.field_type }}
 </div>
+<div class="aligned-field" data-node-field-group="field_acknowledge">
+    <label for="{{ form.acknowledge_document.id_for_label }}">Document</label>
+    {{ form.acknowledge_document }}
+    {% if form.acknowledge_document.errors %}<div class="form-errors">{{ form.acknowledge_document.errors }}</div>{% endif %}
+</div>
 <div class="aligned-field" data-node-field-group="label">
     <label for="{{ form.label_en.id_for_label }}" data-label-caption data-caption-default="Label (EN)" data-caption-section="Name (EN)">{{ form.label_en.label }}</label>
     {{ form.label_en }}

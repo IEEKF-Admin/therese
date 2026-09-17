@@ -10,7 +10,15 @@
         field_advanced: ['field'],
         visible_subject: ['field', 'html'],
         field_file: ['field'],
+        field_acknowledge: ['field'],
     };
+
+    const FIELD_TYPE_GROUPS = {
+        field_file: ['file'],
+        field_acknowledge: ['acknowledge'],
+    };
+
+    const ACKNOWLEDGE_LABEL_DEFAULT = 'Acknowledge:';
 
     const PARENT_KIND_MAP = {
         section: 'section',
@@ -56,11 +64,31 @@
         });
     }
 
+    function fieldTypeValue(root) {
+        const select = root.querySelector('[data-field-type-select]');
+        return select ? select.value : '';
+    }
+
+    function applyAcknowledgeLabelDefault(root) {
+        if (fieldTypeValue(root) !== 'acknowledge') return;
+        const en = root.querySelector('[name="label_en"]');
+        const de = root.querySelector('[name="label_de"]');
+        if (en && !String(en.value || '').trim()) en.value = ACKNOWLEDGE_LABEL_DEFAULT;
+        if (de && !String(de.value || '').trim()) de.value = ACKNOWLEDGE_LABEL_DEFAULT;
+    }
+
     function updateVisibility(root) {
         const kind = nodeKindValue(root);
+        const fieldType = fieldTypeValue(root);
         root.querySelectorAll('[data-node-field-group]').forEach(function(el) {
             const group = el.getAttribute('data-node-field-group');
-            const visible = groupVisible(group, kind);
+            var visible = groupVisible(group, kind);
+            if (visible && FIELD_TYPE_GROUPS[group]) {
+                visible = FIELD_TYPE_GROUPS[group].indexOf(fieldType) !== -1;
+            }
+            if (visible && group === 'field_advanced' && fieldType === 'acknowledge') {
+                visible = false;
+            }
             el.style.display = visible ? '' : 'none';
         });
         root.querySelectorAll('[data-label-caption]').forEach(function(el) {
@@ -80,6 +108,13 @@
         if (!select) return;
         const handler = function() { refresh(root); };
         select.addEventListener('change', handler);
+        const fieldTypeSelect = root.querySelector('[data-field-type-select]');
+        if (fieldTypeSelect) {
+            fieldTypeSelect.addEventListener('change', function() {
+                applyAcknowledgeLabelDefault(root);
+                refresh(root);
+            });
+        }
         handler();
     }
 

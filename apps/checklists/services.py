@@ -12,6 +12,7 @@ from apps.checklists.models import (
     ChecklistTemplateNode,
     ChecklistTemplateVersion,
 )
+from apps.documents.models import DocumentReadAcknowledgement
 from apps.hr.document_utils import create_document_version, validate_personnel_document
 from apps.hr.models import EmployeeDocumentType
 
@@ -46,6 +47,7 @@ def copy_version_nodes(source_version, target_version):
             employee_document_type=old.employee_document_type,
             storage_label_en=old.storage_label_en,
             storage_label_de=old.storage_label_de,
+            acknowledge_document_id=old.acknowledge_document_id,
         )
         id_map[old.pk] = new_node
 
@@ -134,6 +136,7 @@ def duplicate_node_subtree(node, *, new_parent=None, sort_order=None):
         employee_document_type=node.employee_document_type,
         storage_label_en=node.storage_label_en,
         storage_label_de=node.storage_label_de,
+        acknowledge_document_id=node.acknowledge_document_id,
     )
     new_node.editable_by_employees.set(node.editable_by_employees.all())
     new_node.editable_by_groups.set(node.editable_by_groups.all())
@@ -224,9 +227,63 @@ def _sync_employee_document(instance, node, uploaded_file, user):
         employee.save(update_fields=['profile_picture', 'updated_at'])
 
 
-def field_is_fulfilled(instance, node, response=None):
+def acknowledge_status_by_node(instance, nodes):
+    """Map acknowledge-node pk → subject confirmed the current published version."""
+    ack_nodes = [
+        n for n in nodes
+        if n.field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE
+    ]
+    if not ack_nodes:
+        return {}
+    user = getattr(instance.subject, 'user', None)
+    if not user:
+        return {n.pk: False for n in ack_nodes}
+    node_to_version = {}
+    version_ids = []
+    for node in ack_nodes:
+        document = node.acknowledge_document
+        version_id = getattr(document, 'current_published_version_id', None) if document else None
+        if version_id:
+            node_to_version[node.pk] = version_id
+            version_ids.append(version_id)
+    confirmed = set()
+    if version_ids:
+        confirmed = set(
+            DocumentReadAcknowledgement.objects.filter(
+                user=user,
+                version_id__in=version_ids,
+                status=DocumentReadAcknowledgement.Status.CONFIRMED,
+            ).values_list('version_id', flat=True)
+        )
+    return {n.pk: node_to_version.get(n.pk) in confirmed for n in ack_nodes}
+
+
+def try_auto_complete_for_document_ack(user, document):
+    """Re-evaluate open checklists after the subject confirms a document."""
+    employee = getattr(user, 'employee', None)
+    if not employee or not document:
+        return
+    instances = (
+        ChecklistInstance.objects.filter(
+            subject=employee,
+            status__in=ChecklistInstance.ACTIVE_STATUSES,
+            template_version__nodes__field_type=ChecklistTemplateNode.FieldType.ACKNOWLEDGE,
+            template_version__nodes__acknowledge_document=document,
+        )
+        .select_related('template_version', 'subject')
+        .distinct()
+    )
+    for instance in instances:
+        try_auto_complete(instance)
+
+
+def field_is_fulfilled(instance, node, response=None, *, ack_map=None):
     if node.node_kind != ChecklistTemplateNode.NodeKind.FIELD:
         return True
+    if node.field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE:
+        if ack_map is not None:
+            return ack_map.get(node.pk, False)
+        return acknowledge_status_by_node(instance, [node]).get(node.pk, False)
     if response is None:
         response = instance.responses.filter(node=node).first()
     if not response:
@@ -251,19 +308,24 @@ def field_is_fulfilled(instance, node, response=None):
 
 
 def compute_progress(instance):
-    required_nodes = instance.template_version.nodes.filter(
-        node_kind=ChecklistTemplateNode.NodeKind.FIELD,
-        required_for_completion=True,
+    required_nodes = list(
+        instance.template_version.nodes.filter(
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            required_for_completion=True,
+        ).select_related('acknowledge_document')
     )
-    total = required_nodes.count()
+    total = len(required_nodes)
     if total == 0:
         return 100, 0, 0
     responses = {
         r.node_id: r
-        for r in instance.responses.filter(node__in=required_nodes)
+        for r in instance.responses.filter(node_id__in=[n.pk for n in required_nodes])
     }
+    ack_map = acknowledge_status_by_node(instance, required_nodes)
     fulfilled = sum(
-        1 for node in required_nodes if field_is_fulfilled(instance, node, responses.get(node.pk))
+        1
+        for node in required_nodes
+        if field_is_fulfilled(instance, node, responses.get(node.pk), ack_map=ack_map)
     )
     percent = int(round(fulfilled * 100 / total))
     return percent, fulfilled, total
@@ -317,6 +379,8 @@ def save_field_response(user, instance, node, *, data, uploaded_file=None):
 
     if node.node_kind != ChecklistTemplateNode.NodeKind.FIELD:
         raise ValidationError('Only field nodes accept responses.')
+    if node.field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE:
+        raise ValidationError('Acknowledge fields cannot be edited.')
 
     response = _get_or_create_response(instance, node)
     not_applicable = bool(data.get('not_applicable'))

@@ -45,6 +45,7 @@ from apps.checklists.models import (
     ChecklistTemplateVersion,
 )
 from apps.checklists.services import (
+    acknowledge_status_by_node,
     assign_instance,
     build_node_tree,
     complete_instance,
@@ -72,7 +73,10 @@ def _completable(user, instance):
 def _instance_context(request, instance, *, can_edit):
     version = instance.template_version
     nodes = list(
-        version.nodes.prefetch_related(
+        version.nodes.select_related(
+            'acknowledge_document',
+            'acknowledge_document__current_published_version',
+        ).prefetch_related(
             'editable_by_employees', 'editable_by_groups', 'children',
         ).order_by('sort_order', 'pk')
     )
@@ -94,6 +98,7 @@ def _instance_context(request, instance, *, can_edit):
             if n.node_kind == ChecklistTemplateNode.NodeKind.FIELD
             and user_can_edit_node(request.user, instance, n)
         }
+    ack_map = acknowledge_status_by_node(instance, visible_nodes)
     return {
         'instance': instance,
         'template': version.template,
@@ -102,6 +107,7 @@ def _instance_context(request, instance, *, can_edit):
         'responses': responses_by_node_id(instance),
         'can_edit': can_edit,
         'editable_node_ids': editable_node_ids,
+        'ack_checked_ids': {pk for pk, checked in ack_map.items() if checked},
         'progress_percent': percent,
         'progress_fulfilled': fulfilled,
         'progress_total': total,
@@ -115,6 +121,8 @@ def _parse_field_post(request, instance):
         node_kind=ChecklistTemplateNode.NodeKind.FIELD,
     )
     for node in field_nodes:
+        if node.field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE:
+            continue
         if not user_can_edit_node(request.user, instance, node):
             continue
         prefix = f'field_{node.pk}'
@@ -543,7 +551,10 @@ def manage_version_preview(request, pk, vid):
     template = get_object_or_404(ChecklistTemplate, pk=pk)
     version = _get_draft_version(template, vid)
     nodes = list(
-        version.nodes.prefetch_related(
+        version.nodes.select_related(
+            'acknowledge_document',
+            'acknowledge_document__current_published_version',
+        ).prefetch_related(
             'editable_by_employees', 'editable_by_groups', 'children',
         ).order_by('sort_order', 'pk')
     )
@@ -560,6 +571,7 @@ def manage_version_preview(request, pk, vid):
         'can_edit': True,
         'preview_mode': True,
         'editable_node_ids': editable_node_ids,
+        'ack_checked_ids': set(),
         'progress_percent': percent,
         'progress_fulfilled': fulfilled,
         'progress_total': total,

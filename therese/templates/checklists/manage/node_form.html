@@ -28,6 +28,11 @@
                 <label for="{{ form.field_type.id_for_label }}">Field type</label>
                 {{ form.field_type }}
             </div>
+            <div class="aligned-field" data-node-field-group="field_acknowledge">
+                <label for="{{ form.acknowledge_document.id_for_label }}">Document</label>
+                {{ form.acknowledge_document }}
+                {% if form.acknowledge_document.errors %}<div class="form-errors">{{ form.acknowledge_document.errors }}</div>{% endif %}
+            </div>
             <div class="aligned-field">
                 <label for="{{ form.parent.id_for_label }}">Parent</label>
                 {{ form.parent }}

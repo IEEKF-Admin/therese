@@ -134,6 +134,9 @@ class ChecklistTemplateNode(BaseModel):
         RADIO_GROUP = 'radio_group', 'Radio group'
         FILE = 'file', 'File upload'
         DATE = 'date', 'Date'
+        ACKNOWLEDGE = 'acknowledge', 'Acknowledge'
+
+    ACKNOWLEDGE_LABEL_DEFAULT = 'Acknowledge:'
 
     class FileTarget(models.TextChoices):
         EMPLOYEE_DOCUMENT = 'employee_document', 'Employee document'
@@ -197,6 +200,14 @@ class ChecklistTemplateNode(BaseModel):
     )
     storage_label_en = models.CharField(max_length=255, blank=True, verbose_name='Storage label (EN)')
     storage_label_de = models.CharField(max_length=255, blank=True, verbose_name='Storage label (DE)')
+    acknowledge_document = models.ForeignKey(
+        'documents.Document',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='checklist_acknowledge_nodes',
+        verbose_name='Acknowledge document',
+    )
 
     class Meta:
         verbose_name = 'Checklist Template Node'

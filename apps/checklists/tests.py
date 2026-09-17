@@ -1040,3 +1040,200 @@ class YourChecklistsEditorTests(TestCase):
             ).exists()
         )
 
+
+class ChecklistAcknowledgeFieldTests(TestCase):
+    def setUp(self):
+        from apps.documents.models import Document, DocumentCategory, DocumentReadAcknowledgement, DocumentVersion
+        from apps.checklists.services import try_auto_complete_for_document_ack
+
+        self.Document = Document
+        self.DocumentVersion = DocumentVersion
+        self.DocumentReadAcknowledgement = DocumentReadAcknowledgement
+        self.try_auto_complete_for_document_ack = try_auto_complete_for_document_ack
+
+        self.manager = _user('ack-mgr')
+        group, _ = Group.objects.get_or_create(name='Checklists - Manage')
+        ct = ContentType.objects.get_for_model(ChecklistTemplate)
+        perm = Permission.objects.get(codename='manage_checklist', content_type=ct)
+        group.permissions.add(perm)
+        self.manager.groups.add(group)
+
+        self.subject_user = _user('ack-subj')
+        self.subject = Employee.objects.create(
+            employee_number='ACK-001',
+            first_name='Ada',
+            last_name='Ack',
+            user=self.subject_user,
+        )
+        self.category = DocumentCategory.objects.create(name='SOPs')
+        self.document = Document.objects.create(
+            title='Lab safety',
+            category=self.category,
+            created_by=self.manager,
+            requires_read_acknowledgement=True,
+        )
+        self.doc_v1 = DocumentVersion.objects.create(
+            document=self.document,
+            version_number=1,
+            status=DocumentVersion.Status.PUBLISHED,
+            content_html='<p>v1</p>',
+            created_by=self.manager,
+        )
+        self.document.current_published_version = self.doc_v1
+        self.document.save(update_fields=['current_published_version'])
+
+        self.template = ChecklistTemplate.objects.create(
+            slug='ack-list', name_en='Ack list', name_de='Ack-Liste',
+        )
+        self.version = ChecklistTemplateVersion.objects.create(
+            template=self.template,
+            version_number=1,
+            status=ChecklistTemplateVersion.Status.DRAFT,
+            completion_mode=ChecklistTemplateVersion.CompletionMode.AUTO,
+            created_by=self.manager,
+        )
+        self.section = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            node_kind=ChecklistTemplateNode.NodeKind.SECTION,
+            label_en='Docs',
+            sort_order=0,
+        )
+        self.field = ChecklistTemplateNode.objects.create(
+            version=self.version,
+            parent=self.section,
+            node_kind=ChecklistTemplateNode.NodeKind.FIELD,
+            field_type=ChecklistTemplateNode.FieldType.ACKNOWLEDGE,
+            label_en='Acknowledge:',
+            label_de='Acknowledge:',
+            acknowledge_document=self.document,
+            required_for_completion=True,
+            sort_order=1,
+        )
+        publish_version(self.version, self.manager)
+        self.instance = assign_instance(self.subject, self.version, assigned_by=self.manager)
+
+    def _confirm(self, user, version=None):
+        self.DocumentReadAcknowledgement.objects.update_or_create(
+            version=version or self.document.current_published_version,
+            user=user,
+            defaults={'status': self.DocumentReadAcknowledgement.Status.CONFIRMED},
+        )
+
+    def test_progress_follows_subject_current_version_ack(self):
+        percent, fulfilled, total = compute_progress(self.instance)
+        self.assertEqual((percent, fulfilled, total), (0, 0, 1))
+
+        self._confirm(self.subject_user)
+        percent, fulfilled, total = compute_progress(self.instance)
+        self.assertEqual((percent, fulfilled, total), (100, 1, 1))
+
+        doc_v2 = self.DocumentVersion.objects.create(
+            document=self.document,
+            version_number=2,
+            status=self.DocumentVersion.Status.PUBLISHED,
+            content_html='<p>v2</p>',
+            created_by=self.manager,
+        )
+        self.document.current_published_version = doc_v2
+        self.document.save(update_fields=['current_published_version'])
+        percent, fulfilled, total = compute_progress(self.instance)
+        self.assertEqual((percent, fulfilled, total), (0, 0, 1))
+
+        self._confirm(self.subject_user, doc_v2)
+        percent, fulfilled, total = compute_progress(self.instance)
+        self.assertEqual((percent, fulfilled, total), (100, 1, 1))
+
+    def test_fill_renders_disabled_checkbox_and_document_link(self):
+        self.client.login(username='ack-subj', password='test')
+        response = self.client.get(reverse('checklists:instance_fill', args=[self.instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Acknowledge:')
+        self.assertContains(response, 'Lab safety')
+        self.assertContains(response, reverse('documents:detail', args=[self.document.pk]))
+        self.assertContains(response, 'target="_blank"')
+        unchecked = f'<input type="checkbox" id="field_{self.field.pk}" disabled>'
+        checked = f'<input type="checkbox" id="field_{self.field.pk}" disabled checked>'
+        self.assertContains(response, unchecked)
+        self.assertNotContains(response, f'name="field_{self.field.pk}"')
+        self.assertNotContains(response, checked)
+
+        self._confirm(self.subject_user)
+        response = self.client.get(reverse('checklists:instance_fill', args=[self.instance.pk]))
+        self.assertContains(response, checked)
+
+    def test_coordinator_sees_subject_ack_not_own(self):
+        unchecked = f'<input type="checkbox" id="field_{self.field.pk}" disabled>'
+        checked = f'<input type="checkbox" id="field_{self.field.pk}" disabled checked>'
+        self._confirm(self.manager)
+        self.client.login(username='ack-mgr', password='test')
+        response = self.client.get(reverse('checklists:instance_view', args=[self.instance.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, unchecked)
+        self.assertNotContains(response, checked)
+
+        self._confirm(self.subject_user)
+        response = self.client.get(reverse('checklists:instance_view', args=[self.instance.pk]))
+        self.assertContains(response, checked)
+
+    def test_post_cannot_toggle_acknowledge_field(self):
+        self.client.login(username='ack-subj', password='test')
+        self.client.post(
+            reverse('checklists:instance_fill', args=[self.instance.pk]),
+            {f'field_{self.field.pk}': 'on'},
+        )
+        self.assertFalse(self.instance.responses.exists())
+        _, fulfilled, _ = compute_progress(self.instance)
+        self.assertEqual(fulfilled, 0)
+        self.assertFalse(user_can_edit_node(self.subject_user, self.instance, self.field))
+
+    def test_add_node_requires_document_and_defaults_label(self):
+        self.client.login(username='ack-mgr', password='test')
+        template = ChecklistTemplate.objects.create(slug='ack-add', name_en='Add', name_de='Add')
+        version = ChecklistTemplateVersion.objects.create(
+            template=template, version_number=1, status=ChecklistTemplateVersion.Status.DRAFT,
+        )
+        section = ChecklistTemplateNode.objects.create(
+            version=version, node_kind=ChecklistTemplateNode.NodeKind.SECTION, label_en='S',
+        )
+        url = reverse('checklists:manage_version_edit', args=[template.pk, version.pk])
+        missing = self.client.post(url, {
+            'action': 'add_node',
+            'node_kind': ChecklistTemplateNode.NodeKind.FIELD,
+            'field_type': ChecklistTemplateNode.FieldType.ACKNOWLEDGE,
+            'parent': str(section.pk),
+            'sort_order': 1,
+        })
+        self.assertEqual(missing.status_code, 200)
+        self.assertFalse(version.nodes.filter(field_type=ChecklistTemplateNode.FieldType.ACKNOWLEDGE).exists())
+
+        added = self.client.post(url, {
+            'action': 'add_node',
+            'node_kind': ChecklistTemplateNode.NodeKind.FIELD,
+            'field_type': ChecklistTemplateNode.FieldType.ACKNOWLEDGE,
+            'parent': str(section.pk),
+            'sort_order': 1,
+            'acknowledge_document': str(self.document.pk),
+        })
+        self.assertEqual(added.status_code, 302)
+        node = version.nodes.get(field_type=ChecklistTemplateNode.FieldType.ACKNOWLEDGE)
+        self.assertEqual(node.acknowledge_document_id, self.document.pk)
+        self.assertEqual(node.label_en, ChecklistTemplateNode.ACKNOWLEDGE_LABEL_DEFAULT)
+
+    def test_copy_version_keeps_document(self):
+        new_template, new_version = copy_template_latest_version(
+            self.template, self.manager,
+            slug='ack-copy', name_en='Copy', name_de='Kopie',
+        )
+        copied = new_version.nodes.get(
+            field_type=ChecklistTemplateNode.FieldType.ACKNOWLEDGE,
+        )
+        self.assertEqual(copied.acknowledge_document_id, self.document.pk)
+        self.assertEqual(new_template.slug, 'ack-copy')
+
+    def test_document_ack_auto_completes_checklist(self):
+        self.assertEqual(self.instance.status, ChecklistInstance.Status.NOT_STARTED)
+        self._confirm(self.subject_user)
+        self.try_auto_complete_for_document_ack(self.subject_user, self.document)
+        self.instance.refresh_from_db()
+        self.assertEqual(self.instance.status, ChecklistInstance.Status.COMPLETED)
+

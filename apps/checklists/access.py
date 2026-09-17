@@ -80,6 +80,8 @@ def user_can_edit_node(user, instance, node):
         return False
     if instance.is_locked or instance.status == ChecklistInstance.Status.CANCELLED:
         return False
+    if node.field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE:
+        return False
     return _user_matches_node_editors(user, instance, node)
 
 

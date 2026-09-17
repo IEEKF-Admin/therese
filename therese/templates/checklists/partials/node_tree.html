@@ -15,9 +15,22 @@
         {% if node.help_de %}<div class="checklist-html-content field-hint-de">{{ node.help_de|sanitize_html }}</div>{% endif %}
     </div>
     {% elif node.node_kind == 'field' %}
-    <div class="aligned-field checklist-field{% if can_edit and node.pk not in editable_node_ids %} checklist-field-readonly{% endif %}">
+    <div class="aligned-field checklist-field{% if can_edit and node.pk not in editable_node_ids and node.field_type != 'acknowledge' %} checklist-field-readonly{% endif %}">
         <div class="checklist-field-label">
-            {% if node.field_type == 'radio_group' %}
+            {% if node.field_type == 'acknowledge' %}
+            <span class="checklist-field-title" id="field_{{ node.pk }}-label">
+                {{ node.label_en }}
+                {% if node.acknowledge_document %}
+                    {% if node.acknowledge_document.current_published_version_id %}
+                    <a href="{% url 'documents:detail' node.acknowledge_document.pk %}" target="_blank" rel="noopener">&ldquo;{{ node.acknowledge_document.title }}&rdquo;</a>
+                    {% else %}
+                    &ldquo;{{ node.acknowledge_document.title }}&rdquo;
+                    {% endif %}
+                {% endif %}
+                {% if node.label_de %}<small class="field-hint-de">{{ node.label_de }}</small>{% endif %}
+                {% if node.required_for_completion %}<span class="read-ack-badge">Required / Pflicht</span>{% endif %}
+            </span>
+            {% elif node.field_type == 'radio_group' %}
             <span class="checklist-field-title" id="field_{{ node.pk }}-label">
                 {{ node.label_en }}
                 <small class="field-hint-de">{{ node.label_de }}</small>
@@ -52,6 +65,10 @@
             </div>
             {% endwith %}
             {% endfor %}
+        {% elif node.field_type == 'acknowledge' %}
+            <div class="form-check-row">
+                <input type="checkbox" id="field_{{ node.pk }}" disabled{% if node.pk in ack_checked_ids %} checked{% endif %}>
+            </div>
         {% elif node.field_type == 'checkbox' %}
             {% if can_edit and node.pk in editable_node_ids %}
             <div class="form-check-row">

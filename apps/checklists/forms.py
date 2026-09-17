@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils.text import slugify
 
 from apps.checklists.models import (
@@ -10,6 +11,7 @@ from apps.checklists.models import (
 )
 from apps.core.html_sanitize import sanitize_html
 from apps.documents.forms import DualListSelect
+from apps.documents.models import Document
 from apps.hr.models import Employee
 
 _BOOL_DEFAULTS_TRUE = (
@@ -93,13 +95,14 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
             'editable_by_subject', 'editable_by_coordinators', 'editable_by_employees',
             'editable_by_groups',
             'visible_to_subject', 'file_target', 'employee_document_type',
-            'storage_label_en', 'storage_label_de',
+            'storage_label_en', 'storage_label_de', 'acknowledge_document',
         ]
         widgets = {
             'parent': forms.Select(attrs={'class': 'form-select'}),
             'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'node_kind': forms.Select(attrs={'class': 'form-select'}),
-            'field_type': forms.Select(attrs={'class': 'form-select'}),
+            'field_type': forms.Select(attrs={'class': 'form-select', 'data-field-type-select': '1'}),
+            'acknowledge_document': forms.Select(attrs={'class': 'form-select'}),
             'choice_key': forms.TextInput(attrs={'class': 'form-control'}),
             'label_en': forms.TextInput(attrs={'class': 'form-control'}),
             'label_de': forms.TextInput(attrs={'class': 'form-control'}),
@@ -130,9 +133,31 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
         )
         self.fields['editable_by_groups'].required = False
         self.fields['editable_by_groups'].queryset = Group.objects.order_by('name')
+        self.fields['acknowledge_document'].required = False
+        self.fields['acknowledge_document'].empty_label = '— Select document —'
+        self.fields['acknowledge_document'].queryset = self._acknowledge_document_queryset()
         if version:
             self._set_parent_queryset()
         self._apply_node_kind_field_state()
+
+    def _acknowledge_document_queryset(self):
+        qs = Document.objects.filter(
+            requires_read_acknowledgement=True,
+            is_archived=False,
+        )
+        current_id = None
+        if self.is_bound:
+            raw = self.data.get(self.add_prefix('acknowledge_document'))
+            if raw:
+                current_id = raw
+        elif getattr(self.instance, 'acknowledge_document_id', None):
+            current_id = self.instance.acknowledge_document_id
+        if current_id:
+            qs = Document.objects.filter(
+                Q(pk=current_id)
+                | Q(requires_read_acknowledgement=True, is_archived=False)
+            )
+        return qs.order_by('title')
 
     def _apply_node_kind_field_state(self):
         node_kind = self.data.get('node_kind') or (
@@ -196,6 +221,31 @@ class ChecklistTemplateNodeForm(forms.ModelForm):
                 raise ValidationError('Field type is required for field nodes.')
             if parent and parent.node_kind != ChecklistTemplateNode.NodeKind.SECTION:
                 raise ValidationError('Fields must be placed under a section.')
+            if field_type == ChecklistTemplateNode.FieldType.ACKNOWLEDGE:
+                document = cleaned.get('acknowledge_document')
+                if not document:
+                    self.add_error(
+                        'acknowledge_document',
+                        'Select a document that requires read acknowledgement.',
+                    )
+                elif (
+                    not document.requires_read_acknowledgement
+                    and not (
+                        self.instance.pk
+                        and self.instance.acknowledge_document_id == document.pk
+                    )
+                ):
+                    self.add_error(
+                        'acknowledge_document',
+                        'Document must require read acknowledgement.',
+                    )
+                cleaned['allow_not_applicable'] = False
+                default = ChecklistTemplateNode.ACKNOWLEDGE_LABEL_DEFAULT
+                if not (cleaned.get('label_en') or '').strip() and not (cleaned.get('label_de') or '').strip():
+                    cleaned['label_en'] = default
+                    cleaned['label_de'] = default
+            else:
+                cleaned['acknowledge_document'] = None
         elif node_kind == ChecklistTemplateNode.NodeKind.RADIO_OPTION:
             cleaned['field_type'] = ''
             if not parent:

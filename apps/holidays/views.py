@@ -4,8 +4,8 @@ from datetime import date, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.holidays.access import (
@@ -14,20 +14,20 @@ from apps.holidays.access import (
     user_can_approve_workgroup,
 )
 from apps.holidays.features import holiday_flags
-from apps.holidays.forms import HolidayEntitlementForm, HolidayProfileForm, save_entitlements
-from apps.holidays.models import HolidayRequest
+from apps.holidays.forms import HolidayProfileForm, save_entitlements_from_post
+from apps.holidays.models import HolidayRequest, HolidayYearEntitlement
 from apps.holidays.services import (
+    cancel_days,
     classify_dates,
     create_request,
     decide_requests,
     delete_request,
-    entitlement_days,
     get_or_create_profile,
     gantt_bars,
     gantt_employees,
-    remaining_days,
     suggested_entitlement,
-    used_days,
+    vacation_status_map,
+    year_balance,
 )
 from apps.hr.models import Workgroup
 
@@ -66,26 +66,26 @@ def my_holidays(request):
     if view_month < 1 or view_month > 12:
         view_month = today.month
 
+    active_tab = request.GET.get('tab') or 'request'
+    if active_tab not in ('request', 'settings'):
+        active_tab = 'request'
+
     if request.method == 'POST' and request.POST.get('action') == 'save_profile':
         form = HolidayProfileForm(request.POST, request.FILES, instance=profile)
-        ent_form = HolidayEntitlementForm(request.POST)
-        if form.is_valid() and ent_form.is_valid():
-            form.save()
-            save_entitlements(
-                employee,
-                ent_form.cleaned_data['this_year'],
-                ent_form.cleaned_data['next_year'],
-            )
-            messages.success(request, 'Holiday settings were saved.')
-            return redirect('holidays:my_holidays')
+        if form.is_valid():
+            try:
+                save_entitlements_from_post(employee, request.POST)
+            except ValidationError as exc:
+                messages.error(request, '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc))
+                active_tab = 'settings'
+            else:
+                form.save()
+                messages.success(request, 'Holiday settings were saved.')
+                return redirect(reverse('holidays:my_holidays') + '?tab=settings')
+        else:
+            active_tab = 'settings'
     else:
-        this_val = entitlement_days(employee, year)
-        next_val = entitlement_days(employee, year + 1)
         form = HolidayProfileForm(instance=profile)
-        ent_form = HolidayEntitlementForm(initial={
-            'this_year': this_val,
-            'next_year': next_val,
-        })
 
     month_start = date(view_year, view_month, 1)
     if view_month == 12:
@@ -106,13 +106,38 @@ def my_holidays(request):
             for day in week
         ])
 
+    status_map = vacation_status_map(employee)
+    available_cache = {}
+
+    def _available(year_key):
+        if year_key not in available_cache:
+            available_cache[year_key] = year_balance(employee, year_key)['available']
+        return available_cache[year_key]
+
+    for week in weeks:
+        for cell in week:
+            info = status_map.get(cell['date'].isoformat(), {})
+            cell['status'] = info.get('status', '')
+            cell['cancellable'] = bool(info.get('cancellable'))
+            work = bool(cell['info'] and cell['info'].get('is_workday') and cell['info'].get('kind') == 'work')
+            cell['selectable'] = bool(
+                cell['in_month'] and work and not cell['status']
+                and _available(cell['date'].year) > 0
+            )
+
     prev_month = month_start - timedelta(days=1)
     next_month = month_end + timedelta(days=1)
     requests = HolidayRequest.objects.filter(employee=employee).order_by('-start_date')
+    entitlements = list(
+        HolidayYearEntitlement.objects.filter(employee=employee).order_by('year')
+    )
+    balance_years = {view_year, year, year + 1}
+    balance_years.update(row.year for row in entitlements)
+    year_balances = {str(y): _json_balance(year_balance(employee, y)) for y in sorted(balance_years)}
 
     return render(request, 'holidays/my_holidays.html', {
         'profile_form': form,
-        'entitlement_form': ent_form,
+        'entitlements': entitlements,
         'weeks': weeks,
         'view_year': view_year,
         'view_month': view_month,
@@ -121,15 +146,21 @@ def my_holidays(request):
         'prev_month': prev_month.month,
         'next_year': next_month.year,
         'next_month': next_month.month,
-        'remaining_this': remaining_days(employee, year),
-        'remaining_next': remaining_days(employee, year + 1),
-        'used_this': used_days(employee, year),
-        'entitlement_this': entitlement_days(employee, year),
         'suggested_this': suggested_entitlement(employee, year),
         'requests': requests,
         'approval_enabled': holiday_flags()['approval'],
         'gantt_enabled': holiday_flags()['gantt'],
+        'active_tab': active_tab,
+        'today_iso': today.isoformat(),
+        'current_year': year,
+        'year_balances': year_balances,
+        'date_status': status_map,
+        'view_balance': year_balance(employee, view_year),
     })
+
+
+def _json_balance(balance):
+    return {key: float(value) for key, value in balance.items()}
 
 
 @login_required
@@ -159,7 +190,38 @@ def create_holiday_request(request):
         request,
         f'Holiday request saved ({created.day_count} day(s) from {created.start_date:%d.%m.%Y} to {created.end_date:%d.%m.%Y}).',
     )
-    return redirect('holidays:my_holidays')
+    return redirect(
+        reverse('holidays:my_holidays')
+        + f'?year={created.start_date.year}&month={created.start_date.month}'
+    )
+
+
+@login_required
+@require_POST
+def cancel_holiday_days(request):
+    _require_planning(request)
+    employee = _require_institute_employee(request)
+    raw = request.POST.getlist('dates') or (request.POST.get('dates') or '').split(',')
+    dates = []
+    for item in raw:
+        item = (item or '').strip()
+        if not item:
+            continue
+        try:
+            dates.append(date.fromisoformat(item))
+        except ValueError:
+            messages.error(request, f'Invalid date: {item}')
+            return redirect('holidays:my_holidays')
+    try:
+        cancelled = cancel_days(request.user, employee, dates)
+    except ValidationError as exc:
+        messages.error(request, '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc))
+        return redirect('holidays:my_holidays')
+    messages.success(request, f'Cancelled {len(cancelled)} holiday day(s).')
+    first = cancelled[0]
+    return redirect(
+        reverse('holidays:my_holidays') + f'?year={first.year}&month={first.month}'
+    )
 
 
 @login_required
@@ -174,30 +236,6 @@ def delete_holiday_request(request, pk):
         return redirect('holidays:my_holidays')
     messages.success(request, 'Holiday request deleted.')
     return redirect('holidays:my_holidays')
-
-
-@login_required
-def request_pdf(request, pk):
-    _require_planning(request)
-    holiday_request = get_object_or_404(HolidayRequest, pk=pk)
-    employee = getattr(request.user, 'employee', None)
-    from apps.holidays.access import user_can_approve_request
-    if holiday_request.employee_id != getattr(employee, 'pk', None) and not user_can_approve_request(
-        request.user, holiday_request,
-    ) and not user_can_approve_all(request.user):
-        raise PermissionDenied
-    if holiday_request.pdf_file:
-        holiday_request.pdf_file.open('rb')
-        return FileResponse(
-            holiday_request.pdf_file,
-            content_type='application/pdf',
-            filename=f'holiday-{holiday_request.pk}.pdf',
-        )
-    from apps.holidays.pdf import render_request_pdf
-    content = render_request_pdf(holiday_request, signed=False)
-    response = HttpResponse(content, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="holiday-{holiday_request.pk}.pdf"'
-    return response
 
 
 @login_required

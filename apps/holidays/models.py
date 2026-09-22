@@ -61,7 +61,7 @@ class HolidayProfile(BaseModel):
 
 
 class HolidayYearEntitlement(BaseModel):
-    """Gross annual leave claim entered by the employee (this year / next year)."""
+    """Gross annual leave claim entered by the employee (per calendar year)."""
 
     employee = models.ForeignKey(
         Employee,
@@ -70,15 +70,29 @@ class HolidayYearEntitlement(BaseModel):
         verbose_name='Employee',
     )
     year = models.PositiveIntegerField(verbose_name='Year')
-    days = models.DecimalField(
+    holidays = models.DecimalField(
         max_digits=6,
         decimal_places=1,
-        verbose_name='Entitlement (days)',
+        default=0,
+        verbose_name='Holidays',
+    )
+    carryover = models.DecimalField(
+        max_digits=6,
+        decimal_places=1,
+        default=0,
+        verbose_name='Carryover',
+    )
+    special_leave = models.DecimalField(
+        max_digits=6,
+        decimal_places=1,
+        default=0,
+        verbose_name='Special leave',
     )
 
     class Meta:
         verbose_name = 'Holiday Year Entitlement'
         verbose_name_plural = 'Holiday Year Entitlements'
+        ordering = ['year']
         constraints = [
             models.UniqueConstraint(
                 fields=['employee', 'year'],
@@ -87,7 +101,15 @@ class HolidayYearEntitlement(BaseModel):
         ]
 
     def __str__(self):
-        return f'{self.employee} {self.year}: {self.days}'
+        return f'{self.employee} {self.year}: {self.total_days}'
+
+    @property
+    def total_days(self):
+        return (self.holidays or 0) + (self.carryover or 0) + (self.special_leave or 0)
+
+    @property
+    def days(self):
+        return self.total_days
 
 
 class HolidayCustomDay(BaseModel):

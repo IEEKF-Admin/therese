@@ -16,7 +16,7 @@ class HolidayProfileAdmin(admin.ModelAdmin):
 
 @admin.register(HolidayYearEntitlement)
 class HolidayYearEntitlementAdmin(admin.ModelAdmin):
-    list_display = ('employee', 'year', 'days')
+    list_display = ('employee', 'year', 'holidays', 'carryover', 'special_leave')
 
 
 @admin.register(HolidayCustomDay)

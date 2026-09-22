@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.utils import timezone
 
 from apps.holidays.entitlement import DEFAULT_RATES, months_to_index
@@ -87,15 +86,33 @@ def apply_half_day_rounding(value):
 def entitlement_days(employee, year):
     row = HolidayYearEntitlement.objects.filter(employee=employee, year=year).first()
     if row:
-        return row.days
+        return row.total_days
     return Decimal('0')
 
 
-def used_days(employee, year, *, exclude_pk=None):
+def entitlement_breakdown(employee, year):
+    row = HolidayYearEntitlement.objects.filter(employee=employee, year=year).first()
+    if not row:
+        return {
+            'holidays': Decimal('0'),
+            'carryover': Decimal('0'),
+            'special_leave': Decimal('0'),
+            'available': Decimal('0'),
+        }
+    return {
+        'holidays': row.holidays or Decimal('0'),
+        'carryover': row.carryover or Decimal('0'),
+        'special_leave': row.special_leave or Decimal('0'),
+        'available': row.total_days,
+    }
+
+
+def used_days(employee, year, *, exclude_pk=None, statuses=CONSUMING_STATUSES):
     qs = HolidayRequest.objects.filter(
         employee=employee,
-        status__in=CONSUMING_STATUSES,
-        start_date__year=year,
+        status__in=statuses,
+        start_date__lte=date(year, 12, 31),
+        end_date__gte=date(year, 1, 1),
     )
     if exclude_pk:
         qs = qs.exclude(pk=exclude_pk)
@@ -105,27 +122,45 @@ def used_days(employee, year, *, exclude_pk=None):
             day = date.fromisoformat(raw) if isinstance(raw, str) else raw
             if day.year == year:
                 total += Decimal('1')
-        if request.start_date.year != year and request.end_date.year == year:
-            continue
-    # Requests spanning years: count dates already handled via counted_dates.
-    extra = HolidayRequest.objects.filter(
-        employee=employee,
-        status__in=CONSUMING_STATUSES,
-        start_date__year__lt=year,
-        end_date__year__gte=year,
-    )
-    if exclude_pk:
-        extra = extra.exclude(pk=exclude_pk)
-    for request in extra:
-        for raw in request.counted_dates or []:
-            day = date.fromisoformat(raw) if isinstance(raw, str) else raw
-            if day.year == year:
-                total += Decimal('1')
     return total
 
 
 def remaining_days(employee, year, *, exclude_pk=None):
     return entitlement_days(employee, year) - used_days(employee, year, exclude_pk=exclude_pk)
+
+
+def year_balance(employee, year, *, exclude_pk=None):
+    breakdown = entitlement_breakdown(employee, year)
+    approved = used_days(
+        employee, year, exclude_pk=exclude_pk, statuses=(HolidayRequest.Status.APPROVED,),
+    )
+    pending = used_days(
+        employee, year, exclude_pk=exclude_pk, statuses=(HolidayRequest.Status.PENDING,),
+    )
+    breakdown.update({
+        'approved': approved,
+        'pending': pending,
+        'remaining': breakdown['available'] - approved - pending,
+    })
+    return breakdown
+
+
+def vacation_status_map(employee):
+    today = date.today()
+    result = {}
+    qs = HolidayRequest.objects.filter(
+        employee=employee,
+        status__in=CONSUMING_STATUSES,
+    )
+    for request in qs:
+        for raw in request.counted_dates or []:
+            day = date.fromisoformat(raw) if isinstance(raw, str) else raw
+            result[day.isoformat()] = {
+                'status': request.status,
+                'request_id': request.pk,
+                'cancellable': day > today,
+            }
+    return result
 
 
 def _state_code():
@@ -302,6 +337,11 @@ def create_request(user, employee, dates, *, comment=''):
         by_year.setdefault(day.year, 0)
         by_year[day.year] += 1
     for year, n in by_year.items():
+        available = entitlement_days(employee, year)
+        if available <= 0:
+            raise ValidationError(
+                f'No holiday entitlement is configured for {year}.'
+            )
         remaining = remaining_days(employee, year)
         if Decimal(n) > remaining:
             raise ValidationError(
@@ -325,9 +365,67 @@ def create_request(user, employee, dates, *, comment=''):
         decided_at=None if flags['approval'] else timezone.now(),
         decided_by=None if flags['approval'] else user,
     )
-    if not flags['approval']:
-        attach_pdf(request, signed=False)
+    from apps.holidays.mail import send_holiday_lifecycle_email
+    send_holiday_lifecycle_email('request', employee, counted)
     return request
+
+
+def _as_date(raw):
+    return date.fromisoformat(raw) if isinstance(raw, str) else raw
+
+
+def cancel_days(user, employee, dates):
+    flags = holiday_flags()
+    if not flags['planning']:
+        raise ValidationError('Holiday planning is disabled.')
+    if getattr(employee, 'is_external', False):
+        raise ValidationError('Holiday planning is only available for institute employees.')
+    viewer = getattr(user, 'employee', None)
+    if not viewer or viewer.pk != employee.pk:
+        raise ValidationError('You can only cancel your own holiday days.')
+    dates = sorted(set(parse_iso_dates(dates)))
+    if not dates:
+        raise ValidationError('Select at least one day to cancel.')
+    today = date.today()
+    future = [day for day in dates if day > today]
+    if len(future) != len(dates):
+        raise ValidationError('Only future holiday days can be cancelled.')
+
+    status_map = {}
+    qs = list(HolidayRequest.objects.filter(
+        employee=employee,
+        status__in=CONSUMING_STATUSES,
+    ))
+    for request in qs:
+        for raw in request.counted_dates or []:
+            status_map[_as_date(raw)] = request
+    missing = [day for day in future if day not in status_map]
+    if missing:
+        raise ValidationError('Only requested or approved holiday days can be cancelled.')
+
+    by_pk = {}
+    for day in future:
+        request = status_map[day]
+        by_pk.setdefault(request.pk, {'request': request, 'dates': []})
+        by_pk[request.pk]['dates'].append(day)
+
+    for item in by_pk.values():
+        request = item['request']
+        remove = set(item['dates'])
+        remaining = [_as_date(raw) for raw in (request.counted_dates or []) if _as_date(raw) not in remove]
+        if not remaining:
+            request.delete()
+            continue
+        remaining.sort()
+        request.counted_dates = [day.isoformat() for day in remaining]
+        request.start_date = remaining[0]
+        request.end_date = remaining[-1]
+        request.day_count = Decimal(len(remaining))
+        request.save(update_fields=['counted_dates', 'start_date', 'end_date', 'day_count', 'updated_at'])
+
+    from apps.holidays.mail import send_holiday_lifecycle_email
+    send_holiday_lifecycle_email('cancel', employee, future)
+    return future
 
 
 def delete_request(user, request):
@@ -362,61 +460,8 @@ def decide_requests(user, queryset, *, approve, comment=''):
         if not approve:
             request.rejection_comment = comment or ''
         request.save()
-        if approve:
-            attach_pdf(request, signed=True)
-            send_approved_email(request)
         updated.append(request)
     return updated
-
-
-def attach_pdf(request, *, signed):
-    from apps.holidays.pdf import render_request_pdf
-
-    content = render_request_pdf(request, signed=signed)
-    filename = f'holiday-{request.pk}.pdf'
-    if request.pdf_file:
-        request.pdf_file.delete(save=False)
-    request.pdf_file.save(filename, ContentFile(content), save=True)
-
-
-def send_approved_email(request):
-    from apps.core.mail import send_therese_html_email
-    from apps.core.models import GlobalSetting
-    from django.core.mail import EmailMultiAlternatives
-    from django.conf import settings as django_settings
-    from django.utils.html import strip_tags
-
-    setting = GlobalSetting.get_solo()
-    raw = getattr(setting, 'holiday_email_recipients', '') or ''
-    recipients = [part.strip() for part in raw.replace(';', ',').split(',') if part.strip()]
-    if not recipients:
-        return
-    subject = getattr(setting, 'holiday_email_subject', '') or 'Holiday request'
-    html = getattr(setting, 'holiday_email_html', '') or (
-        f'Holiday request for {request.employee.get_full_name()} '
-        f'{request.start_date}–{request.end_date} ({request.day_count} days).'
-    )
-    from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', '') or None
-    message = EmailMultiAlternatives(
-        subject=subject,
-        body=strip_tags(html),
-        from_email=from_email,
-        to=recipients,
-    )
-    message.attach_alternative(html, 'text/html')
-    if request.pdf_file:
-        request.pdf_file.open('rb')
-        try:
-            message.attach(
-                f'holiday-{request.pk}.pdf',
-                request.pdf_file.read(),
-                'application/pdf',
-            )
-        finally:
-            request.pdf_file.close()
-    message.send(fail_silently=True)
-    # Keep helper import used if templates call it later.
-    _ = send_therese_html_email
 
 
 def ensure_default_rates():

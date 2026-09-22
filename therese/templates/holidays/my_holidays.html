@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 
 {% block title %}My Holidays - THERESE{% endblock %}
 
@@ -7,27 +8,40 @@
     <h1>My Holidays <small class="field-hint-de">Mein Urlaub</small></h1>
 </div>
 
-<div class="form-section">
-    <h2>Balance <small class="field-hint-de">Kontingent</small></h2>
-    <p>
-        This year: <strong>{{ remaining_this }}</strong> of {{ entitlement_this }} days remaining
-        ({{ used_this }} requested).
-        Suggested from the institute table: {{ suggested_this }}.
-        Next year remaining: <strong>{{ remaining_next }}</strong>.
-    </p>
+<div class="settings-tabs" role="tablist">
+    <button type="button" class="settings-tab{% if active_tab != 'settings' %} is-active{% endif %}" data-holiday-tab="request">Request leave</button>
+    <button type="button" class="settings-tab{% if active_tab == 'settings' %} is-active{% endif %}" data-holiday-tab="settings">Settings</button>
 </div>
 
-<div class="form-section">
-    <h2>Request leave <small class="field-hint-de">Urlaub beantragen</small></h2>
-    <p class="text-muted" style="font-size:0.9rem;">Mark the days you want off. Public holidays and non-working weekdays are skipped.</p>
-    <div class="holiday-cal-nav">
-        <a class="btn-secondary btn-sm" href="?year={{ prev_year }}&amp;month={{ prev_month }}">&larr;</a>
-        <strong>{{ month_label }}</strong>
-        <a class="btn-secondary btn-sm" href="?year={{ next_year }}&amp;month={{ next_month }}">&rarr;</a>
+<div class="holiday-page-panel" data-holiday-panel="request" {% if active_tab == 'settings' %}style="display:none;"{% endif %}>
+    <div class="form-section holiday-remaining-card" id="holiday-remaining">
+        <h2>Remaining leave <small class="field-hint-de">Verbleibende Urlaubstage</small></h2>
+        <div id="holiday-remaining-body">
+            <div class="holiday-remaining-year">
+                <h3>{{ view_year }}</h3>
+                <p>Available: <strong>{{ view_balance.available }}</strong>
+                   (Holidays {{ view_balance.holidays }} + Carryover {{ view_balance.carryover }}
+                   + Special leave {{ view_balance.special_leave }})</p>
+                <p>Approved: <strong>{{ view_balance.approved }}</strong> · Requested: <strong>{{ view_balance.pending }}</strong> · Planned: <strong>0</strong></p>
+                <p class="holiday-remaining-total">Remaining: <strong>{{ view_balance.remaining }}</strong></p>
+            </div>
+        </div>
     </div>
-    <form method="post" action="{% url 'holidays:create_request' %}" id="holiday-request-form">
-        {% csrf_token %}
-        <table class="holiday-calendar">
+
+    <div class="form-section">
+        <h2>Request leave <small class="field-hint-de">Urlaub beantragen</small></h2>
+        <p class="text-muted" style="font-size:0.9rem;">Click a workday to plan it. Public holidays and non-working weekdays are skipped. Years without configured entitlement cannot be planned.</p>
+        <div class="holiday-legend">
+            <span class="holiday-legend-item is-planned">Planned</span>
+            <span class="holiday-legend-item is-pending">Requested</span>
+            <span class="holiday-legend-item is-approved">Approved</span>
+        </div>
+        <div class="holiday-cal-nav">
+            <a class="btn-secondary btn-sm" href="?tab=request&amp;year={{ prev_year }}&amp;month={{ prev_month }}">&larr;</a>
+            <strong>{{ month_label }}</strong>
+            <a class="btn-secondary btn-sm" href="?tab=request&amp;year={{ next_year }}&amp;month={{ next_month }}">&rarr;</a>
+        </div>
+        <table class="holiday-calendar" id="holiday-calendar">
             <thead>
                 <tr>
                     <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
@@ -40,103 +54,335 @@
                     <td class="holiday-cell {% if not cell.in_month %}is-outside{% endif %}
                         {% if cell.info.kind == 'public' or cell.info.kind == 'custom' %}is-holiday{% endif %}
                         {% if cell.info.is_weekend %}is-weekend{% endif %}
-                        {% if cell.info.is_workday and cell.info.kind == 'work' %}is-workday{% endif %}">
-                        {% if cell.in_month %}
-                            {% if cell.info.is_workday and cell.info.kind == 'work' %}
-                            <label>
-                                <input type="checkbox" name="dates" value="{{ cell.date|date:'Y-m-d' }}">
-                                {{ cell.date.day }}
-                            </label>
-                            {% else %}
-                            <span title="{{ cell.info.label|default:'' }}">{{ cell.date.day }}</span>
-                            {% endif %}
-                        {% endif %}
+                        {% if cell.selectable %}is-selectable{% endif %}
+                        {% if cell.status == 'pending' %}is-pending{% endif %}
+                        {% if cell.status == 'approved' %}is-approved{% endif %}"
+                        data-date="{% if cell.in_month %}{{ cell.date|date:'Y-m-d' }}{% endif %}"
+                        data-year="{{ cell.date.year }}"
+                        data-selectable="{% if cell.selectable %}1{% else %}0{% endif %}"
+                        data-status="{{ cell.status }}"
+                        data-cancellable="{% if cell.cancellable %}1{% else %}0{% endif %}"
+                        title="{{ cell.info.label|default:'' }}">
+                        {% if cell.in_month %}<span class="holiday-day-num">{{ cell.date.day }}</span>{% endif %}
                     </td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <div class="aligned-field" style="margin-top:1rem;">
-            <label for="id_comment">Comment</label>
-            <input type="text" name="comment" id="id_comment" class="form-control">
-        </div>
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">Submit request</button>
-        </div>
-    </form>
+        <form method="post" action="{% url 'holidays:create_request' %}" id="holiday-request-form">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ view_year }}">
+            <input type="hidden" name="month" value="{{ view_month }}">
+            <div class="aligned-field" style="margin-top:1rem;">
+                <label for="id_comment">Comment</label>
+                <input type="text" name="comment" id="id_comment" class="form-control">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary" id="holiday-submit">Submit request</button>
+                <button type="submit" class="btn-secondary" id="holiday-cancel" form="holiday-cancel-form">Cancel holidays</button>
+            </div>
+        </form>
+        <form method="post" action="{% url 'holidays:cancel_days' %}" id="holiday-cancel-form">
+            {% csrf_token %}
+        </form>
+    </div>
+
+    <div class="form-section">
+        <h2>My requests</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>From</th>
+                    <th>Until</th>
+                    <th>Days</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in requests %}
+                <tr>
+                    <td>{{ item.start_date|date:"d.m.Y" }}</td>
+                    <td>{{ item.end_date|date:"d.m.Y" }}</td>
+                    <td>{{ item.day_count }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty-state">No holiday requests yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<div class="form-section">
-    <h2>My requests</h2>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>From</th>
-                <th>Until</th>
-                <th>Days</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in requests %}
-            <tr>
-                <td>{{ item.start_date|date:"d.m.Y" }}</td>
-                <td>{{ item.end_date|date:"d.m.Y" }}</td>
-                <td>{{ item.day_count }}</td>
-                <td>{{ item.get_status_display }}</td>
-                <td>
-                    <a class="btn-secondary btn-sm" href="{% url 'holidays:request_pdf' item.pk %}" target="_blank" rel="noopener">PDF</a>
-                    {% if not approval_enabled or item.status == 'pending' %}
-                    <form method="post" action="{% url 'holidays:delete_request' item.pk %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-secondary btn-sm">Delete</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="empty-state">No holiday requests yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="holiday-page-panel" data-holiday-panel="settings" {% if active_tab != 'settings' %}style="display:none;"{% endif %}>
+    <div class="form-section">
+        <h2>Settings</h2>
+        <form method="post" enctype="multipart/form-data" id="holiday-settings-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_profile">
+            <p>Workdays / Woche</p>
+            <div class="form-check-row">{{ profile_form.works_monday }} <label for="{{ profile_form.works_monday.id_for_label }}">Mon</label></div>
+            <div class="form-check-row">{{ profile_form.works_tuesday }} <label for="{{ profile_form.works_tuesday.id_for_label }}">Tue</label></div>
+            <div class="form-check-row">{{ profile_form.works_wednesday }} <label for="{{ profile_form.works_wednesday.id_for_label }}">Wed</label></div>
+            <div class="form-check-row">{{ profile_form.works_thursday }} <label for="{{ profile_form.works_thursday.id_for_label }}">Thu</label></div>
+            <div class="form-check-row">{{ profile_form.works_friday }} <label for="{{ profile_form.works_friday.id_for_label }}">Fri</label></div>
+
+            <h3 style="margin-top:1.25rem;">Entitlement</h3>
+            <p class="text-muted" style="font-size:0.9rem;">Suggested from the institute table for this year: {{ suggested_this }} days. Planning is only possible for years with more than 0 available days (Holidays + Carryover + Special leave).</p>
+            <table class="table" id="entitlement-table" data-current-year="{{ current_year }}">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Holidays</th>
+                        <th>Carryover</th>
+                        <th>Special leave</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in entitlements %}
+                    <tr>
+                        <td><input type="number" name="ent_year" value="{{ row.year }}" readonly class="form-control"></td>
+                        <td><input type="number" name="ent_holidays" value="{{ row.holidays|unlocalize }}" step="0.5" min="0" class="form-control"></td>
+                        <td><input type="number" name="ent_carryover" value="{{ row.carryover|unlocalize }}" step="0.5" min="0" class="form-control js-carryover"></td>
+                        <td><input type="number" name="ent_special" value="{{ row.special_leave|unlocalize }}" step="0.5" min="0" class="form-control"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="button" class="btn-secondary" id="ent-add-row">Add year</button>
+
+            {% if gantt_enabled %}
+            <div class="form-check-row" style="margin-top:1rem;">
+                {{ profile_form.share_with_institute }}
+                <label for="{{ profile_form.share_with_institute.id_for_label }}">{{ profile_form.share_with_institute.label }}</label>
+            </div>
+            {% endif %}
+            {% if approval_enabled %}
+            <div class="aligned-field">
+                <label for="{{ profile_form.signature.id_for_label }}">Signature image</label>
+                {{ profile_form.signature }}
+            </div>
+            {% endif %}
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Save settings</button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<div class="form-section">
-    <h2>Settings</h2>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_profile">
-        <p>Workdays / Woche</p>
-        <div class="form-check-row">{{ profile_form.works_monday }} <label for="{{ profile_form.works_monday.id_for_label }}">Mon</label></div>
-        <div class="form-check-row">{{ profile_form.works_tuesday }} <label for="{{ profile_form.works_tuesday.id_for_label }}">Tue</label></div>
-        <div class="form-check-row">{{ profile_form.works_wednesday }} <label for="{{ profile_form.works_wednesday.id_for_label }}">Wed</label></div>
-        <div class="form-check-row">{{ profile_form.works_thursday }} <label for="{{ profile_form.works_thursday.id_for_label }}">Thu</label></div>
-        <div class="form-check-row">{{ profile_form.works_friday }} <label for="{{ profile_form.works_friday.id_for_label }}">Fri</label></div>
-        <div class="aligned-field">
-            <label for="{{ entitlement_form.this_year.id_for_label }}">Entitlement this year (days)</label>
-            {{ entitlement_form.this_year }}
-        </div>
-        <div class="aligned-field">
-            <label for="{{ entitlement_form.next_year.id_for_label }}">Entitlement next year (days)</label>
-            {{ entitlement_form.next_year }}
-        </div>
-        {% if gantt_enabled %}
-        <div class="form-check-row">
-            {{ profile_form.share_with_institute }}
-            <label for="{{ profile_form.share_with_institute.id_for_label }}">{{ profile_form.share_with_institute.label }}</label>
-        </div>
-        {% endif %}
-        {% if approval_enabled %}
-        <div class="aligned-field">
-            <label for="{{ profile_form.signature.id_for_label }}">Signature image</label>
-            {{ profile_form.signature }}
-        </div>
-        {% endif %}
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">Save settings</button>
-        </div>
-    </form>
-</div>
+{{ year_balances|json_script:"holiday-year-balances" }}
+{{ date_status|json_script:"holiday-date-status" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var CARRYOVER_MSG = 'It is your responsibility to ensure that the application for carrying over holiday days was submitted correctly and has been approved.';
+    var STORAGE_PLANNED = 'therese-holiday-planned';
+    var STORAGE_CANCEL = 'therese-holiday-cancel';
+    var viewYear = {{ view_year }};
+    var balances = {};
+    var dateStatus = {};
+    try { balances = JSON.parse(document.getElementById('holiday-year-balances').textContent); } catch (e) {}
+    try { dateStatus = JSON.parse(document.getElementById('holiday-date-status').textContent); } catch (e) {}
+
+    function num(value) { return Number(value || 0); }
+    function loadSet(key) {
+        try {
+            var raw = sessionStorage.getItem(key);
+            var arr = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(arr) ? arr : []);
+        } catch (e) { return new Set(); }
+    }
+    function saveSet(key, set) {
+        sessionStorage.setItem(key, JSON.stringify(Array.from(set)));
+    }
+
+    var planned = loadSet(STORAGE_PLANNED);
+    var cancelling = loadSet(STORAGE_CANCEL);
+    planned.forEach(function(iso) {
+        if (dateStatus[iso]) planned.delete(iso);
+    });
+    cancelling.forEach(function(iso) {
+        if (!dateStatus[iso] || !dateStatus[iso].cancellable) cancelling.delete(iso);
+    });
+    saveSet(STORAGE_PLANNED, planned);
+    saveSet(STORAGE_CANCEL, cancelling);
+
+    function remainingFor(year, plannedCount) {
+        var row = balances[String(year)] || {};
+        return num(row.available) - num(row.approved) - num(row.pending) - num(plannedCount);
+    }
+    function plannedByYear() {
+        var map = {};
+        planned.forEach(function(iso) {
+            var year = iso.slice(0, 4);
+            map[year] = (map[year] || 0) + 1;
+        });
+        return map;
+    }
+    function renderRemaining() {
+        var body = document.getElementById('holiday-remaining-body');
+        if (!body) return;
+        var years = {};
+        years[String(viewYear)] = true;
+        var plannedYears = plannedByYear();
+        Object.keys(plannedYears).forEach(function(y) { years[y] = true; });
+        var html = '';
+        Object.keys(years).sort().forEach(function(year) {
+            var row = balances[year] || {holidays: 0, carryover: 0, special_leave: 0, available: 0, approved: 0, pending: 0};
+            var plannedCount = plannedYears[year] || 0;
+            var remaining = remainingFor(year, plannedCount);
+            html += '<div class="holiday-remaining-year">' +
+                '<h3>' + year + '</h3>' +
+                '<p>Available: <strong>' + num(row.available) + '</strong> ' +
+                '(Holidays ' + num(row.holidays) + ' + Carryover ' + num(row.carryover) +
+                ' + Special leave ' + num(row.special_leave) + ')</p>' +
+                '<p>Approved: <strong>' + num(row.approved) + '</strong> · Requested: <strong>' +
+                num(row.pending) + '</strong> · Planned: <strong>' + plannedCount + '</strong></p>' +
+                '<p class="holiday-remaining-total">Remaining: <strong>' + remaining + '</strong></p>' +
+                (num(row.available) <= 0 ? '<p class="field-hint-de">Configure entitlement for this year in Settings before you can plan leave.</p>' : '') +
+                '</div>';
+        });
+        body.innerHTML = html;
+    }
+    function yearAllowed(year) {
+        var row = balances[String(year)] || {};
+        return num(row.available) > 0;
+    }
+    function applyCell(cell) {
+        var iso = cell.getAttribute('data-date');
+        if (!iso) return;
+        cell.classList.toggle('is-planned', planned.has(iso));
+        cell.classList.toggle('is-cancel-selected', cancelling.has(iso));
+        if (cell.getAttribute('data-selectable') === '1' && !yearAllowed(cell.getAttribute('data-year'))) {
+            cell.classList.add('is-blocked');
+            cell.classList.remove('is-selectable');
+        }
+    }
+    function refreshCells() {
+        document.querySelectorAll('#holiday-calendar .holiday-cell[data-date]').forEach(applyCell);
+        var cancelBtn = document.getElementById('holiday-cancel');
+        if (cancelBtn) cancelBtn.disabled = cancelling.size === 0;
+        renderRemaining();
+    }
+
+    document.querySelectorAll('#holiday-calendar .holiday-cell').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+            var iso = cell.getAttribute('data-date');
+            if (!iso) return;
+            var status = cell.getAttribute('data-status');
+            var cancellable = cell.getAttribute('data-cancellable') === '1';
+            if (status === 'pending' || status === 'approved') {
+                if (!cancellable) return;
+                if (cancelling.has(iso)) cancelling.delete(iso);
+                else cancelling.add(iso);
+                saveSet(STORAGE_CANCEL, cancelling);
+                refreshCells();
+                return;
+            }
+            if (cell.getAttribute('data-selectable') !== '1') return;
+            var year = cell.getAttribute('data-year');
+            if (!yearAllowed(year)) return;
+            if (planned.has(iso)) {
+                planned.delete(iso);
+            } else {
+                var plannedYears = plannedByYear();
+                if (remainingFor(year, plannedYears[year] || 0) <= 0) return;
+                planned.add(iso);
+            }
+            saveSet(STORAGE_PLANNED, planned);
+            refreshCells();
+        });
+    });
+
+    var requestForm = document.getElementById('holiday-request-form');
+    if (requestForm) {
+        requestForm.addEventListener('submit', function() {
+            planned.forEach(function(iso) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'dates';
+                input.value = iso;
+                requestForm.appendChild(input);
+            });
+        });
+    }
+    var cancelForm = document.getElementById('holiday-cancel-form');
+    if (cancelForm) {
+        cancelForm.addEventListener('submit', function(ev) {
+            if (cancelling.size === 0) {
+                ev.preventDefault();
+                return;
+            }
+            cancelling.forEach(function(iso) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'dates';
+                input.value = iso;
+                cancelForm.appendChild(input);
+            });
+        });
+    }
+    refreshCells();
+
+    document.querySelectorAll('[data-holiday-tab]').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var name = tab.getAttribute('data-holiday-tab');
+            document.querySelectorAll('[data-holiday-tab]').forEach(function(btn) {
+                btn.classList.toggle('is-active', btn === tab);
+            });
+            document.querySelectorAll('[data-holiday-panel]').forEach(function(panel) {
+                panel.style.display = panel.getAttribute('data-holiday-panel') === name ? '' : 'none';
+            });
+            var url = new URL(window.location.href);
+            url.searchParams.set('tab', name);
+            history.replaceState(null, '', url);
+        });
+    });
+
+    function nextEntitlementYear() {
+        var years = [];
+        document.querySelectorAll('#entitlement-table [name="ent_year"]').forEach(function(el) {
+            var n = parseInt(el.value, 10);
+            if (n) years.push(n);
+        });
+        var table = document.getElementById('entitlement-table');
+        var current = parseInt(table.getAttribute('data-current-year'), 10) || (new Date()).getFullYear();
+        if (!years.length) return current;
+        return Math.max.apply(null, years) + 1;
+    }
+    function bindCarryover(input) {
+        input.dataset.prev = input.value || '0';
+        input.addEventListener('focus', function() {
+            input.dataset.prev = input.value || '0';
+        });
+        input.addEventListener('change', function() {
+            var value = parseFloat(String(input.value || '0').replace(',', '.')) || 0;
+            if (value > 0 && !window.confirm(CARRYOVER_MSG)) {
+                input.value = input.dataset.prev || '0';
+                return;
+            }
+            input.dataset.prev = input.value || '0';
+        });
+    }
+    document.querySelectorAll('.js-carryover').forEach(bindCarryover);
+    var addBtn = document.getElementById('ent-add-row');
+    if (addBtn) {
+        addBtn.addEventListener('click', function() {
+            var tbody = document.querySelector('#entitlement-table tbody');
+            var year = nextEntitlementYear();
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><input type="number" name="ent_year" value="' + year + '" readonly class="form-control"></td>' +
+                '<td><input type="number" name="ent_holidays" value="0" step="0.5" min="0" class="form-control"></td>' +
+                '<td><input type="number" name="ent_carryover" value="0" step="0.5" min="0" class="form-control js-carryover"></td>' +
+                '<td><input type="number" name="ent_special" value="0" step="0.5" min="0" class="form-control"></td>';
+            tbody.appendChild(tr);
+            bindCarryover(tr.querySelector('.js-carryover'));
+        });
+    }
+})();
+</script>
 {% endblock %}

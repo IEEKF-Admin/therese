@@ -161,10 +161,13 @@
                 {% include "core/_settings_field.html" with field=form.holiday_advance_deadline %}
             </div>
             <div class="form-section">
-                <h3>Approval email</h3>
+                <h3>Holiday emails</h3>
+                <p class="field-hint">Request and cancellation emails are sent to the recipient list plus the employee. Variables: {% verbatim %}<code>{{ applicant_name }}</code>, <code>{{ employee_number }}</code>, <code>{{ periods }}</code>, <code>{{ day_count }}</code>{% endverbatim %}.</p>
                 {% include "core/_settings_field.html" with field=form.holiday_email_recipients %}
-                {% include "core/_settings_field.html" with field=form.holiday_email_subject %}
-                {% include "core/_settings_field.html" with field=form.holiday_email_html %}
+                {% include "core/_settings_field.html" with field=form.holiday_request_email_subject %}
+                {% include "core/_settings_field.html" with field=form.holiday_request_email_html %}
+                {% include "core/_settings_field.html" with field=form.holiday_cancel_email_subject %}
+                {% include "core/_settings_field.html" with field=form.holiday_cancel_email_html %}
             </div>
             <div class="form-section">
                 <h3>Custom days (Brauchtum)</h3>

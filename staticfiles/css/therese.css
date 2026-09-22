@@ -2194,8 +2194,31 @@ a.settings-tab {
 .holiday-cell.is-outside { background: #f8fafc; color: #cbd5e1; }
 .holiday-cell.is-weekend { background: #f1f5f9; }
 .holiday-cell.is-holiday { background: #fee2e2; color: #991b1b; }
-.holiday-cell.is-workday label { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; cursor: pointer; }
+.holiday-cell.is-selectable { cursor: pointer; }
+.holiday-cell.is-blocked { cursor: not-allowed; opacity: 0.65; }
+.holiday-cell.is-planned { background: #93c5fd; color: #1e3a8a; }
+.holiday-cell.is-pending {
+    background: #dbeafe;
+    color: #1e40af;
+    outline: 2px dashed #2563eb;
+    outline-offset: -3px;
+}
+.holiday-cell.is-approved { background: #86efac; color: #14532d; }
+.holiday-cell.is-cancel-selected { box-shadow: inset 0 0 0 3px #dc2626; }
+.holiday-cell .holiday-day-num { pointer-events: none; }
 .holiday-cal-nav { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.holiday-legend { display: flex; gap: 0.75rem; margin: 0 0 0.75rem; font-size: 0.85rem; }
+.holiday-legend-item { padding: 0.15rem 0.5rem; border-radius: 4px; }
+.holiday-legend-item.is-planned { background: #93c5fd; }
+.holiday-legend-item.is-pending { background: #dbeafe; outline: 2px dashed #2563eb; outline-offset: -2px; }
+.holiday-legend-item.is-approved { background: #86efac; }
+.holiday-remaining-card { background: #f8fafc; }
+.holiday-remaining-year { margin-bottom: 0.75rem; }
+.holiday-remaining-year h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+.holiday-remaining-year p { margin: 0.15rem 0; }
+.holiday-remaining-total { font-size: 1.05rem; }
+#entitlement-table input[name="ent_year"] { width: 6.5rem; }
+#entitlement-table input[type="number"] { max-width: 8rem; }
 
 .holiday-gantt { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
 .holiday-gantt-head,

@@ -279,12 +279,12 @@ class GlobalSetting(models.Model):
     holidays_planning_enabled = models.BooleanField(
         default=False,
         verbose_name='Holidays: planning',
-        help_text='Employees can request leave, see remaining days, and print an unsigned form.',
+        help_text='Employees can request leave and see remaining days.',
     )
     holidays_approval_enabled = models.BooleanField(
         default=False,
         verbose_name='Holidays: approval',
-        help_text='Workgroup / super approvers decide requests; signed PDF is emailed.',
+        help_text='Workgroup / super approvers decide requests.',
     )
     holidays_gantt_enabled = models.BooleanField(
         default=False,
@@ -312,18 +312,35 @@ class GlobalSetting(models.Model):
     )
     holiday_email_recipients = models.TextField(
         blank=True,
-        verbose_name='Holiday PDF email recipients',
-        help_text='Comma-separated addresses that receive the signed PDF after approval.',
+        verbose_name='Holiday email recipients',
+        help_text=(
+            'Comma-separated addresses. Request and cancellation emails are also '
+            'sent to the employee.'
+        ),
     )
-    holiday_email_subject = models.CharField(
+    holiday_request_email_subject = models.CharField(
         max_length=200,
         blank=True,
-        default='Holiday request',
-        verbose_name='Holiday PDF email subject',
+        default='Holiday request – {{ applicant_name }}',
+        verbose_name='Request email subject',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
     )
-    holiday_email_html = models.TextField(
+    holiday_request_email_html = models.TextField(
         blank=True,
-        verbose_name='Holiday PDF email body (HTML)',
+        verbose_name='Request email body (HTML)',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+    )
+    holiday_cancel_email_subject = models.CharField(
+        max_length=200,
+        blank=True,
+        default='Holiday cancellation – {{ applicant_name }}',
+        verbose_name='Cancellation email subject',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+    )
+    holiday_cancel_email_html = models.TextField(
+        blank=True,
+        verbose_name='Cancellation email body (HTML)',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
     )
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -55,8 +55,10 @@ class GlobalSettingForm(forms.ModelForm):
             'holiday_half_day_rounding',
             'holiday_advance_deadline',
             'holiday_email_recipients',
-            'holiday_email_subject',
-            'holiday_email_html',
+            'holiday_request_email_subject',
+            'holiday_request_email_html',
+            'holiday_cancel_email_subject',
+            'holiday_cancel_email_html',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -77,8 +79,18 @@ class GlobalSettingForm(forms.ModelForm):
                 attrs={'class': 'form-control date-picker', 'placeholder': 'DD.MM.YYYY'},
             ),
             'holiday_email_recipients': forms.TextInput(attrs={'class': 'form-control'}),
-            'holiday_email_subject': forms.TextInput(attrs={'class': 'form-control'}),
-            'holiday_email_html': forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
+            'holiday_request_email_subject': forms.TextInput(attrs={'class': 'form-control'}),
+            'holiday_request_email_html': forms.Textarea(attrs={
+                'class': 'form-control wysiwyg-editor',
+                'rows': 8,
+                'data-wysiwyg-height': '220',
+            }),
+            'holiday_cancel_email_subject': forms.TextInput(attrs={'class': 'form-control'}),
+            'holiday_cancel_email_html': forms.Textarea(attrs={
+                'class': 'form-control wysiwyg-editor',
+                'rows': 8,
+                'data-wysiwyg-height': '220',
+            }),
             'limitation_pdf_letterhead': forms.Textarea(attrs={
                 'class': 'form-control wysiwyg-editor',
                 'rows': 8,
@@ -90,3 +102,13 @@ class GlobalSettingForm(forms.ModelForm):
         from apps.core.html_sanitize import sanitize_html
 
         return sanitize_html(self.cleaned_data.get('limitation_pdf_letterhead'))
+
+    def clean_holiday_request_email_html(self):
+        from apps.core.html_sanitize import sanitize_html
+
+        return sanitize_html(self.cleaned_data.get('holiday_request_email_html'))
+
+    def clean_holiday_cancel_email_html(self):
+        from apps.core.html_sanitize import sanitize_html
+
+        return sanitize_html(self.cleaned_data.get('holiday_cancel_email_html'))

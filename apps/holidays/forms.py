@@ -16,17 +16,6 @@ class HolidayProfileForm(forms.ModelForm):
         }
 
 
-class HolidayEntitlementForm(forms.Form):
-    this_year = forms.DecimalField(
-        max_digits=6, decimal_places=1, min_value=0,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5'}),
-    )
-    next_year = forms.DecimalField(
-        max_digits=6, decimal_places=1, min_value=0,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5'}),
-    )
-
-
 class HolidayCustomDayForm(forms.ModelForm):
     year = forms.IntegerField(
         required=False,
@@ -79,12 +68,45 @@ HolidayCustomDayFormSet = forms.modelformset_factory(
 )
 
 
-def save_entitlements(employee, this_year_value, next_year_value):
-    from datetime import date
-    year = date.today().year
-    for target_year, value in ((year, this_year_value), (year + 1, next_year_value)):
+def _parse_entitlement_decimal(raw):
+    from decimal import Decimal, InvalidOperation
+    from apps.tasks.form_validation import parse_loose_decimal
+
+    text = str(raw or '').strip()
+    if not text:
+        return Decimal('0')
+    try:
+        value = Decimal(str(parse_loose_decimal(text)))
+    except (InvalidOperation, ValueError, TypeError):
+        raise forms.ValidationError('Enter a valid number of days.')
+    if value < 0:
+        raise forms.ValidationError('Days cannot be negative.')
+    return value
+
+
+def save_entitlements_from_post(employee, post):
+    years = post.getlist('ent_year')
+    holidays = post.getlist('ent_holidays')
+    carryovers = post.getlist('ent_carryover')
+    specials = post.getlist('ent_special')
+    seen = set()
+    for index, year_raw in enumerate(years):
+        year_text = str(year_raw or '').strip()
+        if not year_text:
+            continue
+        try:
+            year = int(year_text)
+        except (TypeError, ValueError):
+            raise forms.ValidationError('Year must be a number.')
+        if year in seen:
+            continue
+        seen.add(year)
         HolidayYearEntitlement.objects.update_or_create(
             employee=employee,
-            year=target_year,
-            defaults={'days': value},
+            year=year,
+            defaults={
+                'holidays': _parse_entitlement_decimal(holidays[index] if index < len(holidays) else '0'),
+                'carryover': _parse_entitlement_decimal(carryovers[index] if index < len(carryovers) else '0'),
+                'special_leave': _parse_entitlement_decimal(specials[index] if index < len(specials) else '0'),
+            },
         )

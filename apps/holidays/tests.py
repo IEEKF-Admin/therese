@@ -161,7 +161,7 @@ class HolidayCalculationTests(TestCase):
         year = date.today().year
         self.assertEqual(
             format_holiday_analysis(self.employee, [year]),
-            f'{year}: available 30, granted 0, applied 0, remaining 30',
+            f'{year}: verfügbar 30, genehmigt 0, beantragt 0, verbleibend 30',
         )
 
     def test_cancel_future_days_keeps_rest_and_sends_mail(self):
@@ -189,7 +189,7 @@ class HolidayCalculationTests(TestCase):
     def test_format_leave_periods_merges_weekend_gap(self):
         friday = date(2026, 7, 3)
         monday = date(2026, 7, 6)
-        self.assertEqual(format_leave_periods([friday, monday]), '03.07.2026–06.07.2026')
+        self.assertEqual(format_leave_periods([friday, monday]), '03.07.2026 bis 06.07.2026')
 
 
 class HolidayViewTests(TestCase):
@@ -346,7 +346,7 @@ class HolidayViewTests(TestCase):
         self.assertIn('Vera View', mail.outbox[0].body)
         self.assertIn('office@example.com', mail.outbox[0].to)
         self.assertIn('vera@example.com', mail.outbox[0].to)
-        self.assertIn(f'{start.year}: available 30, granted 0, applied 1, remaining 29', mail.outbox[0].body)
+        self.assertIn(f'{start.year}: verfügbar 30, genehmigt 0, beantragt 1, verbleibend 29', mail.outbox[0].body)
 
     def test_cancel_view_removes_future_day(self):
         start = date.today() + timedelta(days=1)

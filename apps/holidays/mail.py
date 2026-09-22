@@ -10,17 +10,17 @@ from django.utils.html import escape, strip_tags
 from apps.core.models import GlobalSetting
 
 
-DEFAULT_REQUEST_SUBJECT = 'Holiday request – {{ applicant_name }}'
+DEFAULT_REQUEST_SUBJECT = 'Urlaubsantrag – {{ applicant_name }}'
 DEFAULT_REQUEST_HTML = (
-    '<p>{{ applicant_name }} (personnel number {{ employee_number }}) '
-    'has requested leave:</p><p>{{ periods }}</p>'
-    '<p>Days: {{ day_count }}</p>'
+    '<p>{{ applicant_name }} (Personalnummer {{ employee_number }}) '
+    'hat Urlaub beantragt:</p><p>{{ periods }}</p>'
+    '<p>Tage: {{ day_count }}</p>'
 )
-DEFAULT_CANCEL_SUBJECT = 'Holiday cancellation – {{ applicant_name }}'
+DEFAULT_CANCEL_SUBJECT = 'Urlaubsstornierung – {{ applicant_name }}'
 DEFAULT_CANCEL_HTML = (
-    '<p>{{ applicant_name }} (personnel number {{ employee_number }}) '
-    'has cancelled leave:</p><p>{{ periods }}</p>'
-    '<p>Days: {{ day_count }}</p>'
+    '<p>{{ applicant_name }} (Personalnummer {{ employee_number }}) '
+    'hat Urlaub storniert:</p><p>{{ periods }}</p>'
+    '<p>Tage: {{ day_count }}</p>'
 )
 
 
@@ -44,7 +44,7 @@ def format_leave_periods(dates):
         if first == last:
             parts.append(first.strftime('%d.%m.%Y'))
         else:
-            parts.append(f'{first.strftime("%d.%m.%Y")}–{last.strftime("%d.%m.%Y")}')
+            parts.append(f'{first.strftime("%d.%m.%Y")} bis {last.strftime("%d.%m.%Y")}')
     return ', '.join(parts)
 
 
@@ -72,10 +72,10 @@ def format_holiday_analysis(employee, years):
     for year in sorted({int(item) for item in years}):
         balance = year_balance(employee, year)
         lines.append(
-            f'{year}: available {format_days(balance["available"])}, '
-            f'granted {format_days(balance["approved"])}, '
-            f'applied {format_days(balance["pending"])}, '
-            f'remaining {format_days(balance["remaining"])}'
+            f'{year}: verfügbar {format_days(balance["available"])}, '
+            f'genehmigt {format_days(balance["approved"])}, '
+            f'beantragt {format_days(balance["pending"])}, '
+            f'verbleibend {format_days(balance["remaining"])}'
         )
     return '\n'.join(lines)
 

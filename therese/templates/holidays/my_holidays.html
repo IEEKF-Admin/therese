@@ -226,6 +226,10 @@
     cancelling.forEach(function(iso) {
         if (!dateStatus[iso] || !dateStatus[iso].cancellable) cancelling.delete(iso);
     });
+    if (planned.size && cancelling.size) {
+        planned.clear();
+        cancelling.clear();
+    }
     saveSet(STORAGE_PLANNED, planned);
     saveSet(STORAGE_CANCEL, cancelling);
 
@@ -282,8 +286,10 @@
     }
     function refreshCells() {
         document.querySelectorAll('#holiday-calendar .holiday-cell[data-date]').forEach(applyCell);
+        var submitBtn = document.getElementById('holiday-submit');
         var cancelBtn = document.getElementById('holiday-cancel');
-        if (cancelBtn) cancelBtn.disabled = cancelling.size === 0;
+        if (submitBtn) submitBtn.disabled = planned.size === 0 || cancelling.size > 0;
+        if (cancelBtn) cancelBtn.disabled = cancelling.size === 0 || planned.size > 0;
         renderRemaining();
     }
 
@@ -295,8 +301,15 @@
             var cancellable = cell.getAttribute('data-cancellable') === '1';
             if (status === 'pending' || status === 'approved') {
                 if (!cancellable) return;
-                if (cancelling.has(iso)) cancelling.delete(iso);
-                else cancelling.add(iso);
+                if (cancelling.has(iso)) {
+                    cancelling.delete(iso);
+                } else {
+                    if (planned.size) {
+                        planned.clear();
+                        saveSet(STORAGE_PLANNED, planned);
+                    }
+                    cancelling.add(iso);
+                }
                 saveSet(STORAGE_CANCEL, cancelling);
                 refreshCells();
                 return;
@@ -309,6 +322,10 @@
             } else {
                 var plannedYears = plannedByYear();
                 if (remainingFor(year, plannedYears[year] || 0) <= 0) return;
+                if (cancelling.size) {
+                    cancelling.clear();
+                    saveSet(STORAGE_CANCEL, cancelling);
+                }
                 planned.add(iso);
             }
             saveSet(STORAGE_PLANNED, planned);
@@ -318,7 +335,11 @@
 
     var requestForm = document.getElementById('holiday-request-form');
     if (requestForm) {
-        requestForm.addEventListener('submit', function() {
+        requestForm.addEventListener('submit', function(ev) {
+            if (planned.size === 0 || cancelling.size > 0) {
+                ev.preventDefault();
+                return;
+            }
             planned.forEach(function(iso) {
                 var input = document.createElement('input');
                 input.type = 'hidden';
@@ -331,7 +352,7 @@
     var cancelForm = document.getElementById('holiday-cancel-form');
     if (cancelForm) {
         cancelForm.addEventListener('submit', function(ev) {
-            if (cancelling.size === 0) {
+            if (cancelling.size === 0 || planned.size > 0) {
                 ev.preventDefault();
                 return;
             }

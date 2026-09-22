@@ -321,7 +321,7 @@ class GlobalSetting(models.Model):
     holiday_request_email_subject = models.CharField(
         max_length=200,
         blank=True,
-        default='Holiday request – {{ applicant_name }}',
+        default='Urlaubsantrag – {{ applicant_name }}',
         verbose_name='Request email subject',
         help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )
@@ -333,7 +333,7 @@ class GlobalSetting(models.Model):
     holiday_cancel_email_subject = models.CharField(
         max_length=200,
         blank=True,
-        default='Holiday cancellation – {{ applicant_name }}',
+        default='Urlaubsstornierung – {{ applicant_name }}',
         verbose_name='Cancellation email subject',
         help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )

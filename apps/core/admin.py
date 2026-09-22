@@ -22,13 +22,13 @@ class GlobalSettingAdmin(admin.ModelAdmin):
         'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
         'employee_expiring_soon_days',
         'irresponsible', 'show_add_employee_on_reallocation',
-        'chemicals_enabled', 'chemical_hazard_threshold', 'updated_at',
+        'chemicals_enabled', 'inventory_enabled', 'chemical_hazard_threshold', 'updated_at',
     ]
     fields = [
         'default_weekly_hours', 'true_cost_multiplicator', 'personnel_import_tolerance',
-        'employee_expiring_soon_days',
+        'employee_expiring_soon_days', 'limitation_pdf_letterhead',
         'irresponsible', 'show_add_employee_on_reallocation',
-        'chemicals_enabled', 'chemical_hazard_threshold', 'updated_at',
+        'chemicals_enabled', 'inventory_enabled', 'chemical_hazard_threshold', 'updated_at',
     ]
     readonly_fields = ['updated_at']
 

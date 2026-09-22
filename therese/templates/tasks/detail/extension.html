@@ -89,7 +89,23 @@
             <div class="aligned-field">
                 <label>Limitation Reason</label>
                 {% if can_edit %}{{ form.limitation_reason|add_class:"form-control" }}{% else %}<div class="readonly-comment">{{ task.limitation_reason|linebreaks|default:"—" }}</div>{% endif %}
-                <small class="field-hint-de">Befristungsgrund</small>
+                <small class="field-hint-de">Befristungsgrund (Text oder PDF)</small>
+                {{ form.limitation_reason.errors }}
+            </div>
+            <div class="aligned-field" data-limitation-file-wrap>
+                <label>Limitation Reason PDF</label>
+                {% if can_edit %}
+                    {{ form.limitation_reason_file }}
+                    {% if task.limitation_reason_file and task.limitation_reason_generated %}
+                    <small class="field-hint-de" style="display:block; margin-top:0.35rem;">PDF is generated from the text.</small>
+                    {% endif %}
+                {% elif task.limitation_reason_file %}
+                    <strong>Uploaded</strong>
+                {% else %}
+                    <strong>—</strong>
+                {% endif %}
+                <small class="field-hint-de">PDF statt Text</small>
+                {{ form.limitation_reason_file.errors }}
             </div>
         </div>
 

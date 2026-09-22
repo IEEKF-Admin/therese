@@ -30,6 +30,8 @@ def user_can_access_stored_file(user, file_path: str) -> bool:
         return _employee_legacy_file(user, path)
     if path.startswith('recruitment_tasks/'):
         return _recruitment_task_file(user, path)
+    if path.startswith('extension_tasks/'):
+        return _extension_task_file(user, path)
     if path.startswith('purchase_orders/quotes/'):
         return _purchase_quote_file(user, path)
     if path.startswith('task_attachments/'):
@@ -85,6 +87,7 @@ def _recruitment_task_file(user, path) -> bool:
         Q(application_file=path)
         | Q(cv_file=path)
         | Q(latest_degree_certificate_file=path)
+        | Q(limitation_reason_file=path)
     ).first()
     if not task:
         return False
@@ -93,9 +96,26 @@ def _recruitment_task_file(user, path) -> bool:
     # Sensitive candidate docs: only download role (coordinator/approver), not every viewer.
     if path.startswith('recruitment_tasks/cv/') or path.startswith(
         'recruitment_tasks/degree_certificates/'
-    ) or path.startswith('recruitment_tasks/application/'):
+    ) or path.startswith('recruitment_tasks/application/') or path.startswith(
+        'recruitment_tasks/limitation_reason/'
+    ):
         return can_download_personnel_documents(user)
     return True
+
+
+def _extension_task_file(user, path) -> bool:
+    from apps.tasks.models import PersonnelContractExtensionTask
+    from apps.tasks.personnel_documents import can_download_personnel_documents
+    from apps.tasks.utils import can_view_personnel_task
+
+    task = PersonnelContractExtensionTask.objects.filter(
+        Q(project_description_file=path) | Q(limitation_reason_file=path)
+    ).first()
+    if not task:
+        return False
+    if not can_view_personnel_task(user, task):
+        return False
+    return can_download_personnel_documents(user)
 
 
 def _purchase_quote_file(user, path) -> bool:

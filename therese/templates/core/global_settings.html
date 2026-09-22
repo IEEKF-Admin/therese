@@ -27,6 +27,7 @@
     <button type="button" class="settings-tab is-active" data-tab="general">General</button>
     <button type="button" class="settings-tab" data-tab="personnel">Personnel &amp; finances</button>
     <button type="button" class="settings-tab" data-tab="chemicals">Chemicals</button>
+    <button type="button" class="settings-tab" data-tab="inventory">Inventory</button>
     <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
     <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
     {% endif %}
@@ -57,6 +58,7 @@
                 {% include "core/_settings_field.html" with field=form.true_cost_multiplicator %}
                 {% include "core/_settings_field.html" with field=form.personnel_import_tolerance %}
                 {% include "core/_settings_field.html" with field=form.employee_expiring_soon_days %}
+                {% include "core/_settings_field.html" with field=form.limitation_pdf_letterhead %}
             </div>
             <div class="form-section">
                 <h3>Occupational salary tables</h3>
@@ -102,6 +104,45 @@
                 <h3>Chemicals</h3>
                 {% include "core/_settings_field.html" with field=form.chemicals_enabled %}
                 {% include "core/_settings_field.html" with field=form.chemical_hazard_threshold %}
+            </div>
+        </div>
+
+        <div class="settings-tab-panel" data-panel="inventory" style="display:none;">
+            <div class="form-section">
+                <h3>Inventory</h3>
+                {% include "core/_settings_field.html" with field=form.inventory_enabled %}
+            </div>
+            <div class="form-section">
+                <h3>Item types</h3>
+                <p class="field-hint">Name plus ID prefix. New items get an automatic ID, e.g. SM-0001.</p>
+                <input type="hidden" name="inv_types_present" value="1">
+                <table class="table" id="inv-types">
+                    <thead>
+                        <tr><th>Name</th><th>Prefix</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for t in inventory_types %}
+                        <tr data-inv-index="{{ forloop.counter0 }}">
+                            <td>
+                                <input type="hidden" name="inv_type_{{ forloop.counter0 }}_id" value="{{ t.pk }}">
+                                <input type="hidden" name="inv_type_{{ forloop.counter0 }}_delete" value="" class="inv-type-delete">
+                                <input type="text" name="inv_type_{{ forloop.counter0 }}_name" class="form-control" value="{{ t.name }}" placeholder="e.g. Storage media">
+                            </td>
+                            <td>
+                                <input type="text" name="inv_type_{{ forloop.counter0 }}_prefix" class="form-control" value="{{ t.prefix }}" placeholder="e.g. SM" maxlength="10" style="max-width:8rem;">
+                            </td>
+                            <td>
+                                {% if t.item_count %}
+                                <span class="field-hint-de">In use</span>
+                                {% else %}
+                                <button type="button" class="btn-inline-remove inv-remove-type" title="Remove">×</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="button" class="btn-secondary" id="inv-add-type" style="margin-top:0.5rem;">+ Add type</button>
             </div>
         </div>
 
@@ -413,6 +454,47 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             var add = event.target.closest('.occ-add-row');
             if (add) addRow(add.closest('.occ-table'));
+        });
+    })();
+
+    (function() {
+        var table = document.getElementById('inv-types');
+        var addBtn = document.getElementById('inv-add-type');
+        if (!table || !addBtn) return;
+        var tbody = table.querySelector('tbody');
+        function nextIndex() {
+            var max = -1;
+            tbody.querySelectorAll('tr[data-inv-index]').forEach(function(row) {
+                var n = parseInt(row.getAttribute('data-inv-index'), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return max + 1;
+        }
+        addBtn.addEventListener('click', function() {
+            var i = nextIndex();
+            var tr = document.createElement('tr');
+            tr.setAttribute('data-inv-index', String(i));
+            tr.innerHTML =
+                '<td>' +
+                '<input type="hidden" name="inv_type_' + i + '_id" value="">' +
+                '<input type="hidden" name="inv_type_' + i + '_delete" value="" class="inv-type-delete">' +
+                '<input type="text" name="inv_type_' + i + '_name" class="form-control" placeholder="e.g. Storage media">' +
+                '</td>' +
+                '<td><input type="text" name="inv_type_' + i + '_prefix" class="form-control" placeholder="e.g. SM" maxlength="10" style="max-width:8rem;"></td>' +
+                '<td><button type="button" class="btn-inline-remove inv-remove-type" title="Remove">×</button></td>';
+            tbody.appendChild(tr);
+        });
+        tbody.addEventListener('click', function(event) {
+            var btn = event.target.closest('.inv-remove-type');
+            if (!btn) return;
+            var row = btn.closest('tr');
+            var del = row.querySelector('.inv-type-delete');
+            if (del) del.value = '1';
+            row.style.display = 'none';
+            row.querySelectorAll('input').forEach(function(inp) {
+                if (inp.classList.contains('inv-type-delete') || (inp.name && inp.name.endsWith('_id'))) return;
+                inp.disabled = true;
+            });
         });
     })();
 });

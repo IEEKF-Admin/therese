@@ -365,8 +365,15 @@
                 <div class="aligned-field">
                     <label>Limitation Reason</label>
                     {{ form.limitation_reason|add_class:"form-control" }}
-                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Befristungsgrund</small>
-                    <small class="help-text" style="color:#64748b;">Only required if the extension is limited in duration.</small>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Befristungsgrund (Text oder PDF)</small>
+                    <small class="help-text" style="color:#64748b;">Required if the extension is limited: enter a reason or upload a PDF.</small>
+                    {{ form.limitation_reason.errors }}
+                </div>
+                <div class="aligned-field" data-limitation-file-wrap>
+                    <label>Limitation Reason PDF</label>
+                    {{ form.limitation_reason_file }}
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">PDF statt Text</small>
+                    {{ form.limitation_reason_file.errors }}
                 </div>
             </div>
 

@@ -21,9 +21,12 @@ from apps.tasks.models import (
     PersonnelReallocationTask,
     ReallocationFundingAllocation,
 )
+from apps.tasks.limitation_pdf import apply_limitation_reason_pdf
 from apps.tasks.recruitment_form_helpers import (
     add_limitation_reason_template_field,
+    configure_limitation_reason_file_field,
     strip_limitation_reason_template,
+    validate_limitation_reason_or_file,
 )
 
 
@@ -438,7 +441,8 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
     class Meta:
         model = PersonnelContractExtensionTask
         fields = ['employee', 'plan_position_number', 'valid_from', 'valid_until',
-                  'is_limited', 'limitation_reason', 'project_description_file',
+                  'is_limited', 'limitation_reason', 'limitation_reason_file',
+                  'project_description_file',
                   'assignee', 'status']
         widgets = {
             'valid_from': forms.DateInput(attrs={
@@ -537,6 +541,7 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
                 'rows': 3,
                 'data-limitation-text': 'true',
             })
+        configure_limitation_reason_file_field(self)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -547,11 +552,19 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             cleaned_data,
             require_start=True,
         )
-        if cleaned_data.get('is_limited'):
-            require_non_empty_text(
-                self,
-                cleaned_data,
-                'limitation_reason',
-                message='Limitation reason is required for limited contracts.',
-            )
+        validate_limitation_reason_or_file(
+            self,
+            cleaned_data,
+            required=bool(cleaned_data.get('is_limited')),
+            required_message='Limitation reason is required for limited contracts.',
+        )
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if hasattr(self, 'cleaned_data'):
+            apply_limitation_reason_pdf(instance, self.cleaned_data)
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance

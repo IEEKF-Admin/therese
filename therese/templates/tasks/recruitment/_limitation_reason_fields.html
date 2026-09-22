@@ -16,7 +16,27 @@
         {% else %}
             <span class="form-readonly">{{ task.limitation_reason|default:"—"|linebreaksbr }}</span>
         {% endif %}
-        <small class="field-hint-de">Befristungsgrund</small>
+        <small class="field-hint-de">Befristungsgrund (Text oder PDF)</small>
         {{ form.limitation_reason.errors }}
+    </div>
+    <div class="recruitment-field span-all" data-recruitment-field="limitation_reason" data-limitation-file-wrap>
+        <label>Limitation Reason PDF</label>
+        {% if can_edit_fields|default:True %}
+            {{ form.limitation_reason_file }}
+            {% if task.limitation_reason_file and task.limitation_reason_generated %}
+            <small class="field-hint-de" style="display:block; margin-top:0.35rem;">PDF is generated from the text.</small>
+            {% elif task.limitation_reason_file %}
+            <small>Current file on record.</small>
+            {% endif %}
+            {% if stashed_uploads and stashed_uploads.limitation_reason_file %}
+            <small class="field-hint-de" style="display:block; margin-top:0.35rem; color:#166534;">
+                Bereits hochgeladen: {{ stashed_uploads.limitation_reason_file.name }} (bleibt erhalten, wenn Sie das Formular erneut absenden)
+            </small>
+            {% endif %}
+        {% else %}
+            <span class="form-readonly">{% if task.limitation_reason_file %}Uploaded{% else %}—{% endif %}</span>
+        {% endif %}
+        <small class="field-hint-de">PDF statt Text</small>
+        {{ form.limitation_reason_file.errors }}
     </div>
 </div>

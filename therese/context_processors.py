@@ -10,6 +10,7 @@ from apps.checklists.access import (
 from apps.documents.sidebar_notifications import documents_menu_needs_attention
 from apps.holidays.access import holidays_menu_needs_attention, user_can_approve_workgroup
 from apps.chemicals.features import chemicals_enabled
+from apps.inventory.features import inventory_enabled
 from apps.holidays.features import holiday_flags
 from apps.tasks.unopened import tasks_menu_needs_attention
 
@@ -35,6 +36,7 @@ def user_groups(request):
             'user_can_approve_holidays': flags['approval'] and user_can_approve_workgroup(request.user),
             'tasks_menu_needs_attention': tasks_menu_needs_attention(request.user),
             'chemicals_enabled': chemicals_enabled(),
+            'inventory_enabled': inventory_enabled(),
         }
     return {
         'user_groups': [],
@@ -50,4 +52,5 @@ def user_groups(request):
         'user_can_approve_holidays': False,
         'tasks_menu_needs_attention': False,
         'chemicals_enabled': False,
+        'inventory_enabled': False,
     }

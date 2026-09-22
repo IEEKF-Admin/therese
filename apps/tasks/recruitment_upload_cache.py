@@ -6,7 +6,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 SESSION_KEY = 'recruitment_draft_uploads'
-FILE_FIELDS = ('cv_file', 'latest_degree_certificate_file')
+FILE_FIELDS = ('cv_file', 'latest_degree_certificate_file', 'limitation_reason_file')
 
 
 def get_stashed_uploads(request):

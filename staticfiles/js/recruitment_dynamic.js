@@ -111,7 +111,7 @@
             wrapper.querySelectorAll('input, select, textarea').forEach(function(input) {
                 if (input.type === 'hidden' || input.type === 'checkbox') return;
                 // Template dropdown is optional; the free-text field counts as filled.
-                if (input.matches('[data-limitation-template]')) return;
+                if (input.matches('[data-limitation-template], [data-limitation-text], [data-limitation-file]')) return;
                 // Hidden empty-form templates must not participate in HTML5 validation
                 // (the browser otherwise blocks submit with no visible error).
                 if (input.closest('.empty-form-template')) return;
@@ -225,6 +225,46 @@
         const selected = templateSelect.options[templateSelect.selectedIndex];
         if (selected && selected.dataset.templateText !== undefined) {
             textField.value = selected.dataset.templateText;
+        }
+        syncLimitationExclusive();
+    }
+
+    function limitationHasUploadedFile(fileInput) {
+        if (!fileInput) return false;
+        if (fileInput.files && fileInput.files.length > 0) return true;
+        if (fileInput.getAttribute('data-limitation-generated') === 'true') return false;
+        const clearBox = document.querySelector('[name="limitation_reason_file-clear"]');
+        if (clearBox && clearBox.checked) return false;
+        if (fileInput.getAttribute('data-has-uploaded-file') === 'true') return true;
+        const wrap = fileInput.closest('[data-limitation-file-wrap]');
+        return Boolean(wrap && wrap.getAttribute('data-has-uploaded-file') === 'true');
+    }
+
+    function syncLimitationExclusive() {
+        const textField = document.querySelector('[data-limitation-text]');
+        const fileInput = document.querySelector('[data-limitation-file]');
+        const templateSelect = document.querySelector('[data-limitation-template]');
+        if (!textField || !fileInput) return;
+
+        const hasUploaded = limitationHasUploadedFile(fileInput);
+        const hasText = (textField.value || '').trim().length > 0;
+        const clearBox = document.querySelector('[name="limitation_reason_file-clear"]');
+
+        if (hasUploaded) {
+            textField.disabled = true;
+            if (templateSelect) templateSelect.disabled = true;
+            fileInput.disabled = false;
+            if (clearBox) clearBox.disabled = false;
+        } else if (hasText) {
+            textField.disabled = false;
+            if (templateSelect) templateSelect.disabled = false;
+            fileInput.disabled = true;
+            if (clearBox) clearBox.disabled = true;
+        } else {
+            textField.disabled = false;
+            if (templateSelect) templateSelect.disabled = false;
+            fileInput.disabled = false;
+            if (clearBox) clearBox.disabled = false;
         }
     }
 
@@ -657,6 +697,7 @@
             }
             applyJobPayscaleDefaults(config, options);
             syncMonthlySalaryField(config);
+            syncLimitationExclusive();
         }
 
         document.querySelectorAll('.empty-form-template input, .empty-form-template select, .empty-form-template textarea').forEach(function(input) {
@@ -685,6 +726,9 @@
             if (event.target.matches('[data-limitation-template]')) {
                 applyLimitationTemplate(config);
             }
+            if (event.target.matches('[data-limitation-file], [name="limitation_reason_file-clear"]')) {
+                syncLimitationExclusive();
+            }
             if (config.enableJobRules && event.target.closest('[data-recruitment-field]')) {
                 applyJobFieldRules(config);
             }
@@ -702,6 +746,9 @@
             )) {
                 updateMonthlyCostsHint();
             }
+            if (event.target.matches('[data-limitation-text]')) {
+                syncLimitationExclusive();
+            }
             if (config.enableJobRules && event.target.closest('[data-recruitment-field]')) {
                 applyJobFieldRules(config);
             }
@@ -709,5 +756,6 @@
 
         refresh();
         updateMonthlyCostsHint();
+        syncLimitationExclusive();
     };
 })();

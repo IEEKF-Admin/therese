@@ -24,11 +24,13 @@ from apps.tasks.recruitment_form_helpers import (
     add_limitation_reason_template_field,
     apply_recruitment_field_defaults,
     apply_single_row_workhours_default,
+    configure_limitation_reason_file_field,
     configure_recruitment_job_field,
     configure_recruitment_payscale_fields,
     strip_limitation_reason_template,
     validate_recruitment_dynamic_rules,
 )
+from apps.tasks.limitation_pdf import apply_limitation_reason_pdf
 from apps.tasks.recruitment_upload_cache import apply_stashed_uploads
 from apps.tasks.utils import (
     get_recruitment_status_choices,
@@ -183,7 +185,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             'private_phone_number', 'street', 'house_number', 'postal_code',
             'city', 'country', 'qualification', 'job', 'working_as', 'pay_scale_group',
             'experience_level', 'monthly_salary', 'weekly_hours',
-            'valid_from', 'valid_until', 'limitation_reason',
+            'valid_from', 'valid_until', 'limitation_reason', 'limitation_reason_file',
             'cv_file', 'latest_degree_certificate_file',
             'assignee', 'status',
         ]
@@ -279,6 +281,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             job_id=job_id if not self.is_creation else None,
             include_all_reasons=self.is_creation,
         )
+        configure_limitation_reason_file_field(self)
 
         # --- Assignee (coordinator / creator-fallback only) ---
         _configure_personnel_assignee_field(self)
@@ -404,6 +407,15 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                     self.add_error('status', 'Approvers may only move the status forward.')
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if hasattr(self, 'cleaned_data'):
+            apply_limitation_reason_pdf(instance, self.cleaned_data)
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 # ---------------------------------------------------------------------------

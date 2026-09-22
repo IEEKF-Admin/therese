@@ -2,7 +2,9 @@
 
 from django import forms
 
+from apps.core.upload_validation import PDF_EXT, validate_upload
 from apps.hr.document_utils import validate_personnel_document
+from apps.tasks.limitation_pdf import is_new_limitation_file
 from apps.tasks.form_validation import (
     parse_german_date,
     require_non_empty_text,
@@ -116,7 +118,7 @@ def configure_recruitment_job_field(form):
 def apply_recruitment_field_defaults(form, *, is_creation):
     optional_always = {
         'prefix', 'initial_message', 'gender', 'private_phone_number',
-        'limitation_reason', 'working_as', 'weekly_hours',
+        'limitation_reason', 'limitation_reason_file', 'working_as', 'weekly_hours',
         'pay_scale_group', 'experience_level', 'monthly_salary',
         'qualification', 'valid_until',
     }
@@ -134,6 +136,68 @@ def apply_recruitment_field_defaults(form, *, is_creation):
             'rows': 3,
             'data-limitation-text': 'true',
         })
+
+
+def configure_limitation_reason_file_field(form):
+    field = form.fields.get('limitation_reason_file')
+    if field is None:
+        return
+    field.required = False
+    attrs = {
+        'class': 'form-control',
+        'accept': '.pdf,application/pdf',
+        'data-limitation-file': 'true',
+    }
+    instance = getattr(form, 'instance', None)
+    has_file = bool(
+        instance
+        and getattr(instance, 'pk', None)
+        and getattr(instance, 'limitation_reason_file', None)
+        and instance.limitation_reason_file
+    )
+    generated = bool(instance and getattr(instance, 'limitation_reason_generated', False))
+    stashed = getattr(form, 'stashed_uploads', None) or {}
+    if has_file and generated:
+        attrs['data-limitation-generated'] = 'true'
+    elif has_file or stashed.get('limitation_reason_file'):
+        attrs['data-has-uploaded-file'] = 'true'
+    field.widget.attrs.update(attrs)
+
+
+def validate_limitation_reason_or_file(form, cleaned_data, *, required, required_message):
+    text = (cleaned_data.get('limitation_reason') or '').strip()
+    cleaned_data['limitation_reason'] = text
+    file_value = cleaned_data.get('limitation_reason_file')
+
+    if is_new_limitation_file(file_value):
+        try:
+            validate_upload(
+                file_value,
+                allowed_extensions=PDF_EXT,
+                require_magic=True,
+            )
+        except forms.ValidationError as exc:
+            form.add_error('limitation_reason_file', exc.messages[0])
+            return
+        has_file = True
+    elif file_value is False:
+        has_file = False
+    else:
+        instance = getattr(form, 'instance', None)
+        existing = (
+            getattr(instance, 'limitation_reason_file', None)
+            if instance and getattr(instance, 'pk', None)
+            else None
+        )
+        has_existing = bool(existing and getattr(existing, 'name', ''))
+        generated = bool(getattr(instance, 'limitation_reason_generated', False)) if instance else False
+        if has_existing and generated:
+            has_file = bool(text)
+        else:
+            has_file = has_existing
+
+    if required and not text and not has_file:
+        form.add_error('limitation_reason', required_message)
 
 
 def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files=None):
@@ -183,6 +247,15 @@ def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files
             continue
 
         if field_key == 'funding_allocations':
+            continue
+
+        if field_key == 'limitation_reason':
+            validate_limitation_reason_or_file(
+                form,
+                cleaned_data,
+                required=required,
+                required_message='Limitation reason text or PDF is required.',
+            )
             continue
 
         if field_key in FILE_FIELDS:

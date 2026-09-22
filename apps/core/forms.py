@@ -42,8 +42,10 @@ class GlobalSettingForm(forms.ModelForm):
             'personnel_import_tolerance',
             'chemicals_enabled',
             'chemical_hazard_threshold',
+            'inventory_enabled',
             'show_add_employee_on_reallocation',
             'employee_expiring_soon_days',
+            'limitation_pdf_letterhead',
             'irresponsible',
             'holidays_enabled',
             'holidays_planning_enabled',
@@ -77,4 +79,14 @@ class GlobalSettingForm(forms.ModelForm):
             'holiday_email_recipients': forms.TextInput(attrs={'class': 'form-control'}),
             'holiday_email_subject': forms.TextInput(attrs={'class': 'form-control'}),
             'holiday_email_html': forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
+            'limitation_pdf_letterhead': forms.Textarea(attrs={
+                'class': 'form-control wysiwyg-editor',
+                'rows': 8,
+                'data-wysiwyg-height': '240',
+            }),
         }
+
+    def clean_limitation_pdf_letterhead(self):
+        from apps.core.html_sanitize import sanitize_html
+
+        return sanitize_html(self.cleaned_data.get('limitation_pdf_letterhead'))

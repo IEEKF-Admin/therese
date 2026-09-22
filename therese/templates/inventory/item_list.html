@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Inventory <small class="field-hint-de">Inventar</small></h1>
+    <div class="page-header-actions">
+        {% if can_manage %}
+        <a href="{% url 'inventory:item_create' %}" class="btn-primary">+ New item</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card list-panel">
+    <form method="get" class="search-toolbar" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:end; margin-bottom:1rem;">
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Search</label>
+            <input type="text" name="q" value="{{ search_query }}" class="form-control"
+                   placeholder="ID, name, description…" style="min-width:14rem;">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Type</label>
+            <select name="type" class="form-select">
+                <option value="">All</option>
+                {% for t in item_types %}
+                <option value="{{ t.pk }}" {% if type_filter == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name }} ({{ t.prefix }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All</option>
+                <option value="stock" {% if status_filter == 'stock' %}selected{% endif %}>In stock</option>
+                <option value="issued" {% if status_filter == 'issued' %}selected{% endif %}>Issued</option>
+            </select>
+        </div>
+        {% if can_view_all %}
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Issued to</label>
+            <select name="holder" class="form-select">
+                <option value="">All</option>
+                {% for emp in holders %}
+                <option value="{{ emp.pk }}" {% if holder_filter == emp.pk|stringformat:"s" %}selected{% endif %}>{{ emp.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn-primary">Filter</button>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Purchase date</th>
+                <th>Issued to</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><a href="{% url 'inventory:item_detail' item.pk %}">{{ item.code }}</a></td>
+                <td>{{ item.item_type.name }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.purchase_date|date:"d.m.Y"|default:"—" }}</td>
+                <td>{% if item.current_holder %}{{ item.current_holder.get_full_name }}{% else %}In stock{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted">No inventory items.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

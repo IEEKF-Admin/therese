@@ -132,6 +132,19 @@ def _recruitment_documents(task):
         last_name=last_name,
         task=task,
     )
+    _add_file_document(
+        documents,
+        key='limitation_reason',
+        label=(
+            f'Limitation Reason {last_name}'.strip()
+            if last_name
+            else 'Limitation Reason'
+        ),
+        file_field=getattr(task, 'limitation_reason_file', None),
+        prefix=prefix,
+        last_name=last_name,
+        task=task,
+    )
 
     seen_source_keys = set()
     for allocation in task.funding_allocations.select_related('wbs_element', 'cost_center').all():
@@ -197,6 +210,19 @@ def _extension_documents(task):
         key='project_description',
         label='Project Description',
         file_field=getattr(task, 'project_description_file', None),
+        prefix=prefix,
+        last_name=last_name,
+        task=task,
+    )
+    _add_file_document(
+        documents,
+        key='limitation_reason',
+        label=(
+            f'Limitation Reason {last_name}'.strip()
+            if last_name
+            else 'Limitation Reason'
+        ),
+        file_field=getattr(task, 'limitation_reason_file', None),
         prefix=prefix,
         last_name=last_name,
         task=task,

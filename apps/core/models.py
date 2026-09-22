@@ -224,6 +224,15 @@ class GlobalSetting(models.Model):
             'on the employee list.'
         ),
     )
+    limitation_pdf_letterhead = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Limitation Reason PDF letterhead',
+        help_text=(
+            'HTML letterhead at the top of auto-generated Limitation Reason PDFs '
+            '(Personnel Recruitment and Contract Extension).'
+        ),
+    )
     CHEMICAL_HAZARD_THRESHOLD_CHOICES = [
         ('any_ghs', 'Any GHS signal, H-code, or pictogram'),
         ('signal_warning_or_danger', 'GHS signal Warning or Danger'),
@@ -239,6 +248,14 @@ class GlobalSetting(models.Model):
             'Master switch. When off, Chemical Items, Substances (CAS), '
             'purchase-order CAS checks, and related popups are hidden; '
             'the options below are ignored.'
+        ),
+    )
+    inventory_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Inventory module',
+        help_text=(
+            'Master switch. When off, inventory menus and pages are hidden. '
+            'Item types are configured on the Inventory tab.'
         ),
     )
     chemical_hazard_threshold = models.CharField(
@@ -359,6 +376,10 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_chemicals_enabled(cls) -> bool:
         return bool(cls.get_solo().chemicals_enabled)
+
+    @classmethod
+    def get_inventory_enabled(cls) -> bool:
+        return bool(cls.get_solo().inventory_enabled)
 
     @classmethod
     def get_chemical_hazard_threshold(cls):

@@ -491,6 +491,16 @@ class PersonnelContractExtensionTask(Task):
     valid_until = models.DateField(null=True, blank=True)
     is_limited = models.BooleanField(default=True)
     limitation_reason = models.TextField(blank=True)
+    limitation_reason_file = models.FileField(
+        upload_to='extension_tasks/limitation_reason/',
+        blank=True,
+        null=True,
+        verbose_name="Limitation Reason",
+    )
+    limitation_reason_generated = models.BooleanField(
+        default=False,
+        verbose_name="Limitation Reason PDF generated from text",
+    )
     project_description_file = models.FileField(
         upload_to='extension_tasks/project_description/',
         blank=True,
@@ -810,6 +820,16 @@ class PersonnelRecruitmentTask(Task):
     valid_from = models.DateField(verbose_name="Contract Start Date")
     valid_until = models.DateField(null=True, blank=True, verbose_name="Contract End Date")
     limitation_reason = models.TextField(blank=True, verbose_name="Limitation Reason")
+    limitation_reason_file = models.FileField(
+        upload_to='recruitment_tasks/limitation_reason/',
+        blank=True,
+        null=True,
+        verbose_name="Limitation Reason",
+    )
+    limitation_reason_generated = models.BooleanField(
+        default=False,
+        verbose_name="Limitation Reason PDF generated from text",
+    )
     application_file = models.FileField(
         upload_to='recruitment_tasks/application/',
         blank=True,

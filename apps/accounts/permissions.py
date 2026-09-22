@@ -67,6 +67,10 @@ class GroupNames:
     HOLIDAY_APPROVER = "Holiday Approver"
     HOLIDAY_SUPER_APPROVER = "Holiday Super Approver"
 
+    INVENTORY_VIEW_OWN = "Inventory - View Own"
+    INVENTORY_VIEW_ALL = "Inventory - View All"
+    INVENTORY_MANAGE = "Inventory - Manage"
+
 
 # All groups as a list (useful for iteration)
 NEW_GROUPS = [
@@ -106,6 +110,9 @@ NEW_GROUPS = [
     GroupNames.SYSTEMADMIN,
     GroupNames.HOLIDAY_APPROVER,
     GroupNames.HOLIDAY_SUPER_APPROVER,
+    GroupNames.INVENTORY_VIEW_OWN,
+    GroupNames.INVENTORY_VIEW_ALL,
+    GroupNames.INVENTORY_MANAGE,
 ]
 
 # Groups removed from the system (deleted by ensure_groups / post_migrate).
@@ -586,6 +593,18 @@ def assign_permissions_to_groups():
         view_all_chem,
         manage_all_chem,
     )
+
+    try:
+        from apps.inventory.models import InventoryItem
+    except Exception:
+        InventoryItem = None
+    if InventoryItem is not None:
+        view_own_inv = get_perm('view_own_inventory_items', InventoryItem)
+        view_all_inv = get_perm('view_all_inventory_items', InventoryItem)
+        manage_inv = get_perm('manage_inventory_items', InventoryItem)
+        safe_add(GroupNames.INVENTORY_VIEW_OWN, view_own_inv)
+        safe_add(GroupNames.INVENTORY_VIEW_ALL, view_own_inv, view_all_inv)
+        safe_add(GroupNames.INVENTORY_MANAGE, view_own_inv, view_all_inv, manage_inv)
 
     if assigned_count:
         print(f"  [Permissions] Assigned/updated permissions for {assigned_count} group(s).")

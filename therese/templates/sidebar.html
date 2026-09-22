@@ -79,6 +79,15 @@
     {% endif %}
     {% endif %}
 
+    {% if inventory_enabled %}
+    {% if perms.inventory.view_own_inventory_items or perms.inventory.view_all_inventory_items or perms.inventory.manage_inventory_items or user.is_superuser %}
+    <a href="{% url 'inventory:item_list' %}"
+       class="{% if '/inventory/' in request.path %}active{% endif %}">
+        <i class="fas fa-box"></i> Inventory
+    </a>
+    {% endif %}
+    {% endif %}
+
     {% if perms.tasks.create_purchase_order or perms.tasks.manage_standard_order or perms.tasks.view_standard_order or perms.tasks.view_all_purchase_orders or perms.tasks.change_wbs_on_purchase_order or perms.tasks.approve_purchase_order or user.is_superuser %}
     <div class="sidebar-heading">Ordering</div>
 

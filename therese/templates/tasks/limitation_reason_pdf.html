@@ -1,0 +1,18 @@
+{% load sanitize_tags %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Limitation Reason{% if last_name %} {{ last_name }}{% endif %}</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; }
+        .letterhead { margin-bottom: 1.4cm; }
+        .body { line-height: 1.45; }
+    </style>
+</head>
+<body>
+    {% if letterhead %}<div class="letterhead">{{ letterhead|sanitize_html }}</div>{% endif %}
+    <div class="body">{{ text|linebreaksbr }}</div>
+</body>
+</html>

@@ -49,8 +49,10 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'System Administration')
         self.assertNotContains(response, 'Document Categories')
         self.assertContains(response, 'Default Weekly Working Hours')
+        self.assertContains(response, 'Limitation Reason PDF letterhead')
         self.assertContains(response, 'Account emails')
         self.assertContains(response, 'Chemicals module')
+        self.assertContains(response, 'Inventory module')
         posted = self.client.post(url, {
             'action': 'save_global',
             'default_weekly_hours': '40.00',

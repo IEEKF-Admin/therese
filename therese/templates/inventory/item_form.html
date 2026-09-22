@@ -3,6 +3,42 @@
 
 {% block title %}{{ title }} - THERESE{% endblock %}
 
+{% block extrastyle %}
+<style>
+.inventory-form-card { max-width: 42rem; }
+.inventory-form-card .form-section { padding: 1rem 1.1rem; }
+.inventory-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.7rem 1rem;
+}
+.inventory-form-grid .span-all { grid-column: 1 / -1; }
+.inventory-form-card .aligned-field { margin-bottom: 0; }
+.inventory-form-card .form-section .form-control,
+.inventory-form-card .form-section select {
+    width: 100%;
+    max-width: 22rem;
+}
+.inventory-form-card .form-section textarea {
+    width: 100%;
+    max-width: none;
+}
+.inventory-form-card .is-short .form-control,
+.inventory-form-card .is-short select {
+    max-width: 11rem;
+}
+.inventory-form-card .form-actions { margin-top: 1rem; padding-top: 0.9rem; }
+@media (max-width: 700px) {
+    .inventory-form-grid { grid-template-columns: 1fr; }
+    .inventory-form-card .form-section .form-control,
+    .inventory-form-card .form-section select,
+    .inventory-form-card .form-section textarea,
+    .inventory-form-card .is-short .form-control,
+    .inventory-form-card .is-short select { max-width: 100%; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <h1>{{ title }}</h1>
@@ -11,7 +47,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card inventory-form-card">
     <form method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -20,45 +56,57 @@
 
         <div class="form-section">
             <h3>Item</h3>
-            {% if item %}
-            <div class="aligned-field">
-                <label>ID</label>
-                <strong>{{ item.code }}</strong>
-            </div>
-            {% endif %}
-            <div class="aligned-field">
-                <label>Item type{% if can_edit and not item %} <span style="color:#ef4444;">*</span>{% endif %}</label>
-                {% if can_edit %}{{ form.item_type }}{% else %}<strong>{{ item.item_type }}</strong>{% endif %}
-                {{ form.item_type.errors }}
-            </div>
-            <div class="aligned-field">
-                <label>Name{% if can_edit %} <span style="color:#ef4444;">*</span>{% endif %}</label>
-                {% if can_edit %}{{ form.name }}{% else %}<strong>{{ item.name }}</strong>{% endif %}
-                {{ form.name.errors }}
-            </div>
-            <div class="aligned-field">
-                <label>Purchase date</label>
-                {% if can_edit %}{{ form.purchase_date }}{% else %}<strong>{{ item.purchase_date|date:"d.m.Y"|default:"—" }}</strong>{% endif %}
-                <small class="field-hint-de">Anschaffungsdatum</small>
-                {{ form.purchase_date.errors }}
-            </div>
-            <div class="aligned-field">
-                <label>Purchase price</label>
-                {% if can_edit %}{{ form.purchase_price }}{% else %}<strong>{% if item.purchase_price %}{{ item.purchase_price }} €{% else %}—{% endif %}</strong>{% endif %}
-                <small class="field-hint-de">Anschaffungspreis</small>
-                {{ form.purchase_price.errors }}
-            </div>
-            <div class="aligned-field">
-                <label>Description</label>
-                {% if can_edit %}{{ form.description }}{% else %}<div class="readonly-comment">{{ item.description|linebreaksbr|default:"—" }}</div>{% endif %}
-                <small class="field-hint-de">Beschreibung</small>
-                {{ form.description.errors }}
-            </div>
-            <div class="aligned-field">
-                <label>Issued to</label>
-                {% if can_edit %}{{ form.current_holder }}{% else %}<strong>{% if item.current_holder %}{{ item.current_holder.get_full_name }}{% else %}In stock{% endif %}</strong>{% endif %}
-                <small class="field-hint-de">Ausgegeben an</small>
-                {{ form.current_holder.errors }}
+            <div class="inventory-form-grid">
+                {% if item %}
+                <div class="aligned-field is-short">
+                    <label>ID</label>
+                    <strong>{{ item.code }}</strong>
+                </div>
+                {% endif %}
+                <div class="aligned-field is-short">
+                    <label>Item type{% if can_edit and not item %} <span style="color:#ef4444;">*</span>{% endif %}</label>
+                    {% if can_edit %}{{ form.item_type }}{% else %}<strong>{{ item.item_type }}</strong>{% endif %}
+                    {{ form.item_type.errors }}
+                </div>
+                {% if not item %}
+                <div class="aligned-field">
+                    <label>Issued to</label>
+                    {% if can_edit %}{{ form.current_holder }}{% else %}<strong>—</strong>{% endif %}
+                    <small class="field-hint-de">Ausgegeben an</small>
+                    {{ form.current_holder.errors }}
+                </div>
+                {% endif %}
+                <div class="aligned-field span-all">
+                    <label>Name{% if can_edit %} <span style="color:#ef4444;">*</span>{% endif %}</label>
+                    {% if can_edit %}{{ form.name }}{% else %}<strong>{{ item.name }}</strong>{% endif %}
+                    {{ form.name.errors }}
+                </div>
+                <div class="aligned-field is-short">
+                    <label>Purchase date</label>
+                    {% if can_edit %}{{ form.purchase_date }}{% else %}<strong>{{ item.purchase_date|date:"d.m.Y"|default:"—" }}</strong>{% endif %}
+                    <small class="field-hint-de">Anschaffungsdatum</small>
+                    {{ form.purchase_date.errors }}
+                </div>
+                <div class="aligned-field is-short">
+                    <label>Purchase price</label>
+                    {% if can_edit %}{{ form.purchase_price }}{% else %}<strong>{% if item.purchase_price %}{{ item.purchase_price }} €{% else %}—{% endif %}</strong>{% endif %}
+                    <small class="field-hint-de">Anschaffungspreis</small>
+                    {{ form.purchase_price.errors }}
+                </div>
+                {% if item %}
+                <div class="aligned-field">
+                    <label>Issued to</label>
+                    {% if can_edit %}{{ form.current_holder }}{% else %}<strong>{% if item.current_holder %}{{ item.current_holder.get_full_name }}{% else %}In stock{% endif %}</strong>{% endif %}
+                    <small class="field-hint-de">Ausgegeben an</small>
+                    {{ form.current_holder.errors }}
+                </div>
+                {% endif %}
+                <div class="aligned-field span-all">
+                    <label>Description</label>
+                    {% if can_edit %}{{ form.description }}{% else %}<div class="readonly-comment">{{ item.description|linebreaksbr|default:"—" }}</div>{% endif %}
+                    <small class="field-hint-de">Beschreibung</small>
+                    {{ form.description.errors }}
+                </div>
             </div>
         </div>
 

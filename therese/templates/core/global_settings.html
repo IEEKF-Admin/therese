@@ -162,7 +162,7 @@
             </div>
             <div class="form-section">
                 <h3>Holiday emails</h3>
-                <p class="field-hint">Request and cancellation emails are sent to the recipient list plus the employee. Variables: {% verbatim %}<code>{{ applicant_name }}</code>, <code>{{ employee_number }}</code>, <code>{{ periods }}</code>, <code>{{ day_count }}</code>{% endverbatim %}.</p>
+                <p class="field-hint">Request and cancellation emails are sent to the recipient list plus the employee. Variables: {% verbatim %}<code>{{ applicant_name }}</code>, <code>{{ employee_number }}</code>, <code>{{ periods }}</code>, <code>{{ day_count }}</code>, <code>{{ holiday_analysis }}</code>{% endverbatim %}.</p>
                 {% include "core/_settings_field.html" with field=form.holiday_email_recipients %}
                 {% include "core/_settings_field.html" with field=form.holiday_request_email_subject %}
                 {% include "core/_settings_field.html" with field=form.holiday_request_email_html %}

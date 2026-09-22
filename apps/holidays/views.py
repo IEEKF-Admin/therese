@@ -15,17 +15,19 @@ from apps.holidays.access import (
 )
 from apps.holidays.features import holiday_flags
 from apps.holidays.forms import HolidayProfileForm, save_entitlements_from_post
-from apps.holidays.models import HolidayRequest, HolidayYearEntitlement
+from apps.holidays.models import HolidayRequest
 from apps.holidays.services import (
     cancel_days,
     classify_dates,
+    contract_months_in_year,
     create_request,
     decide_requests,
     delete_request,
+    entitlement_rate_map,
+    entitlement_table_rows,
     get_or_create_profile,
     gantt_bars,
     gantt_employees,
-    suggested_entitlement,
     vacation_status_map,
     year_balance,
 )
@@ -73,13 +75,13 @@ def my_holidays(request):
     if request.method == 'POST' and request.POST.get('action') == 'save_profile':
         form = HolidayProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            form.save()
             try:
                 save_entitlements_from_post(employee, request.POST)
             except ValidationError as exc:
                 messages.error(request, '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc))
                 active_tab = 'settings'
             else:
-                form.save()
                 messages.success(request, 'Holiday settings were saved.')
                 return redirect(reverse('holidays:my_holidays') + '?tab=settings')
         else:
@@ -128,16 +130,21 @@ def my_holidays(request):
     prev_month = month_start - timedelta(days=1)
     next_month = month_end + timedelta(days=1)
     requests = HolidayRequest.objects.filter(employee=employee).order_by('-start_date')
-    entitlements = list(
-        HolidayYearEntitlement.objects.filter(employee=employee).order_by('year')
-    )
+    entitlement_rows = entitlement_table_rows(employee)
     balance_years = {view_year, year, year + 1}
-    balance_years.update(row.year for row in entitlements)
+    balance_years.update(row['year'] for row in entitlement_rows)
     year_balances = {str(y): _json_balance(year_balance(employee, y)) for y in sorted(balance_years)}
+    from apps.core.models import GlobalSetting
+    entitlement_meta = {
+        'rates': entitlement_rate_map(),
+        'months': {str(row['year']): contract_months_in_year(employee, row['year']) for row in entitlement_rows},
+        'rounding': getattr(GlobalSetting.get_solo(), 'holiday_half_day_rounding', 'up') or 'up',
+    }
 
     return render(request, 'holidays/my_holidays.html', {
         'profile_form': form,
-        'entitlements': entitlements,
+        'entitlement_rows': entitlement_rows,
+        'entitlement_meta': entitlement_meta,
         'weeks': weeks,
         'view_year': view_year,
         'view_month': view_month,
@@ -146,7 +153,6 @@ def my_holidays(request):
         'prev_month': prev_month.month,
         'next_year': next_month.year,
         'next_month': next_month.month,
-        'suggested_this': suggested_entitlement(employee, year),
         'requests': requests,
         'approval_enabled': holiday_flags()['approval'],
         'gantt_enabled': holiday_flags()['gantt'],

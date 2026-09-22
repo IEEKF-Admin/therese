@@ -58,12 +58,34 @@ def holiday_mail_recipients(employee):
     return recipients
 
 
+def format_days(value):
+    amount = Decimal(value)
+    if amount == amount.to_integral_value():
+        return str(int(amount))
+    return f'{amount:.1f}'
+
+
+def format_holiday_analysis(employee, years):
+    from apps.holidays.services import year_balance
+
+    lines = []
+    for year in sorted({int(item) for item in years}):
+        balance = year_balance(employee, year)
+        lines.append(
+            f'{year}: available {format_days(balance["available"])}, '
+            f'granted {format_days(balance["approved"])}, '
+            f'applied {format_days(balance["pending"])}, '
+            f'remaining {format_days(balance["remaining"])}'
+        )
+    return '\n'.join(lines)
+
+
 def render_holiday_template(template, context, *, html=False):
     text = template or ''
     for key, value in context.items():
         rendered = str(value)
         if html:
-            rendered = escape(rendered)
+            rendered = escape(rendered).replace('\n', '<br>')
         text = text.replace('{{ ' + key + ' }}', rendered)
         text = text.replace('{{' + key + '}}', rendered)
     return text
@@ -71,11 +93,13 @@ def render_holiday_template(template, context, *, html=False):
 
 def _mail_context(employee, dates):
     days = sorted({day if isinstance(day, date) else date.fromisoformat(str(day)) for day in dates})
+    years = [day.year for day in days]
     return {
         'applicant_name': employee.get_full_name() if employee else '',
         'employee_number': getattr(employee, 'employee_number', '') or '',
         'periods': format_leave_periods(days),
         'day_count': str(Decimal(len(days))),
+        'holiday_analysis': format_holiday_analysis(employee, years),
     }
 
 

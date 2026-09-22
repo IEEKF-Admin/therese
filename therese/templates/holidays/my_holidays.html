@@ -22,7 +22,7 @@
                 <p>Available: <strong>{{ view_balance.available }}</strong>
                    (Holidays {{ view_balance.holidays }} + Carryover {{ view_balance.carryover }}
                    + Special leave {{ view_balance.special_leave }})</p>
-                <p>Approved: <strong>{{ view_balance.approved }}</strong> · Requested: <strong>{{ view_balance.pending }}</strong> · Planned: <strong>0</strong></p>
+                <p>Granted: <strong>{{ view_balance.approved }}</strong> · Applied: <strong>{{ view_balance.pending }}</strong> · Planned: <strong>0</strong></p>
                 <p class="holiday-remaining-total">Remaining: <strong>{{ view_balance.remaining }}</strong></p>
             </div>
         </div>
@@ -129,7 +129,7 @@
             <div class="form-check-row">{{ profile_form.works_friday }} <label for="{{ profile_form.works_friday.id_for_label }}">Fri</label></div>
 
             <h3 style="margin-top:1.25rem;">Entitlement</h3>
-            <p class="text-muted" style="font-size:0.9rem;">Suggested from the institute table for this year: {{ suggested_this }} days. Planning is only possible for years with more than 0 available days (Holidays + Carryover + Special leave).</p>
+            <p class="text-muted" style="font-size:0.9rem;">Holidays are calculated from workdays per week, contract months (including inactive contracts) and the institute entitlement table. Only Carryover and Special leave can be edited for this year and next year. Planning requires more than 0 available days (Holidays + Carryover + Special leave).</p>
             <table class="table" id="entitlement-table" data-current-year="{{ current_year }}">
                 <thead>
                     <tr>
@@ -137,20 +137,38 @@
                         <th>Holidays</th>
                         <th>Carryover</th>
                         <th>Special leave</th>
+                        <th>Granted</th>
+                        <th>Applied</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in entitlements %}
+                    {% for row in entitlement_rows %}
                     <tr>
-                        <td><input type="number" name="ent_year" value="{{ row.year }}" readonly class="form-control"></td>
-                        <td><input type="number" name="ent_holidays" value="{{ row.holidays|unlocalize }}" step="0.5" min="0" class="form-control"></td>
-                        <td><input type="number" name="ent_carryover" value="{{ row.carryover|unlocalize }}" step="0.5" min="0" class="form-control js-carryover"></td>
-                        <td><input type="number" name="ent_special" value="{{ row.special_leave|unlocalize }}" step="0.5" min="0" class="form-control"></td>
+                        <td>
+                            {% if row.editable %}<input type="hidden" name="ent_year" value="{{ row.year }}">{% endif %}
+                            {{ row.year }}
+                        </td>
+                        <td><span class="js-holidays" data-year="{{ row.year }}">{{ row.holidays }}</span></td>
+                        <td>
+                            {% if row.editable %}
+                            <input type="number" name="ent_carryover" value="{{ row.carryover|unlocalize }}" step="0.5" min="0" class="form-control js-carryover">
+                            {% else %}
+                            {{ row.carryover }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.editable %}
+                            <input type="number" name="ent_special" value="{{ row.special_leave|unlocalize }}" step="0.5" min="0" class="form-control">
+                            {% else %}
+                            {{ row.special_leave }}
+                            {% endif %}
+                        </td>
+                        <td>{{ row.granted }}</td>
+                        <td>{{ row.applied }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <button type="button" class="btn-secondary" id="ent-add-row">Add year</button>
 
             {% if gantt_enabled %}
             <div class="form-check-row" style="margin-top:1rem;">
@@ -173,6 +191,7 @@
 
 {{ year_balances|json_script:"holiday-year-balances" }}
 {{ date_status|json_script:"holiday-date-status" }}
+{{ entitlement_meta|json_script:"holiday-entitlement-meta" }}
 {% endblock %}
 
 {% block extra_js %}
@@ -239,10 +258,10 @@
                 '<p>Available: <strong>' + num(row.available) + '</strong> ' +
                 '(Holidays ' + num(row.holidays) + ' + Carryover ' + num(row.carryover) +
                 ' + Special leave ' + num(row.special_leave) + ')</p>' +
-                '<p>Approved: <strong>' + num(row.approved) + '</strong> · Requested: <strong>' +
+                '<p>Granted: <strong>' + num(row.approved) + '</strong> · Applied: <strong>' +
                 num(row.pending) + '</strong> · Planned: <strong>' + plannedCount + '</strong></p>' +
                 '<p class="holiday-remaining-total">Remaining: <strong>' + remaining + '</strong></p>' +
-                (num(row.available) <= 0 ? '<p class="field-hint-de">Configure entitlement for this year in Settings before you can plan leave.</p>' : '') +
+                (num(row.available) <= 0 ? '<p class="field-hint-de">No holiday entitlement for this year (check workdays and contract months).</p>' : '') +
                 '</div>';
         });
         body.innerHTML = html;
@@ -342,17 +361,6 @@
         });
     });
 
-    function nextEntitlementYear() {
-        var years = [];
-        document.querySelectorAll('#entitlement-table [name="ent_year"]').forEach(function(el) {
-            var n = parseInt(el.value, 10);
-            if (n) years.push(n);
-        });
-        var table = document.getElementById('entitlement-table');
-        var current = parseInt(table.getAttribute('data-current-year'), 10) || (new Date()).getFullYear();
-        if (!years.length) return current;
-        return Math.max.apply(null, years) + 1;
-    }
     function bindCarryover(input) {
         input.dataset.prev = input.value || '0';
         input.addEventListener('focus', function() {
@@ -368,21 +376,40 @@
         });
     }
     document.querySelectorAll('.js-carryover').forEach(bindCarryover);
-    var addBtn = document.getElementById('ent-add-row');
-    if (addBtn) {
-        addBtn.addEventListener('click', function() {
-            var tbody = document.querySelector('#entitlement-table tbody');
-            var year = nextEntitlementYear();
-            var tr = document.createElement('tr');
-            tr.innerHTML =
-                '<td><input type="number" name="ent_year" value="' + year + '" readonly class="form-control"></td>' +
-                '<td><input type="number" name="ent_holidays" value="0" step="0.5" min="0" class="form-control"></td>' +
-                '<td><input type="number" name="ent_carryover" value="0" step="0.5" min="0" class="form-control js-carryover"></td>' +
-                '<td><input type="number" name="ent_special" value="0" step="0.5" min="0" class="form-control"></td>';
-            tbody.appendChild(tr);
-            bindCarryover(tr.querySelector('.js-carryover'));
+
+    var entitlementMeta = {};
+    try { entitlementMeta = JSON.parse(document.getElementById('holiday-entitlement-meta').textContent); } catch (e) {}
+    function roundHalf(value, mode) {
+        if (value === Math.floor(value)) return value;
+        return mode === 'down' ? Math.floor(value) : Math.ceil(value);
+    }
+    function workdayCount() {
+        var n = 0;
+        ['id_works_monday', 'id_works_tuesday', 'id_works_wednesday', 'id_works_thursday', 'id_works_friday'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el && el.checked) n += 1;
+        });
+        return n || 5;
+    }
+    function refreshHolidays() {
+        var rates = entitlementMeta.rates || {};
+        var monthsMap = entitlementMeta.months || {};
+        var rounding = entitlementMeta.rounding || 'up';
+        var weekdays = String(workdayCount());
+        document.querySelectorAll('.js-holidays').forEach(function(el) {
+            var year = el.getAttribute('data-year');
+            var months = String(monthsMap[year] || 0);
+            var value = 0;
+            if (Number(months) > 0 && rates[weekdays] && rates[weekdays][months] != null) {
+                value = roundHalf(Number(rates[weekdays][months]), rounding);
+            }
+            el.textContent = value;
         });
     }
+    ['id_works_monday', 'id_works_tuesday', 'id_works_wednesday', 'id_works_thursday', 'id_works_friday'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', refreshHolidays);
+    });
 })();
 </script>
 {% endblock %}

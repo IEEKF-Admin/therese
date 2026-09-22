@@ -9,16 +9,24 @@ from django.urls import reverse
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames
 from apps.core.models import GlobalSetting
+from django.core import mail
+
+from apps.holidays.mail import format_holiday_analysis, format_leave_periods
 from apps.holidays.models import (
     HolidayCustomDay,
+    HolidayEntitlementRate,
     HolidayRequest,
     HolidayYearEntitlement,
 )
 from apps.holidays.public_holidays import public_holidays_for_year
-from django.core import mail
-
-from apps.holidays.mail import format_leave_periods
-from apps.holidays.services import cancel_days, classify_dates, create_request, remaining_days
+from apps.holidays.services import (
+    cancel_days,
+    classify_dates,
+    contract_months_in_year,
+    create_request,
+    remaining_days,
+    suggested_entitlement,
+)
 from apps.hr.models import Contract, Employee, Workgroup
 
 
@@ -120,8 +128,11 @@ class HolidayCalculationTests(TestCase):
             create_request(other_user, other, [start])
 
     def test_zero_entitlement_blocks_planning(self):
+        HolidayEntitlementRate.objects.update_or_create(
+            weekdays=5, contract_months=12, defaults={'days': Decimal('0')},
+        )
         HolidayYearEntitlement.objects.filter(employee=self.employee).update(
-            holidays=0, carryover=0, special_leave=0,
+            carryover=0, special_leave=0,
         )
         start = date.today() + timedelta(days=1)
         while start.weekday() != 0:
@@ -131,14 +142,27 @@ class HolidayCalculationTests(TestCase):
 
     def test_carryover_and_special_count_as_available(self):
         HolidayYearEntitlement.objects.filter(employee=self.employee).update(
-            holidays=0, carryover=Decimal('2'), special_leave=Decimal('1'),
+            carryover=Decimal('2'), special_leave=Decimal('1'),
         )
         start = date.today() + timedelta(days=1)
         while start.weekday() != 0:
             start += timedelta(days=1)
         created = create_request(self.user, self.employee, [start, start + timedelta(days=1)])
         self.assertEqual(created.day_count, Decimal('2'))
-        self.assertEqual(remaining_days(self.employee, start.year), Decimal('1'))
+        self.assertEqual(remaining_days(self.employee, start.year), Decimal('31'))
+
+    def test_inactive_contract_counts_months(self):
+        year = date.today().year
+        self.employee.contracts.update(is_active=False)
+        self.assertEqual(contract_months_in_year(self.employee, year), 12)
+        self.assertEqual(suggested_entitlement(self.employee, year), Decimal('30'))
+
+    def test_holiday_analysis_format(self):
+        year = date.today().year
+        self.assertEqual(
+            format_holiday_analysis(self.employee, [year]),
+            f'{year}: available 30, granted 0, applied 0, remaining 30',
+        )
 
     def test_cancel_future_days_keeps_rest_and_sends_mail(self):
         self.employee.email_professional = 'hanna@example.com'
@@ -260,10 +284,16 @@ class HolidayViewTests(TestCase):
         self.assertNotContains(response, 'Entitlement this year')
         self.assertNotContains(response, 'request_pdf')
         self.assertContains(response, 'Cancel holidays')
+        self.assertContains(response, 'Granted')
+        self.assertContains(response, 'Applied')
+        self.assertNotContains(response, 'Add year')
 
     def test_save_entitlement_table(self):
         self.client.login(username='hol-view', password='test')
         year = date.today().year
+        HolidayYearEntitlement.objects.create(
+            employee=self.employee, year=year - 1, carryover=Decimal('4'),
+        )
         posted = self.client.post(reverse('holidays:my_holidays'), {
             'action': 'save_profile',
             'works_monday': 'on',
@@ -271,20 +301,32 @@ class HolidayViewTests(TestCase):
             'works_wednesday': 'on',
             'works_thursday': 'on',
             'works_friday': 'on',
-            'ent_year': [str(year), str(year + 1)],
-            'ent_holidays': ['28', '30'],
-            'ent_carryover': ['2', '0'],
-            'ent_special': ['0', '1'],
+            'ent_year': [str(year), str(year + 1), str(year + 2), str(year - 1)],
+            'ent_carryover': ['2', '0', '9', '8'],
+            'ent_special': ['0', '1', '9', '8'],
         })
         self.assertEqual(posted.status_code, 302)
         rows = {
             row.year: row
             for row in HolidayYearEntitlement.objects.filter(employee=self.employee)
         }
-        self.assertEqual(rows[year].holidays, Decimal('28'))
+        self.assertEqual(rows[year].holidays, Decimal('30'))
         self.assertEqual(rows[year].carryover, Decimal('2'))
-        self.assertEqual(rows[year + 1].holidays, Decimal('30'))
+        self.assertEqual(rows[year + 1].holidays, Decimal('0'))
         self.assertEqual(rows[year + 1].special_leave, Decimal('1'))
+        self.assertEqual(rows[year - 1].carryover, Decimal('4'))
+        self.assertNotIn(year + 2, rows)
+
+    def test_settings_shows_past_current_next_year(self):
+        year = date.today().year
+        HolidayYearEntitlement.objects.create(
+            employee=self.employee, year=year - 1, carryover=Decimal('3'),
+        )
+        self.client.login(username='hol-view', password='test')
+        response = self.client.get(reverse('holidays:my_holidays') + '?tab=settings')
+        self.assertContains(response, str(year - 1))
+        self.assertContains(response, str(year))
+        self.assertContains(response, str(year + 1))
 
     def test_request_email_uses_template_variables(self):
         self.employee.email_professional = 'vera@example.com'
@@ -292,7 +334,7 @@ class HolidayViewTests(TestCase):
         setting = GlobalSetting.get_solo()
         setting.holiday_email_recipients = 'office@example.com'
         setting.holiday_request_email_subject = 'Leave {{ employee_number }}'
-        setting.holiday_request_email_html = '<p>{{ applicant_name }} {{ periods }}</p>'
+        setting.holiday_request_email_html = '<p>{{ applicant_name }} {{ periods }} {{ holiday_analysis }}</p>'
         setting.save()
         self.client.login(username='hol-view', password='test')
         start = date.today() + timedelta(days=1)
@@ -304,6 +346,7 @@ class HolidayViewTests(TestCase):
         self.assertIn('Vera View', mail.outbox[0].body)
         self.assertIn('office@example.com', mail.outbox[0].to)
         self.assertIn('vera@example.com', mail.outbox[0].to)
+        self.assertIn(f'{start.year}: available 30, granted 0, applied 1, remaining 29', mail.outbox[0].body)
 
     def test_cancel_view_removes_future_day(self):
         start = date.today() + timedelta(days=1)

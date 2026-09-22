@@ -85,11 +85,16 @@ def _parse_entitlement_decimal(raw):
 
 
 def save_entitlements_from_post(employee, post):
+    from datetime import date as date_cls
+
+    from apps.holidays.services import suggested_entitlement
+
+    today_year = date_cls.today().year
+    allowed = {today_year, today_year + 1}
     years = post.getlist('ent_year')
-    holidays = post.getlist('ent_holidays')
     carryovers = post.getlist('ent_carryover')
     specials = post.getlist('ent_special')
-    seen = set()
+    by_year = {}
     for index, year_raw in enumerate(years):
         year_text = str(year_raw or '').strip()
         if not year_text:
@@ -98,15 +103,27 @@ def save_entitlements_from_post(employee, post):
             year = int(year_text)
         except (TypeError, ValueError):
             raise forms.ValidationError('Year must be a number.')
-        if year in seen:
+        if year not in allowed or year in by_year:
             continue
-        seen.add(year)
+        by_year[year] = {
+            'carryover': _parse_entitlement_decimal(carryovers[index] if index < len(carryovers) else '0'),
+            'special_leave': _parse_entitlement_decimal(specials[index] if index < len(specials) else '0'),
+        }
+    for year in sorted(allowed):
+        values = by_year.get(year, {})
+        existing = HolidayYearEntitlement.objects.filter(employee=employee, year=year).first()
         HolidayYearEntitlement.objects.update_or_create(
             employee=employee,
             year=year,
             defaults={
-                'holidays': _parse_entitlement_decimal(holidays[index] if index < len(holidays) else '0'),
-                'carryover': _parse_entitlement_decimal(carryovers[index] if index < len(carryovers) else '0'),
-                'special_leave': _parse_entitlement_decimal(specials[index] if index < len(specials) else '0'),
+                'holidays': suggested_entitlement(employee, year),
+                'carryover': values.get(
+                    'carryover',
+                    existing.carryover if existing else 0,
+                ),
+                'special_leave': values.get(
+                    'special_leave',
+                    existing.special_leave if existing else 0,
+                ),
             },
         )

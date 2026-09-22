@@ -34,7 +34,7 @@ def active_contract_on(employee, when):
 def contract_months_in_year(employee, year):
     year_start = date(year, 1, 1)
     year_end = date(year, 12, 31)
-    contracts = employee.contracts.filter(is_active=True)
+    contracts = employee.contracts.all()
     months = set()
     for contract in contracts:
         start = max(contract.valid_from, year_start)
@@ -84,26 +84,19 @@ def apply_half_day_rounding(value):
 
 
 def entitlement_days(employee, year):
-    row = HolidayYearEntitlement.objects.filter(employee=employee, year=year).first()
-    if row:
-        return row.total_days
-    return Decimal('0')
+    return entitlement_breakdown(employee, year)['available']
 
 
 def entitlement_breakdown(employee, year):
     row = HolidayYearEntitlement.objects.filter(employee=employee, year=year).first()
-    if not row:
-        return {
-            'holidays': Decimal('0'),
-            'carryover': Decimal('0'),
-            'special_leave': Decimal('0'),
-            'available': Decimal('0'),
-        }
+    holidays = suggested_entitlement(employee, year)
+    carryover = (row.carryover if row else None) or Decimal('0')
+    special = (row.special_leave if row else None) or Decimal('0')
     return {
-        'holidays': row.holidays or Decimal('0'),
-        'carryover': row.carryover or Decimal('0'),
-        'special_leave': row.special_leave or Decimal('0'),
-        'available': row.total_days,
+        'holidays': holidays,
+        'carryover': carryover,
+        'special_leave': special,
+        'available': holidays + carryover + special,
     }
 
 
@@ -143,6 +136,54 @@ def year_balance(employee, year, *, exclude_pk=None):
         'remaining': breakdown['available'] - approved - pending,
     })
     return breakdown
+
+
+def entitlement_rate_map():
+    result = {}
+    for weekdays, values in DEFAULT_RATES.items():
+        result[str(weekdays)] = {
+            str(12 - idx): float(days) for idx, days in enumerate(values)
+        }
+    for row in HolidayEntitlementRate.objects.all():
+        result.setdefault(str(row.weekdays), {})[str(row.contract_months)] = float(row.days)
+    return result
+
+
+def entitlement_table_rows(employee):
+    today_year = date.today().year
+    years = {today_year, today_year + 1}
+    years.update(
+        HolidayYearEntitlement.objects.filter(
+            employee=employee, year__lt=today_year,
+        ).values_list('year', flat=True)
+    )
+    requests = HolidayRequest.objects.filter(
+        employee=employee,
+        status__in=CONSUMING_STATUSES,
+    )
+    for request in requests:
+        for raw in request.counted_dates or []:
+            day = date.fromisoformat(raw) if isinstance(raw, str) else raw
+            if day.year < today_year:
+                years.add(day.year)
+    stored = {
+        row.year: row
+        for row in HolidayYearEntitlement.objects.filter(employee=employee, year__in=years)
+    }
+    rows = []
+    for year in sorted(years):
+        balance = year_balance(employee, year)
+        item = stored.get(year)
+        rows.append({
+            'year': year,
+            'holidays': balance['holidays'],
+            'carryover': item.carryover if item else Decimal('0'),
+            'special_leave': item.special_leave if item else Decimal('0'),
+            'granted': balance['approved'],
+            'applied': balance['pending'],
+            'editable': year >= today_year,
+        })
+    return rows
 
 
 def vacation_status_map(employee):

@@ -55,6 +55,7 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Inventory module')
         self.assertContains(response, 'Request email subject')
         self.assertContains(response, 'Cancellation email subject')
+        self.assertContains(response, 'holiday_analysis')
         posted = self.client.post(url, {
             'action': 'save_global',
             'default_weekly_hours': '40.00',

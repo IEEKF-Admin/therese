@@ -323,24 +323,24 @@ class GlobalSetting(models.Model):
         blank=True,
         default='Holiday request – {{ applicant_name }}',
         verbose_name='Request email subject',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )
     holiday_request_email_html = models.TextField(
         blank=True,
         verbose_name='Request email body (HTML)',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )
     holiday_cancel_email_subject = models.CharField(
         max_length=200,
         blank=True,
         default='Holiday cancellation – {{ applicant_name }}',
         verbose_name='Cancellation email subject',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )
     holiday_cancel_email_html = models.TextField(
         blank=True,
         verbose_name='Cancellation email body (HTML)',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}',
+        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
     )
     updated_at = models.DateTimeField(auto_now=True)
 

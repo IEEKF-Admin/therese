@@ -48,6 +48,38 @@ def _calendar_months_inclusive(start: date, end: date) -> int:
     return (end.year - start.year) * 12 + (end.month - start.month) + 1
 
 
+def _iter_month_starts(start: date, end: date):
+    cursor = date(start.year, start.month, 1)
+    last = date(end.year, end.month, 1)
+    while cursor <= last:
+        yield cursor
+        if cursor.month == 12:
+            cursor = date(cursor.year + 1, 1, 1)
+        else:
+            cursor = date(cursor.year, cursor.month + 1, 1)
+
+
+def _compact_month_cost_runs(items):
+    runs = []
+    for item in items:
+        if (
+            runs
+            and runs[-1]['true_cost'] == item['true_cost']
+            and runs[-1]['allocated'] == item['allocated']
+        ):
+            runs[-1]['end'] = item['month']
+            runs[-1]['months'] += 1
+        else:
+            runs.append({
+                'start': item['month'],
+                'end': item['month'],
+                'months': 1,
+                'true_cost': item['true_cost'],
+                'allocated': item['allocated'],
+            })
+    return runs
+
+
 def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
     """
     Inputs and result of one allocation cost for ``period_start``–``period_end``.
@@ -55,8 +87,12 @@ def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
     Same formula as the PSP overview:
     monthly true cost = (base salary 100% + supplements)
         × (weekly hours / default weekly hours) × multiplicator
-    period cost = monthly true cost × (workhours % / 100) × inclusive calendar months
-    of overlap between the allocation and the period.
+    period cost = sum over each overlapping calendar month of
+        (that month's true cost × workhours % / 100).
+
+    For each month the contract is ``employee.get_contract_as_of(1st of month)``:
+    a successor contract (later valid_from, still open that month) is used
+    from its start month onward. That is intentional.
     """
     if not period_start:
         period_start = allocation.start_date
@@ -90,6 +126,8 @@ def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
         'salary_with_supplements': None,
         'monthly_true_cost': None,
         'monthly_allocated': None,
+        'monthly_cost_runs': [],
+        'has_varying_monthly_cost': False,
         'period_cost': ZERO,
         'contract_from': None,
         'contract_until': None,
@@ -100,20 +138,43 @@ def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
         return result
 
     result['months'] = _calendar_months_inclusive(overlap_start, overlap_end)
-    contract = allocation.employee.get_contract_as_of(overlap_start)
-    if not contract:
+    period_cost = ZERO
+    filled = None
+    month_items = []
+    for month_start in _iter_month_starts(overlap_start, overlap_end):
+        contract = allocation.employee.get_contract_as_of(month_start)
+        if not contract:
+            continue
+        full_monthly = contract.get_monthly_costs(as_of=month_start)
+        if full_monthly is None:
+            continue
+        monthly_allocated = (
+            Decimal(full_monthly) * (percentage / Decimal('100'))
+        ).quantize(Decimal('0.01'))
+        period_cost += monthly_allocated
+        month_items.append({
+            'month': month_start,
+            'true_cost': full_monthly,
+            'allocated': monthly_allocated,
+        })
+        if filled is None:
+            filled = (contract, month_start, full_monthly, monthly_allocated)
+
+    if filled is None:
         result['skip_reason'] = (
-            f'No contract open on {overlap_start.strftime("%d.%m.%Y")}.'
+            f'No contract with monthly salary in {overlap_start.strftime("%m.%Y")}'
+            f'–{overlap_end.strftime("%m.%Y")}.'
         )
         return result
 
+    contract, _month, full_monthly, monthly_allocated = filled
     result['contract_from'] = contract.valid_from
     result['contract_until'] = contract.valid_until
     result['weekly_hours'] = contract.weekly_hours
     result['workload_fraction'] = contract.get_workload_fraction()
-    result['base_salary'] = _as_decimal(contract.get_monthly_salary())
-    result['supplements'] = contract.get_salary_supplements_total()
-    result['salary_with_supplements'] = contract.get_monthly_salary_with_supplements()
+    result['base_salary'] = _as_decimal(contract.get_monthly_salary(as_of=_month))
+    result['supplements'] = contract.get_salary_supplements_total(as_of=_month)
+    result['salary_with_supplements'] = contract.get_monthly_salary_with_supplements(as_of=_month)
     for ss in contract.salary_supplements.all():
         if ss.fixed_amount is not None:
             result['supplement_lines'].append({
@@ -129,17 +190,11 @@ def funding_cost_breakdown(allocation, period_start, period_end) -> dict:
                 label = f'{(ss.comment or "").strip()} ({label})'
             result['supplement_lines'].append({'label': label, 'amount': amount})
 
-    full_monthly = contract.get_monthly_costs()
     result['monthly_true_cost'] = full_monthly
-    if full_monthly is None:
-        result['skip_reason'] = 'No monthly salary / true costs on the contract.'
-        return result
-
-    monthly_allocated = (
-        Decimal(full_monthly) * (percentage / Decimal('100'))
-    ).quantize(Decimal('0.01'))
     result['monthly_allocated'] = monthly_allocated
-    result['period_cost'] = (monthly_allocated * result['months']).quantize(Decimal('0.01'))
+    result['monthly_cost_runs'] = _compact_month_cost_runs(month_items)
+    result['has_varying_monthly_cost'] = len(result['monthly_cost_runs']) > 1
+    result['period_cost'] = period_cost.quantize(Decimal('0.01'))
     return result
 
 

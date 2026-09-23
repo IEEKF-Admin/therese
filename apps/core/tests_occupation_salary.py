@@ -9,8 +9,9 @@ from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames, assign_permissions_to_groups, get_or_create_default_groups
-from apps.core.models import GlobalSetting, OccupationSalaryRow, OccupationSalaryTable
-from apps.core.occupation_salary import fulltime_salary_from_row, resolve_salary_table
+from apps.core.models import GlobalSetting, OccupationSalaryTable
+from apps.core.occupation_salary import add_occupation_row, fulltime_salary_from_row, resolve_salary_table, row_for_hours
+from apps.finances.models import PayScale
 from apps.hr.models import Contract, Employee
 from apps.tasks.forms import PersonnelChangeWorkingHoursTaskForm, RecruitmentJobForm
 from apps.tasks.models import RecruitmentJob
@@ -33,11 +34,7 @@ class OccupationSalaryModelTests(TestCase):
             },
         )
         self.table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
-        self.row = OccupationSalaryRow.objects.create(
-            table=self.table,
-            weekly_hours=Decimal('19.500'),
-            monthly_salary=Decimal('1950.00'),
-        )
+        self.row = add_occupation_row(self.table, Decimal('19.500'), Decimal('1950.00'))
 
     def test_fulltime_conversion(self):
         # 1950 at 19.5h → 3900 at 39h
@@ -123,26 +120,21 @@ class OccupationSalarySettingsTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Occupational salary tables')
+        self.assertContains(response, 'TV-L')
         posted = self.client.post(url, {
-            'action': 'save_global',
-            'default_weekly_hours': '39.00',
+            'action': 'save_personnel',
             'true_cost_multiplicator': '1.300',
             'personnel_import_tolerance': '0.0250',
             'employee_expiring_soon_days': '90',
-            'chemical_hazard_threshold': 'any_ghs',
-            'holiday_half_day_rounding': 'up',
-            'form-TOTAL_FORMS': '0',
-            'form-INITIAL_FORMS': '0',
-            'form-MIN_NUM_FORMS': '0',
-            'form-MAX_NUM_FORMS': '1000',
             'occ_tables_present': '1',
             'occ_table_0_name': 'Berufsgruppen-Tabelle 1',
-            'occ_table_0_row_0_hours': '19,5',
-            'occ_table_0_row_0_pay': '1950',
+            'occ_table_0_inst_0_date': date.today().isoformat(),
+            'occ_table_0_inst_0_row_0_hours': '19,5',
+            'occ_table_0_inst_0_row_0_pay': '1950',
         })
         self.assertEqual(posted.status_code, 302)
         table = OccupationSalaryTable.objects.get(name='Berufsgruppen-Tabelle 1')
-        row = table.rows.get()
+        row = table.instance_on().rows.get()
         self.assertEqual(row.weekly_hours, Decimal('19.500'))
         self.assertEqual(row.monthly_salary, Decimal('1950.00'))
 
@@ -151,30 +143,47 @@ class OccupationSalarySettingsTests(TestCase):
         self.client.login(username='sysadmin-occ', password='test')
         url = reverse('core_settings:global_settings')
         posted = self.client.post(url, {
-            'action': 'save_global',
+            'action': 'save_general',
             'default_weekly_hours': '39.00',
-            'true_cost_multiplicator': '1.300',
-            'personnel_import_tolerance': '0.0250',
-            'employee_expiring_soon_days': '90',
-            'chemical_hazard_threshold': 'any_ghs',
-            'holiday_half_day_rounding': 'up',
-            'form-TOTAL_FORMS': '0',
-            'form-INITIAL_FORMS': '0',
-            'form-MIN_NUM_FORMS': '0',
-            'form-MAX_NUM_FORMS': '1000',
         })
         self.assertEqual(posted.status_code, 302)
         self.assertTrue(OccupationSalaryTable.objects.filter(name='Keep me').exists())
+
+    def test_future_instance_is_not_active(self):
+        table = OccupationSalaryTable.objects.create(name='Dated')
+        add_occupation_row(table, Decimal('20.000'), Decimal('2000.00'), as_of=date(2020, 1, 1))
+        add_occupation_row(table, Decimal('10.000'), Decimal('999.00'), as_of=date(2099, 1, 1))
+        self.assertEqual(
+            row_for_hours(table, Decimal('20.000')).monthly_salary,
+            Decimal('2000.00'),
+        )
+        self.assertIsNone(row_for_hours(table, Decimal('10.000')))
+        self.assertEqual(
+            row_for_hours(table, Decimal('10.000'), as_of=date(2099, 1, 1)).monthly_salary,
+            Decimal('999.00'),
+        )
+
+    def test_payscale_ignores_future_instance(self):
+        PayScale.objects.create(
+            pay_scale_group='E13', experience_level=1,
+            monthly_salary=Decimal('4000.00'), effective_as_of=date(2020, 1, 1),
+        )
+        PayScale.objects.create(
+            pay_scale_group='E13', experience_level=1,
+            monthly_salary=Decimal('9999.00'), effective_as_of=date(2099, 1, 1),
+        )
+        current = PayScale.get_current().get(pay_scale_group='E13', experience_level=1)
+        self.assertEqual(current.monthly_salary, Decimal('4000.00'))
+        future = PayScale.get_current(as_of=date(2099, 1, 1)).get(
+            pay_scale_group='E13', experience_level=1,
+        )
+        self.assertEqual(future.monthly_salary, Decimal('9999.00'))
 
 
 class OccupationSalaryJobFormTests(TestCase):
     def setUp(self):
         self.table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
-        OccupationSalaryRow.objects.create(
-            table=self.table,
-            weekly_hours=Decimal('20.000'),
-            monthly_salary=Decimal('2000.00'),
-        )
+        add_occupation_row(self.table, Decimal('20.000'), Decimal('2000.00'))
         GlobalSetting.objects.update_or_create(
             pk=1, defaults={'default_weekly_hours': Decimal('40.000')},
         )
@@ -206,11 +215,7 @@ class OccupationSalaryEmployeeViewTests(TestCase):
             Permission.objects.get(content_type=ct, codename='manage_employee'),
         )
         self.table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
-        OccupationSalaryRow.objects.create(
-            table=self.table,
-            weekly_hours=Decimal('19.500'),
-            monthly_salary=Decimal('1950.00'),
-        )
+        add_occupation_row(self.table, Decimal('19.500'), Decimal('1950.00'))
         self.employee = Employee.objects.create(
             employee_number='OCC-84', first_name='Therese', last_name='Test',
         )
@@ -266,12 +271,8 @@ class OccupationChangeHoursTests(TestCase):
             pk=1, defaults={'default_weekly_hours': Decimal('39.000')},
         )
         self.table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
-        OccupationSalaryRow.objects.create(
-            table=self.table, weekly_hours=Decimal('19.500'), monthly_salary=Decimal('1950.00'),
-        )
-        OccupationSalaryRow.objects.create(
-            table=self.table, weekly_hours=Decimal('39.000'), monthly_salary=Decimal('3900.00'),
-        )
+        add_occupation_row(self.table, Decimal('19.500'), Decimal('1950.00'))
+        add_occupation_row(self.table, Decimal('39.000'), Decimal('3900.00'))
         self.user = CustomUser.objects.create_user('hr', password='test')
         self.employee = Employee.objects.create(
             employee_number='OCC-CWH', first_name='Max', last_name='Hours',

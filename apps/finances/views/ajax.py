@@ -19,7 +19,7 @@ def ajax_payscale_levels(request):
     if not group:
         return JsonResponse([], safe=False)
 
-    scales = PayScale.objects.filter(pay_scale_group=group).order_by('experience_level')
+    scales = PayScale.get_current().filter(pay_scale_group=group).order_by('experience_level')
 
     data = [{
         'level': scale.experience_level,

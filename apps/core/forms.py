@@ -5,6 +5,44 @@ from apps.holidays.public_holidays import FEDERAL_STATES
 from apps.tasks.form_validation import DecimalCommaField
 
 
+SETTINGS_TAB_FIELDS = {
+    'general': [
+        'default_weekly_hours',
+        'show_add_employee_on_reallocation',
+        'irresponsible',
+    ],
+    'personnel': [
+        'true_cost_multiplicator',
+        'personnel_import_tolerance',
+        'employee_expiring_soon_days',
+        'limitation_pdf_letterhead',
+    ],
+    'chemicals': [
+        'chemicals_enabled',
+        'chemical_hazard_threshold',
+    ],
+    'inventory': [
+        'inventory_enabled',
+    ],
+    'holidays': [
+        'holidays_enabled',
+        'holidays_planning_enabled',
+        'holidays_approval_enabled',
+        'holidays_gantt_enabled',
+        'holiday_federal_state',
+        'holiday_half_day_rounding',
+        'holiday_advance_deadline',
+        'holiday_email_recipients',
+        'holiday_request_email_subject',
+        'holiday_request_email_html',
+        'holiday_cancel_email_subject',
+        'holiday_cancel_email_html',
+    ],
+}
+
+SETTINGS_TAB_ACTIONS = {f'save_{tab}': tab for tab in SETTINGS_TAB_FIELDS}
+
+
 class GlobalSettingForm(forms.ModelForm):
     default_weekly_hours = DecimalCommaField(
         max_digits=5,
@@ -112,3 +150,21 @@ class GlobalSettingForm(forms.ModelForm):
         from apps.core.html_sanitize import sanitize_html
 
         return sanitize_html(self.cleaned_data.get('holiday_cancel_email_html'))
+
+
+def global_setting_form_class(tab):
+    tab_fields = list(SETTINGS_TAB_FIELDS[tab])
+
+    class TabForm(GlobalSettingForm):
+        class Meta(GlobalSettingForm.Meta):
+            fields = tab_fields
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            allowed = set(tab_fields)
+            for name in list(self.fields):
+                if name not in allowed:
+                    self.fields.pop(name)
+
+    TabForm.__name__ = f'GlobalSetting{tab.title()}Form'
+    return TabForm

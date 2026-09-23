@@ -82,15 +82,14 @@ class RecruitmentJobSalaryTests(TestCase):
     def test_occupation_table_estimated_salary(self):
         from decimal import Decimal
 
-        from apps.core.models import GlobalSetting, OccupationSalaryRow, OccupationSalaryTable
+        from apps.core.models import GlobalSetting, OccupationSalaryTable
+        from apps.core.occupation_salary import add_occupation_row
 
         GlobalSetting.objects.update_or_create(
             pk=1, defaults={'default_weekly_hours': Decimal('39.000')},
         )
         table = OccupationSalaryTable.objects.create(name='Berufsgruppen-Tabelle 1')
-        OccupationSalaryRow.objects.create(
-            table=table, weekly_hours=Decimal('19.500'), monthly_salary=Decimal('1950.00'),
-        )
+        add_occupation_row(table, Decimal('19.500'), Decimal('1950.00'))
         job = RecruitmentJob.objects.create(
             name='Occupation job',
             salary_table=table,

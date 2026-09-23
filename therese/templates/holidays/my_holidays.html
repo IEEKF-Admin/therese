@@ -176,12 +176,6 @@
                 <label for="{{ profile_form.share_with_institute.id_for_label }}">{{ profile_form.share_with_institute.label }}</label>
             </div>
             {% endif %}
-            {% if approval_enabled %}
-            <div class="aligned-field">
-                <label for="{{ profile_form.signature.id_for_label }}">Signature image</label>
-                {{ profile_form.signature }}
-            </div>
-            {% endif %}
             <div class="form-actions">
                 <button type="submit" class="btn-primary">Save settings</button>
             </div>

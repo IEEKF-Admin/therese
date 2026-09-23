@@ -163,19 +163,8 @@ class InventoryModuleTests(TestCase):
         self.assertContains(response, 'Inventory module')
         self.assertContains(response, 'Item types')
         posted = self.client.post(url, {
-            'action': 'save_global',
-            'default_weekly_hours': '39.00',
-            'true_cost_multiplicator': '1.300',
-            'personnel_import_tolerance': '0.0250',
-            'employee_expiring_soon_days': '90',
-            'chemicals_enabled': 'on',
-            'chemical_hazard_threshold': 'any_ghs',
+            'action': 'save_inventory',
             'inventory_enabled': 'on',
-            'holiday_half_day_rounding': 'up',
-            'form-TOTAL_FORMS': '2',
-            'form-INITIAL_FORMS': '0',
-            'form-MIN_NUM_FORMS': '0',
-            'form-MAX_NUM_FORMS': '1000',
             'inv_types_present': '1',
             'inv_type_0_id': str(self.item_type.pk),
             'inv_type_0_name': 'Storage media',

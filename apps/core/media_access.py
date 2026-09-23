@@ -220,23 +220,4 @@ def _finance_file(user, path) -> bool:
 
 
 def _holiday_file(user, path) -> bool:
-    from apps.holidays.access import user_can_approve_all, user_can_approve_request
-    from apps.holidays.models import HolidayProfile, HolidayRequest
-
-    employee = getattr(user, 'employee', None)
-    if path.startswith('holidays/signatures/'):
-        profile = HolidayProfile.objects.filter(signature=path).select_related('employee').first()
-        if not profile:
-            return False
-        if employee and profile.employee_id == employee.pk:
-            return True
-        dummy = HolidayRequest(employee=profile.employee)
-        return user_can_approve_request(user, dummy) or user_can_approve_all(user)
-    if path.startswith('holidays/pdfs/'):
-        holiday_request = HolidayRequest.objects.filter(pdf_file=path).select_related('employee').first()
-        if not holiday_request:
-            return False
-        if employee and holiday_request.employee_id == employee.pk:
-            return True
-        return user_can_approve_request(user, holiday_request) or user_can_approve_all(user)
     return False

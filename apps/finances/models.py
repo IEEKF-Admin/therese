@@ -40,15 +40,18 @@ class PayScale(BaseModel):
         return f"{self.pay_scale_group} Level {self.experience_level} — {self.monthly_salary} €"
 
     @classmethod
-    def get_current(cls):
+    def get_current(cls, as_of=None):
         """
-        Return only the most recent PayScale entry per (pay_scale_group, experience_level)
-        based on the latest effective_as_of.
+        Latest PayScale per (group, level) whose effective_as_of is on or before as_of
+        (defaults to today). Future instances are ignored until their start date.
         """
+        from datetime import date as date_cls
+
         from django.db.models import Max, Q
 
+        as_of = as_of or date_cls.today()
         latest_dates = list(
-            cls.objects
+            cls.objects.filter(effective_as_of__lte=as_of)
             .values('pay_scale_group', 'experience_level')
             .annotate(latest_date=Max('effective_as_of'))
         )
@@ -64,6 +67,53 @@ class PayScale(BaseModel):
                 effective_as_of=item['latest_date']
             )
         return cls.objects.filter(q).order_by('pay_scale_group', 'experience_level')
+
+    @classmethod
+    def display_instances(cls):
+        """Dated TV-L grids for Global Settings (newest first)."""
+        from datetime import date as date_cls
+
+        dates = list(
+            cls.objects.values_list('effective_as_of', flat=True)
+            .distinct()
+            .order_by('-effective_as_of')
+        )
+        today = date_cls.today()
+        active = (
+            cls.objects.filter(effective_as_of__lte=today)
+            .order_by('-effective_as_of')
+            .values_list('effective_as_of', flat=True)
+            .first()
+        )
+        instances = []
+        for as_of in dates:
+            entries = list(cls.objects.filter(effective_as_of=as_of).order_by(
+                'pay_scale_group', 'experience_level',
+            ))
+            groups = []
+            for entry in entries:
+                if entry.pay_scale_group not in groups:
+                    groups.append(entry.pay_scale_group)
+            levels = sorted({entry.experience_level for entry in entries})
+            cells = {
+                (entry.pay_scale_group, entry.experience_level): entry.monthly_salary
+                for entry in entries
+            }
+            instances.append({
+                'date': as_of,
+                'date_iso': as_of.isoformat(),
+                'date_label': as_of.strftime('%d.%m.%Y'),
+                'is_active': as_of == active,
+                'levels': levels,
+                'rows': [
+                    {
+                        'group': group,
+                        'salaries': [cells.get((group, level)) for level in levels],
+                    }
+                    for group in groups
+                ],
+            })
+        return instances
 
 
 class ContactPerson(BaseModel):

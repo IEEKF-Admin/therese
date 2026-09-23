@@ -354,6 +354,11 @@ class Employee(BaseModel):
         Among contracts that have started and not yet ended, the one with the
         latest ``valid_from`` wins. Future-dated contracts are ignored.
         See ``apps.hr.validity``.
+
+        PSP / funding-allocation costs call this per calendar month, so a
+        successor contract (later valid_from, still open that month) is the
+        one used for that month — intentionally, not the contract that was
+        current when the allocation was created.
         """
         from apps.hr.validity import select_contract_as_of
 
@@ -405,14 +410,14 @@ class Employee(BaseModel):
         contract = self.get_contract_as_of(as_of)
         if contract is None:
             return None
-        return contract.get_monthly_salary()
+        return contract.get_monthly_salary(as_of=as_of)
 
     def get_monthly_costs(self, as_of=None):
         """True monthly personnel costs from the relevant contract (as of date)."""
         contract = self.get_contract_as_of(as_of)
         if contract is None:
             return None
-        return contract.get_monthly_costs()
+        return contract.get_monthly_costs(as_of=as_of)
 
 
 class Contract(BaseModel):
@@ -444,11 +449,11 @@ class Contract(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="Monthly Salary (100% workload)",
+        verbose_name="Monthly Salary (100% workload, snapshot)",
         help_text=(
-            "Monthly salary the person would receive at 100% working time "
-            "(full-time reference). Part-time hours are applied only when "
-            "calculating true costs. Salary supplements are added on top."
+            "Snapshot stored when this contract is saved (table in force on "
+            "Valid From, or a manual amount). Live costs use the table in "
+            "force for each calendar month. This is not a month-by-month list."
         ),
     )
 
@@ -530,7 +535,7 @@ class Contract(BaseModel):
                 fulltime_salary_from_row,
                 row_for_hours,
             )
-            row = row_for_hours(table, self.weekly_hours)
+            row = row_for_hours(table, self.weekly_hours, as_of=self.valid_from)
             if row is None:
                 raise ValidationError({
                     'weekly_hours': (
@@ -544,7 +549,7 @@ class Contract(BaseModel):
         if not table and self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
             salary = (
-                PayScale.get_current()
+                PayScale.get_current(as_of=self.valid_from)
                 .filter(
                     pay_scale_group=self.pay_scale_group,
                     experience_level=self.experience_level,
@@ -591,19 +596,38 @@ class Contract(BaseModel):
             is_archived=bool(getattr(self, 'is_archived', False)),
         )
 
-    def get_monthly_salary(self):
+    def get_monthly_salary(self, as_of=None):
         """
-        Full-time (100% workload) monthly base salary for this contract.
+        Full-time (100% workload) monthly base salary for this contract
+        on ``as_of`` (defaults to today).
 
-        Stored value first, otherwise current TV-L table for group/level.
+        Occupational / TV-L table instance in force on that date wins.
+        Stored ``monthly_salary`` is only a fallback when no table applies.
         Does not include salary supplements or part-time scaling.
         """
-        if self.monthly_salary is not None:
-            return self.monthly_salary
+        from datetime import date as date_cls
+
+        as_of = as_of or date_cls.today()
+        table = None
+        employee = getattr(self, 'employee', None)
+        if hasattr(self, '_salary_table_override'):
+            table = self._salary_table_override
+        elif employee is not None:
+            from apps.core.occupation_salary import resolve_salary_table
+            table = resolve_salary_table(employee)
+        if table:
+            from apps.core.occupation_salary import (
+                fulltime_salary_from_row,
+                row_for_hours,
+            )
+            row = row_for_hours(table, self.weekly_hours, as_of=as_of)
+            if row is None:
+                return None
+            return fulltime_salary_from_row(row)
         if self.pay_scale_group and self.experience_level is not None:
             from apps.finances.models import PayScale
-            return (
-                PayScale.get_current()
+            salary = (
+                PayScale.get_current(as_of=as_of)
                 .filter(
                     pay_scale_group=self.pay_scale_group,
                     experience_level=self.experience_level,
@@ -611,9 +635,11 @@ class Contract(BaseModel):
                 .values_list('monthly_salary', flat=True)
                 .first()
             )
-        return None
+            if salary is not None:
+                return salary
+        return self.monthly_salary
 
-    def get_salary_supplements_total(self):
+    def get_salary_supplements_total(self, as_of=None):
         """
         Sum of salary supplements on this contract at 100% workload.
 
@@ -622,7 +648,7 @@ class Contract(BaseModel):
         """
         from decimal import Decimal, ROUND_HALF_UP
 
-        base = self.get_monthly_salary()
+        base = self.get_monthly_salary(as_of=as_of)
         base_dec = Decimal(base) if base is not None else Decimal('0')
         total = Decimal('0.00')
         # Prefer prefetched relation when present
@@ -634,7 +660,7 @@ class Contract(BaseModel):
                 total += base_dec * Decimal(ss.percentage) / Decimal('100')
         return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    def get_monthly_salary_with_supplements(self):
+    def get_monthly_salary_with_supplements(self, as_of=None):
         """
         Full-time (100%) monthly salary including salary supplements.
 
@@ -642,8 +668,8 @@ class Contract(BaseModel):
         """
         from decimal import Decimal, ROUND_HALF_UP
 
-        base = self.get_monthly_salary()
-        supplements = self.get_salary_supplements_total()
+        base = self.get_monthly_salary(as_of=as_of)
+        supplements = self.get_salary_supplements_total(as_of=as_of)
         if base is None and supplements == 0:
             return None
         base_dec = Decimal(base) if base is not None else Decimal('0')
@@ -670,7 +696,7 @@ class Contract(BaseModel):
             Decimal('0.0001'), rounding=ROUND_HALF_UP
         )
 
-    def get_monthly_costs(self):
+    def get_monthly_costs(self, as_of=None):
         """
         True monthly personnel costs for this contract:
 
@@ -681,7 +707,7 @@ class Contract(BaseModel):
 
         from apps.core.models import GlobalSetting
 
-        salary = self.get_monthly_salary_with_supplements()
+        salary = self.get_monthly_salary_with_supplements(as_of=as_of)
         if salary is None:
             return None
         multiplicator = GlobalSetting.get_true_cost_multiplicator()

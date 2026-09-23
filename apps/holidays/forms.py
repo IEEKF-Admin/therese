@@ -9,7 +9,7 @@ class HolidayProfileForm(forms.ModelForm):
         fields = [
             'works_monday', 'works_tuesday', 'works_wednesday',
             'works_thursday', 'works_friday',
-            'share_with_institute', 'signature',
+            'share_with_institute',
         ]
         widgets = {
             'share_with_institute': forms.CheckboxInput(),

@@ -611,10 +611,8 @@ def assign_permissions_to_groups():
     else:
         print("  [Permissions] No new permission assignments (or groups/permissions not ready).")
 
-    if missing_permissions:
-        print("  [Permissions] WARNING - missing in database (run migrate first):")
-        for perm in missing_permissions:
-            print(f"    - {perm}")
+    # Missing perms are expected while later apps have not migrated yet;
+    # those apps assign them in their own post_migrate. Do not warn.
 
 
 def audit_groups_and_permissions():

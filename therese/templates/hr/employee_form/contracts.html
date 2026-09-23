@@ -77,11 +77,11 @@
                     <div class="inline-field"><label>Pay Scale Group</label>{% if form.pay_scale_group.errors %}{{ form.pay_scale_group|add_class:"form-control error" }}{% else %}{{ form.pay_scale_group|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Experience Level</label>{% if form.experience_level.errors %}{{ form.experience_level|add_class:"form-control error" }}{% else %}{{ form.experience_level|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field">
-                        <label title="Monthly salary at 100% working time">
-                            Monthly Salary (100% workload)
+                        <label title="Snapshot stored at last save; live costs use the table per month">
+                            Monthly Salary (100% workload, snapshot)
                         </label>
                         {% if form.monthly_salary.errors %}{{ form.monthly_salary|add_class:"form-control error" }}{% else %}{{ form.monthly_salary|add_class:"form-control" }}{% endif %}
-                        <small class="field-hint">Monthly salary at 100% working time. Supplements and part-time hours apply in true costs.</small>
+                        <small class="field-hint">Snapshot at last save (table on Valid From, or manual). Live costs use the table in force each month — not a month list.</small>
                     </div>
                     <div class="inline-field"><label>Job Number</label>{% if form.job_number.errors %}{{ form.job_number|add_class:"form-control error" }}{% else %}{{ form.job_number|add_class:"form-control" }}{% endif %}</div>
                     <div class="inline-field"><label>Weekly Hours</label>{% if form.weekly_hours.errors %}{{ form.weekly_hours|add_class:"form-control error" }}{% else %}{{ form.weekly_hours|add_class:"form-control" }}{% endif %}</div>

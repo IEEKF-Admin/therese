@@ -8,7 +8,7 @@ from apps.hr.models import Employee
 
 
 class HolidayProfile(BaseModel):
-    """Per-employee holiday settings (workdays, consent, signature)."""
+    """Per-employee holiday settings (workdays, consent)."""
 
     employee = models.OneToOneField(
         Employee,
@@ -24,12 +24,6 @@ class HolidayProfile(BaseModel):
     share_with_institute = models.BooleanField(
         default=False,
         verbose_name='Show my holidays on the institute Gantt chart',
-    )
-    signature = models.ImageField(
-        upload_to='holidays/signatures/',
-        blank=True,
-        null=True,
-        verbose_name='Signature',
     )
 
     class Meta:
@@ -222,12 +216,6 @@ class HolidayRequest(BaseModel):
         blank=True,
         related_name='holiday_decisions',
         verbose_name='Decided by',
-    )
-    pdf_file = models.FileField(
-        upload_to='holidays/pdfs/',
-        blank=True,
-        null=True,
-        verbose_name='Generated PDF',
     )
 
     class Meta:

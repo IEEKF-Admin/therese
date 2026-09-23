@@ -11,7 +11,7 @@ from apps.accounts.permissions import GroupNames
 from apps.core.models import GlobalSetting
 from django.core import mail
 
-from apps.holidays.mail import format_holiday_analysis, format_leave_periods
+from apps.holidays.mail import format_holiday_analysis, format_leave_periods, holiday_mail_context
 from apps.holidays.models import (
     HolidayCustomDay,
     HolidayEntitlementRate,
@@ -163,6 +163,36 @@ class HolidayCalculationTests(TestCase):
             format_holiday_analysis(self.employee, [year]),
             f'{year}: verfügbar 30, genehmigt 0, beantragt 0, verbleibend 30',
         )
+
+    def test_mail_context_matches_paper_form(self):
+        self.employee.prefix = 'Dr.'
+        self.employee.street = 'Sigmund-Freud-Str.'
+        self.employee.house_number = '25'
+        self.employee.postal_code = '53127'
+        self.employee.city = 'Bonn'
+        self.employee.save()
+        HolidayYearEntitlement.objects.filter(employee=self.employee).update(
+            carryover=Decimal('2'), special_leave=Decimal('1'),
+        )
+        start = date.today() + timedelta(days=1)
+        while start.weekday() != 0:
+            start += timedelta(days=1)
+        created = create_request(self.user, self.employee, [start])
+        ctx = holiday_mail_context(self.employee, [start], holiday_request=created)
+        self.assertEqual(ctx['first_name'], 'Hanna')
+        self.assertEqual(ctx['last_name'], 'Leave')
+        self.assertEqual(ctx['purpose'], 'Erholungsurlaub')
+        self.assertEqual(ctx['annual_leave'], '30')
+        self.assertEqual(ctx['carryover'], '2')
+        self.assertEqual(ctx['special_leave'], '1')
+        self.assertEqual(ctx['available'], '33')
+        self.assertEqual(ctx['already_granted'], '0')
+        self.assertEqual(ctx['now_requested'], '1')
+        self.assertEqual(ctx['remaining_leave'], '32')
+        self.assertEqual(ctx['approver_name'], 'Dr. Leave')
+        self.assertIn('53127 Bonn', ctx['leave_address'])
+        self.assertTrue(ctx['place_date'].startswith('Bonn, den '))
+        self.assertEqual(ctx['deputy'], '')
 
     def test_cancel_future_days_keeps_rest_and_sends_mail(self):
         self.employee.email_professional = 'hanna@example.com'

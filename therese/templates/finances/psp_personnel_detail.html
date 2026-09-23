@@ -91,6 +91,11 @@
         · Contract {{ prow.monthly_calc.contract_from|date:"d.m.Y" }} – {% if prow.monthly_calc.contract_until %}{{ prow.monthly_calc.contract_until|date:"d.m.Y" }}{% else %}open{% endif %}
         {% endif %}
     </p>
+    <p class="text-muted" style="margin:0 0 0.85rem; font-size:0.8rem;">
+        Each calendar month uses the contract open on the 1st of that month
+        (latest valid-from among open contracts). A successor contract therefore
+        applies from its start month.
+    </p>
 
     <h3 class="personnel-calc-heading">1. Monthly true cost (contract, 100% of this allocation’s contract)</h3>
     {% if prow.monthly_calc.skip_reason and prow.monthly_calc.monthly_true_cost is None %}
@@ -144,6 +149,30 @@
             </tr>
         </tbody>
     </table>
+    {% if prow.monthly_calc.has_varying_monthly_cost %}
+    <p class="field-hint" style="margin-top:0.5rem;">Monthly allocated cost changes during this period (salary table or contract):</p>
+    <table class="table personnel-calc-table">
+        <thead>
+            <tr>
+                <th>Months</th>
+                <th class="text-right">Monthly true cost</th>
+                <th class="text-right">Monthly allocated</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in prow.monthly_calc.monthly_cost_runs %}
+            <tr>
+                <td>
+                    {{ run.start|date:"m.Y" }}{% if run.start != run.end %}–{{ run.end|date:"m.Y" }}{% endif %}
+                    ({{ run.months }})
+                </td>
+                <td class="text-right">{{ run.true_cost|de_number:2 }} €</td>
+                <td class="text-right">{{ run.allocated|de_number:2 }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
     {% endif %}
 
     <h3 class="personnel-calc-heading">2. Not booked (overview column, year {{ year }})</h3>

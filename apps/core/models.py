@@ -323,24 +323,24 @@ class GlobalSetting(models.Model):
         blank=True,
         default='Urlaubsantrag – {{ applicant_name }}',
         verbose_name='Request email subject',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
+        help_text='See the holiday email variable list in Global Settings.',
     )
     holiday_request_email_html = models.TextField(
         blank=True,
         verbose_name='Request email body (HTML)',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
+        help_text='See the holiday email variable list in Global Settings.',
     )
     holiday_cancel_email_subject = models.CharField(
         max_length=200,
         blank=True,
         default='Urlaubsstornierung – {{ applicant_name }}',
         verbose_name='Cancellation email subject',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
+        help_text='See the holiday email variable list in Global Settings.',
     )
     holiday_cancel_email_html = models.TextField(
         blank=True,
         verbose_name='Cancellation email body (HTML)',
-        help_text='Variables: {{ applicant_name }}, {{ employee_number }}, {{ periods }}, {{ day_count }}, {{ holiday_analysis }}',
+        help_text='See the holiday email variable list in Global Settings.',
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -415,13 +415,47 @@ class OccupationSalaryTable(BaseModel):
     def __str__(self):
         return self.name
 
+    def instance_on(self, as_of=None):
+        from datetime import date
+        as_of = as_of or date.today()
+        return (
+            self.instances.filter(effective_as_of__lte=as_of)
+            .order_by('-effective_as_of')
+            .first()
+        )
 
-class OccupationSalaryRow(BaseModel):
+
+class OccupationSalaryInstance(BaseModel):
+    """A dated version of an occupational salary table."""
     table = models.ForeignKey(
         OccupationSalaryTable,
         on_delete=models.CASCADE,
-        related_name='rows',
+        related_name='instances',
         verbose_name='Table',
+    )
+    effective_as_of = models.DateField(verbose_name='Effective as of')
+
+    class Meta:
+        verbose_name = 'Occupational salary instance'
+        verbose_name_plural = 'Occupational salary instances'
+        ordering = ['-effective_as_of', 'pk']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['table', 'effective_as_of'],
+                name='occupation_salary_instance_date_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.table.name} from {self.effective_as_of:%d.%m.%Y}'
+
+
+class OccupationSalaryRow(BaseModel):
+    instance = models.ForeignKey(
+        OccupationSalaryInstance,
+        on_delete=models.CASCADE,
+        related_name='rows',
+        verbose_name='Instance',
     )
     weekly_hours = models.DecimalField(
         max_digits=6,
@@ -441,12 +475,15 @@ class OccupationSalaryRow(BaseModel):
         ordering = ['weekly_hours']
         constraints = [
             models.UniqueConstraint(
-                fields=['table', 'weekly_hours'],
+                fields=['instance', 'weekly_hours'],
                 name='occupation_salary_row_hours_uniq',
             ),
         ]
 
     def __str__(self):
-        return f'{self.table.name}: {self.weekly_hours} h → {self.monthly_salary} €'
+        return (
+            f'{self.instance.table.name} {self.instance.effective_as_of:%d.%m.%Y}: '
+            f'{self.weekly_hours} h → {self.monthly_salary} €'
+        )
 
 

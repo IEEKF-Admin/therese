@@ -240,21 +240,21 @@ def build_personnel_checks(entries: list, parent_wbs_code: str, as_of: date | No
         percentage = Decimal(allocation.workhours_percentage or 0)
         check['percentage'] = str(percentage)
 
-        contract = allocation.contract or employee.get_contract_as_of(as_of)
-        true_monthly = contract.get_monthly_costs() if contract else None
-        base_salary = contract.get_monthly_salary() if contract else None
+        contract = allocation.contract or employee.get_contract_as_of(booking_date)
+        true_monthly = contract.get_monthly_costs(as_of=booking_date) if contract else None
+        base_salary = contract.get_monthly_salary(as_of=booking_date) if contract else None
         if true_monthly is None:
             check['status'] = 'no_salary'
             check['message'] = (
                 f'No monthly salary / true costs on contract for '
-                f'{check["employee_name"]} as of {as_of.isoformat()}.'
+                f'{check["employee_name"]} as of {booking_date.isoformat()}.'
             )
             checks.append(check)
             continue
 
         if base_salary is not None:
             check['monthly_salary'] = str(_q2(Decimal(base_salary)))
-        salary_with_sup = contract.get_monthly_salary_with_supplements()
+        salary_with_sup = contract.get_monthly_salary_with_supplements(as_of=booking_date)
         if salary_with_sup is not None:
             check['salary_with_supplements'] = str(_q2(Decimal(salary_with_sup)))
         fraction = contract.get_workload_fraction()

@@ -1,3 +1,5 @@
+from datetime import date
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -5,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from .file_service import ThereseFileService
 from .media_access import user_can_access_stored_file
@@ -102,6 +105,11 @@ def _default_test_recipient(user):
     return ''
 
 
+def _payscale_instances():
+    from apps.finances.models import PayScale
+    return PayScale.display_instances()
+
+
 @login_required
 def global_settings(request):
     from apps.accounts.account_emails import (
@@ -110,8 +118,13 @@ def global_settings(request):
         save_account_email_templates_from_post,
     )
     from apps.accounts.permissions import user_can_edit_global_settings, user_is_hr_superassistant
-    from apps.core.forms import GlobalSettingForm
-    from apps.core.models import GlobalSetting, OccupationSalaryTable
+    from apps.core.forms import (
+        GlobalSettingForm,
+        SETTINGS_TAB_ACTIONS,
+        global_setting_form_class,
+    )
+    from apps.core.models import GlobalSetting
+    from apps.core.occupation_salary import occupation_tables_for_settings
     from django.db.models import Count
     from apps.inventory.models import InventoryItemType
     from apps.tasks.views.workflow_admin import workflow_config_list_rows
@@ -130,6 +143,8 @@ def global_settings(request):
     ensure_default_rates()
     custom_qs = HolidayCustomDay.objects.order_by('day')
 
+    posted_tab = ''
+    settings_url = reverse('core_settings:global_settings')
     if request.method == 'POST':
         if not can_edit_global:
             raise PermissionDenied
@@ -137,35 +152,51 @@ def global_settings(request):
         if action == 'save_account_emails':
             save_account_email_templates_from_post(request.POST, request.FILES)
             messages.success(request, 'Account email templates were saved.')
-            return redirect('core_settings:global_settings')
-        form = GlobalSettingForm(request.POST, instance=setting)
-        custom_formset = HolidayCustomDayFormSet(request.POST, queryset=custom_qs)
-        if form.is_valid() and custom_formset.is_valid():
-            form.save()
-            custom_formset.save()
-            from apps.core.occupation_salary import save_occupation_tables_from_post
-            from apps.inventory.services import save_inventory_types_from_post
-            save_occupation_tables_from_post(request.POST)
-            save_inventory_types_from_post(request.POST)
-            for weekdays in range(1, 6):
-                for months in range(1, 13):
-                    raw = request.POST.get(f'entitlement_{weekdays}_{months}')
-                    if raw in (None, ''):
-                        continue
-                    from decimal import Decimal, InvalidOperation
-                    from apps.tasks.form_validation import parse_loose_decimal
+            return redirect(settings_url + '?tab=emails')
+        tab = SETTINGS_TAB_ACTIONS.get(action)
+        if tab:
+            posted_tab = tab
+            TabForm = global_setting_form_class(tab)
+            tab_form = TabForm(request.POST, instance=setting)
+            if tab == 'holidays':
+                custom_formset = HolidayCustomDayFormSet(request.POST, queryset=custom_qs)
+            else:
+                custom_formset = HolidayCustomDayFormSet(queryset=custom_qs)
+            holidays_ok = tab != 'holidays' or custom_formset.is_valid()
+            if tab_form.is_valid() and holidays_ok:
+                tab_form.save()
+                if tab == 'holidays':
+                    custom_formset.save()
+                    for weekdays in range(1, 6):
+                        for months in range(1, 13):
+                            raw = request.POST.get(f'entitlement_{weekdays}_{months}')
+                            if raw in (None, ''):
+                                continue
+                            from decimal import Decimal, InvalidOperation
+                            from apps.tasks.form_validation import parse_loose_decimal
 
-                    try:
-                        days = Decimal(str(parse_loose_decimal(raw)))
-                    except (InvalidOperation, ValueError, TypeError):
-                        continue
-                    HolidayEntitlementRate.objects.update_or_create(
-                        weekdays=weekdays,
-                        contract_months=months,
-                        defaults={'days': days},
-                    )
-            messages.success(request, 'Global settings were saved.')
-            return redirect('core_settings:global_settings')
+                            try:
+                                days = Decimal(str(parse_loose_decimal(raw)))
+                            except (InvalidOperation, ValueError, TypeError):
+                                continue
+                            HolidayEntitlementRate.objects.update_or_create(
+                                weekdays=weekdays,
+                                contract_months=months,
+                                defaults={'days': days},
+                            )
+                elif tab == 'personnel':
+                    from apps.core.occupation_salary import save_occupation_tables_from_post
+                    save_occupation_tables_from_post(request.POST)
+                elif tab == 'inventory':
+                    from apps.inventory.services import save_inventory_types_from_post
+                    save_inventory_types_from_post(request.POST)
+                messages.success(request, 'Global settings were saved.')
+                return redirect(settings_url + f'?tab={tab}')
+            for name in tab_form.fields:
+                form.initial[name] = tab_form[name].value()
+            form._errors = tab_form.errors
+        else:
+            custom_formset = HolidayCustomDayFormSet(queryset=custom_qs)
     else:
         custom_formset = HolidayCustomDayFormSet(queryset=custom_qs)
 
@@ -182,22 +213,29 @@ def global_settings(request):
                 for months in range(12, 0, -1)
             ],
         })
-    requested_tab = (request.GET.get('tab') or '').strip()
+    requested_tab = posted_tab or (request.GET.get('tab') or '').strip()
+    allowed_tabs = {'general', 'personnel', 'chemicals', 'inventory', 'holidays', 'emails'}
     if requested_tab == 'workflow' and can_manage_workflow:
         settings_default_tab = 'workflow'
+    elif can_edit_global and requested_tab in allowed_tabs:
+        settings_default_tab = requested_tab
     elif can_edit_global:
         settings_default_tab = 'general'
     else:
         settings_default_tab = 'workflow'
+    from apps.holidays.mail import HOLIDAY_EMAIL_VARIABLES
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
-        'occupation_tables': OccupationSalaryTable.objects.prefetch_related('rows').order_by('name'),
+        'occupation_tables': occupation_tables_for_settings(),
+        'payscale_instances': _payscale_instances(),
+        'occupation_today': date.today().isoformat(),
         'inventory_types': InventoryItemType.objects.annotate(
             item_count=Count('items'),
         ).order_by('name'),
         'account_email_templates': ensure_account_email_templates(),
         'account_email_variables': ACCOUNT_EMAIL_VARIABLES,
+        'holiday_email_variables': HOLIDAY_EMAIL_VARIABLES,
         'custom_formset': custom_formset,
         'entitlement_grid': entitlement_grid,
         'month_range': range(12, 0, -1),

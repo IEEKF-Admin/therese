@@ -407,7 +407,7 @@ def create_request(user, employee, dates, *, comment=''):
         decided_by=None if flags['approval'] else user,
     )
     from apps.holidays.mail import send_holiday_lifecycle_email
-    send_holiday_lifecycle_email('request', employee, counted)
+    send_holiday_lifecycle_email('request', employee, counted, holiday_request=request)
     return request
 
 
@@ -476,8 +476,6 @@ def delete_request(user, request):
         raise ValidationError('You can only delete your own requests.')
     if flags['approval'] and request.status != HolidayRequest.Status.PENDING:
         raise ValidationError('Approved or rejected requests cannot be deleted.')
-    if request.pdf_file:
-        request.pdf_file.delete(save=False)
     request.delete()
 
 

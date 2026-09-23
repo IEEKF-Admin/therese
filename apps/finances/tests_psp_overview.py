@@ -76,6 +76,51 @@ class CalculateFundingCostTests(TestCase):
         self.assertEqual(calc['overlap_start'], date(2026, 1, 1))
         self.assertEqual(calc['overlap_end'], date(2026, 12, 31))
 
+    def test_uses_payscale_instance_for_each_month(self):
+        from apps.finances.models import PayScale
+
+        PayScale.objects.create(
+            pay_scale_group='E13', experience_level=1,
+            monthly_salary=Decimal('1000.00'), effective_as_of=date(2026, 1, 1),
+        )
+        PayScale.objects.create(
+            pay_scale_group='E13', experience_level=1,
+            monthly_salary=Decimal('2000.00'), effective_as_of=date(2026, 7, 1),
+        )
+        self.contract.pay_scale_group = 'E13'
+        self.contract.experience_level = 1
+        self.contract.save()
+        cost = calculate_funding_cost(
+            self.alloc, date(2026, 1, 1), date(2026, 12, 31),
+        )
+        # Jan–Jun: 1000 × 1.3 × 50% × 6 = 3900
+        # Jul–Dec: 2000 × 1.3 × 50% × 6 = 7800
+        self.assertEqual(cost, Decimal('11700.00'))
+        calc = funding_cost_breakdown(
+            self.alloc, date(2026, 1, 1), date(2026, 12, 31),
+        )
+        self.assertTrue(calc['has_varying_monthly_cost'])
+        self.assertEqual(len(calc['monthly_cost_runs']), 2)
+        self.assertEqual(calc['monthly_cost_runs'][0]['months'], 6)
+        self.assertEqual(calc['monthly_cost_runs'][0]['allocated'], Decimal('650.00'))
+        self.assertEqual(calc['monthly_cost_runs'][1]['allocated'], Decimal('1300.00'))
+
+    def test_uses_occupation_instance_for_each_month(self):
+        from apps.core.models import OccupationSalaryTable
+        from apps.core.occupation_salary import add_occupation_row
+
+        table = OccupationSalaryTable.objects.create(name='BG-PSP')
+        add_occupation_row(table, Decimal('39.000'), Decimal('1000.00'), as_of=date(2026, 1, 1))
+        add_occupation_row(table, Decimal('39.000'), Decimal('2000.00'), as_of=date(2026, 7, 1))
+        self.employee.salary_table = table
+        self.employee.save(update_fields=['salary_table'])
+        self.contract.weekly_hours = Decimal('39.000')
+        self.contract.save()
+        cost = calculate_funding_cost(
+            self.alloc, date(2026, 1, 1), date(2026, 12, 31),
+        )
+        self.assertEqual(cost, Decimal('11700.00'))
+
 
 class BuildPspOverviewTests(TestCase):
     def setUp(self):

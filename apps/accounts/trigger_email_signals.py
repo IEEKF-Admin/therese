@@ -137,6 +137,47 @@ def send_chemical_item_trigger_emails(sender, instance, created, **kwargs):
         logger.exception('Chemical trigger email dispatch failed for pk=%s', instance.pk)
 
 
+@receiver(pre_save, sender='feedback.FeedbackItem')
+def cache_feedback_previous_state(sender, instance, **kwargs):
+    instance._trigger_prev_status = None
+    if not instance.pk:
+        return
+    from apps.feedback.models import FeedbackItem
+
+    prev = FeedbackItem.objects.filter(pk=instance.pk).values('status').first()
+    instance._trigger_prev_status = prev['status'] if prev else None
+
+
+@receiver(post_save, sender='feedback.FeedbackItem')
+def send_feedback_item_trigger_emails(sender, instance, created, **kwargs):
+    try:
+        from apps.accounts.trigger_emails import (
+            notify_feedback_created,
+            notify_feedback_status_changed,
+        )
+
+        if created:
+            notify_feedback_created(instance)
+            return
+        prev_status = getattr(instance, '_trigger_prev_status', None)
+        if instance.status and instance.status != prev_status:
+            notify_feedback_status_changed(instance, prev_status)
+    except Exception:
+        logger.exception('Feedback trigger email dispatch failed for pk=%s', instance.pk)
+
+
+@receiver(post_save, sender='feedback.FeedbackComment')
+def send_feedback_comment_trigger_emails(sender, instance, created, **kwargs):
+    if not created:
+        return
+    try:
+        from apps.accounts.trigger_emails import notify_feedback_comment
+
+        notify_feedback_comment(instance)
+    except Exception:
+        logger.exception('Feedback comment trigger email dispatch failed for pk=%s', instance.pk)
+
+
 @receiver(post_save, sender='hr.Contract')
 def send_contract_ending_trigger_emails(sender, instance, **kwargs):
     try:

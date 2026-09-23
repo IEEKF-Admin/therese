@@ -71,6 +71,12 @@ class LoginPopupConfig(models.Model):
         ('holiday_request_approved', 'Own holiday request was approved'),
         ('holiday_request_rejected', 'Own holiday request was rejected'),
         ('holiday_request_deleted', 'Holiday request deleted'),
+        ('feedback_created', 'New bug or feature report created'),
+        (
+            'feedback_comment_on_created',
+            'New comment on a report created by the user (by someone else)',
+        ),
+        ('feedback_status_changed', 'Status changed on a report created by the user'),
     ]
 
     REACTION_CHOICES = [
@@ -91,6 +97,7 @@ class LoginPopupConfig(models.Model):
         ('my_holidays', 'My Holidays'),
         ('approve_holidays', 'Approve Holidays'),
         ('team_holidays', 'Team Holidays'),
+        ('bugs_features', 'Bugs & Features'),
     ]
 
     AUDIENCE_MATCH_CHOICES = [

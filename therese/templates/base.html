@@ -183,6 +183,8 @@
                 selectAll.addEventListener('change', function() {
                     var form = selectAll.closest('form') || document;
                     form.querySelectorAll('input[name="' + targetName + '"]').forEach(function(box) {
+                        var row = box.closest('tr');
+                        if (row && row.style.display === 'none') return;
                         box.checked = selectAll.checked;
                     });
                 });

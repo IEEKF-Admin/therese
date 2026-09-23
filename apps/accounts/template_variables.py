@@ -13,6 +13,7 @@ GROUP_LABELS = {
     'task': 'Task / order',
     'checklist': 'Checklist',
     'chemical': 'Chemicals',
+    'feedback': 'Bugs & Features',
     'lists': 'Lists (several records)',
 }
 
@@ -87,6 +88,16 @@ VARIABLES = [
     {'key': 'missing_fields', 'label': 'Missing inventory fields', 'group': 'chemical'},
     {'key': 'delivered_at', 'label': 'Delivered at', 'group': 'chemical'},
     {'key': 'mhd', 'label': 'Best-before date (MHD)', 'group': 'chemical'},
+    {'key': 'feedback_id', 'label': 'Report number', 'group': 'feedback'},
+    {'key': 'feedback_kind', 'label': 'Report type (Bug / Feature)', 'group': 'feedback'},
+    {'key': 'feedback_title', 'label': 'Report title', 'group': 'feedback'},
+    {'key': 'feedback_description', 'label': 'Report description (plain text)', 'group': 'feedback'},
+    {'key': 'feedback_page_url', 'label': 'Report page URL', 'group': 'feedback'},
+    {'key': 'feedback_status', 'label': 'Report status', 'group': 'feedback'},
+    {'key': 'feedback_target_date', 'label': 'Report target date', 'group': 'feedback'},
+    {'key': 'feedback_reporter', 'label': 'Report author', 'group': 'feedback'},
+    {'key': 'feedback_comment_author', 'label': 'Comment author', 'group': 'feedback'},
+    {'key': 'feedback_comment_text', 'label': 'Comment text', 'group': 'feedback'},
     {
         'key': 'purchase_orders',
         'label': 'Visible unarchived purchase orders',
@@ -258,6 +269,9 @@ TRIGGER_GROUPS = {
     'checklist_assigned': ['person', 'checklist', 'lists'],
     'chemical_item_incomplete': ['person', 'chemical', 'lists'],
     'chemical_item_delivered': ['person', 'chemical', 'lists'],
+    'feedback_created': ['person', 'feedback', 'lists'],
+    'feedback_comment_on_created': ['person', 'feedback', 'lists'],
+    'feedback_status_changed': ['person', 'feedback', 'lists'],
 }
 
 
@@ -338,6 +352,15 @@ def _choice_display(obj, field):
     if callable(getter):
         return getter() or ''
     return str(getattr(obj, field, '') or '')
+
+
+def _plain_truncated(value, limit=500):
+    from django.utils.html import strip_tags
+
+    text = ' '.join(strip_tags(value or '').split())
+    if len(text) > limit:
+        return text[: limit - 3] + '...'
+    return text
 
 
 class TemplateList:
@@ -621,6 +644,7 @@ def build_replacement_map(
     checklist=None,
     chemical_item=None,
     comment=None,
+    feedback_item=None,
 ):
     first = getattr(user, 'first_name', '') or ''
     last = getattr(user, 'last_name', '') or ''
@@ -725,6 +749,16 @@ def build_replacement_map(
         'missing_fields': '',
         'delivered_at': '',
         'mhd': '',
+        'feedback_id': '',
+        'feedback_kind': '',
+        'feedback_title': '',
+        'feedback_description': '',
+        'feedback_page_url': '',
+        'feedback_status': '',
+        'feedback_target_date': '',
+        'feedback_reporter': '',
+        'feedback_comment_author': '',
+        'feedback_comment_text': '',
     }
 
     resolved_contract = contract
@@ -762,15 +796,21 @@ def build_replacement_map(
 
     if comment is not None:
         values['comment_author'] = _person_name(getattr(comment, 'author', None))
-        text = (getattr(comment, 'text', '') or '').strip()
-        if len(text) > 500:
-            text = text[:497] + '...'
+        text = _plain_truncated(
+            getattr(comment, 'text', None) or getattr(comment, 'body', '') or ''
+        )
         values['comment_text'] = text
+        values['feedback_comment_author'] = values['comment_author']
+        values['feedback_comment_text'] = text
         if task is None and getattr(comment, 'task', None) is not None:
             comment_task = comment.task
             values['task_number'] = getattr(comment_task, 'task_number', '') or ''
             values['task_label'] = _task_list_label(comment_task)
             values['task_title'] = getattr(comment_task, 'title', '') or ''
+        if feedback_item is None and getattr(comment, 'item', None) is not None:
+            maybe = comment.item
+            if getattr(maybe, '_meta', None) and maybe._meta.label == 'feedback.FeedbackItem':
+                feedback_item = maybe
 
     if checklist is not None:
         version = getattr(checklist, 'template_version', None)
@@ -797,6 +837,18 @@ def build_replacement_map(
         values['missing_fields'] = ', '.join(missing)
         values['delivered_at'] = _fmt_datetime(getattr(chemical_item, 'delivered_at', None))
         values['mhd'] = _fmt_date(getattr(chemical_item, 'mhd', None))
+
+    if feedback_item is not None:
+        values['feedback_id'] = str(getattr(feedback_item, 'pk', '') or '')
+        values['feedback_kind'] = _choice_display(feedback_item, 'kind')
+        values['feedback_title'] = getattr(feedback_item, 'title', '') or ''
+        values['feedback_description'] = _plain_truncated(
+            getattr(feedback_item, 'description', '') or ''
+        )
+        values['feedback_page_url'] = getattr(feedback_item, 'page_url', '') or ''
+        values['feedback_status'] = _choice_display(feedback_item, 'status')
+        values['feedback_target_date'] = _fmt_date(getattr(feedback_item, 'target_date', None))
+        values['feedback_reporter'] = _person_name(getattr(feedback_item, 'created_by', None))
 
     from apps.tasks.models import PERSONNEL_STATUSES, PURCHASE_STATUSES, RECRUITMENT_STATUSES
 

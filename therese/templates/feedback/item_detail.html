@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
+{% load widget_tweaks sanitize_tags %}
 
 {% block title %}#{{ item.pk }} {{ item.title }} - THERESE{% endblock %}
 
@@ -46,6 +46,7 @@
             <strong>{{ item.created_by.get_full_name|default:item.created_by }}</strong>
             <small>{{ item.created_at|date:"d.m.Y H:i" }}</small>
         </div>
+        {% if item.kind == 'bug' %}
         <div class="aligned-field">
             <label>Page URL</label>
             {% if item.page_url %}
@@ -54,9 +55,10 @@
             <strong>—</strong>
             {% endif %}
         </div>
+        {% endif %}
         <div class="aligned-field">
             <label>Description</label>
-            <div class="readonly-comment">{{ item.description|linebreaks }}</div>
+            <div class="readonly-comment document-content">{{ item.description|sanitize_html }}</div>
         </div>
         {% if item.screenshot %}
         <div class="aligned-field">

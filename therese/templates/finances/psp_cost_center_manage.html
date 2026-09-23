@@ -48,9 +48,51 @@
     {% endif %}
 </div>
 
+<div class="search-toolbar">
+    <input type="text" id="psp-manage-search" class="form-control"
+           placeholder="Search code, title, work group…"
+           autocomplete="off">
+</div>
+
 {% if active_tab == 'cost-centers' %}
 {% include "finances/_cost_center_table.html" %}
 {% else %}
 {% include "finances/_psp_table.html" %}
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var input = document.getElementById('psp-manage-search');
+    if (!input) return;
+    var rows = Array.prototype.slice.call(
+        document.querySelectorAll('.js-manage-filter-table tbody tr[data-search]')
+    );
+    var noMatch = document.querySelector('.js-manage-no-match');
+
+    function filterRows() {
+        var q = (input.value || '').trim().toLowerCase();
+        var parts = q ? q.split(/\s+/) : [];
+        var visible = 0;
+        rows.forEach(function(row) {
+            var hay = row.getAttribute('data-search') || '';
+            var show = !parts.length || parts.every(function(p) { return hay.indexOf(p) !== -1; });
+            row.style.display = show ? '' : 'none';
+            if (!show) {
+                var box = row.querySelector('input[type="checkbox"]');
+                if (box) box.checked = false;
+            } else {
+                visible += 1;
+            }
+        });
+        if (noMatch) {
+            noMatch.style.display = (rows.length && visible === 0) ? '' : 'none';
+        }
+    }
+
+    input.addEventListener('input', filterRows);
+    input.addEventListener('keyup', filterRows);
+})();
+</script>
 {% endblock %}

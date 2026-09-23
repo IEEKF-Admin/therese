@@ -9,6 +9,7 @@ from apps.accounts.permissions import (
     assign_permissions_to_groups,
     get_or_create_default_groups,
 )
+from apps.feedback.forms import FeedbackItemForm
 from apps.feedback.models import FeedbackComment, FeedbackItem, FeedbackVote
 from apps.hr.models import Employee
 
@@ -88,6 +89,10 @@ class FeedbackModuleTests(TestCase):
         create = self.client.get(reverse('feedback:item_create'))
         self.assertEqual(create.status_code, 200)
         self.assertContains(create, 'Page URL')
+        self.assertContains(create, 'wysiwyg-editor')
+        self.assertNotContains(create, '---------')
+        kind_values = [value for value, _label in FeedbackItemForm().fields['kind'].choices]
+        self.assertEqual(kind_values, ['bug', 'feature'])
 
     def test_bug_requires_url(self):
         self._login(self.reporter_user)
@@ -119,6 +124,60 @@ class FeedbackModuleTests(TestCase):
         self.assertEqual(item.kind, FeedbackItem.Kind.FEATURE)
         self.assertEqual(item.created_by, self.reporter)
         self.assertEqual(item.page_url, '')
+        detail = self.client.get(reverse('feedback:item_detail', args=[item.pk]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertNotContains(detail, 'Page URL')
+
+    def test_feature_post_clears_page_url(self):
+        self._login(self.reporter_user)
+        response = self.client.post(
+            reverse('feedback:item_create'),
+            {
+                'kind': 'feature',
+                'title': 'Export CSV',
+                'description': '<p>Please add CSV export.</p>',
+                'page_url': '/tasks/',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303))
+        item = FeedbackItem.objects.get()
+        self.assertEqual(item.page_url, '')
+        self.assertEqual(item.description, '<p>Please add CSV export.</p>')
+
+    def test_description_sanitizes_html_and_rejects_empty(self):
+        self._login(self.reporter_user)
+        response = self.client.post(
+            reverse('feedback:item_create'),
+            {
+                'kind': 'bug',
+                'title': 'XSS',
+                'description': '<p>Broken</p><script>alert(1)</script>',
+                'page_url': '/tasks/',
+            },
+        )
+        self.assertIn(response.status_code, (302, 303))
+        item = FeedbackItem.objects.get()
+        self.assertIn('<p>Broken</p>', item.description)
+        self.assertNotIn('<script>', item.description)
+        empty = self.client.post(
+            reverse('feedback:item_create'),
+            {
+                'kind': 'bug',
+                'title': 'Empty HTML',
+                'description': '<p></p><p><br></p>',
+                'page_url': '/tasks/',
+            },
+        )
+        self.assertEqual(empty.status_code, 200)
+        self.assertEqual(FeedbackItem.objects.count(), 1)
+
+    def test_feature_edit_hides_page_url(self):
+        item = self._create_item(kind=FeedbackItem.Kind.FEATURE, page_url='')
+        self._login(self.reporter_user)
+        response = self.client.get(reverse('feedback:item_edit', args=[item.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="page-url-wrap"')
+        self.assertContains(response, 'style="display:none"')
 
     def test_create_bug_with_screenshot(self):
         self._login(self.reporter_user)

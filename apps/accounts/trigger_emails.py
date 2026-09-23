@@ -97,6 +97,7 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
         checklist=context.get('checklist'),
         chemical_item=context.get('chemical_item'),
         comment=context.get('comment'),
+        feedback_item=context.get('feedback_item'),
     )
     subject = render_placeholders(
         config.email_subject or config.name,
@@ -315,6 +316,56 @@ def notify_chemical_item_delivered(item):
         employee,
         f'chemical_delivered:{item.pk}',
         chemical_item=item,
+    )
+
+
+def notify_feedback_created(item):
+    if item is None or getattr(item, 'merged_into_id', None):
+        return
+    notify_audience(
+        'feedback_created',
+        f'feedback_created:{item.pk}',
+        feedback_item=item,
+    )
+
+
+def notify_feedback_status_changed(item, previous_status):
+    if item is None or getattr(item, 'merged_into_id', None):
+        return
+    reporter = getattr(item, 'created_by', None)
+    user = user_for_employee(reporter)
+    if user is None:
+        return
+    new_status = item.status or ''
+    old_status = previous_status or ''
+    notify_subject(
+        'feedback_status_changed',
+        user,
+        reporter,
+        f'feedback_status:{item.pk}:{old_status}:{new_status}'[:191],
+        feedback_item=item,
+    )
+
+
+def notify_feedback_comment(comment):
+    if comment is None:
+        return
+    item = getattr(comment, 'item', None)
+    if item is None or getattr(item, 'merged_into_id', None):
+        return
+    reporter = getattr(item, 'created_by', None)
+    if reporter is None or comment.author_id == reporter.pk:
+        return
+    user = user_for_employee(reporter)
+    if user is None:
+        return
+    notify_subject(
+        'feedback_comment_on_created',
+        user,
+        reporter,
+        f'feedback_comment:{comment.pk}',
+        feedback_item=item,
+        comment=comment,
     )
 
 

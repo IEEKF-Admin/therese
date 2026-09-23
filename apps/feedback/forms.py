@@ -1,8 +1,17 @@
 from django import forms
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.html import strip_tags
 
+from apps.core.html_sanitize import sanitize_html
 from apps.core.upload_validation import IMAGE_EXT, validate_upload
 from apps.feedback.models import FeedbackItem
+
+
+def _html_is_blank(value):
+    text = strip_tags(value or '').replace('\xa0', ' ').replace('&nbsp;', ' ').strip()
+    if text:
+        return False
+    return '<img' not in (value or '').lower()
 
 
 class FeedbackItemForm(forms.ModelForm):
@@ -16,9 +25,9 @@ class FeedbackItemForm(forms.ModelForm):
                 'placeholder': 'Short summary',
             }),
             'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'What happened, or what should change?',
+                'class': 'form-control wysiwyg-editor',
+                'rows': 8,
+                'data-wysiwyg-height': '280',
             }),
             'page_url': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -33,6 +42,8 @@ class FeedbackItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['kind'].required = True
+        self.fields['kind'].choices = list(FeedbackItem.Kind.choices)
+        self.fields['kind'].widget.choices = self.fields['kind'].choices
         self.fields['title'].required = True
         self.fields['description'].required = True
         self.fields['page_url'].required = False
@@ -47,8 +58,8 @@ class FeedbackItemForm(forms.ModelForm):
         return value
 
     def clean_description(self):
-        value = (self.cleaned_data.get('description') or '').strip()
-        if not value:
+        value = sanitize_html(self.cleaned_data.get('description') or '')
+        if _html_is_blank(value):
             raise forms.ValidationError('Please describe the bug or feature.')
         return value
 
@@ -76,7 +87,9 @@ class FeedbackItemForm(forms.ModelForm):
         cleaned = super().clean()
         kind = cleaned.get('kind')
         url = cleaned.get('page_url') or ''
-        if kind == FeedbackItem.Kind.BUG and not url:
+        if kind == FeedbackItem.Kind.FEATURE:
+            cleaned['page_url'] = ''
+        elif kind == FeedbackItem.Kind.BUG and not url:
             self.add_error(
                 'page_url',
                 'Please enter the page URL where the bug occurs.',

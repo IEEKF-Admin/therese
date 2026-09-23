@@ -134,6 +134,7 @@ def render_popup_text(text, user, employee, contract=None, **context):
         checklist=context.get('checklist'),
         chemical_item=context.get('chemical_item'),
         comment=context.get('comment'),
+        feedback_item=context.get('feedback_item'),
     )
     return render_placeholders(text, replacements, html=False, user=user, employee=employee)
 
@@ -184,6 +185,7 @@ def evaluate_login_popups(
         checklist_for_text = None
         chemical_for_text = None
         comment_for_text = None
+        feedback_for_text = None
 
         if config.trigger == 'first_login':
             if user.first_login_welcome_shown:
@@ -426,6 +428,95 @@ def evaluate_login_popups(
                 show = True
                 ack_reference_keys = unacked_refs
 
+        elif config.trigger == 'feedback_created' and event_since:
+            from apps.feedback.models import FeedbackItem
+
+            rows = list(
+                FeedbackItem.objects.filter(
+                    created_at__gt=event_since,
+                    merged_into__isnull=True,
+                )
+                .select_related('created_by')
+                .order_by('-created_at')
+            )
+            unacked_refs = [
+                f'feedback_created:{item.pk}'
+                for item in rows
+                if f'feedback_created:{item.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+                feedback_for_text = next(
+                    (
+                        item
+                        for item in rows
+                        if f'feedback_created:{item.pk}' in unacked_refs
+                    ),
+                    None,
+                )
+
+        elif config.trigger == 'feedback_status_changed' and employee and event_since:
+            from apps.feedback.models import FeedbackItem
+
+            rows = list(
+                FeedbackItem.objects.filter(
+                    created_by=employee,
+                    updated_at__gt=event_since,
+                    merged_into__isnull=True,
+                )
+                .select_related('created_by')
+                .order_by('-updated_at')
+            )
+            unacked_refs = [
+                f'feedback_status:{item.pk}:{item.status}'
+                for item in rows
+                if f'feedback_status:{item.pk}:{item.status}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+                feedback_for_text = next(
+                    (
+                        item
+                        for item in rows
+                        if f'feedback_status:{item.pk}:{item.status}' in unacked_refs
+                    ),
+                    None,
+                )
+
+        elif config.trigger == 'feedback_comment_on_created' and employee and event_since:
+            from apps.feedback.models import FeedbackComment
+
+            comments = list(
+                FeedbackComment.objects.filter(
+                    item__created_by=employee,
+                    created_at__gt=event_since,
+                    item__merged_into__isnull=True,
+                )
+                .exclude(author=employee)
+                .select_related('item', 'author')
+                .order_by('-created_at')
+            )
+            unacked_refs = [
+                f'feedback_comment:{comment.pk}'
+                for comment in comments
+                if f'feedback_comment:{comment.pk}' not in acknowledged
+            ]
+            if unacked_refs:
+                show = True
+                ack_reference_keys = unacked_refs
+                comment_for_text = next(
+                    (
+                        comment
+                        for comment in comments
+                        if f'feedback_comment:{comment.pk}' in unacked_refs
+                    ),
+                    None,
+                )
+                if comment_for_text is not None:
+                    feedback_for_text = comment_for_text.item
+
         elif config.trigger == 'chemical_item_delivered' and employee and event_since:
             from apps.chemicals.features import chemicals_enabled
             from apps.chemicals.models import ChemicalItem
@@ -467,6 +558,7 @@ def evaluate_login_popups(
                     checklist=checklist_for_text,
                     chemical_item=chemical_for_text,
                     comment=comment_for_text,
+                    feedback_item=feedback_for_text,
                 ),
                 'link': config.link_to or '',
                 'config': config,
@@ -477,6 +569,7 @@ def evaluate_login_popups(
                 'checklist': checklist_for_text,
                 'chemical_item': chemical_for_text,
                 'comment': comment_for_text,
+                'feedback_item': feedback_for_text,
             })
 
     return popups
@@ -518,4 +611,5 @@ def send_login_trigger_emails(user, popups):
             checklist=popup.get('checklist'),
             chemical_item=popup.get('chemical_item'),
             comment=popup.get('comment'),
+            feedback_item=popup.get('feedback_item'),
         )

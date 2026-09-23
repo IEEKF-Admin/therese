@@ -661,6 +661,30 @@ class PSPManageAccessTests(TestCase):
         self.assertContains(response, 'Incomplete:')
         self.assertContains(response, incomplete.wbs_code)
 
+    def test_manage_search_and_work_group_short_name(self):
+        self.cost_center.work_group = self.workgroup_a
+        self.cost_center.comments = 'Main institute budget'
+        self.cost_center.save(update_fields=['work_group', 'comments'])
+        client = Client()
+        client.login(username='psp-assisting-admin', password='test')
+
+        psp = client.get('/finances/psp/manage/')
+        self.assertEqual(psp.status_code, 200)
+        self.assertContains(psp, 'id="psp-manage-search"')
+        self.assertContains(psp, 'Search code, title, work group')
+        self.assertContains(psp, 'Lab-A')
+        self.assertNotContains(psp, 'Lab-A (Lab A)')
+        self.assertContains(psp, self.psp_group_a.wbs_code.lower())
+        self.assertContains(psp, self.psp_group_a.title.lower())
+
+        cc = client.get('/finances/psp/manage/', {'tab': 'cost-centers'})
+        self.assertEqual(cc.status_code, 200)
+        self.assertContains(cc, 'id="psp-manage-search"')
+        self.assertContains(cc, 'Lab-A')
+        self.assertNotContains(cc, 'Lab-A (Lab A)')
+        self.assertContains(cc, self.cost_center.cost_center.lower())
+        self.assertContains(cc, 'main institute budget')
+
     def test_create_rejects_missing_work_group(self):
         from apps.finances.forms import WBSElementForm
 

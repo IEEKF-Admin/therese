@@ -2,7 +2,7 @@
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected_psp">
 
-    <table class="table psp-manage-table">
+    <table class="table psp-manage-table js-manage-filter-table">
         <thead>
             <tr>
                 <th class="table-checkbox-col">
@@ -18,7 +18,8 @@
         </thead>
         <tbody>
             {% for psp in psp_elements %}
-            <tr{% if psp.is_inactive %} class="is-inactive"{% endif %}>
+            <tr{% if psp.is_inactive %} class="is-inactive"{% endif %}
+                data-search="{{ psp.wbs_code|lower }} {{ psp.title|lower }}{% if psp.work_group %} {{ psp.work_group.short_name|lower }} {{ psp.work_group.long_name|lower }}{% endif %}">
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ psp.pk }}"></td>
                 <td class="psp-code-col">
                     <span style="font-family:ui-monospace,monospace;">{{ psp.wbs_code }}</span>
@@ -31,7 +32,7 @@
                 </td>
                 <td>{{ psp.title }}</td>
                 <td>{{ psp.cost_center|default:"-" }}</td>
-                <td>{{ psp.work_group|default:"-" }}</td>
+                <td>{% if psp.work_group %}{{ psp.work_group.short_name }}{% else %}-{% endif %}</td>
                 <td>
                     {% if psp.is_inactive %}
                     <span style="color:#b45309;font-size:0.85rem;">Inactive</span>
@@ -48,6 +49,9 @@
             {% empty %}
             <tr><td colspan="7">No PSP elements found.</td></tr>
             {% endfor %}
+            <tr class="js-manage-no-match" style="display:none;">
+                <td colspan="7">No matching PSP elements.</td>
+            </tr>
         </tbody>
     </table>
 

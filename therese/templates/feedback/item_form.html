@@ -40,7 +40,7 @@
                 <small class="field-hint-de">Beschreibung</small>
                 {{ form.description.errors }}
             </div>
-            <div class="aligned-field" id="page-url-wrap">
+            <div class="aligned-field" id="page-url-wrap"{% if form.kind.value == 'feature' %} style="display:none"{% endif %}>
                 <label>Page URL <span id="url-required-marker" style="color:#ef4444;">*</span></label>
                 {% if form.page_url.errors %}{{ form.page_url|add_class:"error" }}{% else %}{{ form.page_url }}{% endif %}
                 <small class="field-hint-de">URL der betroffenen Seite (bei Fehlern Pflicht)</small>
@@ -61,18 +61,19 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "documents/includes/wysiwyg.html" %}
 <script>
 (function() {
-    function syncUrlRequired() {
+    function syncPageUrlField() {
         var checked = document.querySelector('input[name="kind"]:checked');
-        var marker = document.getElementById('url-required-marker');
+        var wrap = document.getElementById('page-url-wrap');
         var isBug = checked && checked.value === 'bug';
-        if (marker) marker.style.display = isBug ? '' : 'none';
+        if (wrap) wrap.style.display = isBug ? '' : 'none';
     }
     document.addEventListener('change', function(e) {
-        if (e.target && e.target.name === 'kind') syncUrlRequired();
+        if (e.target && e.target.name === 'kind') syncPageUrlField();
     });
-    document.addEventListener('DOMContentLoaded', syncUrlRequired);
+    document.addEventListener('DOMContentLoaded', syncPageUrlField);
 })();
 </script>
 {% endblock %}

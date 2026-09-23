@@ -2,7 +2,7 @@
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_selected_cc">
 
-    <table class="table">
+    <table class="table js-manage-filter-table">
         <thead>
             <tr>
                 <th class="table-checkbox-col">
@@ -16,10 +16,10 @@
         </thead>
         <tbody>
             {% for cc in cost_centers %}
-            <tr>
+            <tr data-search="{{ cc.cost_center|lower }} {{ cc.comments|lower }}{% if cc.work_group %} {{ cc.work_group.short_name|lower }} {{ cc.work_group.long_name|lower }}{% endif %}">
                 <td class="table-checkbox-col"><input type="checkbox" name="selected_ids" value="{{ cc.pk }}"></td>
                 <td>{{ cc.cost_center }}</td>
-                <td>{{ cc.work_group|default:"-" }}</td>
+                <td>{% if cc.work_group %}{{ cc.work_group.short_name }}{% else %}-{% endif %}</td>
                 <td>{{ cc.comments|truncatechars:60|default:"-" }}</td>
                 <td>
                     <a href="{% url 'finances:cost_center_update' cc.pk %}" class="action-icon edit" title="Edit"><i class="fas fa-edit"></i></a>
@@ -30,6 +30,9 @@
             {% empty %}
             <tr><td colspan="5">No cost centers found.</td></tr>
             {% endfor %}
+            <tr class="js-manage-no-match" style="display:none;">
+                <td colspan="5">No matching cost centers.</td>
+            </tr>
         </tbody>
     </table>
 

@@ -25,6 +25,7 @@ from apps.accounts.trigger_emails import (
     send_due_scheduled_emails,
     send_login_time_trigger_emails,
 )
+from apps.feedback.models import FeedbackComment, FeedbackItem
 from apps.hr.models import Contract, Employee
 from apps.tasks.models import GenericTextTask, PersonnelReallocationTask, PurchaseOrderTask, TaskComment
 
@@ -89,6 +90,36 @@ class TemplateVariableTests(TestCase):
         po_keys = {item['key'] for item in catalog_for_trigger('purchase_order_created')}
         self.assertIn('supplier', po_keys)
         self.assertIn('purchase_orders', po_keys)
+
+    def test_feedback_placeholders_and_catalog(self):
+        item = FeedbackItem.objects.create(
+            kind=FeedbackItem.Kind.BUG,
+            title='Filter broken',
+            description='<p>The year filter does nothing.</p>',
+            page_url='/finances/',
+            created_by=self.employee,
+        )
+        comment = FeedbackComment(author=self.employee, item=item, body='Same here.')
+        replacements = build_replacement_map(
+            self.user,
+            self.employee,
+            feedback_item=item,
+            comment=comment,
+        )
+        rendered = render_placeholders(
+            '{{ feedback_title }} {{ feedback_kind }} {{ feedback_description }} {{ feedback_comment_text }}',
+            replacements,
+        )
+        self.assertIn('Filter broken', rendered)
+        self.assertIn('Bug', rendered)
+        self.assertIn('The year filter does nothing.', rendered)
+        self.assertIn('Same here.', rendered)
+        keys = {entry['key'] for entry in catalog_for_trigger('feedback_created')}
+        self.assertIn('feedback_title', keys)
+        self.assertIn('feedback_id', keys)
+        self.assertIn('feedback_comment_text', keys)
+        comment_keys = {entry['key'] for entry in catalog_for_trigger('feedback_comment_on_created')}
+        self.assertIn('feedback_comment_author', comment_keys)
 
     def test_html_escaping(self):
         self.employee.first_name = '<script>x</script>'
@@ -382,6 +413,68 @@ class TriggerEmailSendTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['cara@institute.org'])
         self.assertIn('Please check the quote.', mail.outbox[0].alternatives[0][0])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_feedback_created_notifies_audience(self):
+        self.config.trigger = 'feedback_created'
+        self.config.email_html = '<p>{{ feedback_kind }} {{ feedback_title }}</p>'
+        self.config.email_subject = 'New {{ feedback_kind }}: {{ feedback_title }}'
+        self.config.save(update_fields=['trigger', 'email_html', 'email_subject'])
+        FeedbackItem.objects.create(
+            kind=FeedbackItem.Kind.FEATURE,
+            title='Dark mode',
+            description='<p>Please add dark mode.</p>',
+            created_by=self.employee,
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('New Feature: Dark mode', mail.outbox[0].subject)
+        self.assertIn('Feature Dark mode', mail.outbox[0].alternatives[0][0])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_feedback_comment_emails_reporter(self):
+        self.config.trigger = 'feedback_comment_on_created'
+        self.config.email_html = '<p>{{ feedback_comment_author }}: {{ feedback_comment_text }}</p>'
+        self.config.email_subject = 'Comment on {{ feedback_title }}'
+        self.config.save(update_fields=['trigger', 'email_html', 'email_subject'])
+        other = CustomUser.objects.create_user('fbwriter', password='test', email='fw@example.org')
+        other_emp = Employee.objects.create(
+            employee_number='E-FBW',
+            first_name='Will',
+            last_name='Writer',
+            user=other,
+        )
+        item = FeedbackItem.objects.create(
+            kind=FeedbackItem.Kind.BUG,
+            title='Crash',
+            description='It crashed.',
+            page_url='/tasks/',
+            created_by=self.employee,
+        )
+        FeedbackComment.objects.create(item=item, author=other_emp, body='Same here.')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['cara@institute.org'])
+        self.assertIn('Same here.', mail.outbox[0].alternatives[0][0])
+        FeedbackComment.objects.create(item=item, author=self.employee, body='Thanks.')
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_feedback_status_emails_reporter(self):
+        self.config.trigger = 'feedback_status_changed'
+        self.config.email_html = '<p>Status {{ feedback_status }}</p>'
+        self.config.email_subject = 'Status {{ feedback_status }}'
+        self.config.save(update_fields=['trigger', 'email_html', 'email_subject'])
+        item = FeedbackItem.objects.create(
+            kind=FeedbackItem.Kind.BUG,
+            title='Crash',
+            description='It crashed.',
+            page_url='/tasks/',
+            created_by=self.employee,
+        )
+        self.assertEqual(len(mail.outbox), 0)
+        item.status = FeedbackItem.Status.PLANNED
+        item.save()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Status Will be done', mail.outbox[0].subject)
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_contract_save_sends_when_in_window(self):

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}#{{ item.pk }} {{ item.title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>#{{ item.pk }} {{ item.title }}</h1>
+    <div class="page-header-actions">
+        {% if can_edit %}
+        <a href="{% url 'feedback:item_edit' item.pk %}" class="btn-secondary">Edit</a>
+        {% endif %}
+        <a href="{% url 'feedback:item_list' %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-section">
+        <div class="aligned-field">
+            <label>Type</label>
+            <strong>{{ item.get_kind_display }}</strong>
+            <small class="field-hint-de">{% if item.kind == 'bug' %}Fehler{% else %}Vorschlag{% endif %}</small>
+        </div>
+        <div class="aligned-field">
+            <label>Status</label>
+            <strong>{{ item.get_status_display }}</strong>
+            <small class="field-hint-de">{% if item.status == 'open' %}Offen{% elif item.status == 'planned' %}Wird gemacht{% else %}Erledigt{% endif %}</small>
+        </div>
+        <div class="aligned-field">
+            <label>Target date</label>
+            <strong>{{ item.target_date|date:"d.m.Y"|default:"—" }}</strong>
+            <small class="field-hint-de">Zieldatum</small>
+        </div>
+        <div class="aligned-field">
+            <label>+1</label>
+            <strong>{{ vote_count }}</strong>
+            {% if can_vote %}
+            <form method="post" action="{% url 'feedback:item_vote' item.pk %}" style="display:inline; margin-left:0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary">{% if has_voted %}Remove +1{% else %}+1{% endif %}</button>
+            </form>
+            {% endif %}
+        </div>
+        <div class="aligned-field">
+            <label>Reported by</label>
+            <strong>{{ item.created_by.get_full_name|default:item.created_by }}</strong>
+            <small>{{ item.created_at|date:"d.m.Y H:i" }}</small>
+        </div>
+        <div class="aligned-field">
+            <label>Page URL</label>
+            {% if item.page_url %}
+            <strong><a href="{{ item.page_url }}" target="_blank" rel="noopener">{{ item.page_url }}</a></strong>
+            {% else %}
+            <strong>—</strong>
+            {% endif %}
+        </div>
+        <div class="aligned-field">
+            <label>Description</label>
+            <div class="readonly-comment">{{ item.description|linebreaks }}</div>
+        </div>
+        {% if item.screenshot %}
+        <div class="aligned-field">
+            <label>Screenshot</label>
+            <a href="{{ item.screenshot.url }}" target="_blank" rel="noopener">
+                <img src="{{ item.screenshot.url }}" alt="Screenshot" style="max-width:28rem; max-height:18rem; border:1px solid #e2e8f0; border-radius:6px;">
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage %}
+<div class="card" style="margin-top:1rem;">
+    <div class="form-section">
+        <h3>Admin</h3>
+        <form method="post" action="{% url 'feedback:item_admin' item.pk %}">
+            {% csrf_token %}
+            <div class="aligned-field">
+                <label>Status</label>
+                {{ admin_form.status }}
+            </div>
+            <div class="aligned-field">
+                <label>Target date</label>
+                {{ admin_form.target_date }}
+                <small class="field-hint-de">Zieldatum</small>
+            </div>
+            <button type="submit" class="btn-primary">Save status</button>
+        </form>
+
+        <form method="post" action="{% url 'feedback:item_merge' item.pk %}" style="margin-top:1.25rem;">
+            {% csrf_token %}
+            <div class="aligned-field">
+                <label>{{ merge_form.target.label }}</label>
+                {{ merge_form.target }}
+                <small class="field-hint-de">Diesen Eintrag in einen anderen überführen</small>
+            </div>
+            <button type="submit" class="btn-secondary"
+                    onclick="return confirm('Merge this report into the selected one? Comments and +1s move across.');">
+                Merge
+            </button>
+        </form>
+
+        <form method="post" action="{% url 'feedback:item_delete' item.pk %}" style="margin-top:1.25rem;">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger"
+                    onclick="return confirm('Delete this report and any reports merged into it?');">
+                Delete
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:1rem;">
+    <div class="form-section">
+        <h3>Comments</h3>
+        {% for comment in comments %}
+        <div class="aligned-field" style="border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
+            <strong>{{ comment.author.get_full_name|default:comment.author }}</strong>
+            <small style="color:#64748b;"> · {{ comment.created_at|date:"d.m.Y H:i" }}</small>
+            <div class="readonly-comment">{{ comment.body|linebreaks }}</div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No comments yet.</p>
+        {% endfor %}
+
+        {% if can_comment %}
+        <form method="post" action="{% url 'feedback:item_comment' item.pk %}" style="margin-top:1rem;">
+            {% csrf_token %}
+            {{ comment_form.body }}
+            {{ comment_form.body.errors }}
+            <div class="form-actions" style="margin-top:0.5rem;">
+                <button type="submit" class="btn-primary">Add comment</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

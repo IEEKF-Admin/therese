@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     'apps.chemicals',
     'apps.holidays',
     'apps.inventory',
+    'apps.feedback',
     'widget_tweaks',
 ]
 

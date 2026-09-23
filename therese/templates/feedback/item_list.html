@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Bugs &amp; Features - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Bugs &amp; Features <small class="field-hint-de">Fehler &amp; Vorschläge</small></h1>
+    <div class="page-header-actions">
+        {% if can_create %}
+        <a href="{% url 'feedback:item_create' %}" class="btn-primary">+ New report</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card list-panel">
+    <form method="get" class="search-toolbar" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:end; margin-bottom:1rem;">
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Search</label>
+            <input type="text" name="q" value="{{ search_query }}" class="form-control"
+                   placeholder="Title, description, URL…" style="min-width:14rem;">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Type</label>
+            <select name="kind" class="form-select">
+                <option value="">All</option>
+                {% for value, label in kind_choices %}
+                <option value="{{ value }}" {% if kind_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem;">Status</label>
+            <select name="status" class="form-select">
+                <option value="" {% if status_filter == 'openish' %}selected{% endif %}>Open &amp; planned</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-primary">Filter</button>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th class="text-right">+1</th>
+                <th>Target</th>
+                <th>Reported by</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><a href="{% url 'feedback:item_detail' item.pk %}">#{{ item.pk }}</a></td>
+                <td>{{ item.get_kind_display }}</td>
+                <td><a href="{% url 'feedback:item_detail' item.pk %}">{{ item.title }}</a></td>
+                <td>{{ item.get_status_display }}</td>
+                <td class="text-right">{{ item.vote_count }}{% if item.pk in voted_ids %} ✓{% endif %}</td>
+                <td>{{ item.target_date|date:"d.m.Y"|default:"—" }}</td>
+                <td>{{ item.created_by.get_full_name|default:item.created_by }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-muted">No reports yet. Add one if something is wrong or missing.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

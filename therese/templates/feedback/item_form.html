@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <div class="page-header-actions">
+        <a href="{% if item %}{% url 'feedback:item_detail' item.pk %}{% else %}{% url 'feedback:item_list' %}{% endif %}" class="btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="card" style="max-width:42rem;">
+    {% if form.errors %}
+    <div class="alert alert-danger">Please correct the highlighted fields.</div>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <div class="form-section">
+            <div class="aligned-field">
+                <label>Type <span style="color:#ef4444;">*</span></label>
+                <div class="status-radios">
+                    {% for radio in form.kind %}
+                    <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+                    {% endfor %}
+                </div>
+                <small class="field-hint-de">Fehler oder Vorschlag</small>
+                {{ form.kind.errors }}
+            </div>
+            <div class="aligned-field">
+                <label>Title <span style="color:#ef4444;">*</span></label>
+                {% if form.title.errors %}{{ form.title|add_class:"error" }}{% else %}{{ form.title }}{% endif %}
+                <small class="field-hint-de">Titel</small>
+                {{ form.title.errors }}
+            </div>
+            <div class="aligned-field">
+                <label>Description <span style="color:#ef4444;">*</span></label>
+                {% if form.description.errors %}{{ form.description|add_class:"error" }}{% else %}{{ form.description }}{% endif %}
+                <small class="field-hint-de">Beschreibung</small>
+                {{ form.description.errors }}
+            </div>
+            <div class="aligned-field" id="page-url-wrap">
+                <label>Page URL <span id="url-required-marker" style="color:#ef4444;">*</span></label>
+                {% if form.page_url.errors %}{{ form.page_url|add_class:"error" }}{% else %}{{ form.page_url }}{% endif %}
+                <small class="field-hint-de">URL der betroffenen Seite (bei Fehlern Pflicht)</small>
+                {{ form.page_url.errors }}
+            </div>
+            <div class="aligned-field">
+                <label>Screenshot</label>
+                {{ form.screenshot }}
+                <small class="field-hint-de">Bild (optional)</small>
+                {{ form.screenshot.errors }}
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">{% if is_create %}Submit report{% else %}Save{% endif %}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function syncUrlRequired() {
+        var checked = document.querySelector('input[name="kind"]:checked');
+        var marker = document.getElementById('url-required-marker');
+        var isBug = checked && checked.value === 'bug';
+        if (marker) marker.style.display = isBug ? '' : 'none';
+    }
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.name === 'kind') syncUrlRequired();
+    });
+    document.addEventListener('DOMContentLoaded', syncUrlRequired);
+})();
+</script>
+{% endblock %}

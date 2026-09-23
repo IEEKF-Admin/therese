@@ -71,6 +71,8 @@ class GroupNames:
     INVENTORY_VIEW_ALL = "Inventory - View All"
     INVENTORY_MANAGE = "Inventory - Manage"
 
+    BUGS_FEATURES_MANAGE = "Bugs & Features - Manage"
+
 
 # All groups as a list (useful for iteration)
 NEW_GROUPS = [
@@ -113,6 +115,7 @@ NEW_GROUPS = [
     GroupNames.INVENTORY_VIEW_OWN,
     GroupNames.INVENTORY_VIEW_ALL,
     GroupNames.INVENTORY_MANAGE,
+    GroupNames.BUGS_FEATURES_MANAGE,
 ]
 
 # Groups removed from the system (deleted by ensure_groups / post_migrate).
@@ -605,6 +608,14 @@ def assign_permissions_to_groups():
         safe_add(GroupNames.INVENTORY_VIEW_OWN, view_own_inv)
         safe_add(GroupNames.INVENTORY_VIEW_ALL, view_own_inv, view_all_inv)
         safe_add(GroupNames.INVENTORY_MANAGE, view_own_inv, view_all_inv, manage_inv)
+
+    try:
+        from apps.feedback.models import FeedbackItem
+    except Exception:
+        FeedbackItem = None
+    if FeedbackItem is not None:
+        manage_feedback = get_perm('manage_feedback', FeedbackItem)
+        safe_add(GroupNames.BUGS_FEATURES_MANAGE, manage_feedback)
 
     if assigned_count:
         print(f"  [Permissions] Assigned/updated permissions for {assigned_count} group(s).")

@@ -149,6 +149,12 @@
         <i class="fas fa-phone"></i> Phone List
     </a>
     {% endif %}
+    {% if has_employee or user.is_superuser %}
+    <a href="{% url 'feedback:item_list' %}"
+       class="{% if '/feedback/' in request.path %}active{% endif %}">
+        <i class="fas fa-bug"></i> Bugs &amp; Features
+    </a>
+    {% endif %}
     {% if perms.finances.view_psp_overview or perms.finances.view_all_psp_elements or perms.finances.manage_psp_element or perms.finances.manage_all_psp_elements or user.is_superuser %}
     <a href="{% url 'finances:psp_elements' %}"
        class="{% if 'psp-elements' in request.path %}active{% endif %}">

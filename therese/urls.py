@@ -27,6 +27,7 @@ urlpatterns = [
     path('chemicals/', include('apps.chemicals.urls')),
     path('holidays/', include('apps.holidays.urls')),
     path('inventory/', include('apps.inventory.urls')),
+    path('feedback/', include('apps.feedback.urls')),
     path('orders/', include('apps.tasks.order_urls')),
 
     # Uploaded files served from database (login required)

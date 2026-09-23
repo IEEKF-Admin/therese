@@ -125,6 +125,27 @@ class PersonnelTaskValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('valid_until', form.errors)
 
+    def test_reallocation_rejects_until_after_contract_end(self):
+        Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2025, 1, 1),
+            valid_until=date(2026, 12, 31),
+            is_active=True,
+        )
+        form = PersonnelReallocationTaskForm(
+            data={
+                'employee': self.employee.pk,
+                'valid_from': '01.06.2026',
+                'valid_until': '01.01.2027',
+                'status': 'not_yet_processed',
+            },
+            user=self.user,
+            is_creation=True,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('valid_until', form.errors)
+
     def test_reallocation_edit_does_not_require_posted_employee(self):
         creator = Employee.objects.create(
             employee_number='E-HR-CRE',
@@ -167,6 +188,48 @@ class PersonnelTaskValidationTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn('limitation_reason', form.errors)
+
+    def test_extension_allows_until_after_current_contract_end(self):
+        Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2025, 1, 1),
+            valid_until=date(2026, 12, 31),
+            is_active=True,
+        )
+        form = PersonnelContractExtensionTaskForm(
+            data={
+                'employee': self.employee.pk,
+                'plan_position_number': 'POS-2',
+                'valid_from': '01.01.2027',
+                'valid_until': '31.12.2027',
+                'is_limited': True,
+                'limitation_reason': 'Verlängerung',
+                'status': 'not_yet_processed',
+            },
+            user=self.user,
+            is_creation=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_extension_permanent_clears_until_and_limited(self):
+        form = PersonnelContractExtensionTaskForm(
+            data={
+                'employee': self.employee.pk,
+                'plan_position_number': 'POS-2',
+                'valid_from': '01.01.2027',
+                'valid_until': '31.12.2027',
+                'is_permanent': 'on',
+                'is_limited': True,
+                'limitation_reason': '',
+                'status': 'not_yet_processed',
+            },
+            user=self.user,
+            is_creation=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data['valid_until'])
+        self.assertFalse(form.cleaned_data['is_limited'])
 
     def test_extension_unlimited_without_reason_allowed(self):
         form = PersonnelContractExtensionTaskForm(

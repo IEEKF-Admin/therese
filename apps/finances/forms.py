@@ -13,9 +13,11 @@ from apps.finances.models import (
 )
 from apps.finances.psp_cost_types import (
     PSP_COST_TYPE_AMOUNT_FIELDS,
+    PSP_COST_TYPE_COMMENT_FIELDS,
     PSP_COST_TYPE_FLAG_FIELDS,
     PSP_COST_TYPES,
     bilingual_cost_type_labels,
+    cost_type_comment_labels,
 )
 
 
@@ -78,6 +80,7 @@ class WBSElementForm(forms.ModelForm):
             'is_inactive',
             'comment',
             *PSP_COST_TYPE_FLAG_FIELDS,
+            *PSP_COST_TYPE_COMMENT_FIELDS,
             'third_party_funding_commitment',
             'third_party_funder_identifier',
         ]
@@ -102,6 +105,13 @@ class WBSElementForm(forms.ModelForm):
                 })
                 for flag, amount, *_rest in PSP_COST_TYPES
             },
+            **{
+                f'comment_{amount}': forms.Textarea(attrs={
+                    'class': 'form-control',
+                    'rows': 2,
+                })
+                for _flag, amount, *_rest in PSP_COST_TYPES
+            },
         }
         labels = {
             'wbs_code': 'PSP code',
@@ -111,10 +121,11 @@ class WBSElementForm(forms.ModelForm):
             'cost_center': 'Cost center',
             'subject_to_annual_recurrence': 'Subject to annual recurrence',
             'is_inactive': 'Inactive',
-            'comment': 'Comment',
+            'comment': 'Comment – PSP Element',
             'third_party_funding_commitment': 'Third-party funding commitment',
             'third_party_funder_identifier': 'Third-party funder identifier',
             **bilingual_cost_type_labels(),
+            **cost_type_comment_labels(),
         }
         help_texts = {
             'wbs_code': 'Unique PSP identifier.',
@@ -145,6 +156,17 @@ class WBSElementForm(forms.ModelForm):
             self.fields['third_party_funding_commitment'].max_length = 255
         for flag in PSP_COST_TYPE_FLAG_FIELDS:
             self.fields[flag].required = False
+        for name in PSP_COST_TYPE_COMMENT_FIELDS:
+            if name in self.fields:
+                self.fields[name].required = False
+
+    def cost_type_comment_fields(self):
+        rows = []
+        for _flag, amount, _code, _de, _en in PSP_COST_TYPES:
+            name = f'comment_{amount}'
+            if name in self.fields:
+                rows.append({'amount_field': amount, 'field': self[name]})
+        return rows
 
     def clean(self):
         cleaned = super().clean()

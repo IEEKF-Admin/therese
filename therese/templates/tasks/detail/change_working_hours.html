@@ -67,8 +67,15 @@
                 {% if can_edit %}{{ form.valid_until|add_class:"form-control" }}{% else %}<strong>{{ task.valid_until|default:"—" }}</strong>{% endif %}
             </div>
             <div class="aligned-field">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                    {% if can_edit %}{{ form.is_permanent }}{% else %}<strong>{% if task.valid_until %}No{% else %}Yes{% endif %}</strong>{% endif %}
+                    Permanent Contract
+                </label>
+            </div>
+            <div class="aligned-field">
                 <label>New weekly working hours</label>
                 {% if can_edit %}{{ form.new_weekly_hours }}{% else %}<strong>{{ task.new_weekly_hours }}</strong>{% endif %}
+                <small id="hours-percent-of-standard" data-standard="{{ default_weekly_hours|default:'' }}" data-hours="{% if not can_edit %}{{ task.new_weekly_hours }}{% endif %}" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;"></small>
             </div>
         </div>
 
@@ -119,6 +126,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "tasks/_permanent_contract.js.html" %}
 {% include "tasks/_occupation_hours_widget.js.html" %}
 <style>
 .reallocation-form-actions {

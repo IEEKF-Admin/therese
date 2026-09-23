@@ -324,6 +324,33 @@ class WBSElement(BaseModel):
         default=False,
         verbose_name=".9 - Interne Leistungsverrechnung / Internal service charges",
     )
+    comment_material_costs = models.TextField(
+        blank=True, verbose_name="Comment – Material costs",
+    )
+    comment_personnel_costs = models.TextField(
+        blank=True, verbose_name="Comment – Personnel costs",
+    )
+    comment_domestic_travel_costs = models.TextField(
+        blank=True, verbose_name="Comment – Domestic travel costs",
+    )
+    comment_foreign_travel_costs = models.TextField(
+        blank=True, verbose_name="Comment – Foreign travel costs",
+    )
+    comment_third_party_investments = models.TextField(
+        blank=True, verbose_name="Comment – Third-party investments",
+    )
+    comment_publication_costs = models.TextField(
+        blank=True, verbose_name="Comment – Publication costs",
+    )
+    comment_animal_husbandry_costs = models.TextField(
+        blank=True, verbose_name="Comment – Animal husbandry costs",
+    )
+    comment_transfer_to_third_parties = models.TextField(
+        blank=True, verbose_name="Comment – Transfer to third parties",
+    )
+    comment_internal_service_charges = models.TextField(
+        blank=True, verbose_name="Comment – Internal service charges",
+    )
     third_party_funding_commitment = models.FileField(
         upload_to='finances/psp/third_party_funding/%Y/%m/',
         blank=True,

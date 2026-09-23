@@ -11,6 +11,8 @@ from apps.tasks.forms.common import (
     _configure_gender_field,
     _configure_personnel_assignee_field,
     add_initial_message_field,
+    add_permanent_contract_field,
+    apply_permanent_contract_clean,
 )
 from apps.tasks.models import (
     LimitationReason,
@@ -322,6 +324,8 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
                 'rows': 4,
             })
 
+        add_permanent_contract_field(self, enforce_max=False)
+
     def clean_experience_level(self):
         value = self.cleaned_data.get('experience_level')
         if value in (None, ''):
@@ -378,6 +382,7 @@ class PersonnelRecruitmentTaskForm(forms.ModelForm):
             elif not cleaned_data.get('monthly_salary'):
                 cleaned_data['pay_scale_group'] = ''
                 cleaned_data['experience_level'] = None
+        apply_permanent_contract_clean(self, cleaned_data, enforce_max=False)
         # Job, contract dates, uploads, and funding rules validated dynamically.
         validate_recruitment_dynamic_rules(
             self,

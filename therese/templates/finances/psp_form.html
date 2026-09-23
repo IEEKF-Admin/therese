@@ -106,11 +106,6 @@
                         <label for="{{ form.is_inactive.id_for_label }}">{{ form.is_inactive.label }}</label>
                     </div>
                 </div>
-                <div class="form-field">
-                    <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
-                    {% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment }}{% endif %}
-                    {{ form.comment.errors }}
-                </div>
             </div>
 
             <div class="form-card" style="margin-top: 1rem;">
@@ -130,6 +125,22 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="form-card" style="margin-top: 1rem; margin-bottom: 2rem;">
+        <h3>Comments</h3>
+        <div class="form-field">
+            <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+            {% if form.comment.errors %}{{ form.comment|add_class:"form-control error" }}{% else %}{{ form.comment }}{% endif %}
+            {{ form.comment.errors }}
+        </div>
+        {% for item in form.cost_type_comment_fields %}
+        <div class="form-field" data-cost-type="{{ item.amount_field }}">
+            <label for="{{ item.field.id_for_label }}">{{ item.field.label }}</label>
+            {% if item.field.errors %}{{ item.field|add_class:"form-control error" }}{% else %}{{ item.field }}{% endif %}
+            {{ item.field.errors }}
+        </div>
+        {% endfor %}
     </div>
 
     <div class="form-card" style="margin-bottom: 2rem;">
@@ -371,4 +382,9 @@
     });
 })();
 </script>
+<style>
+.form-field.is-cost-type-hidden {
+    display: none !important;
+}
+</style>
 {% endblock %}

@@ -41,6 +41,64 @@ class ChangeWorkingHoursFormTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['new_weekly_hours'], Decimal('19.625'))
 
+    def test_permanent_clears_valid_until(self):
+        form = PersonnelChangeWorkingHoursTaskForm(
+            data={
+                'employee': self.employee.pk,
+                'valid_from': '01.09.2026',
+                'valid_until': '31.12.2026',
+                'is_permanent': 'on',
+                'new_weekly_hours': '19,625',
+                'status': 'not_yet_processed',
+            },
+            user=self.user,
+            is_creation=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data['valid_until'])
+
+    def test_rejects_until_after_contract_end(self):
+        Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.000'),
+            valid_from=date(2025, 1, 1),
+            valid_until=date(2026, 12, 31),
+            is_active=True,
+        )
+        form = PersonnelChangeWorkingHoursTaskForm(
+            data={
+                'employee': self.employee.pk,
+                'valid_from': '01.09.2026',
+                'valid_until': '01.01.2027',
+                'new_weekly_hours': '19,625',
+                'status': 'not_yet_processed',
+            },
+            user=self.user,
+            is_creation=True,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('valid_until', form.errors)
+
+    def test_prefills_until_from_current_contract(self):
+        Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.000'),
+            valid_from=date(2025, 1, 1),
+            valid_until=date(2026, 12, 31),
+            is_active=True,
+        )
+        form = PersonnelChangeWorkingHoursTaskForm(
+            user=self.user,
+            is_creation=True,
+            initial={'employee': self.employee.pk},
+        )
+        self.assertEqual(form.initial.get('valid_until'), date(2026, 12, 31))
+        self.assertFalse(form.fields['is_permanent'].initial)
+        self.assertEqual(
+            form.fields['valid_until'].widget.attrs.get('data-max-until'),
+            '31.12.2026',
+        )
+
     def test_rejects_zero_hours(self):
         form = PersonnelChangeWorkingHoursTaskForm(
             data={
@@ -85,9 +143,14 @@ class ChangeWorkingHoursApplyTests(TestCase):
         self.task.save(update_fields=['status'])
 
     def test_apply_writes_hours_on_todays_contract(self):
+        self.contract.valid_until = date(2027, 12, 31)
+        self.contract.save(update_fields=['valid_until'])
+        self.task.valid_until = date(2026, 12, 31)
+        self.task.save(update_fields=['valid_until'])
         apply_change_working_hours(self.task)
         self.contract.refresh_from_db()
         self.assertEqual(self.contract.weekly_hours, Decimal('19.625'))
+        self.assertEqual(self.contract.valid_until, date(2027, 12, 31))
 
     def test_apply_fails_without_contract(self):
         self.contract.delete()

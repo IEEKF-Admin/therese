@@ -44,7 +44,7 @@
                 </div>
                 {% endif %}
                 <div class="inline-field full{% if 'notes' in fform.changed_fields %} funding-field-changed{% endif %}">
-                    <label>Notes</label>
+                    <label>Comment – Funding allocation</label>
                     {% if fform.notes.errors %}{{ fform.notes|add_class:"form-control error" }}{% else %}{{ fform.notes|add_class:"form-control" }}{% endif %}
                 </div>
                 <div class="inline-delete">
@@ -79,7 +79,7 @@
                 </div>
                 {% endif %}
                 <div class="inline-field full">
-                    <label>Notes</label>
+                    <label>Comment – Funding allocation</label>
                     {{ fform.notes|add_class:"form-control" }}
                 </div>
                 <div class="inline-delete">
@@ -112,7 +112,7 @@
             </div>
             {% endif %}
             <div class="inline-field full">
-                <label>Notes</label>
+                <label>Comment – Funding allocation</label>
                 <strong>{{ row.values.notes|default:"—" }}</strong>
             </div>
         </div>
@@ -182,7 +182,7 @@
                     {% if funding_formset.show_job_number %}
                     <th>Job Number</th>
                     {% endif %}
-                    <th>Notes</th>
+                    <th>Comment – Funding allocation</th>
                 </tr>
             </thead>
             <tbody>
@@ -218,7 +218,7 @@
                     <th>Percentage of Workhours</th>
                     <th>Plan Position Number</th>
                     <th>Job Number</th>
-                    <th>Notes</th>
+                    <th>Comment – Funding allocation</th>
                 </tr>
             </thead>
             <tbody>

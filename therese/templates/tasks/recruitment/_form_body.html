@@ -173,6 +173,13 @@
                 {% if can_edit_fields|default:True %}{% if form.valid_until.errors %}{{ form.valid_until|add_class:"form-control error" }}{% else %}{{ form.valid_until }}{% endif %}{% else %}<span class="form-readonly">{{ task.valid_until|default:"—" }}</span>{% endif %}
                 <small class="field-hint-de">Vertragsende</small>
             </div>
+            <div class="recruitment-field is-short">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                    {% if can_edit_fields|default:True %}{{ form.is_permanent }}{% elif not task.valid_until %}<strong>Yes</strong>{% else %}<strong>No</strong>{% endif %}
+                    Permanent Contract
+                </label>
+                <small class="field-hint-de">Unbefristeter Vertrag</small>
+            </div>
         </div>
     </div>
 </div>

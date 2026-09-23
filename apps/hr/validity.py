@@ -119,6 +119,46 @@ def select_contract_as_of(queryset: QuerySet, as_of: date | None = None):
     )
 
 
+def select_upcoming_or_current_contract(queryset: QuerySet, as_of: date | None = None):
+    """Earliest future-start contract, else the contract open on ``as_of``."""
+    as_of = resolve_as_of(as_of)
+    upcoming = (
+        queryset.filter(valid_from__gt=as_of)
+        .order_by('valid_from', 'pk')
+        .first()
+    )
+    if upcoming is not None:
+        return upcoming
+    return select_contract_as_of(queryset, as_of)
+
+
+def contract_validity_defaults(employee, as_of: date | None = None) -> dict:
+    """Prefill Valid until / Permanent from the employee's upcoming or current contract."""
+    empty = {
+        'has_contract': False,
+        'is_permanent': False,
+        'valid_until': None,
+        'max_until': None,
+        'valid_until_de': '',
+        'max_until_de': '',
+    }
+    if employee is None:
+        return empty
+    contract = select_upcoming_or_current_contract(employee.contracts.all(), as_of)
+    if contract is None:
+        return empty
+    until = contract.valid_until
+    until_de = until.strftime('%d.%m.%Y') if until else ''
+    return {
+        'has_contract': True,
+        'is_permanent': until is None,
+        'valid_until': until,
+        'max_until': until,
+        'valid_until_de': until_de,
+        'max_until_de': until_de,
+    }
+
+
 def select_allocation_as_of(queryset: QuerySet, as_of: date | None = None):
     """
     Soft-select one funding allocation from ``queryset``.

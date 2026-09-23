@@ -391,6 +391,7 @@ def build_psp_financial_overview(
     plan_total = ZERO
     true_total = ZERO
     obligo_total = ZERO
+    booked_total = ZERO
     not_booked_total = ZERO
     consumed_total = ZERO
     personal_obligo = _as_decimal(getattr(obligo, 'personal', None)) if obligo else None
@@ -428,6 +429,14 @@ def build_psp_financial_overview(
             true_source = 'imported'
             imported_true = true_val
 
+        booked_val = None
+        if imported_true is not None or obligo_val is not None:
+            booked_val = ((imported_true or ZERO) + (obligo_val or ZERO)).quantize(
+                Decimal('0.01')
+            )
+
+        comment = (getattr(wbs, f'comment_{amount_field}', None) or '').strip()
+
         # Show row if cost type is enabled or any amount is present
         has_any = any(
             v is not None
@@ -439,6 +448,7 @@ def build_psp_financial_overview(
         plan_total += plan_val or ZERO
         true_total += true_val or ZERO
         obligo_total += obligo_val or ZERO
+        booked_total += booked_val or ZERO
         if amount_field == 'personnel_costs':
             not_booked_total += not_booked_val or ZERO
             consumed = true_val or ZERO
@@ -464,12 +474,14 @@ def build_psp_financial_overview(
             'label_en': label_en,
             'enabled': enabled,
             'plan': plan_val,
+            'booked': booked_val,
             'true': true_val,
             'true_source': true_source,
             'imported_true': imported_true,
             'obligo': obligo_val,
             'not_booked': not_booked_val,
             'free_budget': free_budget,
+            'comment': comment,
         })
 
     free_budget_total = (plan_total - consumed_total).quantize(Decimal('0.01'))
@@ -496,6 +508,7 @@ def build_psp_financial_overview(
         'cost_rows': cost_rows,
         'personal_obligo': personal_obligo,
         'plan_total': plan_total.quantize(Decimal('0.01')),
+        'booked_total': booked_total.quantize(Decimal('0.01')),
         'true_total': true_total.quantize(Decimal('0.01')),
         'obligo_total': obligo_total.quantize(Decimal('0.01')),
         'not_booked_total': not_booked_total.quantize(Decimal('0.01')),
@@ -652,6 +665,7 @@ def _export_csv(overviews, year):
         'Year',
         'Cost type',
         'Budget',
+        'Booked costs',
         'Actual',
         'Actual source',
         'Commitment',
@@ -667,6 +681,7 @@ def _export_csv(overviews, year):
                 year,
                 row['label_de'],
                 row['plan'] if row['plan'] is not None else '',
+                row['booked'] if row.get('booked') is not None else '',
                 row['true'] if row['true'] is not None else '',
                 row['true_source'],
                 row['obligo'] if row['obligo'] is not None else '',
@@ -679,6 +694,7 @@ def _export_csv(overviews, year):
                 wbs.title,
                 year,
                 f"Personnel detail: {prow['employee_name']} ({prow['percentage']}%)",
+                '',
                 '',
                 '',
                 'not_booked',

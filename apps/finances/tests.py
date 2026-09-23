@@ -86,6 +86,29 @@ class WBSElementFormTests(TestCase):
         self.assertEqual(psp.cost_center, self.cost_center)
         self.assertEqual(psp.third_party_funder_identifier, 'DFG-123')
 
+    def test_cost_type_comment_saves(self):
+        form = WBSElementForm(data={
+            'wbs_code': 'D-999.0002.1c',
+            'title': 'Comment test',
+            'work_group': str(self.workgroup.pk),
+            'responsible_person': '',
+            'cost_center': self.cost_center.pk,
+            'period_start': '',
+            'period_end': '',
+            'subject_to_annual_recurrence': False,
+            'is_inactive': False,
+            'comment': 'PSP note',
+            'has_personnel_costs': True,
+            'comment_personnel_costs': 'Watch overtime',
+            'third_party_funder_identifier': 'DFG-123',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        psp = form.save()
+        self.assertEqual(psp.comment, 'PSP note')
+        self.assertEqual(psp.comment_personnel_costs, 'Watch overtime')
+        labels = [item['field'].label for item in form.cost_type_comment_fields()]
+        self.assertIn('Comment – Personnel costs', labels)
+
     def test_period_month_picker_parses_and_saves(self):
         form = WBSElementForm(data={
             'wbs_code': 'D-999.0002.2',

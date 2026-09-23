@@ -19,6 +19,19 @@
     function hoursField() {
         return document.querySelector('[name="new_weekly_hours"]');
     }
+    function updateHoursPercent() {
+        var out = document.getElementById('hours-percent-of-standard');
+        var field = hoursField();
+        if (!out) return;
+        var hoursRaw = (field && field.value) || out.getAttribute('data-hours') || '';
+        var hours = parseFloat(String(hoursRaw).replace(',', '.'));
+        var std = parseFloat(String(out.getAttribute('data-standard') || '').replace(',', '.'));
+        if (isNaN(hours) || isNaN(std) || std <= 0) {
+            out.textContent = '';
+            return;
+        }
+        out.textContent = (hours / std * 100).toFixed(3).replace('.', ',') + ' %';
+    }
     function applyForEmployee(employeeId) {
         var field = hoursField();
         if (!field) return;
@@ -54,6 +67,7 @@
             input.setAttribute('placeholder', 'e.g. 19,625');
             field.parentNode.replaceChild(input, field);
         }
+        updateHoursPercent();
     }
     function currentEmployeeId() {
         var sel = document.querySelector('[name="employee"]');
@@ -61,8 +75,15 @@
         if (sel) return sel.value;
         return '';
     }
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.name === 'new_weekly_hours') updateHoursPercent();
+    });
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.name === 'new_weekly_hours') updateHoursPercent();
+    });
     document.addEventListener('DOMContentLoaded', function() {
         applyForEmployee(currentEmployeeId());
+        updateHoursPercent();
         var emp = document.querySelector('select[name="employee"]');
         if (emp) emp.addEventListener('change', function() { applyForEmployee(emp.value); });
     });

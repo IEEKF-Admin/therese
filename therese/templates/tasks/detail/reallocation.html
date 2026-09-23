@@ -66,6 +66,12 @@
                 <label>Valid Until</label>
                 {% if can_edit %}{{ form.valid_until|add_class:"form-control" }}{% else %}<strong>{{ task.valid_until|default:"—" }}</strong>{% endif %}
             </div>
+            <div class="aligned-field">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                    {% if can_edit %}{{ form.is_permanent }}{% else %}<strong>{% if task.valid_until %}No{% else %}Yes{% endif %}</strong>{% endif %}
+                    Permanent Contract
+                </label>
+            </div>
         </div>
 
         {% if funding_formset %}
@@ -119,6 +125,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "tasks/_permanent_contract.js.html" %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
 <style>
 .reallocation-form-actions {

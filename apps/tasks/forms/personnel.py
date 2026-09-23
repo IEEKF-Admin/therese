@@ -12,7 +12,12 @@ from apps.tasks.form_validation import (
     require_non_empty_text,
     validate_contract_dates,
 )
-from apps.tasks.forms.common import _configure_personnel_assignee_field, add_initial_message_field
+from apps.tasks.forms.common import (
+    _configure_personnel_assignee_field,
+    add_initial_message_field,
+    add_permanent_contract_field,
+    apply_permanent_contract_clean,
+)
 from apps.tasks.models import (
     PERSONNEL_STATUSES,
     ExtensionFundingAllocation,
@@ -71,6 +76,7 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
             self.fields['job_number'].label = 'Job Number'
             self.fields['job_number'].required = False
         if 'notes' in self.fields:
+            self.fields['notes'].label = 'Comment – Funding allocation'
             self.fields['notes'].required = False
         for field_name, field in self.fields.items():
             if field_name in self.INTERNAL_FIELDS or field_name in (
@@ -255,6 +261,8 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
                 if field_name == 'valid_from':
                     self.fields[field_name].required = True
 
+        add_permanent_contract_field(self, enforce_max=True)
+
         if self.is_creation:
             add_initial_message_field(
                 self,
@@ -267,6 +275,7 @@ class PersonnelReallocationTaskForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         strip_limitation_reason_template(cleaned_data)
+        apply_permanent_contract_clean(self, cleaned_data, enforce_max=True)
         validate_contract_dates(
             self,
             cleaned_data,
@@ -329,6 +338,8 @@ class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
                 if field_name == 'valid_from':
                     self.fields[field_name].required = True
 
+        add_permanent_contract_field(self, enforce_max=True)
+
         if 'new_weekly_hours' in self.fields:
             original = self.fields['new_weekly_hours']
             self.fields['new_weekly_hours'] = DecimalCommaField(
@@ -357,6 +368,7 @@ class PersonnelChangeWorkingHoursTaskForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         strip_limitation_reason_template(cleaned_data)
+        apply_permanent_contract_clean(self, cleaned_data, enforce_max=True)
         validate_contract_dates(
             self,
             cleaned_data,
@@ -520,9 +532,14 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
             if not self.is_creation and getattr(self.instance, 'pk', None):
                 self.fields['employee'].disabled = True
 
+        add_permanent_contract_field(self, enforce_max=False)
+
         if 'is_limited' in self.fields and self.is_creation:
-            self.fields['is_limited'].initial = True
             self.fields['is_limited'].label = ""
+            if not self.is_bound:
+                self.fields['is_limited'].initial = not bool(
+                    self.fields['is_permanent'].initial
+                )
 
         for fname in ['plan_position_number', 'priority', 'assignee', 'employee']:
             if fname in self.fields:
@@ -546,6 +563,9 @@ class PersonnelContractExtensionTaskForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         strip_limitation_reason_template(cleaned_data)
+        apply_permanent_contract_clean(
+            self, cleaned_data, enforce_max=False, sync_limited=True,
+        )
         require_non_empty_text(self, cleaned_data, 'plan_position_number')
         validate_contract_dates(
             self,

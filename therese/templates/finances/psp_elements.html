@@ -120,6 +120,10 @@
                         {% endif %}
                     </th>
                     <th scope="col" class="text-right">
+                        Booked Costs
+                        <br><span class="col-subhint">Ist + Obligo</span>
+                    </th>
+                    <th scope="col" class="text-right">
                         Actual
                         <br><span class="col-subhint">personnel: Ist + Obligo + Not booked</span>
                     </th>
@@ -144,16 +148,17 @@
                         {% if row.amount_field == 'personnel_costs' %}
                         <a href="{% url 'finances:psp_personnel_detail' overview.wbs.pk %}?year={{ year }}"
                            class="psp-cost-type-link">
-                            <strong>{{ row.label_de }}</strong>
+                            <strong>{{ row.label_de }}</strong>{% if row.comment %}<span class="psp-cost-comment-flag" title="{{ row.comment }}">!</span>{% endif %}
                             <br><span class="bilingual-label__en">{{ row.label_en }}</span>
                             <br><span class="psp-true-source-hint">Open assigned personnel →</span>
                         </a>
                         {% else %}
-                        <strong>{{ row.label_de }}</strong>
+                        <strong>{{ row.label_de }}</strong>{% if row.comment %}<span class="psp-cost-comment-flag" title="{{ row.comment }}">!</span>{% endif %}
                         <br><span class="bilingual-label__en">{{ row.label_en }}</span>
                         {% endif %}
                     </td>
                     <td class="text-right">{% if row.plan is not None %}{{ row.plan|de_number:2 }} €{% else %}—{% endif %}</td>
+                    <td class="text-right">{% if row.booked is not None %}{{ row.booked|de_number:2 }} €{% else %}—{% endif %}</td>
                     <td class="text-right">{% if row.true is not None %}{{ row.true|de_number:2 }} €{% else %}—{% endif %}</td>
                     <td class="text-right">{% if row.obligo is not None %}{{ row.obligo|de_number:2 }} €{% else %}—{% endif %}</td>
                     <td class="text-right">{% if row.not_booked is not None %}{{ row.not_booked|de_number:2 }} €{% else %}—{% endif %}</td>
@@ -163,13 +168,14 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-muted">No cost-type amounts for this year.</td>
+                    <td colspan="7" class="text-muted">No cost-type amounts for this year.</td>
                 </tr>
                 {% endfor %}
 
                 <tr class="psp-finance-totals">
                     <td><strong>Total</strong></td>
                     <td class="text-right"><strong>{{ overview.plan_total|de_number:2 }} €</strong></td>
+                    <td class="text-right"><strong>{{ overview.booked_total|de_number:2 }} €</strong></td>
                     <td class="text-right"><strong>{{ overview.true_total|de_number:2 }} €</strong></td>
                     <td class="text-right"><strong>{{ overview.obligo_total|de_number:2 }} €</strong></td>
                     <td class="text-right"><strong>{{ overview.not_booked_total|de_number:2 }} €</strong></td>
@@ -234,6 +240,12 @@
 .psp-badge-annual {
     background: #fef3c7;
     color: #b45309;
+}
+.psp-cost-comment-flag {
+    color: #dc2626;
+    font-weight: 800;
+    margin-left: 0.25rem;
+    cursor: help;
 }
 .psp-finance-table td.is-overdrawn {
     color: #b91c1c;

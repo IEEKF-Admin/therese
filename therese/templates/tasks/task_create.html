@@ -240,11 +240,11 @@
                 <button type="button" id="add-item" class="btn-secondary" style="margin-top: 1rem;">+ Add another item</button>
             </div>
 
-            <!-- Comment / Notes -->
+            <!-- Comment – Purchase order -->
             <div class="form-section">
-                <h3>Comment / Notes</h3>
+                <h3>Comment – Purchase order</h3>
                 {{ form.initial_message|add_class:"form-control" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen (optional)</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar – Bestellung (optional)</small>
             </div>
 
             <div class="form-section">
@@ -281,15 +281,21 @@
                     {{ form.valid_until|add_class:"date-picker" }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
                 </div>
+                <div class="aligned-field">
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                        {{ form.is_permanent }} Permanent Contract
+                    </label>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Unbefristeter Vertrag</small>
+                </div>
             </div>
 
             {% include "tasks/reallocation/_funding_allocations.html" %}
 
-            <!-- Comment / Notes - full width -->
+            <!-- Comment – Task -->
             <div class="form-section comment-full">
-                <h3>Comment / Notes</h3>
+                <h3>Comment – Task</h3>
                 {{ form.initial_message|add_class:"form-control full-width-textarea" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar – Aufgabe</small>
             </div>
 
         {% elif task_type == 'personnel_change_working_hours' %}
@@ -312,16 +318,23 @@
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
                 </div>
                 <div class="aligned-field">
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                        {{ form.is_permanent }} Permanent Contract
+                    </label>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Unbefristeter Vertrag</small>
+                </div>
+                <div class="aligned-field">
                     <label>New weekly working hours<span style="color:#ef4444; white-space:nowrap;">&nbsp;*</span></label>
                     {{ form.new_weekly_hours }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Neue wöchentliche Arbeitszeit</small>
+                    <small id="hours-percent-of-standard" data-standard="{{ default_weekly_hours|default:'' }}" style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;"></small>
                 </div>
             </div>
 
             <div class="form-section comment-full">
-                <h3>Comment / Notes</h3>
+                <h3>Comment – Task</h3>
                 {{ form.initial_message|add_class:"form-control full-width-textarea" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar – Aufgabe</small>
             </div>
 
         {% elif task_type == 'personnel_contract_extension' %}
@@ -348,6 +361,12 @@
                     <label>Valid Until</label>
                     {{ form.valid_until|add_class:"date-picker" }}
                     <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Gültig bis</small>
+                </div>
+                <div class="aligned-field">
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                        {{ form.is_permanent }} Permanent Contract
+                    </label>
+                    <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:2px;">Unbefristeter Vertrag</small>
                 </div>
 
                 <div class="aligned-field">
@@ -388,19 +407,19 @@
                 </div>
             </div>
 
-            <!-- Comment / Notes - full width -->
+            <!-- Comment – Task -->
             <div class="form-section comment-full">
-                <h3>Comment / Notes</h3>
+                <h3>Comment – Task</h3>
                 {{ form.initial_message|add_class:"form-control full-width-textarea" }}
-                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar / Notizen</small>
+                <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:4px;">Kommentar – Aufgabe</small>
             </div>
 
         {% elif task_type == 'personnel_recruitment' %}
             {% include "tasks/recruitment/_form_body.html" with task=form.instance can_edit_fields=True is_creation=True %}
             <div class="form-section comment-full">
-                <h3>Comment / Notes</h3>
+                <h3>Comment – Task</h3>
                 {{ form.initial_message|add_class:"form-control full-width-textarea" }}
-                <small style="color:#64748b;">Kommentar / Notizen</small>
+                <small style="color:#64748b;">Kommentar – Aufgabe</small>
             </div>
 
         {% endif %}
@@ -433,6 +452,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if task_type == 'personnel_reallocation' or task_type == 'personnel_change_working_hours' or task_type == 'personnel_contract_extension' or task_type == 'personnel_recruitment' %}
+{% include "tasks/_permanent_contract.js.html" %}
+{% endif %}
 {% if task_type == 'personnel_change_working_hours' %}
 {% include "tasks/_occupation_hours_widget.js.html" %}
 {% endif %}
@@ -548,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 500;
   }
 
-  /* Force Comment / Notes to be truly full width */
+  /* Force Comment – Task to be truly full width */
   .form-section.comment-full {
     width: 100% !important;
     max-width: 100% !important;

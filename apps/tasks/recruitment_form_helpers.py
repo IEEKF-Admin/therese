@@ -207,9 +207,13 @@ def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files
 
     rules = get_effective_rules_for_job(job)
     until_rule = rules.get('valid_until')
-    require_end = is_field_required(
-        until_rule, None, 'valid_until', is_creation=is_creation,
-    ) and is_field_visible(until_rule, None, field_values=cleaned_data)
+    require_end = (
+        not cleaned_data.get('is_permanent')
+        and is_field_required(
+            until_rule, None, 'valid_until', is_creation=is_creation,
+        )
+        and is_field_visible(until_rule, None, field_values=cleaned_data)
+    )
 
     validate_contract_dates(
         form,
@@ -253,7 +257,7 @@ def validate_recruitment_dynamic_rules(form, cleaned_data, *, is_creation, files
             validate_limitation_reason_or_file(
                 form,
                 cleaned_data,
-                required=required,
+                required=required and not cleaned_data.get('is_permanent'),
                 required_message='Limitation reason text or PDF is required.',
             )
             continue

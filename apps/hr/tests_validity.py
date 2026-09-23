@@ -7,7 +7,13 @@ from django.test import TestCase
 
 from apps.finances.models import CostCenter, WBSElement
 from apps.hr.models import Contract, Employee, FundingAllocation
-from apps.hr.validity import dedupe_allocations_as_of, select_contract_as_of, temporal_status
+from apps.hr.validity import (
+    contract_validity_defaults,
+    dedupe_allocations_as_of,
+    select_contract_as_of,
+    select_upcoming_or_current_contract,
+    temporal_status,
+)
 
 
 class TemporalStatusTests(TestCase):
@@ -114,6 +120,48 @@ class ContractSoftSelectTests(TestCase):
             self.emp.get_contract_as_of(date(2025, 1, 1)).pk,
             active.pk,
         )
+
+    def test_upcoming_contract_preferred_over_current(self):
+        current = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 1, 1),
+            valid_until=date(2026, 12, 31),
+            is_active=True,
+        )
+        upcoming = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('20.00'),
+            monthly_salary=Decimal('2000.00'),
+            valid_from=date(2027, 1, 1),
+            valid_until=date(2028, 12, 31),
+            is_active=False,
+        )
+        as_of = date(2026, 9, 23)
+        picked = select_upcoming_or_current_contract(self.emp.contracts.all(), as_of)
+        self.assertEqual(picked.pk, upcoming.pk)
+        current_only = select_contract_as_of(self.emp.contracts.all(), as_of)
+        self.assertEqual(current_only.pk, current.pk)
+        defaults = contract_validity_defaults(self.emp, as_of)
+        self.assertTrue(defaults['has_contract'])
+        self.assertFalse(defaults['is_permanent'])
+        self.assertEqual(defaults['valid_until'], date(2028, 12, 31))
+        self.assertEqual(defaults['valid_until_de'], '31.12.2028')
+
+    def test_open_ended_contract_marks_permanent(self):
+        Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 1, 1),
+            valid_until=None,
+            is_active=True,
+        )
+        defaults = contract_validity_defaults(self.emp, date(2026, 9, 23))
+        self.assertTrue(defaults['is_permanent'])
+        self.assertIsNone(defaults['valid_until'])
+        self.assertEqual(defaults['valid_until_de'], '')
 
 
 class FundingAllocationSoftSelectTests(TestCase):

@@ -206,6 +206,19 @@ class BuildPspOverviewTests(TestCase):
         # Personnel Free = Budget − Actual = 50000 - 42200 = 7800
         self.assertEqual(by_field['personnel_costs']['free_budget'], Decimal('7800.00'))
         self.assertIsNone(by_field['material_costs']['not_booked'])
+        # Booked = Ist + Obligo (without Not booked)
+        self.assertEqual(by_field['material_costs']['booked'], Decimal('2500.00'))
+        self.assertEqual(by_field['personnel_costs']['booked'], Decimal('11000.00'))
+
+    def test_cost_type_comment_is_passed_to_row(self):
+        self.wbs.comment_personnel_costs = 'Watch overtime'
+        self.wbs.save(update_fields=['comment_personnel_costs'])
+        overview = build_psp_financial_overview(
+            self.wbs, 2026, Decimal('1.300'), as_of=date(2026, 1, 1),
+        )
+        by_field = {r['amount_field']: r for r in overview['cost_rows']}
+        self.assertEqual(by_field['personnel_costs']['comment'], 'Watch overtime')
+        self.assertEqual(by_field['material_costs']['comment'], '')
 
     def test_not_booked_excludes_import_completed_allocations(self):
         self.wbs.subject_to_annual_recurrence = False
@@ -324,6 +337,7 @@ class PspOverviewViewTests(TestCase):
         response = self.client.get('/finances/psp-elements/?year=2026&show_empty=1')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Budget')
+        self.assertContains(response, 'Booked Costs')
         self.assertContains(response, 'Actual')
         self.assertContains(response, 'Commitment')
         self.assertContains(response, 'Free budget')

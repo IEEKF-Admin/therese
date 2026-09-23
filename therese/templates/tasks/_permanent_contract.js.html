@@ -1,0 +1,105 @@
+<script>
+(function() {
+    function untilInput() {
+        return document.querySelector('[name="valid_until"]');
+    }
+    function permanentInput() {
+        return document.querySelector('[name="is_permanent"]');
+    }
+    function limitedInput() {
+        return document.querySelector('[name="is_limited"]');
+    }
+    function setUntilValue(value) {
+        var el = untilInput();
+        if (!el) return;
+        if (el._flatpickr) {
+            if (value) el._flatpickr.setDate(value, true);
+            else el._flatpickr.clear();
+        } else {
+            el.value = value || '';
+        }
+    }
+    function setMaxUntil(maxDe) {
+        var el = untilInput();
+        if (!el) return;
+        if (maxDe) el.setAttribute('data-max-until', maxDe);
+        else el.removeAttribute('data-max-until');
+        if (el._flatpickr) {
+            el._flatpickr.set('maxDate', maxDe || null);
+        }
+    }
+    function applyPermanentState() {
+        var perm = permanentInput();
+        var until = untilInput();
+        if (!perm || !until) return;
+        if (perm.checked) {
+            setUntilValue('');
+            until.disabled = true;
+            var limited = limitedInput();
+            if (limited) limited.checked = false;
+        } else {
+            until.disabled = false;
+        }
+    }
+    function enforceMax() {
+        var el = untilInput();
+        return !!(el && el.getAttribute('data-enforce-max') === 'true');
+    }
+    function applyValidity(data) {
+        var perm = permanentInput();
+        if (!perm) return;
+        perm.checked = !!(data && data.is_permanent);
+        if (enforceMax()) setMaxUntil((data && data.max_until) || '');
+        else setMaxUntil('');
+        if (perm.checked) {
+            setUntilValue('');
+        } else {
+            setUntilValue((data && data.valid_until) || '');
+        }
+        applyPermanentState();
+    }
+
+    document.addEventListener('change', function(e) {
+        if (!e.target) return;
+        if (e.target.name === 'is_permanent') applyPermanentState();
+        if (e.target.name === 'is_limited' && e.target.checked) {
+            var perm = permanentInput();
+            if (perm && perm.checked) {
+                perm.checked = false;
+                applyPermanentState();
+            }
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        applyPermanentState();
+        var until = untilInput();
+        if (until && until._flatpickr) {
+            var maxDe = until.getAttribute('data-max-until');
+            if (maxDe) until._flatpickr.set('maxDate', maxDe);
+        }
+        var emp = document.querySelector('select[name="employee"]');
+        var fundingUrl = '{% url "tasks:ajax_employee_current_funding" %}';
+        if (!emp) return;
+        emp.addEventListener('change', function() {
+            if (!emp.value) {
+                applyValidity({
+                    has_contract: false,
+                    is_permanent: false,
+                    valid_until: '',
+                    max_until: ''
+                });
+                return;
+            }
+            fetch(fundingUrl + '?employee=' + encodeURIComponent(emp.value), {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                applyValidity(data || {});
+            }).catch(function() {
+                applyValidity({});
+            });
+        });
+    });
+})();
+</script>

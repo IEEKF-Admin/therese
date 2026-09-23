@@ -49,6 +49,16 @@ PSP_COST_TYPES = (
 
 PSP_COST_TYPE_FLAG_FIELDS = tuple(item[0] for item in PSP_COST_TYPES)
 PSP_COST_TYPE_AMOUNT_FIELDS = tuple(item[1] for item in PSP_COST_TYPES)
+PSP_COST_TYPE_COMMENT_FIELDS = tuple(
+    f'comment_{amount}' for _flag, amount, *_rest in PSP_COST_TYPES
+)
+
+
+def cost_type_comment_labels():
+    return {
+        f'comment_{amount}': f'Comment – {label_en}'
+        for _flag, amount, _code, _de, label_en in PSP_COST_TYPES
+    }
 
 
 def bilingual_cost_type_label(code, label_de, label_en, *, include_code=True):

@@ -237,9 +237,12 @@ def occupation_tables_for_settings():
 
 
 def occupation_form_context():
+    from apps.core.models import GlobalSetting
+
     return {
         'occupation_tables_json': all_tables_payload(),
         'employee_salary_table_ids_json': employee_salary_table_ids(),
+        'default_weekly_hours': GlobalSetting.get_default_weekly_hours(),
     }
 
 

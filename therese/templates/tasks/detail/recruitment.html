@@ -77,6 +77,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "tasks/_permanent_contract.js.html" %}
 {% include "tasks/recruitment/_inline_form_js.html" %}
 <script src="{% static 'js/recruitment_dynamic.js' %}"></script>
 {{ recruitment_job_rules_json|json_script:"therese-job-rules" }}

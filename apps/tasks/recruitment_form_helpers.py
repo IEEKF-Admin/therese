@@ -341,7 +341,9 @@ def build_recruitment_template_context():
     field_keys = {field_key: True for field_key, _, _ in RECRUITMENT_CONFIGURABLE_FIELDS}
     job_payscale = {}
     current_payscales = PayScale.get_current()
-    for job in visible_recruitment_jobs().select_related('salary_table').prefetch_related('salary_table__rows'):
+    for job in visible_recruitment_jobs().select_related('salary_table').prefetch_related(
+        'salary_table__instances__rows',
+    ):
         inherited = inherited_job_payscale(job)
         salary = None
         if inherited['pay_scale_group'] and inherited['experience_level'] is not None:

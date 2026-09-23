@@ -1,8 +1,20 @@
 from datetime import date
+from decimal import Decimal
 
-from django.test import TestCase
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+from django.test import Client, TestCase
 
-from apps.tasks.models import LimitationReason, RecruitmentJob, RecruitmentJobFieldRule
+from apps.accounts.models import CustomUser
+from apps.core.models import GlobalSetting, OccupationSalaryTable
+from apps.core.occupation_salary import add_occupation_row
+from apps.hr.models import Employee
+from apps.tasks.models import (
+    LimitationReason,
+    PurchaseOrderTask,
+    RecruitmentJob,
+    RecruitmentJobFieldRule,
+)
 from apps.tasks.recruitment_config import (
     VisibilityMode,
     RequiredMode,
@@ -80,11 +92,6 @@ class RecruitmentJobSalaryTests(TestCase):
         self.assertEqual(job.get_estimated_monthly_salary(), Decimal('3200.00'))
 
     def test_occupation_table_estimated_salary(self):
-        from decimal import Decimal
-
-        from apps.core.models import GlobalSetting, OccupationSalaryTable
-        from apps.core.occupation_salary import add_occupation_row
-
         GlobalSetting.objects.update_or_create(
             pk=1, defaults={'default_weekly_hours': Decimal('39.000')},
         )
@@ -213,3 +220,40 @@ class LimitationReasonFilterTests(TestCase):
         titles_b = {item['title'] for item in limitation_reasons_for_job(self.job_b.pk)}
         self.assertIn('All jobs', titles_b)
         self.assertNotIn('Only A', titles_b)
+
+
+class PersonnelCreateOccupationPrefetchTests(TestCase):
+    def setUp(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1, defaults={'default_weekly_hours': Decimal('39.000')},
+        )
+        table = OccupationSalaryTable.objects.create(name='Create prefetch table')
+        add_occupation_row(table, Decimal('19.500'), Decimal('1950.00'))
+        RecruitmentJob.objects.create(
+            name='Occupation create job',
+            salary_table=table,
+            occupation_weekly_hours=Decimal('19.500'),
+        )
+        self.user = CustomUser.objects.create_user('create-occ', password='test')
+        self.user.password_changed = True
+        self.user.save(update_fields=['password_changed'])
+        po_ct = ContentType.objects.get_for_model(PurchaseOrderTask)
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type=po_ct, codename='create_personnel_task'),
+        )
+        Employee.objects.create(
+            employee_number='E-OCC-CRE',
+            first_name='Occ',
+            last_name='Creator',
+            user=self.user,
+        )
+        self.client = Client()
+        self.client.login(username='create-occ', password='test')
+
+    def test_recruitment_create_page_loads(self):
+        response = self.client.get('/tasks/create/new/?type=personnel_recruitment')
+        self.assertEqual(response.status_code, 200)
+
+    def test_contract_extension_create_page_loads(self):
+        response = self.client.get('/tasks/create/new/?type=personnel_contract_extension')
+        self.assertEqual(response.status_code, 200)

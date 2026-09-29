@@ -42,7 +42,7 @@ def google_calendar_connect(request):
     if not oauth_configured():
         messages.error(
             request,
-            'Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET in .env first.',
+            'Save the Google OAuth client ID and secret under Integrations first.',
         )
         return _integrations_redirect()
     state = secrets.token_urlsafe(32)

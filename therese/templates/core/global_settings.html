@@ -339,6 +339,8 @@
             </p>
             {% include "core/_settings_field.html" with field=form.google_calendar_enabled %}
             {% include "core/_settings_field.html" with field=form.google_calendar_id %}
+            {% include "core/_settings_field.html" with field=form.google_oauth_client_id %}
+            {% include "core/_settings_field.html" with field=form.google_oauth_client_secret %}
         </div>
         <div class="form-actions">
             <button type="submit" class="btn-primary">Save integrations</button>
@@ -356,9 +358,8 @@
         {% endif %}
         {% if not google_oauth_configured %}
         <div class="alert alert-warning" style="margin:0.75rem 0;">
-            Set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code>
-            in <code>.env</code>, then restart THERESE. OAuth client type: Web application.
-            Authorized redirect URI:
+            Save the Google OAuth client ID and secret above, then click Connect Google.
+            OAuth client type: Web application. Authorized redirect URI:
         </div>
         {% else %}
         <p class="field-hint">Authorized redirect URI for the Google Cloud OAuth client:</p>

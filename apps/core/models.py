@@ -363,6 +363,27 @@ class GlobalSetting(models.Model):
             'The calendar can stay private. The connected Google account must own it.'
         ),
     )
+    google_oauth_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Google OAuth client ID',
+        help_text=(
+            'From Google Cloud → APIs & Services → Credentials. '
+            'OAuth client type: Web application. '
+            'A non-empty GOOGLE_OAUTH_CLIENT_ID in .env overrides this.'
+        ),
+    )
+    google_oauth_client_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Google OAuth client secret',
+        help_text=(
+            'Leave blank to keep the saved secret. Not shown again after saving. '
+            'A non-empty GOOGLE_OAUTH_CLIENT_SECRET in .env overrides this.'
+        ),
+    )
     google_calendar_refresh_token = models.TextField(
         blank=True,
         default='',

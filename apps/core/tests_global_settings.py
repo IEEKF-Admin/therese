@@ -55,6 +55,8 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Inventory module')
         self.assertContains(response, 'Integrations')
         self.assertContains(response, 'Google Calendar sharing')
+        self.assertContains(response, 'Google OAuth client ID')
+        self.assertContains(response, 'Google OAuth client secret')
         self.assertContains(response, 'Test calendar connection')
         self.assertContains(response, 'Request email subject')
         self.assertContains(response, 'Cancellation email subject')
@@ -91,17 +93,24 @@ class GlobalSettingsViewTests(TestCase):
             'action': 'save_integrations',
             'google_calendar_enabled': 'on',
             'google_calendar_id': 'institute@group.calendar.google.com',
+            'google_oauth_client_id': 'gui-client-id.apps.googleusercontent.com',
+            'google_oauth_client_secret': 'gui-secret',
         })
         self.assertEqual(posted.status_code, 302)
         setting = GlobalSetting.get_solo()
         self.assertTrue(setting.google_calendar_enabled)
         self.assertEqual(setting.google_calendar_id, 'institute@group.calendar.google.com')
+        self.assertEqual(setting.google_oauth_client_id, 'gui-client-id.apps.googleusercontent.com')
+        self.assertEqual(setting.google_oauth_client_secret, 'gui-secret')
         posted = self.client.post(url, {
             'action': 'save_integrations',
             'google_calendar_id': 'institute@group.calendar.google.com',
+            'google_oauth_client_id': 'gui-client-id.apps.googleusercontent.com',
         })
         self.assertEqual(posted.status_code, 302)
-        self.assertFalse(GlobalSetting.get_solo().google_calendar_enabled)
+        setting = GlobalSetting.get_solo()
+        self.assertFalse(setting.google_calendar_enabled)
+        self.assertEqual(setting.google_oauth_client_secret, 'gui-secret')
 
     def test_systemadmin_can_disable_chemicals_module(self):
         self.client.login(username='sysadmin-gs', password='test')

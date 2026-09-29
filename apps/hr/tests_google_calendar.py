@@ -246,12 +246,57 @@ class GoogleCalendarAccountsTabTests(TestCase):
         self.client.login(username='sysadmin-gc', password='test')
         listed = self.client.get(reverse('core_settings:global_settings') + '?tab=integrations')
         self.assertContains(listed, 'Connect Google')
-        self.assertContains(listed, 'GOOGLE_OAUTH_CLIENT_ID')
+        self.assertContains(listed, 'Save the Google OAuth client ID and secret above')
         response = self.client.post(
             reverse('core_settings:google_calendar_connect'),
             follow=True,
         )
-        self.assertContains(response, 'Set GOOGLE_OAUTH_CLIENT_ID')
+        self.assertContains(
+            response,
+            'Save the Google OAuth client ID and secret under Integrations first.',
+        )
+
+    @override_settings(
+        GOOGLE_OAUTH_CLIENT_ID='',
+        GOOGLE_OAUTH_CLIENT_SECRET='',
+        SITE_URL='https://therese.example.org',
+    )
+    def test_connect_with_gui_oauth_redirects(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_oauth_client_id': 'gui-client-id',
+                'google_oauth_client_secret': 'gui-client-secret',
+            },
+        )
+        self.client.login(username='sysadmin-gc', password='test')
+        response = self.client.post(reverse('core_settings:google_calendar_connect'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('accounts.google.com', response['Location'])
+        self.assertIn('gui-client-id', response['Location'])
+        self.assertIn(
+            'therese.example.org%2Fsettings%2Fgoogle-calendar%2Fcallback%2F',
+            response['Location'],
+        )
+
+    @override_settings(
+        GOOGLE_OAUTH_CLIENT_ID='env-client-id',
+        GOOGLE_OAUTH_CLIENT_SECRET='env-client-secret',
+        SITE_URL='https://therese.example.org',
+    )
+    def test_env_oauth_overrides_gui(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_oauth_client_id': 'gui-client-id',
+                'google_oauth_client_secret': 'gui-client-secret',
+            },
+        )
+        self.client.login(username='sysadmin-gc', password='test')
+        response = self.client.post(reverse('core_settings:google_calendar_connect'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('env-client-id', response['Location'])
+        self.assertNotIn('gui-client-id', response['Location'])
 
 
 class GoogleCalendarConnectionTestTests(TestCase):

@@ -34,11 +34,32 @@ class GoogleCalendarError(Exception):
         self.body = body or ''
 
 
-def oauth_configured() -> bool:
-    return bool(
-        (getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '').strip()
-        and (getattr(settings, 'GOOGLE_OAUTH_CLIENT_SECRET', '') or '').strip()
-    )
+def _oauth_setting():
+    from apps.core.models import GlobalSetting
+
+    return GlobalSetting.get_solo()
+
+
+def oauth_client_id(setting=None) -> str:
+    env = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '').strip()
+    if env:
+        return env
+    setting = setting or _oauth_setting()
+    return (getattr(setting, 'google_oauth_client_id', '') or '').strip()
+
+
+def oauth_client_secret(setting=None) -> str:
+    env = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_SECRET', '') or '').strip()
+    if env:
+        return env
+    setting = setting or _oauth_setting()
+    return (getattr(setting, 'google_oauth_client_secret', '') or '').strip()
+
+
+def oauth_configured(setting=None) -> bool:
+    if setting is None:
+        return bool(oauth_client_id() and oauth_client_secret())
+    return bool(oauth_client_id(setting) and oauth_client_secret(setting))
 
 
 def oauth_redirect_uri(request) -> str:
@@ -51,7 +72,7 @@ def oauth_redirect_uri(request) -> str:
 
 def oauth_authorize_url(request, state: str) -> str:
     params = {
-        'client_id': settings.GOOGLE_OAUTH_CLIENT_ID,
+        'client_id': oauth_client_id(),
         'redirect_uri': oauth_redirect_uri(request),
         'response_type': 'code',
         'scope': ' '.join(OAUTH_SCOPES),
@@ -98,8 +119,8 @@ def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
         GOOGLE_TOKEN_URL,
         data={
             'code': code,
-            'client_id': settings.GOOGLE_OAUTH_CLIENT_ID,
-            'client_secret': settings.GOOGLE_OAUTH_CLIENT_SECRET,
+            'client_id': oauth_client_id(),
+            'client_secret': oauth_client_secret(),
             'redirect_uri': redirect_uri,
             'grant_type': 'authorization_code',
         },
@@ -123,8 +144,8 @@ def refresh_access_token(refresh_token: str) -> str:
         'POST',
         GOOGLE_TOKEN_URL,
         data={
-            'client_id': settings.GOOGLE_OAUTH_CLIENT_ID,
-            'client_secret': settings.GOOGLE_OAUTH_CLIENT_SECRET,
+            'client_id': oauth_client_id(),
+            'client_secret': oauth_client_secret(),
             'refresh_token': refresh_token,
             'grant_type': 'refresh_token',
         },

@@ -41,6 +41,8 @@ SETTINGS_TAB_FIELDS = {
     'integrations': [
         'google_calendar_enabled',
         'google_calendar_id',
+        'google_oauth_client_id',
+        'google_oauth_client_secret',
     ],
 }
 
@@ -103,6 +105,8 @@ class GlobalSettingForm(forms.ModelForm):
             'holiday_cancel_email_html',
             'google_calendar_enabled',
             'google_calendar_id',
+            'google_oauth_client_id',
+            'google_oauth_client_secret',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -141,6 +145,14 @@ class GlobalSettingForm(forms.ModelForm):
                 'data-wysiwyg-height': '240',
             }),
             'google_calendar_id': forms.TextInput(attrs={'class': 'form-control'}),
+            'google_oauth_client_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'off',
+            }),
+            'google_oauth_client_secret': forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'new-password',
+            }, render_value=False),
         }
 
     def clean_limitation_pdf_letterhead(self):
@@ -157,6 +169,12 @@ class GlobalSettingForm(forms.ModelForm):
         from apps.core.html_sanitize import sanitize_html
 
         return sanitize_html(self.cleaned_data.get('holiday_cancel_email_html'))
+
+    def clean_google_oauth_client_secret(self):
+        value = (self.cleaned_data.get('google_oauth_client_secret') or '').strip()
+        if not value:
+            return self.instance.google_oauth_client_secret
+        return value
 
 
 def global_setting_form_class(tab):

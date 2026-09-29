@@ -77,7 +77,7 @@ def oauth_authorize_url(request, state: str) -> str:
         'response_type': 'code',
         'scope': ' '.join(OAUTH_SCOPES),
         'access_type': 'offline',
-        'prompt': 'consent',
+        'prompt': 'select_account consent',
         'include_granted_scopes': 'true',
         'state': state,
     }

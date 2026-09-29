@@ -236,6 +236,7 @@ class GoogleCalendarAccountsTabTests(TestCase):
         response = self.client.post(reverse('core_settings:google_calendar_connect'))
         self.assertEqual(response.status_code, 302)
         self.assertIn('accounts.google.com', response['Location'])
+        self.assertIn('select_account', response['Location'])
         self.assertIn(
             'therese.example.org%2Fsettings%2Fgoogle-calendar%2Fcallback%2F',
             response['Location'],

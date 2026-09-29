@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Accounts - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Accounts</h1>
+    <p class="page-subtitle">External accounts and registrations per employee. Currently Google Calendar; further systems will appear as extra columns.</p>
+</div>
+
+{% include "hr/_employee_hub_tabs.html" %}
+
+<div class="card list-panel">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Employee No.</th>
+                {% for kind in kinds %}
+                <th>{{ kind.label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>
+                    <a href="{% url 'hr:employee_update' row.employee.pk %}">{{ row.employee.last_name }}, {{ row.employee.first_name }}</a>
+                    {% if not row.is_active %}
+                    <span class="badge-archived">Archived</span>
+                    {% endif %}
+                    {% if row.employee.is_external %}
+                    <span class="badge-upcoming">External</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.employee.employee_number|default:"—" }}</td>
+                {% for cell in row.cells %}
+                <td>
+                    {% if cell.status == 'none' %}
+                    —
+                    {% else %}
+                    {% if cell.identifier %}<div>{{ cell.identifier }}</div>{% endif %}
+                    {% if cell.status == 'active' %}
+                    <span class="badge-active">{{ cell.label }}</span>
+                    {% elif cell.status == 'error' %}
+                    <span class="badge-archived" title="{{ cell.detail }}">{{ cell.label }}</span>
+                    {% if cell.detail %}<div class="field-hint">{{ cell.detail }}</div>{% endif %}
+                    {% else %}
+                    <span class="badge-archived">{{ cell.label }}</span>
+                    {% endif %}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{{ kinds|length|add:2 }}">No employees.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

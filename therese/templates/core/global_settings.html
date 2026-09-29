@@ -37,6 +37,7 @@
     <button type="button" class="settings-tab" data-tab="chemicals">Chemicals</button>
     <button type="button" class="settings-tab" data-tab="inventory">Inventory</button>
     <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
+    <button type="button" class="settings-tab" data-tab="integrations">Integrations</button>
     <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
     {% endif %}
     {% if can_manage_workflow %}
@@ -322,6 +323,68 @@
             <button type="submit" class="btn-primary">Save holidays</button>
         </div>
     </form>
+</div>
+
+<div class="card settings-tab-panel" data-panel="integrations" style="display:none; margin-bottom:2rem;">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_integrations">
+        <div class="form-section">
+            <h3>Google Calendar</h3>
+            <p class="field-hint">
+                Share one existing institute calendar with each employee’s private Gmail
+                (<code>Google Account</code> on the employee form). THERESE does not write
+                into personal calendars. Role: writer.
+            </p>
+            {% include "core/_settings_field.html" with field=form.google_calendar_enabled %}
+            {% include "core/_settings_field.html" with field=form.google_calendar_id %}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save integrations</button>
+        </div>
+    </form>
+    <div class="form-section" style="margin-top:1.25rem;">
+        <h3>Google account (calendar owner)</h3>
+        {% if google_calendar_connected %}
+        <p class="field-hint">
+            Connected{% if setting.google_calendar_connected_email %} as
+            <strong>{{ setting.google_calendar_connected_email }}</strong>{% endif %}.
+        </p>
+        {% else %}
+        <p class="field-hint">Not connected. Sign in as the owner of the institute calendar.</p>
+        {% endif %}
+        {% if not google_oauth_configured %}
+        <p class="field-hint">
+            Set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code>
+            in <code>.env</code>. OAuth client type: Web application. Authorized redirect URI:
+        </p>
+        {% else %}
+        <p class="field-hint">Authorized redirect URI for the Google Cloud OAuth client:</p>
+        {% endif %}
+        <p><code>{{ google_calendar_callback_url }}</code></p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;">
+            <form method="post" action="{% url 'core_settings:google_calendar_connect' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary" {% if not google_oauth_configured %}disabled{% endif %}>
+                    {% if google_calendar_connected %}Reconnect Google{% else %}Connect Google{% endif %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'core_settings:google_calendar_test' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary">Test calendar connection</button>
+            </form>
+            {% if google_calendar_connected %}
+            <form method="post" action="{% url 'core_settings:google_calendar_disconnect' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-subtle">Disconnect</button>
+            </form>
+            <form method="post" action="{% url 'core_settings:google_calendar_sync_all' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary">Sync calendar access now</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endif %}
 

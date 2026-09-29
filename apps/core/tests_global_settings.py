@@ -53,6 +53,9 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Account emails')
         self.assertContains(response, 'Chemicals module')
         self.assertContains(response, 'Inventory module')
+        self.assertContains(response, 'Integrations')
+        self.assertContains(response, 'Google Calendar sharing')
+        self.assertContains(response, 'Test calendar connection')
         self.assertContains(response, 'Request email subject')
         self.assertContains(response, 'Cancellation email subject')
         self.assertContains(response, 'approver_name')
@@ -84,6 +87,21 @@ class GlobalSettingsViewTests(TestCase):
         self.assertTrue(setting.chemicals_enabled)
         self.assertTrue(setting.show_add_employee_on_reallocation)
         self.assertFalse(setting.irresponsible)
+        posted = self.client.post(url, {
+            'action': 'save_integrations',
+            'google_calendar_enabled': 'on',
+            'google_calendar_id': 'institute@group.calendar.google.com',
+        })
+        self.assertEqual(posted.status_code, 302)
+        setting = GlobalSetting.get_solo()
+        self.assertTrue(setting.google_calendar_enabled)
+        self.assertEqual(setting.google_calendar_id, 'institute@group.calendar.google.com')
+        posted = self.client.post(url, {
+            'action': 'save_integrations',
+            'google_calendar_id': 'institute@group.calendar.google.com',
+        })
+        self.assertEqual(posted.status_code, 302)
+        self.assertFalse(GlobalSetting.get_solo().google_calendar_enabled)
 
     def test_systemadmin_can_disable_chemicals_module(self):
         self.client.login(username='sysadmin-gs', password='test')
@@ -143,6 +161,8 @@ class GlobalSettingsViewTests(TestCase):
         GlobalSetting.objects.filter(pk=1).update(
             true_cost_multiplicator=Decimal('1.300'),
             chemicals_enabled=True,
+            google_calendar_enabled=True,
+            google_calendar_id='keep-me',
         )
         posted = self.client.post(url, {
             'action': 'save_general',
@@ -153,6 +173,8 @@ class GlobalSettingsViewTests(TestCase):
         self.assertEqual(setting.default_weekly_hours, Decimal('37.00'))
         self.assertEqual(setting.true_cost_multiplicator, Decimal('1.300'))
         self.assertTrue(setting.chemicals_enabled)
+        self.assertTrue(setting.google_calendar_enabled)
+        self.assertEqual(setting.google_calendar_id, 'keep-me')
 
     def test_systemadmin_sees_workflow_tab(self):
         self.client.login(username='sysadmin-gs', password='test')

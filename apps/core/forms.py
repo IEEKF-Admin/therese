@@ -38,6 +38,10 @@ SETTINGS_TAB_FIELDS = {
         'holiday_cancel_email_subject',
         'holiday_cancel_email_html',
     ],
+    'integrations': [
+        'google_calendar_enabled',
+        'google_calendar_id',
+    ],
 }
 
 SETTINGS_TAB_ACTIONS = {f'save_{tab}': tab for tab in SETTINGS_TAB_FIELDS}
@@ -97,6 +101,8 @@ class GlobalSettingForm(forms.ModelForm):
             'holiday_request_email_html',
             'holiday_cancel_email_subject',
             'holiday_cancel_email_html',
+            'google_calendar_enabled',
+            'google_calendar_id',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -134,6 +140,7 @@ class GlobalSettingForm(forms.ModelForm):
                 'rows': 8,
                 'data-wysiwyg-height': '240',
             }),
+            'google_calendar_id': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def clean_limitation_pdf_letterhead(self):

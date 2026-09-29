@@ -11,6 +11,7 @@ Submodules:
 Do not remove any existing requirements from this package without explicit instruction.
 """
 
+from .accounts import employee_accounts
 from .crud import (
     EmployeeCreateView,
     EmployeeUpdateView,
@@ -46,6 +47,7 @@ from .workgroups import (
 
 __all__ = [
     'employee_list',
+    'employee_accounts',
     'employee_reset_password',
     'contract_hard_delete',
     'funding_hard_delete',

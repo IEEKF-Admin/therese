@@ -1154,3 +1154,64 @@ class Workgroup(models.Model):
             return '—'
         return self.pi
 
+
+class EmployeeExternalAccount(BaseModel):
+    """Status of an external system account or registration for an employee."""
+
+    class Kind(models.TextChoices):
+        GOOGLE_CALENDAR = 'google_calendar', 'Google Calendar'
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Shared'
+        REMOVED = 'removed', 'Removed'
+        ERROR = 'error', 'Error'
+
+    TAB_KINDS = (Kind.GOOGLE_CALENDAR,)
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='external_accounts',
+        verbose_name='Employee',
+    )
+    kind = models.CharField(
+        max_length=40,
+        choices=Kind.choices,
+        verbose_name='Kind',
+        db_index=True,
+    )
+    identifier = models.CharField(
+        max_length=254,
+        blank=True,
+        default='',
+        verbose_name='Identifier',
+        help_text='External account identifier (e.g. Gmail address).',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.REMOVED,
+        verbose_name='Status',
+        db_index=True,
+    )
+    detail = models.TextField(blank=True, default='', verbose_name='Detail')
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Last synced at',
+    )
+
+    class Meta:
+        verbose_name = 'Employee external account'
+        verbose_name_plural = 'Employee external accounts'
+        ordering = ['employee__last_name', 'employee__first_name', 'kind']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'kind'],
+                name='hr_employeeexternalaccount_employee_kind',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.employee} — {self.get_kind_display()} ({self.get_status_display()})'
+

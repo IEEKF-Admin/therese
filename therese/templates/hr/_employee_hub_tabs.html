@@ -1,10 +1,16 @@
-{% if perms.hr.manage_working_group %}
+{% if perms.hr.manage_working_group or user.is_superuser or 'Systemadmin' in user_groups %}
 <div class="settings-tabs" role="tablist">
-    {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
+    {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser or 'Systemadmin' in user_groups %}
     <a href="{% url 'hr:employee_list' %}"
-       class="settings-tab{% if '/hr/workgroups' not in request.path %} is-active{% endif %}">Employees</a>
+       class="settings-tab{% if request.resolver_match.url_name == 'employee_list' %} is-active{% endif %}">Employees</a>
     {% endif %}
+    {% if perms.hr.manage_working_group %}
     <a href="{% url 'hr:workgroup_list' %}"
-       class="settings-tab{% if '/hr/workgroups' in request.path %} is-active{% endif %}">Working Groups</a>
+       class="settings-tab{% if request.resolver_match.url_name == 'workgroup_list' %} is-active{% endif %}">Working Groups</a>
+    {% endif %}
+    {% if user.is_superuser or 'Systemadmin' in user_groups %}
+    <a href="{% url 'hr:employee_accounts' %}"
+       class="settings-tab{% if request.resolver_match.url_name == 'employee_accounts' %} is-active{% endif %}">Accounts</a>
+    {% endif %}
 </div>
 {% endif %}

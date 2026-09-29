@@ -2,12 +2,38 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from apps.accounts.views import messaging
+from apps.core import google_oauth_views
 from apps.core import views as core_views
 
 app_name = 'core_settings'
 
 urlpatterns = [
     path('global/', core_views.global_settings, name='global_settings'),
+    path(
+        'google-calendar/connect/',
+        google_oauth_views.google_calendar_connect,
+        name='google_calendar_connect',
+    ),
+    path(
+        'google-calendar/callback/',
+        google_oauth_views.google_calendar_callback,
+        name='google_calendar_callback',
+    ),
+    path(
+        'google-calendar/disconnect/',
+        google_oauth_views.google_calendar_disconnect,
+        name='google_calendar_disconnect',
+    ),
+    path(
+        'google-calendar/test/',
+        google_oauth_views.google_calendar_test,
+        name='google_calendar_test',
+    ),
+    path(
+        'google-calendar/sync/',
+        google_oauth_views.google_calendar_sync_all,
+        name='google_calendar_sync_all',
+    ),
     path('messaging/', messaging, name='messaging'),
     path(
         'email-environment/',

@@ -10,11 +10,11 @@ get a login user until those flags are cleared.
 
 from django.contrib.auth.models import Group
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save, pre_delete
 from django.dispatch import receiver
 import logging
 
-from .models import Employee
+from .models import Contract, Employee
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames
 
@@ -118,3 +118,29 @@ def create_user_for_employee(sender, instance, created, **kwargs):
 
     except Exception as e:
         logger.error(f"Error creating user for {instance}: {e}", exc_info=True)
+
+
+def _schedule_google_calendar(employee_id):
+    from apps.hr.provisioning import schedule_google_calendar_sync
+
+    schedule_google_calendar_sync(employee_id)
+
+
+@receiver(post_save, sender=Employee)
+def sync_google_calendar_for_employee(sender, instance, created, update_fields, **kwargs):
+    if not created and update_fields is not None and 'google_account' not in update_fields:
+        return
+    _schedule_google_calendar(instance.pk)
+
+
+@receiver(post_save, sender=Contract)
+@receiver(post_delete, sender=Contract)
+def sync_google_calendar_for_contract(sender, instance, **kwargs):
+    _schedule_google_calendar(instance.employee_id)
+
+
+@receiver(pre_delete, sender=Employee)
+def unshare_google_calendar_on_employee_delete(sender, instance, **kwargs):
+    from apps.hr.provisioning import unshare_employee_google_calendar
+
+    unshare_employee_google_calendar(instance)

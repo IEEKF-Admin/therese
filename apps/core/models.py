@@ -6,6 +6,7 @@ Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
 Features / Requirements:
 - BaseModel with created_at and updated_at timestamps for all models
 - GlobalSetting for application-wide defaults (e.g. default weekly hours)
+- Google Calendar sharing: enable/disable plus calendar ID; OAuth token stored here
 - All user-facing text must be in English
 - Header block must be maintained and only extended when new requirements are explicitly added
 
@@ -342,6 +343,36 @@ class GlobalSetting(models.Model):
         verbose_name='Cancellation email body (HTML)',
         help_text='See the holiday email variable list in Global Settings.',
     )
+    google_calendar_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Google Calendar sharing',
+        help_text=(
+            'When on, employees with a Google Account get writer access to the '
+            'institute calendar. Access is removed when the address changes or '
+            'the employee is archived. Turning this off stops further changes; '
+            'existing shares are left as they are.'
+        ),
+    )
+    google_calendar_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Google Calendar ID',
+        help_text=(
+            'From Google Calendar → Settings and sharing → Integrate calendar. '
+            'The connected Google account must own this calendar.'
+        ),
+    )
+    google_calendar_refresh_token = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Google Calendar refresh token',
+    )
+    google_calendar_connected_email = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='Google Calendar connected account',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -401,6 +432,10 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_chemical_hazard_threshold(cls):
         return cls.get_solo().chemical_hazard_threshold
+
+    @classmethod
+    def get_google_calendar_enabled(cls) -> bool:
+        return bool(cls.get_solo().google_calendar_enabled)
 
 
 class OccupationSalaryTable(BaseModel):

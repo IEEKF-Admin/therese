@@ -55,8 +55,7 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Inventory module')
         self.assertContains(response, 'Integrations')
         self.assertContains(response, 'Google Calendar sharing')
-        self.assertContains(response, 'Google OAuth client ID')
-        self.assertContains(response, 'Google OAuth client secret')
+        self.assertContains(response, 'Google service account JSON key')
         self.assertContains(response, 'Test calendar connection')
         self.assertContains(response, 'Request email subject')
         self.assertContains(response, 'Cancellation email subject')
@@ -89,28 +88,50 @@ class GlobalSettingsViewTests(TestCase):
         self.assertTrue(setting.chemicals_enabled)
         self.assertTrue(setting.show_add_employee_on_reallocation)
         self.assertFalse(setting.irresponsible)
+        sa_json = (
+            '{"type":"service_account",'
+            '"client_email":"therese@example.iam.gserviceaccount.com",'
+            '"private_key":"-----BEGIN PRIVATE KEY-----\\nnot-a-real-key\\n-----END PRIVATE KEY-----\\n"}'
+        )
         posted = self.client.post(url, {
             'action': 'save_integrations',
             'google_calendar_enabled': 'on',
             'google_calendar_id': 'institute@group.calendar.google.com',
-            'google_oauth_client_id': 'gui-client-id.apps.googleusercontent.com',
-            'google_oauth_client_secret': 'gui-secret',
+            'google_service_account_json': sa_json,
         })
         self.assertEqual(posted.status_code, 302)
         setting = GlobalSetting.get_solo()
         self.assertTrue(setting.google_calendar_enabled)
         self.assertEqual(setting.google_calendar_id, 'institute@group.calendar.google.com')
-        self.assertEqual(setting.google_oauth_client_id, 'gui-client-id.apps.googleusercontent.com')
-        self.assertEqual(setting.google_oauth_client_secret, 'gui-secret')
+        self.assertEqual(setting.google_service_account_json, sa_json)
+        self.assertEqual(
+            setting.google_service_account_email,
+            'therese@example.iam.gserviceaccount.com',
+        )
         posted = self.client.post(url, {
             'action': 'save_integrations',
             'google_calendar_id': 'institute@group.calendar.google.com',
-            'google_oauth_client_id': 'gui-client-id.apps.googleusercontent.com',
+            'google_service_account_json': '',
         })
         self.assertEqual(posted.status_code, 302)
         setting = GlobalSetting.get_solo()
         self.assertFalse(setting.google_calendar_enabled)
-        self.assertEqual(setting.google_oauth_client_secret, 'gui-secret')
+        self.assertEqual(setting.google_service_account_json, sa_json)
+        self.assertEqual(
+            setting.google_service_account_email,
+            'therese@example.iam.gserviceaccount.com',
+        )
+        posted = self.client.post(url, {
+            'action': 'save_integrations',
+            'google_calendar_id': 'institute@group.calendar.google.com',
+            'google_service_account_json': '{not-json',
+        })
+        self.assertEqual(posted.status_code, 200)
+        self.assertContains(posted, 'Service account JSON is invalid')
+        self.assertEqual(
+            GlobalSetting.get_solo().google_service_account_json,
+            sa_json,
+        )
 
     def test_systemadmin_can_disable_chemicals_module(self):
         self.client.login(username='sysadmin-gs', password='test')

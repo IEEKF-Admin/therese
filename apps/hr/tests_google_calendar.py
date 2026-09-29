@@ -1,5 +1,6 @@
 """Google Calendar sharing and the Systemadmin accounts tab."""
 
+import json
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -39,6 +40,19 @@ def _ready(username):
     return user
 
 
+SA_EMAIL = 'therese@example.iam.gserviceaccount.com'
+SA_JSON = json.dumps({
+    'type': 'service_account',
+    'client_email': SA_EMAIL,
+    'private_key': (
+        '-----BEGIN PRIVATE KEY-----\n'
+        'not-a-real-key\n'
+        '-----END PRIVATE KEY-----\n'
+    ),
+})
+
+
+@override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
 class GoogleCalendarProvisioningTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -52,8 +66,8 @@ class GoogleCalendarProvisioningTests(TestCase):
             defaults={
                 'google_calendar_enabled': True,
                 'google_calendar_id': 'cal-1',
-                'google_calendar_refresh_token': 'refresh-token',
-                'google_calendar_connected_email': 'owner@gmail.com',
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
             },
         )
         self.employee = Employee.objects.create(
@@ -140,7 +154,10 @@ class GoogleCalendarProvisioningTests(TestCase):
         )
 
     def test_not_connected_marks_error_only_when_relevant(self):
-        GlobalSetting.objects.filter(pk=1).update(google_calendar_refresh_token='')
+        GlobalSetting.objects.filter(pk=1).update(
+            google_service_account_json='',
+            google_service_account_email='',
+        )
         empty = Employee.objects.create(
             employee_number='GC0b',
             first_name='No',
@@ -226,80 +243,32 @@ class GoogleCalendarAccountsTabTests(TestCase):
         response = self.client.get(reverse('hr:employee_accounts'))
         self.assertEqual(response.status_code, 403)
 
-    @override_settings(
-        GOOGLE_OAUTH_CLIENT_ID='client-id',
-        GOOGLE_OAUTH_CLIENT_SECRET='client-secret',
-        SITE_URL='https://therese.example.org',
-    )
-    def test_connect_redirects_to_google(self):
-        self.client.login(username='sysadmin-gc', password='test')
-        response = self.client.post(reverse('core_settings:google_calendar_connect'))
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('accounts.google.com', response['Location'])
-        self.assertIn('select_account', response['Location'])
-        self.assertIn(
-            'therese.example.org%2Fsettings%2Fgoogle-calendar%2Fcallback%2F',
-            response['Location'],
-        )
-
-    @override_settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET='')
-    def test_connect_without_oauth_shows_error(self):
+    @override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
+    def test_integrations_shows_service_account_ui(self):
         self.client.login(username='sysadmin-gc', password='test')
         listed = self.client.get(reverse('core_settings:global_settings') + '?tab=integrations')
-        self.assertContains(listed, 'Connect Google')
-        self.assertContains(listed, 'Save the Google OAuth client ID and secret above')
-        response = self.client.post(
-            reverse('core_settings:google_calendar_connect'),
-            follow=True,
-        )
-        self.assertContains(
-            response,
-            'Save the Google OAuth client ID and secret under Integrations first.',
-        )
+        self.assertContains(listed, 'Google service account JSON key')
+        self.assertContains(listed, 'Test calendar connection')
+        self.assertContains(listed, 'Make changes and manage sharing')
+        self.assertNotContains(listed, 'Connect Google')
+        self.assertNotContains(listed, 'Google OAuth client ID')
 
-    @override_settings(
-        GOOGLE_OAUTH_CLIENT_ID='',
-        GOOGLE_OAUTH_CLIENT_SECRET='',
-        SITE_URL='https://therese.example.org',
-    )
-    def test_connect_with_gui_oauth_redirects(self):
+    @override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
+    def test_integrations_shows_saved_service_account(self):
         GlobalSetting.objects.update_or_create(
             pk=1,
             defaults={
-                'google_oauth_client_id': 'gui-client-id',
-                'google_oauth_client_secret': 'gui-client-secret',
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
             },
         )
         self.client.login(username='sysadmin-gc', password='test')
-        response = self.client.post(reverse('core_settings:google_calendar_connect'))
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('accounts.google.com', response['Location'])
-        self.assertIn('gui-client-id', response['Location'])
-        self.assertIn(
-            'therese.example.org%2Fsettings%2Fgoogle-calendar%2Fcallback%2F',
-            response['Location'],
-        )
-
-    @override_settings(
-        GOOGLE_OAUTH_CLIENT_ID='env-client-id',
-        GOOGLE_OAUTH_CLIENT_SECRET='env-client-secret',
-        SITE_URL='https://therese.example.org',
-    )
-    def test_env_oauth_overrides_gui(self):
-        GlobalSetting.objects.update_or_create(
-            pk=1,
-            defaults={
-                'google_oauth_client_id': 'gui-client-id',
-                'google_oauth_client_secret': 'gui-client-secret',
-            },
-        )
-        self.client.login(username='sysadmin-gc', password='test')
-        response = self.client.post(reverse('core_settings:google_calendar_connect'))
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('env-client-id', response['Location'])
-        self.assertNotIn('gui-client-id', response['Location'])
+        listed = self.client.get(reverse('core_settings:global_settings') + '?tab=integrations')
+        self.assertContains(listed, SA_EMAIL)
+        self.assertContains(listed, 'Sync calendar access now')
 
 
+@override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
 class GoogleCalendarConnectionTestTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -317,8 +286,8 @@ class GoogleCalendarConnectionTestTests(TestCase):
             defaults={
                 'google_calendar_enabled': False,
                 'google_calendar_id': 'cal-1',
-                'google_calendar_refresh_token': 'refresh-token',
-                'google_calendar_connected_email': 'owner@gmail.com',
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
             },
         )
 
@@ -340,7 +309,10 @@ class GoogleCalendarConnectionTestTests(TestCase):
                 follow=True,
             )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Calendar connection OK: Institute (as owner@gmail.com).')
+        self.assertContains(
+            response,
+            f'Calendar connection OK: Institute (as {SA_EMAIL}).',
+        )
 
     def test_connection_requires_calendar_id(self):
         GlobalSetting.objects.filter(pk=1).update(google_calendar_id='')
@@ -351,14 +323,18 @@ class GoogleCalendarConnectionTestTests(TestCase):
         )
         self.assertContains(response, 'Set a Google Calendar ID first.')
 
-    def test_connection_requires_google_account(self):
-        GlobalSetting.objects.filter(pk=1).update(google_calendar_refresh_token='')
+    @override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
+    def test_connection_requires_service_account(self):
+        GlobalSetting.objects.filter(pk=1).update(
+            google_service_account_json='',
+            google_service_account_email='',
+        )
         self.client.login(username='sysadmin-gc-test', password='test')
         response = self.client.post(
             reverse('core_settings:google_calendar_test'),
             follow=True,
         )
-        self.assertContains(response, 'Connect a Google account first.')
+        self.assertContains(response, 'Save a Google service account JSON key first.')
 
     def test_connection_reports_api_error(self):
         from apps.core.google_calendar import GoogleCalendarError
@@ -382,7 +358,10 @@ class GoogleCalendarConnectionTestTests(TestCase):
     def test_probe_reports_missing_acl_permission(self):
         from apps.core.google_calendar import GoogleCalendarError, probe_calendar_connection
 
-        with patch('apps.core.google_calendar.refresh_access_token', return_value='access'):
+        with patch(
+            'apps.core.google_calendar.service_account_access_token',
+            return_value='access',
+        ):
             with patch(
                 'apps.core.google_calendar._http_json',
                 side_effect=[
@@ -393,3 +372,68 @@ class GoogleCalendarConnectionTestTests(TestCase):
                 with self.assertRaises(GoogleCalendarError) as ctx:
                     probe_calendar_connection()
         self.assertIn('cannot manage sharing', str(ctx.exception))
+        self.assertIn(SA_EMAIL, str(ctx.exception))
+
+
+@override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')
+class GoogleCalendarServiceAccountTests(TestCase):
+    def test_parse_rejects_invalid_json(self):
+        from apps.core.google_calendar import GoogleCalendarError, parse_service_account_json
+
+        with self.assertRaises(GoogleCalendarError):
+            parse_service_account_json('{')
+        with self.assertRaises(GoogleCalendarError):
+            parse_service_account_json('{"type":"service_account"}')
+
+    def test_access_token_uses_jwt_bearer(self):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        from apps.core.google_calendar import JWT_GRANT, service_account_access_token
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pem = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode()
+        setting, _ = GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_service_account_json': json.dumps({
+                    'type': 'service_account',
+                    'client_email': SA_EMAIL,
+                    'private_key': pem,
+                }),
+            },
+        )
+        with patch(
+            'apps.core.google_calendar._http_json',
+            return_value={'access_token': 'sa-token'},
+        ) as mocked:
+            token = service_account_access_token(setting)
+        self.assertEqual(token, 'sa-token')
+        args, kwargs = mocked.call_args
+        self.assertEqual(args[0], 'POST')
+        self.assertEqual(kwargs['data']['grant_type'], JWT_GRANT)
+        self.assertTrue(kwargs['data']['assertion'])
+
+    def test_env_json_overrides_database(self):
+        from apps.core.google_calendar import service_account_email
+
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
+            },
+        )
+        with override_settings(GOOGLE_SERVICE_ACCOUNT_JSON=json.dumps({
+            'type': 'service_account',
+            'client_email': 'env@example.iam.gserviceaccount.com',
+            'private_key': '-----BEGIN PRIVATE KEY-----\nenv\n-----END PRIVATE KEY-----\n',
+        })):
+            self.assertEqual(
+                service_account_email(),
+                'env@example.iam.gserviceaccount.com',
+            )

@@ -339,48 +339,41 @@
             </p>
             {% include "core/_settings_field.html" with field=form.google_calendar_enabled %}
             {% include "core/_settings_field.html" with field=form.google_calendar_id %}
-            {% include "core/_settings_field.html" with field=form.google_oauth_client_id %}
-            {% include "core/_settings_field.html" with field=form.google_oauth_client_secret %}
+            {% include "core/_settings_field.html" with field=form.google_service_account_json %}
         </div>
         <div class="form-actions">
             <button type="submit" class="btn-primary">Save integrations</button>
         </div>
     </form>
     <div class="form-section" style="margin-top:1.25rem;">
-        <h3>Google account (calendar owner)</h3>
-        {% if google_calendar_connected %}
+        <h3>Service account</h3>
+        {% if google_service_account_configured %}
         <p class="field-hint">
-            Connected{% if setting.google_calendar_connected_email %} as
-            <strong>{{ setting.google_calendar_connected_email }}</strong>{% endif %}.
+            Key saved{% if google_service_account_email %} as
+            <strong>{{ google_service_account_email }}</strong>{% endif %}.
+            In Google Calendar, share the institute calendar with this address
+            as <strong>Make changes and manage sharing</strong>.
         </p>
         {% else %}
-        <p class="field-hint">Not connected. Sign in as the owner of the institute calendar.</p>
-        {% endif %}
-        {% if not google_oauth_configured %}
         <div class="alert alert-warning" style="margin:0.75rem 0;">
-            Save the Google OAuth client ID and secret above, then click Connect Google.
-            OAuth client type: Web application. Authorized redirect URI:
+            Create a service account in Google Cloud, enable the Calendar API,
+            download a JSON key, paste it above, then share the calendar with
+            the service account email
+            (<strong>Make changes and manage sharing</strong>).
         </div>
-        {% else %}
-        <p class="field-hint">Authorized redirect URI for the Google Cloud OAuth client:</p>
         {% endif %}
-        <p><code>{{ google_calendar_callback_url }}</code></p>
+        <p class="field-hint">
+            Service accounts:
+            <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener">Google Cloud IAM</a>.
+            Calendar API:
+            <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener">enable</a>.
+        </p>
         <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;">
-            <form method="post" action="{% url 'core_settings:google_calendar_connect' %}">
-                {% csrf_token %}
-                <button type="submit" class="btn-secondary">
-                    {% if google_calendar_connected %}Reconnect Google{% else %}Connect Google{% endif %}
-                </button>
-            </form>
             <form method="post" action="{% url 'core_settings:google_calendar_test' %}">
                 {% csrf_token %}
                 <button type="submit" class="btn-secondary">Test calendar connection</button>
             </form>
-            {% if google_calendar_connected %}
-            <form method="post" action="{% url 'core_settings:google_calendar_disconnect' %}">
-                {% csrf_token %}
-                <button type="submit" class="btn-subtle">Disconnect</button>
-            </form>
+            {% if google_service_account_configured %}
             <form method="post" action="{% url 'core_settings:google_calendar_sync_all' %}">
                 {% csrf_token %}
                 <button type="submit" class="btn-primary">Sync calendar access now</button>

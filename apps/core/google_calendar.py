@@ -1,30 +1,24 @@
-"""Google Calendar ACL helpers (OAuth as calendar owner, share with Gmail users)."""
+"""Google Calendar ACL helpers (service account, share with Gmail users)."""
 
 from __future__ import annotations
 
+import base64
 import json
-import logging
+import time
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, quote
 from urllib.request import Request, urlopen
 
 from django.conf import settings
-from django.urls import reverse
 
-logger = logging.getLogger(__name__)
-
-GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
-GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
 GOOGLE_CALENDAR_URL = 'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}'
 GOOGLE_ACL_URL = 'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/acl'
 HTTP_TIMEOUT = 20
 CALENDAR_ROLE = 'writer'
-OAUTH_SCOPES = (
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/userinfo.email',
-)
+CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar'
+JWT_GRANT = 'urn:ietf:params:oauth:grant-type:jwt-bearer'
 
 
 class GoogleCalendarError(Exception):
@@ -34,54 +28,109 @@ class GoogleCalendarError(Exception):
         self.body = body or ''
 
 
-def _oauth_setting():
+def _setting():
     from apps.core.models import GlobalSetting
 
     return GlobalSetting.get_solo()
 
 
-def oauth_client_id(setting=None) -> str:
-    env = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '').strip()
-    if env:
-        return env
-    setting = setting or _oauth_setting()
-    return (getattr(setting, 'google_oauth_client_id', '') or '').strip()
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
 
 
-def oauth_client_secret(setting=None) -> str:
-    env = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_SECRET', '') or '').strip()
-    if env:
-        return env
-    setting = setting or _oauth_setting()
-    return (getattr(setting, 'google_oauth_client_secret', '') or '').strip()
+def parse_service_account_json(raw: str) -> dict:
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise GoogleCalendarError(f'Service account JSON is invalid: {exc}') from exc
+    if not isinstance(data, dict):
+        raise GoogleCalendarError('Service account JSON must be an object.')
+    email = (data.get('client_email') or '').strip()
+    key = (data.get('private_key') or '').strip()
+    if not email or not key:
+        raise GoogleCalendarError('Service account JSON must contain client_email and private_key.')
+    return data
 
 
-def oauth_configured(setting=None) -> bool:
-    if setting is None:
-        return bool(oauth_client_id() and oauth_client_secret())
-    return bool(oauth_client_id(setting) and oauth_client_secret(setting))
+def service_account_raw(setting=None) -> str:
+    env_json = (getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_JSON', '') or '').strip()
+    if env_json:
+        return env_json
+    env_file = (getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', '') or '').strip()
+    if env_file:
+        try:
+            return Path(env_file).read_text(encoding='utf-8')
+        except OSError as exc:
+            raise GoogleCalendarError(f'Could not read service account file: {exc}') from exc
+    setting = setting or _setting()
+    return (getattr(setting, 'google_service_account_json', '') or '').strip()
 
 
-def oauth_redirect_uri(request) -> str:
-    path = reverse('core_settings:google_calendar_callback')
-    site = (getattr(settings, 'SITE_URL', '') or '').strip().rstrip('/')
-    if site:
-        return site + path
-    return request.build_absolute_uri(path)
+def service_account_info(setting=None) -> dict:
+    raw = service_account_raw(setting)
+    if not raw:
+        return {}
+    return parse_service_account_json(raw)
 
 
-def oauth_authorize_url(request, state: str) -> str:
-    params = {
-        'client_id': oauth_client_id(),
-        'redirect_uri': oauth_redirect_uri(request),
-        'response_type': 'code',
-        'scope': ' '.join(OAUTH_SCOPES),
-        'access_type': 'offline',
-        'prompt': 'select_account consent',
-        'include_granted_scopes': 'true',
-        'state': state,
-    }
-    return f'{GOOGLE_AUTH_URL}?{urlencode(params)}'
+def service_account_email(setting=None) -> str:
+    try:
+        info = service_account_info(setting)
+    except GoogleCalendarError:
+        setting = setting or _setting()
+        return (getattr(setting, 'google_service_account_email', '') or '').strip()
+    return (info.get('client_email') or '').strip()
+
+
+def service_account_configured(setting=None) -> bool:
+    try:
+        info = service_account_info(setting)
+    except GoogleCalendarError:
+        return False
+    return bool((info.get('client_email') or '').strip() and (info.get('private_key') or '').strip())
+
+
+def _service_account_jwt(info: dict) -> str:
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    email = (info.get('client_email') or '').strip()
+    pem = (info.get('private_key') or '').strip()
+    now = int(time.time())
+    header = _b64url(json.dumps({'alg': 'RS256', 'typ': 'JWT'}, separators=(',', ':')).encode())
+    payload = _b64url(json.dumps({
+        'iss': email,
+        'sub': email,
+        'aud': GOOGLE_TOKEN_URL,
+        'iat': now,
+        'exp': now + 3600,
+        'scope': CALENDAR_SCOPE,
+    }, separators=(',', ':')).encode())
+    signing_input = f'{header}.{payload}'.encode('ascii')
+    try:
+        key = serialization.load_pem_private_key(pem.encode('utf-8'), password=None)
+        signature = key.sign(signing_input, padding.PKCS1v15(), hashes.SHA256())
+    except Exception as exc:
+        raise GoogleCalendarError(f'Service account private key is invalid: {exc}') from exc
+    return f'{header}.{payload}.{_b64url(signature)}'
+
+
+def service_account_access_token(setting=None) -> str:
+    info = service_account_info(setting)
+    if not info:
+        raise GoogleCalendarError('Google service account JSON is not set.')
+    payload = _http_json(
+        'POST',
+        GOOGLE_TOKEN_URL,
+        data={
+            'grant_type': JWT_GRANT,
+            'assertion': _service_account_jwt(info),
+        },
+    )
+    token = (payload.get('access_token') or '').strip()
+    if not token:
+        raise GoogleCalendarError('Google did not return an access token.')
+    return token
 
 
 def _http_json(method, url, *, data=None, json_body=None, headers=None):
@@ -111,59 +160,6 @@ def _http_json(method, url, *, data=None, json_body=None, headers=None):
         raise GoogleCalendarError(f'Google API unreachable: {exc}') from exc
     except json.JSONDecodeError as exc:
         raise GoogleCalendarError(f'Google API returned invalid JSON: {exc}') from exc
-
-
-def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
-    payload = _http_json(
-        'POST',
-        GOOGLE_TOKEN_URL,
-        data={
-            'code': code,
-            'client_id': oauth_client_id(),
-            'client_secret': oauth_client_secret(),
-            'redirect_uri': redirect_uri,
-            'grant_type': 'authorization_code',
-        },
-    )
-    access = payload.get('access_token') or ''
-    if access and not payload.get('email'):
-        try:
-            info = _http_json(
-                'GET',
-                GOOGLE_USERINFO_URL,
-                headers={'Authorization': f'Bearer {access}'},
-            )
-            payload['email'] = (info.get('email') or '').strip()
-        except GoogleCalendarError:
-            logger.warning('Could not read Google userinfo after OAuth', exc_info=True)
-    return payload
-
-
-def refresh_access_token(refresh_token: str) -> str:
-    payload = _http_json(
-        'POST',
-        GOOGLE_TOKEN_URL,
-        data={
-            'client_id': oauth_client_id(),
-            'client_secret': oauth_client_secret(),
-            'refresh_token': refresh_token,
-            'grant_type': 'refresh_token',
-        },
-    )
-    token = (payload.get('access_token') or '').strip()
-    if not token:
-        raise GoogleCalendarError('Google did not return an access token.')
-    return token
-
-
-def revoke_token(token: str) -> None:
-    if not (token or '').strip():
-        return
-    try:
-        _http_json('POST', GOOGLE_REVOKE_URL, data={'token': token})
-    except GoogleCalendarError as exc:
-        if exc.status not in (400, 404):
-            raise
 
 
 def _acl_url(calendar_id: str, rule_id: str | None = None) -> str:
@@ -228,10 +224,9 @@ class HttpCalendarClient:
         self.calendar_id = (self.setting.google_calendar_id or '').strip()
         if not self.calendar_id:
             raise GoogleCalendarError('Google Calendar ID is not set.')
-        token = (self.setting.google_calendar_refresh_token or '').strip()
-        if not token:
-            raise GoogleCalendarError('Google Calendar is not connected.')
-        self.access_token = access_token or refresh_access_token(token)
+        if not service_account_configured(self.setting):
+            raise GoogleCalendarError('Google service account JSON is not set.')
+        self.access_token = access_token or service_account_access_token(self.setting)
 
     def share(self, email: str, role: str = CALENDAR_ROLE) -> None:
         insert_acl(self.calendar_id, self.access_token, email, role)
@@ -249,29 +244,31 @@ def _calendar_url(calendar_id: str) -> str:
 
 
 def probe_calendar_connection(setting=None) -> dict:
-    """Refresh the token, load the calendar, and confirm ACL can be read."""
+    """Mint a service-account token, load the calendar, and confirm ACL can be read."""
     from apps.core.models import GlobalSetting
 
     setting = setting or GlobalSetting.get_solo()
     calendar_id = (setting.google_calendar_id or '').strip()
     if not calendar_id:
         raise GoogleCalendarError('Google Calendar ID is not set.')
-    token = (setting.google_calendar_refresh_token or '').strip()
-    if not token:
-        raise GoogleCalendarError('Google Calendar is not connected.')
-    access = refresh_access_token(token)
+    if not service_account_configured(setting):
+        raise GoogleCalendarError('Google service account JSON is not set.')
+    access = service_account_access_token(setting)
     headers = _auth_headers(access)
     calendar = _http_json('GET', _calendar_url(calendar_id), headers=headers)
     try:
         _http_json('GET', _acl_url(calendar_id) + '?maxResults=1', headers=headers)
     except GoogleCalendarError as exc:
         if exc.status == 403:
+            email = service_account_email(setting) or 'the service account'
             raise GoogleCalendarError(
-                'Calendar is reachable, but this Google account cannot manage '
-                'sharing. Sign in as the calendar owner.'
+                'Calendar is reachable, but the service account cannot manage '
+                f'sharing. Share the calendar with {email} as '
+                '"Make changes and manage sharing".'
             ) from exc
         raise
     return {
         'id': (calendar.get('id') or calendar_id).strip(),
         'summary': (calendar.get('summary') or '').strip(),
+        'email': service_account_email(setting),
     }

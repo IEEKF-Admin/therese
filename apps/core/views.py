@@ -227,7 +227,7 @@ def global_settings(request):
     else:
         settings_default_tab = 'workflow'
     from apps.holidays.mail import HOLIDAY_EMAIL_VARIABLES
-    from apps.core.google_calendar import oauth_configured, oauth_redirect_uri
+    from apps.core.google_calendar import service_account_configured, service_account_email
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
@@ -247,9 +247,6 @@ def global_settings(request):
         'can_manage_workflow': can_manage_workflow,
         'workflow_rows': workflow_config_list_rows() if can_manage_workflow else [],
         'settings_default_tab': settings_default_tab,
-        'google_oauth_configured': oauth_configured(),
-        'google_calendar_callback_url': oauth_redirect_uri(request),
-        'google_calendar_connected': bool(
-            (setting.google_calendar_refresh_token or '').strip()
-        ),
+        'google_service_account_configured': service_account_configured(setting),
+        'google_service_account_email': service_account_email(setting),
     })

@@ -6,7 +6,7 @@ Project: THERESE - Transparent HR Employee Resource Evaluation System Enhanced
 Features / Requirements:
 - BaseModel with created_at and updated_at timestamps for all models
 - GlobalSetting for application-wide defaults (e.g. default weekly hours)
-- Google Calendar sharing: enable/disable plus calendar ID; OAuth token stored here
+- Google Calendar sharing: enable/disable plus calendar ID; service account JSON stored here
 - All user-facing text must be in English
 - Header block must be maintained and only extended when new requirements are explicitly added
 
@@ -360,7 +360,24 @@ class GlobalSetting(models.Model):
         verbose_name='Google Calendar ID',
         help_text=(
             'Calendar ID from Google Calendar → Settings and sharing. '
-            'The calendar can stay private. The connected Google account must own it.'
+            'The calendar can stay private. Share it with the service account '
+            'as "Make changes and manage sharing".'
+        ),
+    )
+    google_service_account_email = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='Google service account email',
+    )
+    google_service_account_json = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Google service account JSON key',
+        help_text=(
+            'Paste the JSON key from Google Cloud → IAM → Service accounts. '
+            'Leave blank to keep the saved key. Not shown again after saving. '
+            'A non-empty GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_FILE '
+            'in .env overrides this.'
         ),
     )
     google_oauth_client_id = models.CharField(

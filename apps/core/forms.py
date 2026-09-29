@@ -41,8 +41,7 @@ SETTINGS_TAB_FIELDS = {
     'integrations': [
         'google_calendar_enabled',
         'google_calendar_id',
-        'google_oauth_client_id',
-        'google_oauth_client_secret',
+        'google_service_account_json',
     ],
 }
 
@@ -105,8 +104,7 @@ class GlobalSettingForm(forms.ModelForm):
             'holiday_cancel_email_html',
             'google_calendar_enabled',
             'google_calendar_id',
-            'google_oauth_client_id',
-            'google_oauth_client_secret',
+            'google_service_account_json',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -145,14 +143,12 @@ class GlobalSettingForm(forms.ModelForm):
                 'data-wysiwyg-height': '240',
             }),
             'google_calendar_id': forms.TextInput(attrs={'class': 'form-control'}),
-            'google_oauth_client_id': forms.TextInput(attrs={
+            'google_service_account_json': forms.Textarea(attrs={
                 'class': 'form-control',
+                'rows': 6,
                 'autocomplete': 'off',
+                'placeholder': 'Paste the JSON key. Leave blank to keep the saved key.',
             }),
-            'google_oauth_client_secret': forms.PasswordInput(attrs={
-                'class': 'form-control',
-                'autocomplete': 'new-password',
-            }, render_value=False),
         }
 
     def clean_limitation_pdf_letterhead(self):
@@ -170,10 +166,24 @@ class GlobalSettingForm(forms.ModelForm):
 
         return sanitize_html(self.cleaned_data.get('holiday_cancel_email_html'))
 
-    def clean_google_oauth_client_secret(self):
-        value = (self.cleaned_data.get('google_oauth_client_secret') or '').strip()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields.get('google_service_account_json')
+        if field is not None:
+            field.required = False
+            self.initial['google_service_account_json'] = ''
+
+    def clean_google_service_account_json(self):
+        from apps.core.google_calendar import GoogleCalendarError, parse_service_account_json
+
+        value = (self.cleaned_data.get('google_service_account_json') or '').strip()
         if not value:
-            return self.instance.google_oauth_client_secret
+            return self.instance.google_service_account_json
+        try:
+            data = parse_service_account_json(value)
+        except GoogleCalendarError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+        self.instance.google_service_account_email = (data.get('client_email') or '').strip()
         return value
 
 

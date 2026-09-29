@@ -8,7 +8,11 @@ from datetime import date
 from django.db import models, transaction
 from django.utils import timezone
 
-from apps.core.google_calendar import GoogleCalendarError, get_calendar_client
+from apps.core.google_calendar import (
+    GoogleCalendarError,
+    get_calendar_client,
+    service_account_configured,
+)
 from apps.core.models import GlobalSetting
 from apps.hr.models import Employee, EmployeeExternalAccount
 
@@ -83,8 +87,8 @@ def _feature_ready(setting: GlobalSetting | None = None) -> tuple[bool, str]:
         return False, 'disabled'
     if not (setting.google_calendar_id or '').strip():
         return False, 'Google Calendar ID is not set.'
-    if not (setting.google_calendar_refresh_token or '').strip():
-        return False, 'Google Calendar is not connected.'
+    if not service_account_configured(setting):
+        return False, 'Google service account JSON is not set.'
     return True, ''
 
 
@@ -122,7 +126,7 @@ def unshare_employee_google_calendar(employee: Employee) -> None:
         email = normalize_google_email(employee.google_account)
     if not email:
         return
-    if not (setting.google_calendar_refresh_token or '').strip():
+    if not service_account_configured(setting):
         return
     if not (setting.google_calendar_id or '').strip():
         return

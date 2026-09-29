@@ -57,6 +57,8 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', '').strip() or (
 SITE_URL = os.getenv('SITE_URL', '').strip().rstrip('/')
 GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '').strip()
 GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '').strip()
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', '').strip()
 ACCOUNT_EMAIL_PAUSE_MIN = float(os.getenv('ACCOUNT_EMAIL_PAUSE_MIN', '5') or '5')
 ACCOUNT_EMAIL_PAUSE_MAX = float(os.getenv('ACCOUNT_EMAIL_PAUSE_MAX', '15') or '15')
 

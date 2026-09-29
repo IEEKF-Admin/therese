@@ -241,6 +241,18 @@ class GoogleCalendarAccountsTabTests(TestCase):
             response['Location'],
         )
 
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID='', GOOGLE_OAUTH_CLIENT_SECRET='')
+    def test_connect_without_oauth_shows_error(self):
+        self.client.login(username='sysadmin-gc', password='test')
+        listed = self.client.get(reverse('core_settings:global_settings') + '?tab=integrations')
+        self.assertContains(listed, 'Connect Google')
+        self.assertContains(listed, 'GOOGLE_OAUTH_CLIENT_ID')
+        response = self.client.post(
+            reverse('core_settings:google_calendar_connect'),
+            follow=True,
+        )
+        self.assertContains(response, 'Set GOOGLE_OAUTH_CLIENT_ID')
+
 
 class GoogleCalendarConnectionTestTests(TestCase):
     @classmethod

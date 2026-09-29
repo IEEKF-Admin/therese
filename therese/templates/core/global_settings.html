@@ -355,10 +355,11 @@
         <p class="field-hint">Not connected. Sign in as the owner of the institute calendar.</p>
         {% endif %}
         {% if not google_oauth_configured %}
-        <p class="field-hint">
+        <div class="alert alert-warning" style="margin:0.75rem 0;">
             Set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code>
-            in <code>.env</code>. OAuth client type: Web application. Authorized redirect URI:
-        </p>
+            in <code>.env</code>, then restart THERESE. OAuth client type: Web application.
+            Authorized redirect URI:
+        </div>
         {% else %}
         <p class="field-hint">Authorized redirect URI for the Google Cloud OAuth client:</p>
         {% endif %}
@@ -366,7 +367,7 @@
         <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;">
             <form method="post" action="{% url 'core_settings:google_calendar_connect' %}">
                 {% csrf_token %}
-                <button type="submit" class="btn-secondary" {% if not google_oauth_configured %}disabled{% endif %}>
+                <button type="submit" class="btn-secondary">
                     {% if google_calendar_connected %}Reconnect Google{% else %}Connect Google{% endif %}
                 </button>
             </form>

@@ -100,6 +100,8 @@ class ReallocationFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm)
         return not source
 
     def full_clean(self):
+        if self.apply_posted_delete():
+            return
         if self._is_empty_row():
             self.cleaned_data = {}
             self._errors = {}
@@ -147,6 +149,14 @@ class BaseReallocationFundingFormSet(BaseInlineFormSet):
         kwargs = super().get_form_kwargs(index)
         kwargs['show_job_number'] = self.show_job_number
         return kwargs
+
+    def _should_delete_form(self, form):
+        from apps.finances.funding_sources import form_posted_delete
+
+        if form_posted_delete(form):
+            return True
+        cleaned = getattr(form, 'cleaned_data', None) or {}
+        return bool(cleaned.get('DELETE'))
 
     def clean(self):
         super().clean()

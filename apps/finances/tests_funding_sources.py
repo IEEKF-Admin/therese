@@ -101,3 +101,39 @@ class FundingSourceChoicesTests(TestCase):
             funding_source_value_for_instance(saved),
             f'cc:{self.cost_center.pk}',
         )
+
+    def test_deleted_incomplete_funding_form_skips_required_fields(self):
+        contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.00'),
+            valid_from=date(2026, 1, 1),
+            is_active=True,
+        )
+        allocation = FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.employee,
+            wbs_element=self.psp,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2026, 1, 1),
+            is_active=True,
+        )
+        form = FundingAllocationForm(
+            data={
+                'funding_source': '',
+                'workhours_percentage': '',
+                'start_date': '',
+                'DELETE': 'on',
+            },
+            instance=allocation,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertTrue(form.cleaned_data.get('DELETE'))
+        incomplete = FundingAllocationForm(
+            data={
+                'funding_source': '',
+                'workhours_percentage': '',
+                'start_date': '',
+            },
+            instance=allocation,
+        )
+        self.assertFalse(incomplete.is_valid())

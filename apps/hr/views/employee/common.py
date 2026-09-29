@@ -100,7 +100,10 @@ def _save_nested_on_contract(nested, saved_by_index, *, inactive_skip=True):
             related_qs = None
         if related_qs is not None:
             keep_ids = set()
+            from apps.finances.funding_sources import form_posted_delete
             for fform in nested_fs.forms:
+                if form_posted_delete(fform):
+                    continue
                 cleaned = getattr(fform, 'cleaned_data', None) or {}
                 if not cleaned or cleaned.get('DELETE'):
                     continue

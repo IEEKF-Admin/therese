@@ -103,8 +103,43 @@ class FundingSourceField(forms.ChoiceField):
         return True
 
 
+def form_posted_delete(form) -> bool:
+    """True when the formset DELETE flag is present in raw POST data."""
+    if not getattr(form, 'is_bound', False):
+        return False
+    data = getattr(form, 'data', None)
+    if data is None:
+        return False
+    raw = data.get(form.add_prefix('DELETE'))
+    if raw in (True, 1):
+        return True
+    return str(raw or '').strip().lower() in {'on', 'true', '1', 'yes'}
+
+
 class FundingSourceFormMixin:
     """Replace wbs_element-only selection with PSP + cost center dropdown."""
+
+    # Hidden/incomplete deleted rows must still POST; HTML5 required would block.
+    use_required_attribute = False
+
+    def _posted_for_delete(self):
+        return form_posted_delete(self)
+
+    def apply_posted_delete(self):
+        """Skip field validation when the row is marked for deletion."""
+        if not self._posted_for_delete():
+            return False
+        from django.forms.utils import ErrorDict
+        self._errors = ErrorDict()
+        self.cleaned_data = {'DELETE': True}
+        if getattr(self.instance, 'pk', None):
+            self.cleaned_data['id'] = self.instance
+        return True
+
+    def full_clean(self):
+        if self.apply_posted_delete():
+            return
+        super().full_clean()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

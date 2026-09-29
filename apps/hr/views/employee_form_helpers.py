@@ -119,6 +119,14 @@ class ChronologicalContractFundingFormSet(BaseInlineFormSet):
             'pk',
         )
 
+    def _should_delete_form(self, form):
+        from apps.finances.funding_sources import form_posted_delete
+
+        if form_posted_delete(form):
+            return True
+        cleaned = getattr(form, 'cleaned_data', None) or {}
+        return bool(cleaned.get('DELETE'))
+
 
 def make_contract_formset(extra=0):
     return inlineformset_factory(

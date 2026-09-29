@@ -99,6 +99,8 @@ class RecruitmentFundingAllocationForm(FundingSourceFormMixin, forms.ModelForm):
         return not source
 
     def full_clean(self):
+        if self.apply_posted_delete():
+            return
         # Blank extra rows skip validation (same pattern as PurchaseItemForm).
         if self._is_empty_row():
             self.cleaned_data = {}
@@ -142,6 +144,14 @@ class BaseRecruitmentFundingFormSet(BaseInlineFormSet):
         super().__init__(*args, **kwargs)
         for form in self.forms:
             form.empty_permitted = not bool(form.instance and form.instance.pk)
+
+    def _should_delete_form(self, form):
+        from apps.finances.funding_sources import form_posted_delete
+
+        if form_posted_delete(form):
+            return True
+        cleaned = getattr(form, 'cleaned_data', None) or {}
+        return bool(cleaned.get('DELETE'))
 
     def clean(self):
         super().clean()

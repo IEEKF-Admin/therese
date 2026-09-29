@@ -540,6 +540,12 @@
             el.checked = true;
         }
         el.value = 'on';
+        var scope = el.closest('.funding-item, .salary-item, .contract-card, .inline-form-row');
+        if (scope) {
+            scope.querySelectorAll('[required]').forEach(function(field) {
+                field.removeAttribute('required');
+            });
+        }
     }
 
     function updatePctSum(card) {
@@ -975,6 +981,13 @@
         form.addEventListener('submit', function() {
             form.querySelectorAll('input:disabled, select:disabled, textarea:disabled').forEach(function(el) {
                 el.disabled = false;
+            });
+            form.querySelectorAll('.funding-item, .salary-item, .contract-card').forEach(function(item) {
+                var del = item.querySelector('input[name$="-DELETE"]');
+                if (!isDeleteMarked(del)) return;
+                item.querySelectorAll('[required]').forEach(function(el) {
+                    el.removeAttribute('required');
+                });
             });
         });
     });

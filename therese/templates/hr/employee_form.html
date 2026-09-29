@@ -154,6 +154,10 @@
         const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
         if (deleteCheckbox) {
             deleteCheckbox.checked = true;
+            deleteCheckbox.value = 'on';
+            row.querySelectorAll('[required]').forEach(function(el) {
+                el.removeAttribute('required');
+            });
             row.style.display = 'none';
         } else {
             row.remove();

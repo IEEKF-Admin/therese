@@ -414,6 +414,22 @@ class ReallocationFundingFormsetEditTests(TestCase):
         form = ReallocationFundingAllocationForm()
         self.assertFalse(form.use_required_attribute)
 
+    def test_delete_existing_row_with_empty_required_fields(self):
+        data = self._edit_data()
+        data['funding_allocations-0-DELETE'] = 'on'
+        data['funding_allocations-0-funding_source'] = ''
+        data['funding_allocations-0-workhours_percentage'] = ''
+        data['funding_allocations-1-workhours_percentage'] = '100.00'
+        formset = ReallocationFundingFormSet(data, instance=self.task)
+        self.assertTrue(formset.is_valid(), formset.non_form_errors() or formset.errors)
+        formset.save()
+        self.assertFalse(
+            ReallocationFundingAllocation.objects.filter(pk=self.allocation_wbs.pk).exists()
+        )
+        self.assertTrue(
+            ReallocationFundingAllocation.objects.filter(pk=self.allocation_cc.pk).exists()
+        )
+
     def test_job_number_hidden_by_default_visible_when_enabled(self):
         hidden = ReallocationFundingAllocationForm()
         self.assertNotIn('job_number', hidden.fields)

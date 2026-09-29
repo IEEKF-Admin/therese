@@ -170,7 +170,7 @@ def insert_acl(calendar_id: str, access_token: str, email: str, role: str = CALE
     try:
         _http_json(
             'POST',
-            _acl_url(calendar_id) + '?sendNotifications=false',
+            _acl_url(calendar_id) + '?sendNotifications=true',
             json_body={
                 'role': role,
                 'scope': {'type': 'user', 'value': email},

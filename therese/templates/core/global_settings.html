@@ -333,8 +333,9 @@
             <h3>Google Calendar</h3>
             <p class="field-hint">
                 Share one existing institute calendar with each employee’s private Gmail
-                (<code>Google Account</code> on the employee form). THERESE does not write
-                into personal calendars. Role: writer.
+                (<code>Google Account</code> on the employee form). The calendar stays
+                private: THERESE only adds named people (writer) and does not make it
+                public. It does not write into personal calendars.
             </p>
             {% include "core/_settings_field.html" with field=form.google_calendar_enabled %}
             {% include "core/_settings_field.html" with field=form.google_calendar_id %}

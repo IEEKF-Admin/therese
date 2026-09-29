@@ -347,10 +347,10 @@ class GlobalSetting(models.Model):
         default=False,
         verbose_name='Google Calendar sharing',
         help_text=(
-            'When on, employees with a Google Account get writer access to the '
-            'institute calendar. Access is removed when the address changes or '
-            'the employee is archived. Turning this off stops further changes; '
-            'existing shares are left as they are.'
+            'When on, each employee with a Google Account is added as a specific '
+            'person (writer). The calendar is not made public. Access is removed '
+            'when the address changes or the employee is archived. Turning this '
+            'off stops further changes; existing shares are left as they are.'
         ),
     )
     google_calendar_id = models.CharField(
@@ -359,8 +359,8 @@ class GlobalSetting(models.Model):
         default='',
         verbose_name='Google Calendar ID',
         help_text=(
-            'From Google Calendar → Settings and sharing → Integrate calendar. '
-            'The connected Google account must own this calendar.'
+            'Calendar ID from Google Calendar → Settings and sharing. '
+            'The calendar can stay private. The connected Google account must own it.'
         ),
     )
     google_calendar_refresh_token = models.TextField(

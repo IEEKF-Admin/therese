@@ -7,7 +7,8 @@ Product rule (soft, not a hard DB constraint):
 - If several records are open, the one with the **latest start date** wins.
 - Starts in the future (start > as_of) never win.
 - ``is_active`` is manual, but forced to No when end date is in the past
-  (see ``apply_past_end_deactivation``).
+  (see ``apply_past_end_deactivation``). Upcoming rows (start in the future,
+  not archived) are forced to Yes (see ``apply_upcoming_activation``).
 
 Different funding targets (distinct WBS / cost centers) can all be open at once;
 the winner rule applies **per target** (employee + WBS, or employee + cost center).
@@ -41,6 +42,24 @@ def apply_past_end_deactivation(instance, *, end_attr: str, as_of: date | None =
         instance.is_active = False
         if hasattr(instance, 'is_archived'):
             instance.is_archived = True
+        return True
+    return False
+
+
+def apply_upcoming_activation(instance, *, start_attr: str, as_of: date | None = None) -> bool:
+    """
+    If start is strictly after ``as_of`` and the row is not archived, set
+    ``is_active=True`` so the row becomes current on the start date.
+
+    Returns True if the instance was activated by this rule.
+    Manual archive (``is_archived=True``) is left as-is.
+    """
+    as_of = resolve_as_of(as_of)
+    if getattr(instance, 'is_archived', False):
+        return False
+    start = getattr(instance, start_attr, None)
+    if start is not None and start > as_of and not instance.is_active:
+        instance.is_active = True
         return True
     return False
 

@@ -337,12 +337,16 @@ def collect_salary_formsets_from_post(employee, contract_formset, data):
 
 def validate_active_contract_funding_totals(contract_formset, nested_funding) -> list[str]:
     """
-    Active contract's non-deleted active FAs must sum to exactly 100%
-    on every day of the contract.
+    Active contract's non-deleted current and upcoming FAs must sum to
+    exactly 100% on every day of the contract. Upcoming FAs count even
+    when ``is_active`` is still off.
 
     ``nested_funding``: list of (index, contract_form, funding_formset)
     """
-    from apps.hr.funding_coverage import coverage_error_message
+    from apps.hr.funding_coverage import (
+        allocation_counts_toward_coverage,
+        coverage_error_message,
+    )
 
     errors = []
     for index, cform, fa_fs in nested_funding:
@@ -360,7 +364,12 @@ def validate_active_contract_funding_totals(contract_formset, nested_funding) ->
                 continue
             if fform.cleaned_data.get('DELETE'):
                 continue
-            if not fform.cleaned_data.get('is_active', True):
+            if not allocation_counts_toward_coverage(
+                fform.cleaned_data.get('start_date'),
+                fform.cleaned_data.get('end_date'),
+                is_active=fform.cleaned_data.get('is_active', True),
+                is_archived=fform.cleaned_data.get('is_archived', False),
+            ):
                 continue
             pct = fform.cleaned_data.get('workhours_percentage')
             if pct is None:

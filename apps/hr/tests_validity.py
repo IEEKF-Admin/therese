@@ -8,6 +8,7 @@ from django.test import TestCase
 from apps.finances.models import CostCenter, WBSElement
 from apps.hr.models import Contract, Employee, FundingAllocation
 from apps.hr.validity import (
+    apply_upcoming_activation,
     contract_validity_defaults,
     dedupe_allocations_as_of,
     select_contract_as_of,
@@ -455,3 +456,83 @@ class IsActiveFieldTests(TestCase):
         self.assertIsNone(
             FundingAllocation.for_employee_wbs_as_of(self.emp, self.wbs, date(2026, 1, 1))
         )
+
+    def test_upcoming_funding_forced_active_on_save(self):
+        contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 5, 1),
+            valid_until=None,
+            is_active=True,
+        )
+        fa = FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.emp,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2028, 5, 1),
+            end_date=None,
+            is_active=False,
+        )
+        fa.refresh_from_db()
+        self.assertTrue(fa.is_active)
+        self.assertEqual(fa.temporal_ui_status(), 'upcoming')
+
+    def test_archived_upcoming_funding_not_reactivated(self):
+        contract = Contract.objects.create(
+            employee=self.emp,
+            weekly_hours=Decimal('39.00'),
+            monthly_salary=Decimal('3000.00'),
+            valid_from=date(2024, 5, 1),
+            valid_until=None,
+            is_active=True,
+        )
+        fa = FundingAllocation.objects.create(
+            contract=contract,
+            employee=self.emp,
+            wbs_element=self.wbs,
+            workhours_percentage=Decimal('100.00'),
+            start_date=date(2028, 5, 1),
+            end_date=None,
+            is_active=False,
+            is_archived=True,
+        )
+        fa.refresh_from_db()
+        self.assertFalse(fa.is_active)
+        self.assertTrue(fa.is_archived)
+
+
+class UpcomingActivationHelperTests(TestCase):
+    def test_future_inactive_is_activated(self):
+        row = type('Row', (), {
+            'start_date': date(2028, 5, 1),
+            'is_active': False,
+            'is_archived': False,
+        })()
+        self.assertTrue(
+            apply_upcoming_activation(row, start_attr='start_date', as_of=date(2026, 9, 30))
+        )
+        self.assertTrue(row.is_active)
+
+    def test_archived_future_is_left_inactive(self):
+        row = type('Row', (), {
+            'start_date': date(2028, 5, 1),
+            'is_active': False,
+            'is_archived': True,
+        })()
+        self.assertFalse(
+            apply_upcoming_activation(row, start_attr='start_date', as_of=date(2026, 9, 30))
+        )
+        self.assertFalse(row.is_active)
+
+    def test_current_inactive_is_left_inactive(self):
+        row = type('Row', (), {
+            'start_date': date(2024, 5, 1),
+            'is_active': False,
+            'is_archived': False,
+        })()
+        self.assertFalse(
+            apply_upcoming_activation(row, start_attr='start_date', as_of=date(2026, 9, 30))
+        )
+        self.assertFalse(row.is_active)

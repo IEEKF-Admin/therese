@@ -895,7 +895,7 @@ class FundingAllocation(BaseModel):
         verbose_name="Active",
         help_text=(
             "Yes/No. Can be set manually. Automatically set to No when "
-            "Valid Until is in the past."
+            "Valid Until is in the past. Upcoming allocations stay Yes."
         ),
     )
     is_archived = models.BooleanField(
@@ -971,15 +971,19 @@ class FundingAllocation(BaseModel):
             raise ValidationError({
                 'end_date': 'End date cannot be before start date.',
             })
-        from apps.hr.validity import apply_past_end_deactivation
+        from apps.hr.validity import apply_past_end_deactivation, apply_upcoming_activation
         apply_past_end_deactivation(self, end_attr='end_date')
-        # Sync employee from contract; force inactive if contract is inactive.
+        # Sync employee from contract; force inactive if contract is archived.
         if self.contract_id:
             contract = self.contract
             self.employee_id = contract.employee_id
             if getattr(contract, 'is_archived', False):
                 self.is_active = False
                 self.is_archived = True
+            elif getattr(contract, 'is_active', True):
+                apply_upcoming_activation(self, start_attr='start_date')
+        else:
+            apply_upcoming_activation(self, start_attr='start_date')
 
     def save(self, *args, **kwargs):
         # Keep date order sane; soft overlap rule lives in validity helpers.

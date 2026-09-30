@@ -7,6 +7,20 @@ from decimal import Decimal, ROUND_HALF_UP
 HUNDRED = Decimal('100.00')
 
 
+def allocation_counts_toward_coverage(
+    start, end, *, is_active=True, is_archived=False,
+) -> bool:
+    """Include current and upcoming FAs; skip archived / ended / deactivated current."""
+    from apps.hr.validity import temporal_status
+
+    return temporal_status(
+        start,
+        end,
+        is_active=bool(is_active),
+        is_archived=bool(is_archived),
+    ) != 'archived'
+
+
 def _q2(value: Decimal) -> Decimal:
     return Decimal(value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 

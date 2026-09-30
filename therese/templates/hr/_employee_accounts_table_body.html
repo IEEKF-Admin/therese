@@ -1,0 +1,52 @@
+{% for row in rows %}
+<tr class="{% if not row.is_active %}accounts-row-archived{% endif %}{% if row.wp_marked %} accounts-row-attention{% endif %}"{% if not row.is_active %} title="Archived"{% endif %}>
+    <td class="table-checkbox-col">
+        <input type="checkbox" name="selected_ids" value="{{ row.employee.pk }}">
+    </td>
+    <td>
+        <a href="{% url 'hr:employee_update' row.employee.pk %}">{{ row.employee.last_name }}, {{ row.employee.first_name }}</a>
+        {% if row.employee.is_external %}
+        <span class="badge-upcoming">External</span>
+        {% endif %}
+    </td>
+    {% for cell in row.cells %}
+    <td>
+        {% if cell.status == 'none' %}
+        —
+        {% else %}
+        <i class="{{ cell.icon }} accounts-status-icon {{ cell.icon_class }}"
+           title="{{ cell.label }}" aria-label="{{ cell.label }}"></i>
+        {% if cell.status == 'error' and cell.detail %}
+        <div class="field-hint">{{ cell.detail }}</div>
+        {% endif %}
+        {% if cell.lists %}
+        <div class="accounts-list-names">{{ cell.lists|join:", " }}</div>
+        {% endif %}
+        {% endif %}
+    </td>
+    {% endfor %}
+    <td class="{% if row.wp_marked %}accounts-cell-attention{% endif %}">
+        {% if row.wp_marked %}
+        <span class="menu-notification-dot" aria-label="Needs attention"></span>
+        {% endif %}
+        {% for cell in row.wp_cells %}
+        <div class="accounts-site-line">
+            {% if cell.icon %}
+            <i class="{{ cell.icon }} accounts-status-icon {{ cell.icon_class }}"
+               title="{{ cell.label }}" aria-label="{{ cell.label }}"></i>
+            {% endif %}
+            <span>{{ cell.site_name }}</span>
+        </div>
+        {% if cell.detail %}
+        <div class="field-hint">{{ cell.detail }}</div>
+        {% endif %}
+        {% empty %}
+        —
+        {% endfor %}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="{{ table_colspan }}">{% if search_query %}No matching employees.{% else %}No employees.{% endif %}</td>
+</tr>
+{% endfor %}

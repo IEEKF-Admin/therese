@@ -42,6 +42,9 @@ def wordpress_position_choices(setting=None):
     return values
 
 
+WP_QUEUE_SESSION = 'accounts_wp_queue'
+
+
 def configured_sites():
     from apps.hr.models import WordPressSite
 
@@ -148,22 +151,32 @@ def site_state(employee, site, enrollment=None) -> dict:
     leftover = published and not assigned
     needs_update = published and assigned and bool(changed)
     marked = leftover or needs_update
+    icon = ''
+    icon_class = ''
     if leftover:
         action = 'unpublish'
         label = 'Unpublish'
         reason = 'Unpublish'
+        icon = 'fas fa-eye-slash'
+        icon_class = 'is-attention'
     elif needs_update:
         action = 'update'
         label = 'Update needed'
         reason = 'Update needed'
+        icon = 'fas fa-exclamation-circle'
+        icon_class = 'is-attention'
     elif published:
         action = ''
         label = 'Shared'
         reason = ''
+        icon = 'fas fa-check-circle'
+        icon_class = 'is-shared'
     elif assigned:
         action = 'add'
         label = 'Add'
         reason = ''
+        icon = 'fas fa-minus-circle'
+        icon_class = 'is-missing'
     else:
         action = ''
         label = '—'
@@ -171,6 +184,8 @@ def site_state(employee, site, enrollment=None) -> dict:
     error_detail = ''
     if enrollment is not None and enrollment.status == enrollment.Status.ERROR:
         error_detail = enrollment.detail or 'Error'
+        icon = 'fas fa-exclamation-triangle'
+        icon_class = 'is-error'
         if assigned and not published:
             action = 'add'
             label = 'Add'
@@ -195,6 +210,8 @@ def site_state(employee, site, enrollment=None) -> dict:
         'published': published,
         'action': action,
         'label': label,
+        'icon': icon,
+        'icon_class': icon_class,
         'marked': marked,
         'reason': reason,
         'changed_fields': changed,

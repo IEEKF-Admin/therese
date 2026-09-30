@@ -234,6 +234,90 @@ def sync_employee_google_calendar(employee_or_id, *, client=None) -> str:
         return 'error'
 
 
+def enroll_employee_google_calendar(employee, *, client=None) -> str:
+    """Share the institute calendar. Ignores archive; requires a Google account."""
+    desired = normalize_google_email(employee.google_account)
+    if not desired:
+        return 'skipped'
+    setting = GlobalSetting.get_solo()
+    ready, reason = _feature_ready(setting)
+    account = _account(employee)
+    previous = normalize_google_email(account.identifier)
+    if not ready:
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=reason,
+        )
+        return 'error'
+    try:
+        client = client or get_calendar_client(setting)
+        if previous and previous != desired:
+            client.unshare(previous)
+        client.share(desired)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ACTIVE,
+            identifier=desired,
+            detail='',
+        )
+        return 'active'
+    except GoogleCalendarError as exc:
+        logger.warning('Google Calendar enroll error for employee %s: %s', employee.pk, exc)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=str(exc),
+        )
+        return 'error'
+
+
+def unenroll_employee_google_calendar(employee, *, client=None) -> str:
+    """Unshare the institute calendar for an explicit accounts-tab removal."""
+    setting = GlobalSetting.get_solo()
+    account = _existing_account(employee)
+    previous = normalize_google_email(account.identifier) if account else ''
+    desired = normalize_google_email(employee.google_account)
+    email = previous or desired
+    if not email:
+        return 'skipped'
+    ready, reason = _feature_ready(setting)
+    if not ready:
+        if reason == 'disabled':
+            return 'skipped'
+        account = account or _account(employee)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=reason,
+        )
+        return 'error'
+    try:
+        client = client or get_calendar_client(setting)
+        client.unshare(email)
+        account = account or _account(employee)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.REMOVED,
+            identifier=desired or previous,
+            detail='',
+        )
+        return 'removed'
+    except GoogleCalendarError as exc:
+        logger.warning('Google Calendar unenroll error for employee %s: %s', employee.pk, exc)
+        account = account or _account(employee)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=str(exc),
+        )
+        return 'error'
+
+
 def sync_all_google_calendars() -> tuple[int, int, int]:
     ok = errors = skipped = 0
     setting = GlobalSetting.get_solo()
@@ -449,6 +533,109 @@ def sync_employee_sympa(employee_or_id, *, send_commands=None) -> str:
             account,
             status=EmployeeExternalAccount.Status.ERROR,
             identifier=desired or previous,
+            detail=str(exc),
+            lists=previous_lists,
+        )
+        return 'error'
+
+
+def enroll_employee_sympa(employee, *, send_commands=None) -> str:
+    """Add to institute + workgroup lists. Ignores archive; skips externals."""
+    if getattr(employee, 'is_external', False):
+        return 'skipped'
+    desired = normalize_google_email(employee.email_professional)
+    setting = GlobalSetting.get_solo()
+    wanted = desired_sympa_lists(employee, setting)
+    if not desired or not wanted:
+        return 'skipped'
+    ready, reason = _sympa_ready(setting)
+    account = _account(employee, EmployeeExternalAccount.Kind.SYMPA)
+    previous = normalize_google_email(account.identifier)
+    previous_lists = list(account.lists or [])
+    if not ready:
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=reason,
+            lists=previous_lists,
+        )
+        return 'error'
+    commands: list[str] = []
+    if previous and previous != desired:
+        for item in previous_lists:
+            commands.append(quiet_delete(item, previous))
+        previous_lists = []
+    for item in wanted:
+        if previous != desired or item not in previous_lists:
+            commands.append(quiet_add(item, desired, subscriber_gecos(employee)))
+    lists = list(dict.fromkeys([*previous_lists, *wanted]))
+    try:
+        sender = send_commands or send_sympa_commands
+        if commands:
+            sender(commands, setting)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ACTIVE,
+            identifier=desired,
+            detail='',
+            lists=lists,
+        )
+        return 'active'
+    except Exception as exc:
+        logger.warning('Sympa enroll error for employee %s: %s', employee.pk, exc)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=desired or previous,
+            detail=str(exc),
+            lists=previous_lists,
+        )
+        return 'error'
+
+
+def unenroll_employee_sympa(employee, *, send_commands=None) -> str:
+    """Remove from lists currently recorded (fallback: desired lists)."""
+    setting = GlobalSetting.get_solo()
+    account = _existing_account(employee, EmployeeExternalAccount.Kind.SYMPA)
+    previous = normalize_google_email(account.identifier) if account else ''
+    previous_lists = list(account.lists or []) if account else []
+    email = previous or normalize_google_email(employee.email_professional)
+    lists = previous_lists or desired_sympa_lists(employee, setting)
+    if not email or not lists:
+        return 'skipped'
+    ready, reason = _sympa_ready(setting)
+    if not ready:
+        if reason == 'disabled':
+            return 'skipped'
+        account = account or _account(employee, EmployeeExternalAccount.Kind.SYMPA)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=email,
+            detail=reason,
+            lists=previous_lists,
+        )
+        return 'error'
+    try:
+        sender = send_commands or send_sympa_commands
+        sender([quiet_delete(item, email) for item in lists], setting)
+        account = account or _account(employee, EmployeeExternalAccount.Kind.SYMPA)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.REMOVED,
+            identifier=email,
+            detail='',
+            lists=[],
+        )
+        return 'removed'
+    except Exception as exc:
+        logger.warning('Sympa unenroll error for employee %s: %s', employee.pk, exc)
+        account = account or _account(employee, EmployeeExternalAccount.Kind.SYMPA)
+        _mark(
+            account,
+            status=EmployeeExternalAccount.Status.ERROR,
+            identifier=email,
             detail=str(exc),
             lists=previous_lists,
         )

@@ -11,89 +11,48 @@
 {% include "hr/_employee_hub_tabs.html" %}
 
 <div class="card list-panel">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Employee</th>
-                <th>Employee No.</th>
-                {% for kind in kinds %}
-                <th>{{ kind.label }}</th>
-                {% endfor %}
-                {% for site in wp_sites %}
-                <th>{{ site.name }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in rows %}
-            <tr{% if row.wp_marked %} class="accounts-row-attention"{% endif %}>
-                <td>
-                    <a href="{% url 'hr:employee_update' row.employee.pk %}">{{ row.employee.last_name }}, {{ row.employee.first_name }}</a>
-                    {% if not row.is_active %}
-                    <span class="badge-archived">Archived</span>
-                    {% endif %}
-                    {% if row.employee.is_external %}
-                    <span class="badge-upcoming">External</span>
-                    {% endif %}
-                </td>
-                <td>{{ row.employee.employee_number|default:"—" }}</td>
-                {% for cell in row.cells %}
-                <td>
-                    {% if cell.status == 'none' %}
-                    —
-                    {% else %}
-                    {% if cell.identifier %}<div>{{ cell.identifier }}</div>{% endif %}
-                    {% if cell.status == 'active' %}
-                    <span class="badge-active">{{ cell.label }}</span>
-                    {% elif cell.status == 'error' %}
-                    <span class="badge-archived" title="{{ cell.detail }}">{{ cell.label }}</span>
-                    {% if cell.detail %}<div class="field-hint">{{ cell.detail }}</div>{% endif %}
-                    {% else %}
-                    <span class="badge-archived">{{ cell.label }}</span>
-                    {% endif %}
-                    {% if cell.lists %}
-                    <div class="field-hint">{{ cell.lists|join:", " }}</div>
-                    {% endif %}
-                    {% endif %}
-                </td>
-                {% endfor %}
-                {% for cell in row.wp_cells %}
-                <td class="{% if cell.marked %}accounts-cell-attention{% endif %}">
-                    {% if cell.marked %}
-                    <span class="menu-notification-dot" aria-label="Needs attention"></span>
-                    {% endif %}
-                    {% if cell.label == '—' %}
-                    —
-                    {% else %}
-                    <span class="{% if cell.marked %}badge-attention{% elif cell.published %}badge-active{% else %}badge-archived{% endif %}">{{ cell.label }}</span>
-                    {% if cell.detail %}<div class="field-hint">{{ cell.detail }}</div>{% endif %}
-                    {% if cell.action == 'add' or cell.action == 'update' %}
-                    <div>
-                        <button type="button" class="btn-secondary wp-open-publish"
-                                data-wp-key="{{ row.employee.pk }}:{{ cell.site_id }}">
-                            {% if cell.action == 'add' %}Add{% else %}Update{% endif %}
-                        </button>
-                    </div>
-                    {% elif cell.action == 'unpublish' %}
-                    <form method="post" action="{% url 'hr:employee_wordpress_unpublish' %}"
-                          onsubmit="return confirm('Unpublish this employee on {{ cell.site_name }}? The WordPress post becomes a draft.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="employee" value="{{ row.employee.pk }}">
-                        <input type="hidden" name="site" value="{{ cell.site_id }}">
-                        <button type="submit" class="btn-secondary">Unpublish</button>
-                    </form>
-                    {% endif %}
-                    {% endif %}
-                </td>
-                {% endfor %}
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="{{ table_colspan }}">No employees.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <form method="get" class="search-toolbar" id="accounts-search-form" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+        <input type="text" name="q" id="accounts-search" class="form-control"
+               placeholder="Name, number, job no., plan position…"
+               value="{{ search_query }}" style="flex:1; min-width:14rem;">
+        <button type="submit" class="btn-secondary">Search</button>
+    </form>
+    <form method="post" action="{% url 'hr:employee_accounts_bulk' %}" id="accounts-bulk-form">
+        {% csrf_token %}
+        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+        <table class="table" id="accounts-table">
+            <thead>
+                <tr>
+                    <th class="table-checkbox-col">
+                        <input type="checkbox" class="select-all-checkbox" data-target="selected_ids" title="Select all">
+                    </th>
+                    <th>Employee</th>
+                    {% for kind in kinds %}
+                    <th>{{ kind.label }}</th>
+                    {% endfor %}
+                    <th>Website</th>
+                </tr>
+            </thead>
+            <tbody id="accounts-table-body">
+                {% include "hr/_employee_accounts_table_body.html" %}
+            </tbody>
+        </table>
+        <div class="table-bulk-actions">
+            <div class="accounts-actions">
+                <button type="button" class="btn-secondary" id="accounts-actions-toggle" aria-expanded="false">
+                    Actions
+                </button>
+                <div class="user-menu-dropdown" id="accounts-actions-menu" hidden>
+                    <button type="submit" name="action" value="calendar_add">Add to Google Calendar</button>
+                    <button type="submit" name="action" value="calendar_remove">Remove from Google Calendar</button>
+                    <button type="submit" name="action" value="sympa_add">Add to Sympa lists</button>
+                    <button type="submit" name="action" value="sympa_remove">Remove from Sympa lists</button>
+                    <button type="submit" name="action" value="website_add">Add to websites</button>
+                    <button type="submit" name="action" value="website_remove">Remove from websites</button>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
 
 <div id="wp-publish-modal" class="wp-modal" aria-hidden="true">
@@ -166,6 +125,7 @@
 </div>
 {{ wp_payloads|json_script:"wp-payloads" }}
 {{ wp_positions|json_script:"wp-positions" }}
+{{ wp_queue|json_script:"wp-publish-queue" }}
 {% endblock %}
 
 {% block extra_js %}
@@ -239,16 +199,105 @@
         modal.setAttribute('aria-hidden', 'false');
     }
 
-    document.querySelectorAll('.wp-open-publish').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            openModal(btn.getAttribute('data-wp-key'));
-        });
-    });
+    var queueEl = document.getElementById('wp-publish-queue');
+    var queue = queueEl ? JSON.parse(queueEl.textContent || '[]') : [];
+
+    function abortQueueAndClose() {
+        closeModal();
+        if (!queue.length) return;
+        var bulk = document.getElementById('accounts-bulk-form');
+        if (!bulk) return;
+        var extra = document.createElement('input');
+        extra.type = 'hidden';
+        extra.name = 'action';
+        extra.value = 'website_queue_cancel';
+        bulk.appendChild(extra);
+        bulk.submit();
+    }
+
     modal.querySelectorAll('[data-wp-close]').forEach(function(el) {
-        el.addEventListener('click', closeModal);
+        el.addEventListener('click', queue.length ? abortQueueAndClose : closeModal);
     });
     document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+            if (queue.length) abortQueueAndClose();
+            else closeModal();
+        }
+    });
+
+    if (queue.length) {
+        var first = queue[0];
+        var key = first.employee + ':' + first.site;
+        openModal(key);
+        var title = document.getElementById('wp-modal-title');
+        if (title && queue.length > 1) {
+            title.textContent += ' (' + queue.length + ' remaining)';
+        }
+    }
+
+    var bulkForm = document.getElementById('accounts-bulk-form');
+    var actionsBtn = document.getElementById('accounts-actions-toggle');
+    var actionsMenu = document.getElementById('accounts-actions-menu');
+    var confirms = {
+        calendar_remove: 'Remove selected employees from the Google Calendar?',
+        sympa_remove: 'Remove selected employees from their Sympa lists?',
+        website_remove: 'Unpublish selected employees from their websites? Posts become drafts.',
+    };
+    if (actionsBtn && actionsMenu) {
+        actionsBtn.addEventListener('click', function(event) {
+            event.stopPropagation();
+            var open = actionsMenu.hidden;
+            actionsMenu.hidden = !open;
+            actionsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', function() {
+            actionsMenu.hidden = true;
+            actionsBtn.setAttribute('aria-expanded', 'false');
+        });
+        actionsMenu.addEventListener('click', function(event) { event.stopPropagation(); });
+    }
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function(event) {
+            var submitter = event.submitter;
+            var action = submitter ? submitter.value : '';
+            if (action === 'website_queue_cancel') return;
+            if (!bulkForm.querySelector('input[name="selected_ids"]:checked')) {
+                event.preventDefault();
+                alert('Select at least one employee.');
+                return;
+            }
+            var message = confirms[action];
+            if (message && !confirm(message)) event.preventDefault();
+        });
+    }
+
+    var input = document.getElementById('accounts-search');
+    var body = document.getElementById('accounts-table-body');
+    if (!input || !body) return;
+    var timer = null;
+    var controller = null;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var params = new URLSearchParams(window.location.search);
+            params.set('q', input.value);
+            params.set('partial', '1');
+            if (controller) controller.abort();
+            controller = new AbortController();
+            fetch(window.location.pathname + '?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            }).then(function(res) { return res.text(); }).then(function(html) {
+                body.innerHTML = html;
+                var url = new URL(window.location.href);
+                if (input.value) url.searchParams.set('q', input.value);
+                else url.searchParams.delete('q');
+                url.searchParams.delete('partial');
+                history.replaceState(null, '', url.pathname + url.search);
+            }).catch(function(err) {
+                if (err.name !== 'AbortError') console.warn(err);
+            });
+        }, 180);
     });
 })();
 </script>

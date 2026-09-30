@@ -663,8 +663,20 @@ input[readonly].form-control {
     border: 1px solid #fca5a5;
 }
 
+.accounts-row-archived td {
+    background: #e5e7eb;
+}
+
+.table tbody tr.accounts-row-archived:hover td {
+    background: #d1d5db;
+}
+
 .accounts-row-attention td {
     background: #fef2f2;
+}
+
+.table tbody tr.accounts-row-attention:hover td {
+    background: #fee2e2;
 }
 
 .accounts-cell-attention {
@@ -675,6 +687,55 @@ input[readonly].form-control {
 .accounts-cell-attention .menu-notification-dot {
     top: 0.45rem;
     right: 0.35rem;
+}
+
+.accounts-cell-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.accounts-status-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.accounts-status-icon.is-shared {
+    color: #166534;
+}
+
+.accounts-status-icon.is-removed,
+.accounts-status-icon.is-missing {
+    color: #6b7280;
+}
+
+.accounts-status-icon.is-error,
+.accounts-status-icon.is-attention {
+    color: #b45309;
+}
+
+.accounts-site-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.accounts-list-names {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-top: 0.2rem;
+}
+
+.accounts-actions {
+    position: relative;
+    display: inline-block;
+}
+
+.accounts-actions .user-menu-dropdown {
+    left: 0;
+    right: auto;
+    min-width: 18rem;
 }
 
 .badge-upcoming {

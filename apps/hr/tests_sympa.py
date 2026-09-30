@@ -278,22 +278,50 @@ class SympaAccountsAndSettingsTests(TestCase):
         )
         mail.outbox.clear()
 
-    def test_accounts_shows_professional_email_and_lists(self):
+    def test_accounts_shows_lists_without_professional_email(self):
         self.client.login(username='sysadmin-sy', password='test')
         response = self.client.get(reverse('hr:employee_accounts'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Sympa')
-        self.assertContains(response, 'grace@uni-bonn.de')
-        self.assertContains(response, 'ieecr@listen.uni-bonn.de')
-        self.assertContains(response, 'Shared')
+        self.assertNotContains(response, 'grace@uni-bonn.de')
+        self.assertContains(response, 'ieecr')
+        self.assertNotContains(response, 'ieecr@listen.uni-bonn.de')
+        self.assertContains(response, 'aria-label="Shared"')
 
-    def test_accounts_shows_current_professional_email(self):
+    def test_accounts_hides_professional_email(self):
         self.employee.email_professional = 'grace.new@uni-bonn.de'
         self.employee.save(update_fields=['email_professional'])
         self.client.login(username='sysadmin-sy', password='test')
         response = self.client.get(reverse('hr:employee_accounts'))
-        self.assertContains(response, 'grace.new@uni-bonn.de')
+        self.assertNotContains(response, 'grace.new@uni-bonn.de')
         self.assertNotContains(response, 'grace@uni-bonn.de')
+        self.assertContains(response, 'aria-label="Shared"')
+
+    def test_bulk_sympa_remove_and_add(self):
+        self.client.login(username='sysadmin-sy', password='test')
+        mail.outbox.clear()
+        removed = self.client.post(reverse('hr:employee_accounts_bulk'), {
+            'action': 'sympa_remove',
+            'selected_ids': [str(self.employee.pk)],
+        })
+        self.assertEqual(removed.status_code, 302)
+        body = mail.outbox[-1].body
+        self.assertIn('QUIET DELETE ieecr grace@uni-bonn.de', body)
+        row = EmployeeExternalAccount.objects.get(
+            employee=self.employee,
+            kind=EmployeeExternalAccount.Kind.SYMPA,
+        )
+        self.assertEqual(row.status, EmployeeExternalAccount.Status.REMOVED)
+        self.assertEqual(row.lists, [])
+        mail.outbox.clear()
+        added = self.client.post(reverse('hr:employee_accounts_bulk'), {
+            'action': 'sympa_add',
+            'selected_ids': [str(self.employee.pk)],
+        })
+        self.assertEqual(added.status_code, 302)
+        self.assertIn('QUIET ADD ieecr grace@uni-bonn.de', mail.outbox[-1].body)
+        row.refresh_from_db()
+        self.assertEqual(row.status, EmployeeExternalAccount.Status.ACTIVE)
 
     def test_save_workgroup_mapping(self):
         self.client.login(username='sysadmin-sy', password='test')

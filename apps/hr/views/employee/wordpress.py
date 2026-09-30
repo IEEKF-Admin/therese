@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.permissions import user_is_systemadmin
 from apps.core.wordpress import WordPressError
 from apps.hr.models import Employee, WordPressSite
-from apps.hr.wordpress import publish_employee_to_site, unpublish_employee_from_site
+from apps.hr.wordpress import WP_QUEUE_SESSION, publish_employee_to_site, unpublish_employee_from_site
 
 TEXT_KEYS = (
     'posttitle',
@@ -50,10 +50,26 @@ def wordpress_publish(request):
     except WordPressError as exc:
         messages.error(request, f'WordPress ({site.name}): {exc}')
         return _accounts_redirect()
-    messages.success(
-        request,
-        f'Published {employee.last_name}, {employee.first_name} on {site.name}.',
-    )
+    queue = [
+        item for item in (request.session.get(WP_QUEUE_SESSION) or [])
+        if not (
+            int(item.get('employee') or 0) == employee.pk
+            and int(item.get('site') or 0) == site.pk
+        )
+    ]
+    request.session[WP_QUEUE_SESSION] = queue
+    remaining = len(queue)
+    if remaining:
+        messages.success(
+            request,
+            f'Published {employee.last_name}, {employee.first_name} on {site.name}. '
+            f'{remaining} remaining.',
+        )
+    else:
+        messages.success(
+            request,
+            f'Published {employee.last_name}, {employee.first_name} on {site.name}.',
+        )
     return _accounts_redirect()
 
 

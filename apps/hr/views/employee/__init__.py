@@ -12,6 +12,7 @@ Do not remove any existing requirements from this package without explicit instr
 """
 
 from .accounts import employee_accounts
+from .accounts_bulk import employee_accounts_bulk
 from .wordpress import wordpress_publish, wordpress_unpublish
 from .crud import (
     EmployeeCreateView,
@@ -49,6 +50,7 @@ from .workgroups import (
 __all__ = [
     'employee_list',
     'employee_accounts',
+    'employee_accounts_bulk',
     'wordpress_publish',
     'wordpress_unpublish',
     'employee_reset_password',

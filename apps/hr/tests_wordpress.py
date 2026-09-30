@@ -32,6 +32,7 @@ from apps.hr.models import (
     Workgroup,
 )
 from apps.hr.wordpress import (
+    WP_QUEUE_SESSION,
     employee_assigned_to_site,
     employee_wordpress_states,
     publish_employee_to_site,
@@ -270,8 +271,14 @@ class WordPressClientTests(TestCase):
         self.assertNotContains(listed, 'aria-label="WordPress updates needed"')
         accounts = self.client.get(reverse('hr:employee_accounts'))
         self.assertEqual(accounts.status_code, 200)
+        self.assertContains(accounts, 'Website')
+        self.assertNotContains(accounts, 'Beck Group')
         self.assertContains(accounts, 'IEECR')
-        self.assertContains(accounts, 'Add')
+        self.assertContains(accounts, 'aria-label="Add"')
+        self.assertContains(accounts, 'name="selected_ids"')
+        self.assertContains(accounts, 'Add to websites')
+        self.assertContains(accounts, 'Remove from websites')
+        self.assertNotContains(accounts, 'wp-open-publish')
         posted = self.client.post(reverse('hr:employee_wordpress_publish'), {
             'employee': str(self.employee.pk),
             'site': str(self.site.pk),
@@ -301,6 +308,98 @@ class WordPressClientTests(TestCase):
         self.assertNotContains(listed, reverse('hr:employee_accounts'))
         self.assertNotContains(listed, 'aria-label="WordPress updates needed"')
         self.assertEqual(self.client.get(reverse('hr:employee_accounts')).status_code, 403)
+
+    def test_accounts_shows_multiple_sites_in_website_column(self):
+        self.workgroup.members.add(self.employee)
+        other = WordPressSite.objects.create(
+            name='Beck Lab',
+            url='https://beck.example.org',
+            username='therese',
+            application_password='app-pass',
+        )
+        other.workgroups.add(self.workgroup)
+        self.client.login(username='sysadmin-wp', password='test')
+        accounts = self.client.get(reverse('hr:employee_accounts'))
+        self.assertContains(accounts, 'Website')
+        self.assertContains(accounts, 'IEECR')
+        self.assertContains(accounts, 'Beck Lab')
+        self.assertContains(accounts, 'accounts-site-line', count=2)
+        self.assertNotContains(accounts, 'wp-open-publish')
+
+    def test_bulk_website_add_queues_dialogs_and_publish_pops(self):
+        self.workgroup.members.add(self.employee)
+        other = WordPressSite.objects.create(
+            name='Beck Lab',
+            url='https://beck.example.org',
+            username='therese',
+            application_password='app-pass',
+        )
+        other.workgroups.add(self.workgroup)
+        self.client.login(username='sysadmin-wp', password='test')
+        queued = self.client.post(reverse('hr:employee_accounts_bulk'), {
+            'action': 'website_add',
+            'selected_ids': [str(self.employee.pk)],
+        })
+        self.assertEqual(queued.status_code, 302)
+        queue = self.client.session[WP_QUEUE_SESSION]
+        self.assertEqual(len(queue), 2)
+        site_ids = {item['site'] for item in queue}
+        self.assertEqual(site_ids, {self.site.pk, other.pk})
+        first = queue[0]
+        with patch('apps.core.wordpress.urlopen', side_effect=self.wp.urlopen):
+            posted = self.client.post(reverse('hr:employee_wordpress_publish'), {
+                'employee': str(first['employee']),
+                'site': str(first['site']),
+                'posttitle': 'WP1 Ada Lovelace',
+                'name': 'Ada Lovelace',
+                'position': 'PI',
+                'phone': '0228-1',
+                'mobile': '0171-1',
+                'email': 'ada@uni-bonn.de',
+                'address': 'Nussallee 14\n53115 Bonn',
+                'linkmember': 'https://example.org/ada',
+            })
+        self.assertEqual(posted.status_code, 302)
+        remaining = self.client.session[WP_QUEUE_SESSION]
+        self.assertEqual(len(remaining), 1)
+        self.assertNotEqual(remaining[0]['site'], first['site'])
+
+    def test_bulk_website_remove_unpublishes(self):
+        self.workgroup.members.add(self.employee)
+        employee = Employee.objects.select_related('room__building').get(pk=self.employee.pk)
+        EmployeeWordPressEnrollment.objects.create(
+            employee=self.employee,
+            site=self.site,
+            posttitle='WP1 Ada Lovelace',
+            status=EmployeeWordPressEnrollment.Status.PUBLISHED,
+            last_source=source_payload(employee),
+        )
+        self.client.login(username='sysadmin-wp', password='test')
+        with patch('apps.core.wordpress.urlopen', side_effect=self.wp.urlopen):
+            removed = self.client.post(reverse('hr:employee_accounts_bulk'), {
+                'action': 'website_remove',
+                'selected_ids': [str(self.employee.pk)],
+            })
+        self.assertEqual(removed.status_code, 302)
+        enrollment = EmployeeWordPressEnrollment.objects.get(
+            employee=self.employee, site=self.site,
+        )
+        self.assertEqual(enrollment.status, EmployeeWordPressEnrollment.Status.UNPUBLISHED)
+        self.assertIn('/posts/unpublish', [call['path'] for call in self.wp.calls])
+
+    def test_bulk_website_queue_cancel(self):
+        self.workgroup.members.add(self.employee)
+        self.client.login(username='sysadmin-wp', password='test')
+        self.client.post(reverse('hr:employee_accounts_bulk'), {
+            'action': 'website_add',
+            'selected_ids': [str(self.employee.pk)],
+        })
+        self.assertTrue(self.client.session.get(WP_QUEUE_SESSION))
+        cancelled = self.client.post(reverse('hr:employee_accounts_bulk'), {
+            'action': 'website_queue_cancel',
+        })
+        self.assertEqual(cancelled.status_code, 302)
+        self.assertFalse(self.client.session.get(WP_QUEUE_SESSION))
 
     def test_save_sites_and_positions_https_only(self):
         self.client.login(username='sysadmin-wp', password='test')

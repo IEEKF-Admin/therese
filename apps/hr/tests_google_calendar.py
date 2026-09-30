@@ -247,17 +247,82 @@ class GoogleCalendarAccountsTabTests(TestCase):
         response = self.client.get(reverse('hr:employee_accounts'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Google Calendar')
-        self.assertContains(response, 'grace@gmail.com')
         self.assertContains(response, 'Hopper')
-        self.assertContains(response, 'Shared')
+        self.assertContains(response, 'aria-label="Shared"')
+        self.assertContains(response, 'name="selected_ids"')
+        self.assertContains(response, 'accounts-actions-toggle')
+        self.assertContains(response, 'Add to Google Calendar')
+        self.assertContains(response, 'Website')
+        self.assertContains(response, 'accounts-row-archived')
+        self.assertNotContains(response, 'badge-archived')
+        self.assertNotContains(response, 'Employee No.')
+        self.assertNotContains(response, 'grace@gmail.com')
+        self.assertNotContains(response, 'Shared</span>')
 
-    def test_accounts_table_shows_current_google_account(self):
+    def test_accounts_table_hides_google_account_email(self):
         self.employee.google_account = 'grace.new@gmail.com'
         self.employee.save(update_fields=['google_account'])
         self.client.login(username='sysadmin-gc', password='test')
         response = self.client.get(reverse('hr:employee_accounts'))
-        self.assertContains(response, 'grace.new@gmail.com')
+        self.assertNotContains(response, 'grace.new@gmail.com')
         self.assertNotContains(response, 'grace@gmail.com')
+        self.assertContains(response, 'aria-label="Shared"')
+
+    def test_accounts_search_filters_like_employee_list(self):
+        Employee.objects.create(
+            employee_number='GC9',
+            first_name='Ada',
+            last_name='Lovelace',
+            google_account='ada@gmail.com',
+        )
+        self.client.login(username='sysadmin-gc', password='test')
+        response = self.client.get(reverse('hr:employee_accounts'), {'q': 'Hopper'})
+        self.assertContains(response, 'Hopper')
+        self.assertNotContains(response, 'Lovelace')
+        self.assertContains(response, 'accounts-search')
+        partial = self.client.get(
+            reverse('hr:employee_accounts'),
+            {'q': 'Ada', 'partial': '1'},
+        )
+        self.assertEqual(partial.status_code, 200)
+        self.assertContains(partial, 'Lovelace')
+        self.assertNotContains(partial, 'Hopper')
+        self.assertNotIn('<html', partial.content.decode().lower())
+
+    def test_bulk_calendar_remove_and_add(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_calendar_enabled': True,
+                'google_calendar_id': 'cal-1',
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
+            },
+        )
+        fake = FakeCalendar()
+        fake.shared.add('grace@gmail.com')
+        self.client.login(username='sysadmin-gc', password='test')
+        with patch('apps.hr.provisioning.get_calendar_client', return_value=fake):
+            removed = self.client.post(reverse('hr:employee_accounts_bulk'), {
+                'action': 'calendar_remove',
+                'selected_ids': [str(self.employee.pk)],
+            })
+        self.assertEqual(removed.status_code, 302)
+        self.assertNotIn('grace@gmail.com', fake.shared)
+        row = EmployeeExternalAccount.objects.get(
+            employee=self.employee,
+            kind=EmployeeExternalAccount.Kind.GOOGLE_CALENDAR,
+        )
+        self.assertEqual(row.status, EmployeeExternalAccount.Status.REMOVED)
+        with patch('apps.hr.provisioning.get_calendar_client', return_value=fake):
+            added = self.client.post(reverse('hr:employee_accounts_bulk'), {
+                'action': 'calendar_add',
+                'selected_ids': [str(self.employee.pk)],
+            })
+        self.assertEqual(added.status_code, 302)
+        self.assertIn('grace@gmail.com', fake.shared)
+        row.refresh_from_db()
+        self.assertEqual(row.status, EmployeeExternalAccount.Status.ACTIVE)
 
     def test_hr_cannot_open_accounts_tab(self):
         self.client.login(username='hr-gc', password='test')

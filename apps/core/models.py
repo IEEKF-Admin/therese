@@ -411,6 +411,76 @@ class GlobalSetting(models.Model):
         default='',
         verbose_name='Google Calendar connected account',
     )
+    smtp_host = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='SMTP host',
+        help_text=(
+            'e.g. smtp.strato.de. A non-empty EMAIL_HOST in .env overrides '
+            'all SMTP fields here.'
+        ),
+    )
+    smtp_port = models.PositiveIntegerField(
+        default=465,
+        verbose_name='SMTP port',
+        help_text='465 with SSL, or 587 with STARTTLS.',
+    )
+    smtp_use_ssl = models.BooleanField(
+        default=True,
+        verbose_name='SMTP SSL (implicit TLS)',
+        help_text='Typical for port 465. Do not combine with STARTTLS.',
+    )
+    smtp_use_tls = models.BooleanField(
+        default=False,
+        verbose_name='SMTP STARTTLS',
+        help_text='Typical for port 587. Keep off when SSL is on.',
+    )
+    smtp_user = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='SMTP username',
+        help_text='For Strato this is the full mailbox address.',
+    )
+    smtp_password = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='SMTP password',
+        help_text='Leave blank to keep the saved password. Not shown again after saving.',
+    )
+    smtp_from_email = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='From address',
+        help_text=(
+            'THERESE sends as this address. For Sympa it must be a list owner. '
+            'Should match the SMTP mailbox.'
+        ),
+    )
+    sympa_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Sympa mailing lists',
+        help_text=(
+            'When on, each active institute employee with a professional email '
+            'is added to the institute list and their workgroup lists. Externals '
+            'are skipped. Turning this off stops further changes; existing '
+            'subscriptions are left as they are.'
+        ),
+    )
+    sympa_robot = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='Sympa robot address',
+        help_text='Command mailbox, usually sympa@listen.uni-bonn.de.',
+    )
+    sympa_institute_list = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='Institute mailing list',
+        help_text='e.g. ieecr@listen.uni-bonn.de. All active institute employees are added.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -474,6 +544,10 @@ class GlobalSetting(models.Model):
     @classmethod
     def get_google_calendar_enabled(cls) -> bool:
         return bool(cls.get_solo().google_calendar_enabled)
+
+    @classmethod
+    def get_sympa_enabled(cls) -> bool:
+        return bool(cls.get_solo().sympa_enabled)
 
 
 class OccupationSalaryTable(BaseModel):

@@ -330,6 +330,29 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="save_integrations">
         <div class="form-section">
+            <h3>Outbound email (SMTP)</h3>
+            <p class="field-hint">
+                Used for test mail, account emails, holidays, and Sympa owner commands.
+                The From address must be a Sympa list owner.
+            </p>
+            {% if smtp_env_override %}
+            <div class="alert alert-warning" style="margin:0.75rem 0;">
+                A non-empty <code>EMAIL_HOST</code> in <code>.env</code> overrides
+                these SMTP fields. Clear it to use the values saved here.
+            </div>
+            {% endif %}
+            {% include "core/_settings_field.html" with field=form.smtp_host %}
+            {% include "core/_settings_field.html" with field=form.smtp_port %}
+            {% include "core/_settings_field.html" with field=form.smtp_use_ssl %}
+            {% include "core/_settings_field.html" with field=form.smtp_use_tls %}
+            {% include "core/_settings_field.html" with field=form.smtp_user %}
+            {% include "core/_settings_field.html" with field=form.smtp_password %}
+            {% if smtp_password_configured %}
+            <p class="field-hint">A password is saved. Leave the field blank to keep it.</p>
+            {% endif %}
+            {% include "core/_settings_field.html" with field=form.smtp_from_email %}
+        </div>
+        <div class="form-section">
             <h3>Google Calendar</h3>
             <p class="field-hint">
                 Share one existing institute calendar with each employee’s private Gmail
@@ -340,6 +363,41 @@
             {% include "core/_settings_field.html" with field=form.google_calendar_enabled %}
             {% include "core/_settings_field.html" with field=form.google_calendar_id %}
             {% include "core/_settings_field.html" with field=form.google_service_account_json %}
+        </div>
+        <div class="form-section">
+            <h3>Sympa mailing lists</h3>
+            <p class="field-hint">
+                Subscribe active institute employees (not externals) with a professional
+                email to the institute list and each mapped workgroup list.
+                Commands go to the robot by email; the From address must be a list owner.
+                Turning this off stops further changes; existing subscriptions stay.
+            </p>
+            {% include "core/_settings_field.html" with field=form.sympa_enabled %}
+            {% include "core/_settings_field.html" with field=form.sympa_robot %}
+            {% include "core/_settings_field.html" with field=form.sympa_institute_list %}
+            <h4 style="margin:1rem 0 0.5rem;">Workgroup lists</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Workgroup</th>
+                        <th>Mailing list</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wg in workgroups %}
+                    <tr>
+                        <td>{{ wg.short_name }}</td>
+                        <td>
+                            <input type="email" class="form-control" name="sympa_wg_{{ wg.pk }}"
+                                   value="{{ wg.sympa_list }}"
+                                   placeholder="ag-foo@listen.uni-bonn.de">
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2">No workgroups.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn-primary">Save integrations</button>
@@ -379,6 +437,24 @@
                 <button type="submit" class="btn-primary">Sync calendar access now</button>
             </form>
             {% endif %}
+        </div>
+    </div>
+    <div class="form-section" style="margin-top:1.25rem;">
+        <h3>Sympa commands</h3>
+        <p class="field-hint">
+            Test sends <code>HELP</code> to the robot. SMTP success does not mean
+            Sympa accepted the command. Enabling does not mass-sync; use
+            <strong>Sync mailing lists now</strong>.
+        </p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;">
+            <form method="post" action="{% url 'core_settings:sympa_test' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary">Test mailing list connection</button>
+            </form>
+            <form method="post" action="{% url 'core_settings:sympa_sync_all' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary">Sync mailing lists now</button>
+            </form>
         </div>
     </div>
 </div>

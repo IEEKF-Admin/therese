@@ -39,9 +39,19 @@ SETTINGS_TAB_FIELDS = {
         'holiday_cancel_email_html',
     ],
     'integrations': [
+        'smtp_host',
+        'smtp_port',
+        'smtp_use_ssl',
+        'smtp_use_tls',
+        'smtp_user',
+        'smtp_password',
+        'smtp_from_email',
         'google_calendar_enabled',
         'google_calendar_id',
         'google_service_account_json',
+        'sympa_enabled',
+        'sympa_robot',
+        'sympa_institute_list',
     ],
 }
 
@@ -105,6 +115,16 @@ class GlobalSettingForm(forms.ModelForm):
             'google_calendar_enabled',
             'google_calendar_id',
             'google_service_account_json',
+            'smtp_host',
+            'smtp_port',
+            'smtp_use_ssl',
+            'smtp_use_tls',
+            'smtp_user',
+            'smtp_password',
+            'smtp_from_email',
+            'sympa_enabled',
+            'sympa_robot',
+            'sympa_institute_list',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -149,6 +169,18 @@ class GlobalSettingForm(forms.ModelForm):
                 'autocomplete': 'off',
                 'placeholder': 'Paste the JSON key. Leave blank to keep the saved key.',
             }),
+            'smtp_host': forms.TextInput(attrs={'class': 'form-control'}),
+            'smtp_port': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'step': '1'}),
+            'smtp_user': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'smtp_password': forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'new-password',
+                'placeholder': 'Leave blank to keep the saved password.',
+                'render_value': False,
+            }, render_value=False),
+            'smtp_from_email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'sympa_robot': forms.EmailInput(attrs={'class': 'form-control'}),
+            'sympa_institute_list': forms.EmailInput(attrs={'class': 'form-control'}),
         }
 
     def clean_limitation_pdf_letterhead(self):
@@ -172,6 +204,25 @@ class GlobalSettingForm(forms.ModelForm):
         if field is not None:
             field.required = False
             self.initial['google_service_account_json'] = ''
+        password = self.fields.get('smtp_password')
+        if password is not None:
+            password.required = False
+            self.initial['smtp_password'] = ''
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('smtp_use_ssl') and cleaned.get('smtp_use_tls'):
+            raise forms.ValidationError(
+                'SMTP SSL and STARTTLS cannot both be on. Use SSL for port 465 '
+                'or STARTTLS for port 587.'
+            )
+        return cleaned
+
+    def clean_smtp_password(self):
+        value = self.cleaned_data.get('smtp_password')
+        if value in (None, ''):
+            return self.instance.smtp_password
+        return value
 
     def clean_google_service_account_json(self):
         from apps.core.google_calendar import GoogleCalendarError, parse_service_account_json

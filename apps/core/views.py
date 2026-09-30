@@ -31,7 +31,10 @@ EMAIL_ENV_VARIABLES = [
     {
         'name': 'EMAIL_HOST',
         'example': 'smtp.strato.de',
-        'description': 'SMTP hostname of the institute mailbox provider.',
+        'description': (
+            'SMTP hostname. A non-empty value overrides SMTP in '
+            'Global Settings → Integrations.'
+        ),
     },
     {
         'name': 'EMAIL_PORT',
@@ -82,16 +85,19 @@ def serve_stored_file(request, file_path):
 
 
 def _email_environment_status():
-    password = getattr(settings, 'EMAIL_HOST_PASSWORD', '') or ''
+    from apps.core.mail import mail_params
+
+    params = mail_params()
     return {
         'backend': getattr(settings, 'EMAIL_BACKEND', ''),
-        'host': getattr(settings, 'EMAIL_HOST', '') or '—',
-        'port': getattr(settings, 'EMAIL_PORT', ''),
-        'use_ssl': bool(getattr(settings, 'EMAIL_USE_SSL', False)),
-        'use_tls': bool(getattr(settings, 'EMAIL_USE_TLS', False)),
-        'host_user': getattr(settings, 'EMAIL_HOST_USER', '') or '—',
-        'from_email': getattr(settings, 'DEFAULT_FROM_EMAIL', '') or '—',
-        'password_configured': bool(str(password).strip()),
+        'host': params['host'] or '—',
+        'port': params['port'],
+        'use_ssl': params['use_ssl'],
+        'use_tls': params['use_tls'],
+        'host_user': params['username'] or '—',
+        'from_email': params['from_email'] or '—',
+        'password_configured': bool(str(params['password']).strip()),
+        'source': params['source'],
     }
 
 
@@ -190,6 +196,8 @@ def global_settings(request):
                 elif tab == 'inventory':
                     from apps.inventory.services import save_inventory_types_from_post
                     save_inventory_types_from_post(request.POST)
+                elif tab == 'integrations':
+                    _save_workgroup_sympa_lists(request.POST)
                 messages.success(request, 'Global settings were saved.')
                 return redirect(settings_url + f'?tab={tab}')
             for name in tab_form.fields:
@@ -228,6 +236,10 @@ def global_settings(request):
         settings_default_tab = 'workflow'
     from apps.holidays.mail import HOLIDAY_EMAIL_VARIABLES
     from apps.core.google_calendar import service_account_configured, service_account_email
+    from apps.core.mail import mail_params
+    from apps.hr.models import Workgroup
+
+    smtp = mail_params(setting)
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
@@ -249,4 +261,26 @@ def global_settings(request):
         'settings_default_tab': settings_default_tab,
         'google_service_account_configured': service_account_configured(setting),
         'google_service_account_email': service_account_email(setting),
+        'smtp_env_override': smtp['source'] == 'env',
+        'smtp_password_configured': bool((setting.smtp_password or '').strip()),
+        'workgroups': Workgroup.objects.order_by('short_name'),
     })
+
+
+def _save_workgroup_sympa_lists(post):
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    from apps.hr.models import Workgroup
+
+    for workgroup in Workgroup.objects.all():
+        raw = (post.get(f'sympa_wg_{workgroup.pk}') or '').strip()
+        if raw:
+            try:
+                validate_email(raw)
+            except ValidationError:
+                continue
+        if (workgroup.sympa_list or '') == raw:
+            continue
+        workgroup.sympa_list = raw
+        workgroup.save(update_fields=['sympa_list'])

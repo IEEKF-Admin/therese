@@ -339,15 +339,26 @@
             <tr><th>SMTP user</th><td>{{ smtp_status.host_user }}</td></tr>
             <tr><th>From address</th><td>{{ smtp_status.from_email }}</td></tr>
             <tr>
-                <th>Password in .env</th>
+                <th>Password</th>
                 <td>{% if smtp_status.password_configured %}Configured (value hidden){% else %}Not set{% endif %}</td>
+            </tr>
+            <tr>
+                <th>Source</th>
+                <td>
+                    {% if smtp_status.source == 'env' %}
+                    <code>.env</code> (<code>EMAIL_HOST</code> overrides Global Settings)
+                    {% else %}
+                    Global Settings → Integrations
+                    {% endif %}
+                </td>
             </tr>
         </tbody>
     </table>
     <p style="color:#64748b; margin-top:0.75rem;">
-        Secrets belong in <code>.env</code> (gitignored). Template: <code>.env.example</code>.
-        Restart the application after changing <code>.env</code>.
-        <small class="field-hint-de" style="display:block;">Passwörter nur in der lokalen .env, niemals im Repository.</small>
+        Configure SMTP under Global Settings → Integrations. A non-empty
+        <code>EMAIL_HOST</code> in <code>.env</code> overrides that block.
+        Template: <code>.env.example</code>. Restart after changing <code>.env</code>.
+        <small class="field-hint-de" style="display:block;">Passwörter nur in der lokalen .env oder in Global Settings, niemals im Repository.</small>
     </p>
 </div>
 

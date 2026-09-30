@@ -10,11 +10,11 @@ get a login user until those flags are cleared.
 
 from django.contrib.auth.models import Group
 from django.db import transaction
-from django.db.models.signals import post_delete, post_save, pre_delete
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
 from django.dispatch import receiver
 import logging
 
-from .models import Contract, Employee
+from .models import Contract, Employee, Workgroup
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames
 
@@ -144,3 +144,52 @@ def unshare_google_calendar_on_employee_delete(sender, instance, **kwargs):
     from apps.hr.provisioning import unshare_employee_google_calendar
 
     unshare_employee_google_calendar(instance)
+
+
+def _schedule_sympa(employee_id):
+    from apps.hr.provisioning import schedule_sympa_sync
+
+    schedule_sympa_sync(employee_id)
+
+
+@receiver(post_save, sender=Employee)
+def sync_sympa_for_employee(sender, instance, created, update_fields, **kwargs):
+    if not created and update_fields is not None and 'email_professional' not in update_fields:
+        return
+    _schedule_sympa(instance.pk)
+
+
+@receiver(post_save, sender=Contract)
+@receiver(post_delete, sender=Contract)
+def sync_sympa_for_contract(sender, instance, **kwargs):
+    _schedule_sympa(instance.employee_id)
+
+
+@receiver(pre_delete, sender=Employee)
+def unsubscribe_sympa_on_employee_delete(sender, instance, **kwargs):
+    from apps.hr.provisioning import unsubscribe_employee_sympa
+
+    unsubscribe_employee_sympa(instance)
+
+
+@receiver(m2m_changed, sender=Workgroup.members.through)
+def sync_sympa_for_workgroup_members(sender, instance, action, pk_set, **kwargs):
+    if action == 'pre_clear':
+        instance._sympa_cleared_pks = list(instance.members.values_list('pk', flat=True))
+        return
+    if action == 'post_clear':
+        pks = getattr(instance, '_sympa_cleared_pks', [])
+    elif action in ('post_add', 'post_remove'):
+        pks = pk_set or []
+    else:
+        return
+    for pk in pks:
+        _schedule_sympa(pk)
+
+
+@receiver(post_save, sender=Workgroup)
+def sync_sympa_for_workgroup_list(sender, instance, update_fields, **kwargs):
+    if update_fields is not None and 'sympa_list' not in update_fields:
+        return
+    for pk in instance.members.values_list('pk', flat=True):
+        _schedule_sympa(pk)

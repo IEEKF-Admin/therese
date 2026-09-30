@@ -3,9 +3,10 @@
 from datetime import date
 from decimal import Decimal
 
-from django.conf import settings as django_settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import escape, strip_tags
+
+from apps.core.mail import get_from_email, get_mail_connection
 
 from apps.core.models import GlobalSetting
 
@@ -266,12 +267,13 @@ def send_holiday_lifecycle_email(kind, employee, dates, *, holiday_request=None)
         html_tpl = getattr(setting, 'holiday_request_email_html', '') or DEFAULT_REQUEST_HTML
     subject = render_holiday_template(subject_tpl, context, html=False).strip() or 'Holiday request'
     html = render_holiday_template(html_tpl, context, html=True)
-    from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', '') or None
+    from_email = get_from_email() or None
     message = EmailMultiAlternatives(
         subject=subject,
         body=strip_tags(html),
         from_email=from_email,
         to=recipients,
+        connection=get_mail_connection(),
     )
     message.attach_alternative(html, 'text/html')
     message.send(fail_silently=True)

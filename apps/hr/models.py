@@ -1134,6 +1134,12 @@ class Workgroup(models.Model):
         blank=True,
         verbose_name="Mitglieder"
     )
+    sympa_list = models.EmailField(
+        blank=True,
+        default='',
+        verbose_name='Sympa mailing list',
+        help_text='Workgroup list address, e.g. ag-foo@listen.uni-bonn.de. Leave blank if none.',
+    )
 
     class Meta:
         verbose_name = "Workgroup"
@@ -1160,13 +1166,14 @@ class EmployeeExternalAccount(BaseModel):
 
     class Kind(models.TextChoices):
         GOOGLE_CALENDAR = 'google_calendar', 'Google Calendar'
+        SYMPA = 'sympa', 'Sympa'
 
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Shared'
         REMOVED = 'removed', 'Removed'
         ERROR = 'error', 'Error'
 
-    TAB_KINDS = (Kind.GOOGLE_CALENDAR,)
+    TAB_KINDS = (Kind.GOOGLE_CALENDAR, Kind.SYMPA)
 
     employee = models.ForeignKey(
         Employee,
@@ -1195,6 +1202,12 @@ class EmployeeExternalAccount(BaseModel):
         db_index=True,
     )
     detail = models.TextField(blank=True, default='', verbose_name='Detail')
+    lists = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Lists',
+        help_text='Mailing lists last synced for this account.',
+    )
     last_synced_at = models.DateTimeField(
         null=True,
         blank=True,

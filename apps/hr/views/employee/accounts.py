@@ -38,10 +38,19 @@ def employee_accounts(request):
         for item in kinds:
             account = by_kind.get(item['kind'])
             identifier = ''
+            lists = []
             if item['kind'] == EmployeeExternalAccount.Kind.GOOGLE_CALENDAR:
                 identifier = (employee.google_account or '').strip()
-            if account is not None:
-                identifier = account.identifier or identifier
+                if not identifier and account is not None:
+                    identifier = account.identifier or ''
+            elif item['kind'] == EmployeeExternalAccount.Kind.SYMPA:
+                identifier = (employee.email_professional or '').strip()
+                if not identifier and account is not None:
+                    identifier = account.identifier or ''
+                if account is not None:
+                    lists = list(account.lists or [])
+            elif account is not None:
+                identifier = account.identifier or ''
             if account is None and not identifier:
                 status = 'none'
                 label = '—'
@@ -60,6 +69,7 @@ def employee_accounts(request):
                 'status': status,
                 'label': label,
                 'detail': detail,
+                'lists': lists,
             })
         rows.append({
             'employee': employee,

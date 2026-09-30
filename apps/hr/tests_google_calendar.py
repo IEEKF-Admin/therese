@@ -124,6 +124,22 @@ class GoogleCalendarProvisioningTests(TestCase):
         self.assertNotIn('ada@gmail.com', self.fake.shared)
         row = EmployeeExternalAccount.objects.get(employee=self.employee)
         self.assertEqual(row.status, EmployeeExternalAccount.Status.REMOVED)
+        self.assertEqual(row.identifier, 'ada@gmail.com')
+
+    def test_removed_updates_identifier_when_google_account_changes(self):
+        with patch('apps.hr.provisioning.get_calendar_client', return_value=self.fake):
+            sync_employee_google_calendar(self.employee)
+            contract = self.employee.contracts.get()
+            contract.valid_until = date.today() - timedelta(days=1)
+            contract.save()
+            sync_employee_google_calendar(self.employee)
+            self.employee.google_account = 'ada.new@gmail.com'
+            self.employee.save()
+            result = sync_employee_google_calendar(self.employee)
+        self.assertEqual(result, 'removed')
+        row = EmployeeExternalAccount.objects.get(employee=self.employee)
+        self.assertEqual(row.status, EmployeeExternalAccount.Status.REMOVED)
+        self.assertEqual(row.identifier, 'ada.new@gmail.com')
 
     def test_reshare_on_restore(self):
         with patch('apps.hr.provisioning.get_calendar_client', return_value=self.fake):
@@ -234,6 +250,14 @@ class GoogleCalendarAccountsTabTests(TestCase):
         self.assertContains(response, 'grace@gmail.com')
         self.assertContains(response, 'Hopper')
         self.assertContains(response, 'Shared')
+
+    def test_accounts_table_shows_current_google_account(self):
+        self.employee.google_account = 'grace.new@gmail.com'
+        self.employee.save(update_fields=['google_account'])
+        self.client.login(username='sysadmin-gc', password='test')
+        response = self.client.get(reverse('hr:employee_accounts'))
+        self.assertContains(response, 'grace.new@gmail.com')
+        self.assertNotContains(response, 'grace@gmail.com')
 
     def test_hr_cannot_open_accounts_tab(self):
         self.client.login(username='hr-gc', password='test')

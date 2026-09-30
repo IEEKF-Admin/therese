@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Accounts</h1>
-    <p class="page-subtitle">External accounts and registrations per employee. Currently Google Calendar; further systems will appear as extra columns.</p>
+    <p class="page-subtitle">External accounts and registrations per employee. Google Calendar and Sympa mailing lists.</p>
 </div>
 
 {% include "hr/_employee_hub_tabs.html" %}
@@ -47,6 +47,9 @@
                     {% if cell.detail %}<div class="field-hint">{{ cell.detail }}</div>{% endif %}
                     {% else %}
                     <span class="badge-archived">{{ cell.label }}</span>
+                    {% endif %}
+                    {% if cell.lists %}
+                    <div class="field-hint">{{ cell.lists|join:", " }}</div>
                     {% endif %}
                     {% endif %}
                 </td>

@@ -376,6 +376,9 @@
             {% include "core/_settings_field.html" with field=form.sympa_robot %}
             {% include "core/_settings_field.html" with field=form.sympa_institute_list %}
             <h4 style="margin:1rem 0 0.5rem;">Workgroup lists</h4>
+            <p class="field-hint">
+                Leave blank if a workgroup has no mailing list. That group is skipped.
+            </p>
             <table class="table">
                 <thead>
                     <tr>
@@ -388,9 +391,10 @@
                     <tr>
                         <td>{{ wg.short_name }}</td>
                         <td>
-                            <input type="email" class="form-control" name="sympa_wg_{{ wg.pk }}"
+                            <input type="text" class="form-control" name="sympa_wg_{{ wg.pk }}"
                                    value="{{ wg.sympa_list }}"
-                                   placeholder="ag-foo@listen.uni-bonn.de">
+                                   placeholder="ag-foo@listen.uni-bonn.de"
+                                   autocomplete="off">
                         </td>
                     </tr>
                     {% empty %}

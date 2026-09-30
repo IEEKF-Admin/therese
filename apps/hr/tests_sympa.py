@@ -118,6 +118,20 @@ class SympaProvisioningTests(TestCase):
         )
         self.assertEqual(row.identifier, 'ada.new@uni-bonn.de')
 
+    def test_workgroup_without_list_is_skipped(self):
+        self.workgroup.sympa_list = ''
+        self.workgroup.save(update_fields=['sympa_list'])
+        result = sync_employee_sympa(self.employee)
+        self.assertEqual(result, 'active')
+        body = self._body()
+        self.assertIn('QUIET ADD ieecr ada@uni-bonn.de Ada Lovelace', body)
+        self.assertNotIn('QUIET ADD ag-a', body)
+        row = EmployeeExternalAccount.objects.get(
+            employee=self.employee,
+            kind=EmployeeExternalAccount.Kind.SYMPA,
+        )
+        self.assertEqual(row.lists, ['ieecr@listen.uni-bonn.de'])
+
     def test_workgroup_change_updates_lists(self):
         sync_employee_sympa(self.employee)
         mail.outbox.clear()
@@ -296,6 +310,24 @@ class SympaAccountsAndSettingsTests(TestCase):
         self.assertEqual(posted.status_code, 302)
         self.workgroup.refresh_from_db()
         self.assertEqual(self.workgroup.sympa_list, 'ag-s@listen.uni-bonn.de')
+
+    def test_save_empty_workgroup_list_is_allowed(self):
+        self.workgroup.sympa_list = 'ag-s@listen.uni-bonn.de'
+        self.workgroup.save(update_fields=['sympa_list'])
+        self.client.login(username='sysadmin-sy', password='test')
+        posted = self.client.post(reverse('core_settings:global_settings'), {
+            'action': 'save_integrations',
+            'smtp_port': '465',
+            'smtp_use_ssl': 'on',
+            'smtp_from_email': 'owner@ieecr-bonn.de',
+            'sympa_enabled': 'on',
+            'sympa_robot': 'sympa@listen.uni-bonn.de',
+            'sympa_institute_list': 'ieecr@listen.uni-bonn.de',
+            f'sympa_wg_{self.workgroup.pk}': '',
+        })
+        self.assertEqual(posted.status_code, 302)
+        self.workgroup.refresh_from_db()
+        self.assertEqual(self.workgroup.sympa_list, '')
 
     def test_test_sends_help(self):
         self.client.login(username='sysadmin-sy', password='test')

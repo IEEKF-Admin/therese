@@ -290,7 +290,10 @@ def desired_sympa_lists(employee: Employee, setting: GlobalSetting | None = None
     if workgroups is None:
         workgroups = employee.workgroups.all()
     for workgroup in workgroups:
-        _add(getattr(workgroup, 'sympa_list', ''))
+        address = (getattr(workgroup, 'sympa_list', '') or '').strip()
+        if not address:
+            continue
+        _add(address)
     return found
 
 

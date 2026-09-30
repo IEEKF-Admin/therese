@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Accounts</h1>
-    <p class="page-subtitle">External accounts and registrations per employee. Google Calendar and Sympa mailing lists.</p>
+    <p class="page-subtitle">External accounts and registrations per employee. Google Calendar, Sympa mailing lists, and WordPress.</p>
 </div>
 
 {% include "hr/_employee_hub_tabs.html" %}
@@ -19,11 +19,14 @@
                 {% for kind in kinds %}
                 <th>{{ kind.label }}</th>
                 {% endfor %}
+                {% for site in wp_sites %}
+                <th>{{ site.name }}</th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for row in rows %}
-            <tr>
+            <tr{% if row.wp_marked %} class="accounts-row-attention"{% endif %}>
                 <td>
                     <a href="{% url 'hr:employee_update' row.employee.pk %}">{{ row.employee.last_name }}, {{ row.employee.first_name }}</a>
                     {% if not row.is_active %}
@@ -54,13 +57,199 @@
                     {% endif %}
                 </td>
                 {% endfor %}
+                {% for cell in row.wp_cells %}
+                <td class="{% if cell.marked %}accounts-cell-attention{% endif %}">
+                    {% if cell.marked %}
+                    <span class="menu-notification-dot" aria-label="Needs attention"></span>
+                    {% endif %}
+                    {% if cell.label == '—' %}
+                    —
+                    {% else %}
+                    <span class="{% if cell.marked %}badge-attention{% elif cell.published %}badge-active{% else %}badge-archived{% endif %}">{{ cell.label }}</span>
+                    {% if cell.detail %}<div class="field-hint">{{ cell.detail }}</div>{% endif %}
+                    {% if cell.action == 'add' or cell.action == 'update' %}
+                    <div>
+                        <button type="button" class="btn-secondary wp-open-publish"
+                                data-wp-key="{{ row.employee.pk }}:{{ cell.site_id }}">
+                            {% if cell.action == 'add' %}Add{% else %}Update{% endif %}
+                        </button>
+                    </div>
+                    {% elif cell.action == 'unpublish' %}
+                    <form method="post" action="{% url 'hr:employee_wordpress_unpublish' %}"
+                          onsubmit="return confirm('Unpublish this employee on {{ cell.site_name }}? The WordPress post becomes a draft.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="employee" value="{{ row.employee.pk }}">
+                        <input type="hidden" name="site" value="{{ cell.site_id }}">
+                        <button type="submit" class="btn-secondary">Unpublish</button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </td>
+                {% endfor %}
             </tr>
             {% empty %}
             <tr>
-                <td colspan="{{ kinds|length|add:2 }}">No employees.</td>
+                <td colspan="{{ table_colspan }}">No employees.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<div id="wp-publish-modal" class="wp-modal" aria-hidden="true">
+    <div class="wp-modal-backdrop" data-wp-close></div>
+    <div class="wp-modal-dialog" role="dialog" aria-labelledby="wp-modal-title">
+        <h2 id="wp-modal-title">Publish to WordPress</h2>
+        <form method="post" action="{% url 'hr:employee_wordpress_publish' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="employee" id="wp-field-employee" value="">
+            <input type="hidden" name="site" id="wp-field-site" value="">
+            <div class="aligned-field">
+                <label for="wp-field-posttitle">posttitle</label>
+                <input type="text" class="form-control" name="posttitle" id="wp-field-posttitle">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-name">name</label>
+                <input type="text" class="form-control" name="name" id="wp-field-name">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-linkmember">linkmember</label>
+                <input type="text" class="form-control" name="linkmember" id="wp-field-linkmember">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-position">position</label>
+                <select class="form-select" name="position" id="wp-field-position">
+                    <option value="">—</option>
+                    {% for value in wp_positions %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-phone">phone</label>
+                <input type="text" class="form-control" name="phone" id="wp-field-phone">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-mobile">mobile</label>
+                <input type="text" class="form-control" name="mobile" id="wp-field-mobile">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-email">email</label>
+                <input type="text" class="form-control" name="email" id="wp-field-email">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-address">address</label>
+                <textarea class="form-control" name="address" id="wp-field-address" rows="3"></textarea>
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-websideadressfield">websideadressfield</label>
+                <input type="text" class="form-control" name="websideadressfield" id="wp-field-websideadressfield">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-linkfieldaddress">linkfieldaddress</label>
+                <input type="text" class="form-control" name="linkfieldaddress" id="wp-field-linkfieldaddress">
+            </div>
+            <div class="aligned-field">
+                <label for="wp-field-picture">picture</label>
+                <div>
+                    <img id="wp-picture-preview" alt="" class="wp-picture-preview" hidden>
+                    <input type="file" class="form-control" name="picture" id="wp-field-picture" accept="image/*">
+                    <p class="field-hint">Leave empty to use the employee profile picture (or keep the last picture on update).</p>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" data-wp-close>Cancel</button>
+                <button type="submit" class="btn-primary" id="wp-modal-submit">OK</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{ wp_payloads|json_script:"wp-payloads" }}
+{{ wp_positions|json_script:"wp-positions" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var modal = document.getElementById('wp-publish-modal');
+    var payloadEl = document.getElementById('wp-payloads');
+    var posEl = document.getElementById('wp-positions');
+    if (!modal || !payloadEl) return;
+    var payloads = JSON.parse(payloadEl.textContent || '{}');
+    var positions = posEl ? JSON.parse(posEl.textContent || '[]') : [];
+    var keys = ['posttitle', 'name', 'linkmember', 'phone', 'mobile', 'email', 'address', 'websideadressfield', 'linkfieldaddress'];
+
+    function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function fillPosition(value) {
+        var select = document.getElementById('wp-field-position');
+        if (!select) return;
+        select.innerHTML = '';
+        var blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '—';
+        select.appendChild(blank);
+        var seen = {};
+        positions.forEach(function(item) {
+            if (!item || seen[item]) return;
+            seen[item] = true;
+            var opt = document.createElement('option');
+            opt.value = item;
+            opt.textContent = item;
+            select.appendChild(opt);
+        });
+        if (value && !seen[value]) {
+            var extra = document.createElement('option');
+            extra.value = value;
+            extra.textContent = value;
+            select.appendChild(extra);
+        }
+        select.value = value || '';
+    }
+
+    function openModal(key) {
+        var data = payloads[key];
+        if (!data) return;
+        document.getElementById('wp-modal-title').textContent =
+            (data.action === 'update' ? 'Update on ' : 'Add to ') + (data.site_name || 'WordPress');
+        document.getElementById('wp-field-employee').value = data.employee;
+        document.getElementById('wp-field-site').value = data.site;
+        var prefill = data.prefill || {};
+        keys.forEach(function(name) {
+            var field = document.getElementById('wp-field-' + name);
+            if (field) field.value = prefill[name] || '';
+        });
+        fillPosition(prefill.position || '');
+        var preview = document.getElementById('wp-picture-preview');
+        var fileInput = document.getElementById('wp-field-picture');
+        if (fileInput) fileInput.value = '';
+        if (preview) {
+            if (data.picture_url) {
+                preview.src = data.picture_url;
+                preview.hidden = false;
+            } else {
+                preview.removeAttribute('src');
+                preview.hidden = true;
+            }
+        }
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    document.querySelectorAll('.wp-open-publish').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openModal(btn.getAttribute('data-wp-key'));
+        });
+    });
+    modal.querySelectorAll('[data-wp-close]').forEach(function(el) {
+        el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+    });
+})();
+</script>
 {% endblock %}

@@ -14,7 +14,7 @@ from django.db.models.signals import m2m_changed, post_delete, post_save, pre_de
 from django.dispatch import receiver
 import logging
 
-from .models import Contract, Employee, Workgroup
+from .models import Building, Contract, Employee, Room, WordPressSite, Workgroup
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames
 
@@ -193,3 +193,83 @@ def sync_sympa_for_workgroup_list(sender, instance, update_fields, **kwargs):
         return
     for pk in instance.members.values_list('pk', flat=True):
         _schedule_sympa(pk)
+
+
+_WP_EMPLOYEE_FIELDS = {
+    'first_name',
+    'last_name',
+    'employee_number',
+    'website',
+    'phone_number',
+    'private_phone_number',
+    'email_professional',
+    'profile_picture',
+    'room',
+}
+
+
+def _scan_wordpress_employee(employee):
+    from apps.hr.wordpress import scan_employee_wordpress
+
+    scan_employee_wordpress(employee)
+
+
+@receiver(post_save, sender=Employee)
+def scan_wordpress_for_employee(sender, instance, created, update_fields, **kwargs):
+    if created:
+        return
+    if update_fields is not None and not (_WP_EMPLOYEE_FIELDS & set(update_fields)):
+        return
+    _scan_wordpress_employee(instance)
+
+
+@receiver(post_save, sender=Building)
+def scan_wordpress_for_building(sender, instance, update_fields, **kwargs):
+    if update_fields is not None and 'address' not in update_fields:
+        return
+    from apps.hr.wordpress import scan_employees_for_building
+
+    scan_employees_for_building(instance)
+
+
+@receiver(post_save, sender=Room)
+def scan_wordpress_for_room(sender, instance, update_fields, **kwargs):
+    if update_fields is not None and 'building' not in update_fields:
+        return
+    for employee in Employee.objects.filter(room=instance).iterator():
+        _scan_wordpress_employee(employee)
+
+
+@receiver(m2m_changed, sender=Workgroup.members.through)
+def scan_wordpress_for_workgroup_members(sender, instance, action, pk_set, **kwargs):
+    if isinstance(instance, Employee):
+        if action in ('post_add', 'post_remove', 'post_clear'):
+            _scan_wordpress_employee(instance)
+        return
+    if not isinstance(instance, Workgroup):
+        return
+    if action == 'pre_clear':
+        instance._wp_cleared_pks = list(instance.members.values_list('pk', flat=True))
+        return
+    if action == 'post_clear':
+        pks = getattr(instance, '_wp_cleared_pks', [])
+    elif action in ('post_add', 'post_remove'):
+        pks = pk_set or []
+    else:
+        return
+    for employee in Employee.objects.filter(pk__in=pks).iterator():
+        _scan_wordpress_employee(employee)
+
+
+@receiver(m2m_changed, sender=WordPressSite.workgroups.through)
+def scan_wordpress_for_site_workgroups(sender, instance, action, pk_set, **kwargs):
+    if action not in ('post_add', 'post_remove', 'post_clear'):
+        return
+    from apps.hr.wordpress import scan_wordpress_site
+
+    if isinstance(instance, WordPressSite):
+        scan_wordpress_site(instance)
+        return
+    if pk_set:
+        for site in WordPressSite.objects.filter(pk__in=pk_set):
+            scan_wordpress_site(site)

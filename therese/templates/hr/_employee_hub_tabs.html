@@ -2,7 +2,9 @@
 <div class="settings-tabs" role="tablist">
     {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser or 'Systemadmin' in user_groups %}
     <a href="{% url 'hr:employee_list' %}"
-       class="settings-tab{% if request.resolver_match.url_name == 'employee_list' %} is-active{% endif %}">Employees</a>
+       class="settings-tab{% if request.resolver_match.url_name == 'employee_list' %} is-active{% endif %}">
+        <span class="settings-tab-label">Employees{% if wordpress_menu_needs_attention %} <span class="menu-notification-dot" aria-label="WordPress updates needed"></span>{% endif %}</span>
+    </a>
     {% endif %}
     {% if perms.hr.manage_working_group %}
     <a href="{% url 'hr:workgroup_list' %}"
@@ -10,7 +12,9 @@
     {% endif %}
     {% if user.is_superuser or 'Systemadmin' in user_groups %}
     <a href="{% url 'hr:employee_accounts' %}"
-       class="settings-tab{% if request.resolver_match.url_name == 'employee_accounts' %} is-active{% endif %}">Accounts</a>
+       class="settings-tab{% if request.resolver_match.url_name == 'employee_accounts' %} is-active{% endif %}">
+        <span class="settings-tab-label">Accounts{% if wordpress_menu_needs_attention %} <span class="menu-notification-dot" aria-label="WordPress updates needed"></span>{% endif %}</span>
+    </a>
     {% endif %}
 </div>
 {% endif %}

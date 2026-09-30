@@ -14,6 +14,7 @@ GROUP_LABELS = {
     'checklist': 'Checklist',
     'chemical': 'Chemicals',
     'feedback': 'Bugs & Features',
+    'wordpress': 'WordPress',
     'lists': 'Lists (several records)',
 }
 
@@ -253,6 +254,41 @@ VARIABLES = [
         'label': 'Your incomplete chemical items',
         'group': 'lists',
     },
+    {
+        'key': 'wordpress_employee_name',
+        'label': 'WordPress employee name',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_employee_number',
+        'label': 'WordPress employee number',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_site_name',
+        'label': 'WordPress site name',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_site_url',
+        'label': 'WordPress site URL',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_reason',
+        'label': 'WordPress reason (Update needed / Unpublish)',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_changed_fields',
+        'label': 'WordPress changed fields',
+        'group': 'wordpress',
+    },
+    {
+        'key': 'wordpress_updates',
+        'label': 'Employees whose WordPress page needs an update or unpublish',
+        'group': 'lists',
+    },
 ]
 
 TRIGGER_GROUPS = {
@@ -272,6 +308,7 @@ TRIGGER_GROUPS = {
     'feedback_created': ['person', 'feedback', 'lists'],
     'feedback_comment_on_created': ['person', 'feedback', 'lists'],
     'feedback_status_changed': ['person', 'feedback', 'lists'],
+    'wordpress_update_needed': ['person', 'wordpress', 'lists'],
 }
 
 
@@ -576,6 +613,12 @@ def list_unopened_tasks(user):
     return _task_list(unopened_tasks_for_user(user))
 
 
+def list_wordpress_updates():
+    from apps.hr.wordpress import list_wordpress_updates as _list
+
+    return _list()
+
+
 def list_incomplete_chemical_items(employee):
     headers = ['CAS', 'Name', 'Product', 'Missing']
     if employee is None:
@@ -645,6 +688,7 @@ def build_replacement_map(
     chemical_item=None,
     comment=None,
     feedback_item=None,
+    wordpress_item=None,
 ):
     first = getattr(user, 'first_name', '') or ''
     last = getattr(user, 'last_name', '') or ''
@@ -757,6 +801,12 @@ def build_replacement_map(
         'feedback_status': '',
         'feedback_target_date': '',
         'feedback_reporter': '',
+        'wordpress_employee_name': '',
+        'wordpress_employee_number': '',
+        'wordpress_site_name': '',
+        'wordpress_site_url': '',
+        'wordpress_reason': '',
+        'wordpress_changed_fields': '',
         'feedback_comment_author': '',
         'feedback_comment_text': '',
     }
@@ -850,6 +900,18 @@ def build_replacement_map(
         values['feedback_target_date'] = _fmt_date(getattr(feedback_item, 'target_date', None))
         values['feedback_reporter'] = _person_name(getattr(feedback_item, 'created_by', None))
 
+    if wordpress_item is not None:
+        wp_employee = wordpress_item.get('employee') if isinstance(wordpress_item, dict) else None
+        wp_site = wordpress_item.get('site') if isinstance(wordpress_item, dict) else None
+        values['wordpress_employee_name'] = _person_name(wp_employee)
+        values['wordpress_employee_number'] = getattr(wp_employee, 'employee_number', '') or ''
+        values['wordpress_site_name'] = getattr(wp_site, 'name', '') or ''
+        values['wordpress_site_url'] = getattr(wp_site, 'url', '') or ''
+        values['wordpress_reason'] = (wordpress_item.get('reason') or '') if isinstance(wordpress_item, dict) else ''
+        values['wordpress_changed_fields'] = (
+            (wordpress_item.get('changed_fields') or '') if isinstance(wordpress_item, dict) else ''
+        )
+
     from apps.tasks.models import PERSONNEL_STATUSES, PURCHASE_STATUSES, RECRUITMENT_STATUSES
 
     values['purchase_orders'] = list_purchase_orders(user, employee)
@@ -860,6 +922,7 @@ def build_replacement_map(
     values['my_personnel_tasks'] = list_my_personnel_tasks(employee)
     values['ending_contracts'] = list_ending_contracts(employee)
     values['incomplete_chemical_items'] = list_incomplete_chemical_items(employee)
+    values['wordpress_updates'] = list_wordpress_updates()
     for status_key, _label in PURCHASE_STATUSES:
         values[f'purchase_orders_{status_key}'] = list_purchase_orders(
             user, employee, status=status_key

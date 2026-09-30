@@ -135,6 +135,7 @@ def render_popup_text(text, user, employee, contract=None, **context):
         chemical_item=context.get('chemical_item'),
         comment=context.get('comment'),
         feedback_item=context.get('feedback_item'),
+        wordpress_item=context.get('wordpress_item'),
     )
     return render_placeholders(text, replacements, html=False, user=user, employee=employee)
 
@@ -186,6 +187,7 @@ def evaluate_login_popups(
         chemical_for_text = None
         comment_for_text = None
         feedback_for_text = None
+        wordpress_for_text = None
 
         if config.trigger == 'first_login':
             if user.first_login_welcome_shown:
@@ -517,6 +519,27 @@ def evaluate_login_popups(
                 if comment_for_text is not None:
                     feedback_for_text = comment_for_text.item
 
+        elif config.trigger == 'wordpress_update_needed':
+            from apps.hr.wordpress import marked_wordpress_states
+
+            marked = marked_wordpress_states()
+            unacked = []
+            for state in marked:
+                emp = state['employee']
+                key = state.get('ack_key') or f'wp:{emp.pk}:{state["site_id"]}'
+                if key not in acknowledged:
+                    unacked.append((state, key))
+            if unacked:
+                show = True
+                ack_reference_keys = [key for _state, key in unacked]
+                first = unacked[0][0]
+                wordpress_for_text = {
+                    'employee': first['employee'],
+                    'site': first['site'],
+                    'reason': first['reason'],
+                    'changed_fields': ', '.join(first['changed_fields']),
+                }
+
         elif config.trigger == 'chemical_item_delivered' and employee and event_since:
             from apps.chemicals.features import chemicals_enabled
             from apps.chemicals.models import ChemicalItem
@@ -559,6 +582,7 @@ def evaluate_login_popups(
                     chemical_item=chemical_for_text,
                     comment=comment_for_text,
                     feedback_item=feedback_for_text,
+                    wordpress_item=wordpress_for_text,
                 ),
                 'link': config.link_to or '',
                 'config': config,

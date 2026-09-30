@@ -123,13 +123,21 @@
 
     {% if perms.hr.can_view_employees or perms.hr.can_view_all_employees or perms.hr.manage_employee or perms.hr.manage_all_employees or user.is_superuser %}
     <a href="{% url 'hr:employee_list' %}"
-       class="{% if '/hr/employees' in request.path or request.path == '/hr/' or '/hr/workgroups' in request.path %}active{% endif %}">
-        <i class="fas fa-users"></i> Employees
+       class="sidebar-link-with-badge {% if '/hr/employees' in request.path or request.path == '/hr/' or '/hr/workgroups' in request.path %}active{% endif %}">
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-users"></i>
+            {% if wordpress_menu_needs_attention %}<span class="menu-notification-dot" aria-label="WordPress updates needed"></span>{% endif %}
+        </span>
+        <span>Employees</span>
     </a>
     {% elif perms.hr.manage_working_group %}
     <a href="{% url 'hr:workgroup_list' %}"
-       class="{% if '/hr/workgroups' in request.path %}active{% endif %}">
-        <i class="fas fa-users"></i> Employees
+       class="sidebar-link-with-badge {% if '/hr/workgroups' in request.path %}active{% endif %}">
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-users"></i>
+            {% if wordpress_menu_needs_attention %}<span class="menu-notification-dot" aria-label="WordPress updates needed"></span>{% endif %}
+        </span>
+        <span>Employees</span>
     </a>
     {% endif %}
 

@@ -98,6 +98,7 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
         chemical_item=context.get('chemical_item'),
         comment=context.get('comment'),
         feedback_item=context.get('feedback_item'),
+        wordpress_item=context.get('wordpress_item'),
     )
     subject = render_placeholders(
         config.email_subject or config.name,
@@ -366,6 +367,16 @@ def notify_feedback_comment(comment):
         f'feedback_comment:{comment.pk}',
         feedback_item=item,
         comment=comment,
+    )
+
+
+def notify_wordpress_update_needed(item, reference_key):
+    if not item:
+        return
+    notify_audience(
+        'wordpress_update_needed',
+        reference_key,
+        wordpress_item=item,
     )
 
 

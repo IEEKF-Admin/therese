@@ -1228,3 +1228,93 @@ class EmployeeExternalAccount(BaseModel):
     def __str__(self):
         return f'{self.employee} — {self.get_kind_display()} ({self.get_status_display()})'
 
+
+class WordPressSite(BaseModel):
+    """WordPress site that THERESE Sync can publish employees to."""
+
+    name = models.CharField(max_length=120, verbose_name='Name')
+    url = models.URLField(blank=True, default='', verbose_name='URL')
+    username = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='WordPress user',
+    )
+    application_password = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Application password',
+        help_text='Leave blank to keep the saved password. Not shown again after saving.',
+    )
+    workgroups = models.ManyToManyField(
+        Workgroup,
+        blank=True,
+        related_name='wordpress_sites',
+        verbose_name='Workgroups',
+    )
+
+    class Meta:
+        verbose_name = 'WordPress site'
+        verbose_name_plural = 'WordPress sites'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def is_configured(self):
+        return bool(
+            (self.url or '').strip()
+            and (self.username or '').strip()
+            and (self.application_password or '').strip()
+        )
+
+
+class EmployeeWordPressEnrollment(BaseModel):
+    """Last published WordPress post for an employee on one site."""
+
+    class Status(models.TextChoices):
+        PUBLISHED = 'published', 'Shared'
+        UNPUBLISHED = 'unpublished', 'Unpublished'
+        ERROR = 'error', 'Error'
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='wordpress_enrollments',
+        verbose_name='Employee',
+    )
+    site = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='enrollments',
+        verbose_name='WordPress site',
+    )
+    posttitle = models.CharField(max_length=255, blank=True, default='')
+    wp_post_id = models.PositiveIntegerField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.UNPUBLISHED,
+        db_index=True,
+    )
+    last_source = models.JSONField(default=dict, blank=True)
+    last_sent = models.JSONField(default=dict, blank=True)
+    detail = models.TextField(blank=True, default='')
+    needs_attention = models.BooleanField(default=False, db_index=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Employee WordPress enrollment'
+        verbose_name_plural = 'Employee WordPress enrollments'
+        ordering = ['employee__last_name', 'employee__first_name', 'site__name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'site'],
+                name='hr_wp_enrollment_employee_site',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.employee} — {self.site} ({self.get_status_display()})'
+

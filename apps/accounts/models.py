@@ -77,6 +77,10 @@ class LoginPopupConfig(models.Model):
             'New comment on a report created by the user (by someone else)',
         ),
         ('feedback_status_changed', 'Status changed on a report created by the user'),
+        (
+            'wordpress_update_needed',
+            'WordPress: employee page needs an update or unpublish',
+        ),
     ]
 
     REACTION_CHOICES = [
@@ -88,6 +92,7 @@ class LoginPopupConfig(models.Model):
         ('my_profile', 'My Profile'),
         ('my_tasks', 'My Tasks'),
         ('employee_list', 'Employees List'),
+        ('employee_accounts', 'Employee accounts'),
         ('psp_elements', 'Funding analysis'),
         ('workgroup_list', 'Working Groups'),
         ('location_management', 'Manage Locations'),

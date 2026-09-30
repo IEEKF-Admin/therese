@@ -403,10 +403,119 @@
                 </tbody>
             </table>
         </div>
+        <div class="form-section">
+            <h3>WordPress sites</h3>
+            <p class="field-hint">
+                HTTPS URL, WordPress user, and application password per site.
+                Employees are published to a site when they belong to one of its
+                workgroups. A workgroup may belong to more than one site.
+                Add and unpublish are manual on
+                <a href="{% url 'hr:employee_accounts' %}">Accounts</a>.
+                THERESE does not auto-create or auto-update WordPress posts.
+            </p>
+            <input type="hidden" name="wp_sites_present" value="1">
+            <table class="table" id="wp-sites">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>URL</th>
+                        <th>WordPress user</th>
+                        <th>Application password</th>
+                        <th>Workgroups</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for site in wordpress_sites %}
+                    <tr data-wp-index="{{ forloop.counter0 }}">
+                        <td>
+                            <input type="hidden" name="wp_site_{{ forloop.counter0 }}_id" value="{{ site.pk }}">
+                            <input type="hidden" name="wp_site_{{ forloop.counter0 }}_delete" value="" class="wp-site-delete">
+                            <input type="text" class="form-control" name="wp_site_{{ forloop.counter0 }}_name"
+                                   value="{{ site.name }}" placeholder="Site name" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="url" class="form-control" name="wp_site_{{ forloop.counter0 }}_url"
+                                   value="{{ site.url }}" placeholder="https://…" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control" name="wp_site_{{ forloop.counter0 }}_username"
+                                   value="{{ site.username }}" placeholder="Username" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="password" class="form-control" name="wp_site_{{ forloop.counter0 }}_password"
+                                   value="" placeholder="{% if site.application_password %}Leave blank to keep{% else %}Application password{% endif %}"
+                                   autocomplete="new-password">
+                            {% if site.pk and site.is_configured %}
+                            <button type="submit" class="btn-secondary" style="margin-top:0.4rem;"
+                                    form="wp-test-{{ site.pk }}">Test connection</button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <select class="form-select" name="wp_site_{{ forloop.counter0 }}_workgroups" multiple size="4">
+                                {% for wg in workgroups %}
+                                <option value="{{ wg.pk }}"{% if wg in site.workgroups.all %} selected{% endif %}>{{ wg.short_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <button type="button" class="btn-inline-remove wp-remove-site" title="Remove">×</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr data-wp-index="{{ wordpress_sites|length }}">
+                        <td>
+                            <input type="hidden" name="wp_site_{{ wordpress_sites|length }}_id" value="">
+                            <input type="hidden" name="wp_site_{{ wordpress_sites|length }}_delete" value="" class="wp-site-delete">
+                            <input type="text" class="form-control" name="wp_site_{{ wordpress_sites|length }}_name"
+                                   value="" placeholder="Site name" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="url" class="form-control" name="wp_site_{{ wordpress_sites|length }}_url"
+                                   value="" placeholder="https://…" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control" name="wp_site_{{ wordpress_sites|length }}_username"
+                                   value="" placeholder="Username" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="password" class="form-control" name="wp_site_{{ wordpress_sites|length }}_password"
+                                   value="" placeholder="Application password" autocomplete="new-password">
+                        </td>
+                        <td>
+                            <select class="form-select" name="wp_site_{{ wordpress_sites|length }}_workgroups" multiple size="4">
+                                {% for wg in workgroups %}
+                                <option value="{{ wg.pk }}">{{ wg.short_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <button type="button" class="btn-inline-remove wp-remove-site" title="Remove">×</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                <button type="button" class="btn-secondary" id="wp-add-site">Add website</button>
+            </p>
+            {% include "core/_settings_field.html" with field=form.wordpress_positions %}
+        </div>
         <div class="form-actions">
             <button type="submit" class="btn-primary">Save integrations</button>
         </div>
     </form>
+    {% for site in wordpress_sites %}
+    {% if site.pk %}
+    <form id="wp-test-{{ site.pk }}" method="post" action="{% url 'core_settings:wordpress_test' site.pk %}" hidden>
+        {% csrf_token %}
+    </form>
+    {% endif %}
+    {% endfor %}
+    <template id="wp-site-wg-options">
+        {% for wg in workgroups %}
+        <option value="{{ wg.pk }}">{{ wg.short_name }}</option>
+        {% endfor %}
+    </template>
     <div class="form-section" style="margin-top:1.25rem;">
         <h3>Service account</h3>
         {% if google_service_account_configured %}
@@ -833,6 +942,52 @@ document.addEventListener('DOMContentLoaded', function() {
             row.style.display = 'none';
             row.querySelectorAll('input').forEach(function(inp) {
                 if (inp.classList.contains('inv-type-delete') || (inp.name && inp.name.endsWith('_id'))) return;
+                inp.disabled = true;
+            });
+        });
+    })();
+
+    (function() {
+        var table = document.getElementById('wp-sites');
+        var addBtn = document.getElementById('wp-add-site');
+        if (!table || !addBtn) return;
+        var tbody = table.querySelector('tbody');
+        var wgTemplate = document.getElementById('wp-site-wg-options');
+        function nextIndex() {
+            var max = -1;
+            tbody.querySelectorAll('tr[data-wp-index]').forEach(function(row) {
+                var n = parseInt(row.getAttribute('data-wp-index'), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return max + 1;
+        }
+        addBtn.addEventListener('click', function() {
+            var i = nextIndex();
+            var options = wgTemplate ? wgTemplate.innerHTML : '';
+            var tr = document.createElement('tr');
+            tr.setAttribute('data-wp-index', String(i));
+            tr.innerHTML =
+                '<td>' +
+                '<input type="hidden" name="wp_site_' + i + '_id" value="">' +
+                '<input type="hidden" name="wp_site_' + i + '_delete" value="" class="wp-site-delete">' +
+                '<input type="text" class="form-control" name="wp_site_' + i + '_name" placeholder="Site name" autocomplete="off">' +
+                '</td>' +
+                '<td><input type="url" class="form-control" name="wp_site_' + i + '_url" placeholder="https://…" autocomplete="off"></td>' +
+                '<td><input type="text" class="form-control" name="wp_site_' + i + '_username" placeholder="Username" autocomplete="off"></td>' +
+                '<td><input type="password" class="form-control" name="wp_site_' + i + '_password" placeholder="Application password" autocomplete="new-password"></td>' +
+                '<td><select class="form-select" name="wp_site_' + i + '_workgroups" multiple size="4">' + options + '</select></td>' +
+                '<td><button type="button" class="btn-inline-remove wp-remove-site" title="Remove">×</button></td>';
+            tbody.appendChild(tr);
+        });
+        tbody.addEventListener('click', function(event) {
+            var btn = event.target.closest('.wp-remove-site');
+            if (!btn) return;
+            var row = btn.closest('tr');
+            var del = row.querySelector('.wp-site-delete');
+            if (del) del.value = '1';
+            row.style.display = 'none';
+            row.querySelectorAll('input, select').forEach(function(inp) {
+                if (inp.classList.contains('wp-site-delete') || (inp.name && inp.name.endsWith('_id'))) return;
                 inp.disabled = true;
             });
         });

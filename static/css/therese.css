@@ -312,6 +312,17 @@ input[readonly].form-control {
     box-shadow: 0 0 0 2px #fff;
 }
 
+.settings-tab-label {
+    position: relative;
+    display: inline-block;
+    padding-right: 0.7rem;
+}
+
+.settings-tab-label .menu-notification-dot {
+    top: 0;
+    right: 0;
+}
+
 .document-read-ack-notice {
     display: flex;
     align-items: center;
@@ -640,6 +651,30 @@ input[readonly].form-control {
     padding: 0.15rem 0.45rem;
     border-radius: 999px;
     border: 1px solid #9ca3af;
+}
+
+.badge-attention {
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid #fca5a5;
+}
+
+.accounts-row-attention td {
+    background: #fef2f2;
+}
+
+.accounts-cell-attention {
+    position: relative;
+    padding-right: 1rem;
+}
+
+.accounts-cell-attention .menu-notification-dot {
+    top: 0.45rem;
+    right: 0.35rem;
 }
 
 .badge-upcoming {
@@ -3326,5 +3361,49 @@ div.year-estimate-row {
     body.nav-open {
         overflow: hidden;
     }
+}
+
+.wp-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+    overflow: auto;
+}
+.wp-modal.is-open {
+    display: flex;
+}
+.wp-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+}
+.wp-modal-dialog {
+    position: relative;
+    background: #fff;
+    width: min(40rem, 100%);
+    margin: auto;
+    padding: 1.25rem 1.4rem 1.1rem;
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+    z-index: 1;
+}
+.wp-modal-dialog h2 {
+    margin: 0 0 1rem;
+    font-size: 1.15rem;
+}
+.wp-modal-dialog .aligned-field {
+    margin-bottom: 0.65rem;
+}
+.wp-picture-preview {
+    display: block;
+    max-width: 8rem;
+    max-height: 8rem;
+    margin-bottom: 0.4rem;
+    border-radius: 6px;
+    object-fit: cover;
 }
 

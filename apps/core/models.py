@@ -481,6 +481,15 @@ class GlobalSetting(models.Model):
         verbose_name='Institute mailing list',
         help_text='e.g. ieecr@listen.uni-bonn.de. All active institute employees are added.',
     )
+    wordpress_positions = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='WordPress positions',
+        help_text=(
+            'One allowed position value per line. Used as the Position dropdown '
+            'when publishing an employee to WordPress.'
+        ),
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

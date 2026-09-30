@@ -3,7 +3,8 @@ apps/hr/urls.py
 """
 from django.urls import path
 from .views.employee import (
-    employee_list, employee_accounts, employee_reset_password, phone_list, EmployeeCreateView, MinimalEmployeeCreateView,
+    employee_list, employee_accounts, wordpress_publish, wordpress_unpublish,
+    employee_reset_password, phone_list, EmployeeCreateView, MinimalEmployeeCreateView,
     contract_hard_delete, funding_hard_delete,
     EmployeeUpdateView, MyProfileView,
     WorkgroupListView, WorkgroupCreateView, WorkgroupUpdateView, WorkgroupDeleteView, LocationManagementView,
@@ -27,6 +28,8 @@ urlpatterns = [
     # Employee Management
     path('employees/', employee_list, name='employee_list'),
     path('employees/accounts/', employee_accounts, name='employee_accounts'),
+    path('employees/accounts/wordpress/publish/', wordpress_publish, name='employee_wordpress_publish'),
+    path('employees/accounts/wordpress/unpublish/', wordpress_unpublish, name='employee_wordpress_unpublish'),
     path('employees/new/', EmployeeCreateView.as_view(), name='employee_create'),
     path('employees/quick-new/', MinimalEmployeeCreateView.as_view(), name='employee_quick_create'),
     path('employees/<int:pk>/edit/', EmployeeUpdateView.as_view(), name='employee_update'),

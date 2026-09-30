@@ -21,6 +21,7 @@ from .models import (
     Room,
     RoomStorageItem,
     SalarySupplement,
+    WordPressSite,
     Workgroup,
 )
 
@@ -416,3 +417,10 @@ class EmployeeDocumentVersionAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ('employee', 'uploaded_by')
     readonly_fields = ('original_filename', 'created_at', 'updated_at')
+
+
+@admin.register(WordPressSite, site=therese_admin)
+class WordPressSiteAdmin(admin.ModelAdmin):
+    list_display = ('name', 'url', 'username')
+    search_fields = ('name', 'url', 'username')
+    filter_horizontal = ('workgroups',)

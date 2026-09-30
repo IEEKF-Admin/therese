@@ -52,6 +52,7 @@ SETTINGS_TAB_FIELDS = {
         'sympa_enabled',
         'sympa_robot',
         'sympa_institute_list',
+        'wordpress_positions',
     ],
 }
 
@@ -125,6 +126,7 @@ class GlobalSettingForm(forms.ModelForm):
             'sympa_enabled',
             'sympa_robot',
             'sympa_institute_list',
+            'wordpress_positions',
         ]
         widgets = {
             'default_weekly_hours': forms.NumberInput(
@@ -181,6 +183,11 @@ class GlobalSettingForm(forms.ModelForm):
             'smtp_from_email': forms.EmailInput(attrs={'class': 'form-control'}),
             'sympa_robot': forms.EmailInput(attrs={'class': 'form-control'}),
             'sympa_institute_list': forms.EmailInput(attrs={'class': 'form-control'}),
+            'wordpress_positions': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'One position per line',
+            }),
         }
 
     def clean_limitation_pdf_letterhead(self):

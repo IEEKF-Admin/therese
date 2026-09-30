@@ -61,6 +61,8 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Sympa mailing lists')
         self.assertContains(response, 'Test mailing list connection')
         self.assertContains(response, 'Sync mailing lists now')
+        self.assertContains(response, 'WordPress sites')
+        self.assertContains(response, 'WordPress positions')
         self.assertContains(response, 'Request email subject')
         self.assertContains(response, 'Cancellation email subject')
         self.assertContains(response, 'approver_name')

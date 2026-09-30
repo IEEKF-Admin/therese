@@ -10,6 +10,11 @@ from django.shortcuts import render
 from apps.accounts.permissions import user_is_systemadmin
 from apps.hr.models import Contract, Employee, EmployeeExternalAccount
 from apps.hr.provisioning import account_status_by_kind, employee_is_active_for_provisioning
+from apps.hr.wordpress import (
+    configured_sites,
+    employee_wordpress_states,
+    wordpress_position_choices,
+)
 
 
 @login_required
@@ -19,14 +24,19 @@ def employee_accounts(request):
 
     today = date.today()
     employees = list(
-        Employee.objects.visible().select_related('user').prefetch_related(
+        Employee.objects.visible().select_related('user', 'room__building').prefetch_related(
             Prefetch(
                 'contracts',
                 queryset=Contract.objects.order_by('valid_from', 'pk'),
             ),
             'external_accounts',
+            'workgroups',
+            'wordpress_enrollments',
         ).order_by('last_name', 'first_name')
     )
+    wp_sites = configured_sites()
+    wp_positions = wordpress_position_choices()
+    wp_payloads = {}
     kinds = [
         {'kind': kind, 'label': EmployeeExternalAccount.Kind(kind).label}
         for kind in EmployeeExternalAccount.TAB_KINDS
@@ -71,13 +81,31 @@ def employee_accounts(request):
                 'detail': detail,
                 'lists': lists,
             })
+        wp_cells = employee_wordpress_states(employee, wp_sites)
+        for state in wp_cells:
+            if state['action'] in ('add', 'update'):
+                wp_payloads[f'{employee.pk}:{state["site_id"]}'] = {
+                    'employee': employee.pk,
+                    'site': state['site_id'],
+                    'site_name': state['site_name'],
+                    'action': state['action'],
+                    'prefill': state['prefill'],
+                    'has_picture': state['has_picture'],
+                    'picture_url': state['picture_url'],
+                }
         rows.append({
             'employee': employee,
             'is_active': employee_is_active_for_provisioning(employee, today),
             'cells': cells,
+            'wp_cells': wp_cells,
+            'wp_marked': any(cell['marked'] for cell in wp_cells),
         })
     return render(request, 'hr/employee_accounts.html', {
         'rows': rows,
         'kinds': kinds,
+        'wp_sites': wp_sites,
+        'wp_positions': wp_positions,
+        'wp_payloads': wp_payloads,
+        'table_colspan': 2 + len(kinds) + len(wp_sites),
         'user_groups': list(request.user.groups.values_list('name', flat=True)),
     })

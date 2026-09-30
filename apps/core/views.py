@@ -198,6 +198,7 @@ def global_settings(request):
                     save_inventory_types_from_post(request.POST)
                 elif tab == 'integrations':
                     _save_workgroup_sympa_lists(request.POST)
+                    _save_wordpress_sites(request.POST)
                 messages.success(request, 'Global settings were saved.')
                 return redirect(settings_url + f'?tab={tab}')
             for name in tab_form.fields:
@@ -264,6 +265,7 @@ def global_settings(request):
         'smtp_env_override': smtp['source'] == 'env',
         'smtp_password_configured': bool((setting.smtp_password or '').strip()),
         'workgroups': Workgroup.objects.order_by('short_name'),
+        'wordpress_sites': _wordpress_site_rows(),
     })
 
 
@@ -284,3 +286,68 @@ def _save_workgroup_sympa_lists(post):
             continue
         workgroup.sympa_list = raw
         workgroup.save(update_fields=['sympa_list'])
+
+
+def _wordpress_site_rows():
+    from apps.hr.models import WordPressSite
+
+    rows = list(WordPressSite.objects.prefetch_related('workgroups').order_by('name'))
+    return rows
+
+
+def _save_wordpress_sites(post):
+    if post.get('wp_sites_present') != '1':
+        return
+    from apps.hr.models import WordPressSite, Workgroup
+
+    keep_ids = set()
+    index = 0
+    while True:
+        prefix = f'wp_site_{index}_'
+        if f'{prefix}name' not in post and f'{prefix}id' not in post:
+            break
+        index += 1
+        if post.get(f'{prefix}delete') in ('1', 'on', 'true'):
+            pk = post.get(f'{prefix}id')
+            if pk and str(pk).isdigit():
+                WordPressSite.objects.filter(pk=int(pk)).delete()
+            continue
+        name = (post.get(f'{prefix}name') or '').strip()
+        url = (post.get(f'{prefix}url') or '').strip().rstrip('/')
+        username = (post.get(f'{prefix}username') or '').strip()
+        password = post.get(f'{prefix}password')
+        if password is None:
+            password = ''
+        wg_ids = []
+        for raw in post.getlist(f'{prefix}workgroups'):
+            if str(raw).isdigit():
+                wg_ids.append(int(raw))
+        pk = post.get(f'{prefix}id')
+        row = None
+        if pk and str(pk).isdigit():
+            row = WordPressSite.objects.filter(pk=int(pk)).first()
+        if not name and not url:
+            if row is not None:
+                keep_ids.add(row.pk)
+            continue
+        if not name:
+            name = url or 'WordPress'
+        if url and not url.lower().startswith('https://'):
+            if row is not None:
+                keep_ids.add(row.pk)
+            continue
+        if row is None:
+            row = WordPressSite(name=name, url=url, username=username)
+            if password:
+                row.application_password = password
+            row.save()
+        else:
+            row.name = name
+            row.url = url
+            row.username = username
+            if (password or '').strip():
+                row.application_password = password.strip()
+            row.save()
+        row.workgroups.set(Workgroup.objects.filter(pk__in=wg_ids))
+        keep_ids.add(row.pk)
+    WordPressSite.objects.exclude(pk__in=keep_ids).delete()

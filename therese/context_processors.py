@@ -12,6 +12,7 @@ from apps.holidays.access import holidays_menu_needs_attention, user_can_approve
 from apps.chemicals.features import chemicals_enabled
 from apps.inventory.features import inventory_enabled
 from apps.holidays.features import holiday_flags
+from apps.accounts.permissions import user_is_systemadmin
 from apps.tasks.unopened import tasks_menu_needs_attention
 
 
@@ -35,6 +36,7 @@ def user_groups(request):
             'holidays_menu_needs_attention': holidays_menu_needs_attention(request.user),
             'user_can_approve_holidays': flags['approval'] and user_can_approve_workgroup(request.user),
             'tasks_menu_needs_attention': tasks_menu_needs_attention(request.user),
+            'wordpress_menu_needs_attention': _wordpress_menu_needs_attention(request.user),
             'chemicals_enabled': chemicals_enabled(),
             'inventory_enabled': inventory_enabled(),
         }
@@ -51,6 +53,15 @@ def user_groups(request):
         'holidays_menu_needs_attention': False,
         'user_can_approve_holidays': False,
         'tasks_menu_needs_attention': False,
+        'wordpress_menu_needs_attention': False,
         'chemicals_enabled': False,
         'inventory_enabled': False,
     }
+
+
+def _wordpress_menu_needs_attention(user):
+    if not user_is_systemadmin(user):
+        return False
+    from apps.hr.wordpress import wordpress_attention_exists
+
+    return wordpress_attention_exists()

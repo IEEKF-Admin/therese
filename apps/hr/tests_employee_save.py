@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -115,3 +116,129 @@ class DuplicateOfficePhoneSaveTests(TestCase):
         self.assertIn(response.status_code, (200, 302, 303), getattr(response, 'context', None))
         self.employee.refresh_from_db()
         self.assertEqual(self.employee.phone_number, '0123-456')
+
+
+TINY_PNG = bytes.fromhex(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489'
+    '0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082'
+)
+
+
+class ProfilePictureUploadTests(TestCase):
+    def setUp(self):
+        get_or_create_default_groups()
+        assign_permissions_to_groups()
+        self.user = _ready('hr-pic')
+        perm = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(Employee),
+            codename='manage_all_employees',
+        )
+        self.user.user_permissions.add(perm)
+        self.user.user_permissions.add(
+            Permission.objects.get(
+                content_type=ContentType.objects.get_for_model(Employee),
+                codename='manage_employee',
+            )
+        )
+        self.employee = Employee.objects.create(
+            employee_number='PIC-1',
+            first_name='Katherina',
+            last_name='Abdo',
+            gender='F',
+            country='Germany',
+        )
+        self.contract = Contract.objects.create(
+            employee=self.employee,
+            weekly_hours=Decimal('39.000'),
+            valid_from=date(2020, 1, 1),
+            is_active=True,
+        )
+        self.client = Client()
+
+    def _post_data(self):
+        return {
+            'employee_number': 'PIC-1',
+            'first_name': 'Katherina',
+            'last_name': 'Abdo',
+            'gender': 'F',
+            'country': 'Germany',
+            'contracts-TOTAL_FORMS': '1',
+            'contracts-INITIAL_FORMS': '1',
+            'contracts-MIN_NUM_FORMS': '0',
+            'contracts-MAX_NUM_FORMS': '1000',
+            'contracts-0-id': str(self.contract.pk),
+            'contracts-0-weekly_hours': '39.000',
+            'contracts-0-valid_from': '01.01.2020',
+            'Workgroup_members-TOTAL_FORMS': '0',
+            'Workgroup_members-INITIAL_FORMS': '0',
+            'Workgroup_members-MIN_NUM_FORMS': '0',
+            'Workgroup_members-MAX_NUM_FORMS': '1000',
+        }
+
+    def test_linux_keeps_windows_path_until_sanitized(self):
+        from apps.hr.document_utils import create_document_version
+        from apps.hr.models import EmployeeDocumentType
+
+        upload = SimpleUploadedFile(
+            'Katherina Abdo - Final.png',
+            TINY_PNG,
+            content_type='image/png',
+        )
+        object.__setattr__(
+            upload,
+            '_name',
+            r'W:\office\Bilder Webseite\Beck\Katherina Abdo - Final.png',
+        )
+        version = create_document_version(
+            self.employee,
+            EmployeeDocumentType.PROFILE_PICTURE,
+            upload,
+        )
+        self.assertEqual(version.original_filename, 'Katherina Abdo - Final.png')
+        self.assertNotIn('\\', version.file.name)
+        self.assertNotIn('W:', version.file.name)
+
+    def test_windows_path_profile_picture_saves(self):
+        from apps.hr.models import EmployeeDocumentType, EmployeeDocumentVersion
+
+        self.client.login(username='hr-pic', password='test')
+        url = reverse('hr:employee_update', args=[self.employee.pk])
+        upload = SimpleUploadedFile(
+            r'W:\office\Bilder Webseite\Beck\Katherina Abdo - Final.png',
+            TINY_PNG,
+            content_type='image/png',
+        )
+        response = self.client.post(
+            url,
+            {**self._post_data(), 'upload_profile_picture': upload},
+        )
+        self.assertNotEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 302)
+        version = EmployeeDocumentVersion.objects.get(
+            employee=self.employee,
+            document_type=EmployeeDocumentType.PROFILE_PICTURE,
+        )
+        self.assertEqual(version.original_filename, 'Katherina Abdo - Final.png')
+        self.employee.refresh_from_db()
+        self.assertTrue(self.employee.profile_picture)
+
+    def test_oversized_profile_picture_is_form_error_not_500(self):
+        from apps.core.upload_validation import MAX_DEFAULT_UPLOAD_BYTES
+        from apps.hr.models import EmployeeDocumentVersion
+
+        self.client.login(username='hr-pic', password='test')
+        url = reverse('hr:employee_update', args=[self.employee.pk])
+        payload = TINY_PNG + (b'\x00' * (MAX_DEFAULT_UPLOAD_BYTES + 1 - len(TINY_PNG)))
+        upload = SimpleUploadedFile(
+            'Katherina Abdo - Final.png',
+            payload,
+            content_type='image/png',
+        )
+        response = self.client.post(
+            url,
+            {**self._post_data(), 'upload_profile_picture': upload},
+        )
+        self.assertNotEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '10 MB')
+        self.assertFalse(EmployeeDocumentVersion.objects.filter(employee=self.employee).exists())

@@ -601,6 +601,8 @@ class EmployeeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 messages.error(self.request, err)
             return self.form_invalid(form)
 
+        for err in errors:
+            messages.error(self.request, err)
         finalize_recruitment_task(self.request, employee)
         messages.success(self.request, "Employee successfully created.")
         return redirect(_safe_next_url(self.request, self.success_url))
@@ -718,6 +720,8 @@ class EmployeeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                 messages.error(self.request, err)
             return self.form_invalid(form)
 
+        for err in errors:
+            messages.error(self.request, err)
         messages.success(self.request, "Employee successfully saved.")
         return redirect(_safe_next_url(self.request, self.success_url))
 

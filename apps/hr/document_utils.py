@@ -1,9 +1,8 @@
 """Helpers for employee document versioning and recruitment document transfer."""
 
-import os
-
-from django.core.exceptions import ValidationError
+from django.core.exceptions import SuspiciousFileOperation, ValidationError
 from django.core.files.base import ContentFile
+from django.db import DatabaseError, transaction
 
 from .models import Employee, EmployeeDocumentType, EmployeeDocumentVersion
 
@@ -11,6 +10,7 @@ from apps.core.upload_validation import (
     IMAGE_EXT,
     MAX_DEFAULT_UPLOAD_BYTES,
     PDF_EXT,
+    upload_basename,
     validate_upload,
 )
 
@@ -118,17 +118,41 @@ def _sync_current_employee_file(employee, document_type, stored_file):
     employee.save(update_fields=[field_name, 'updated_at'])
 
 
+def _error_text(exc):
+    messages = getattr(exc, 'messages', None)
+    if messages:
+        return ' '.join(str(m) for m in messages)
+    return str(exc)
+
+
+def document_upload_validation_errors(request):
+    """Return user-facing errors for posted personnel files without saving."""
+    errors = []
+    for definition in DOCUMENT_TYPE_DEFINITIONS:
+        uploaded = request.FILES.get(definition['upload_field'])
+        if not uploaded:
+            continue
+        try:
+            validate_personnel_document(uploaded)
+        except ValidationError as exc:
+            errors.append(f"{definition['label_en']}: {_error_text(exc)}")
+        except SuspiciousFileOperation:
+            errors.append(f"{definition['label_en']}: Invalid file name.")
+    return errors
+
+
 def create_document_version(employee, document_type, uploaded_file, uploaded_by=None):
     """
     Always create a new version. Previous versions stay available;
     the newest is the current/relevant document.
     """
     validate_personnel_document(uploaded_file)
+    original = upload_basename(uploaded_file.name)[:255]
     version = EmployeeDocumentVersion.objects.create(
         employee=employee,
         document_type=document_type,
         file=uploaded_file,
-        original_filename=uploaded_file.name,
+        original_filename=original,
         uploaded_by=uploaded_by,
     )
     _sync_current_employee_file(employee, document_type, version.file)
@@ -136,21 +160,32 @@ def create_document_version(employee, document_type, uploaded_file, uploaded_by=
 
 
 def process_document_uploads(request, employee, uploaded_by=None):
-    """Create new document versions from POST file fields on employee forms."""
+    """Create new document versions from POST file fields on employee forms.
+
+    Returns ``(created, errors)``. Validation/storage failures become ``errors``
+    instead of a 500; a savepoint keeps the rest of the employee save.
+    """
     created = []
+    errors = []
     for definition in DOCUMENT_TYPE_DEFINITIONS:
         uploaded = request.FILES.get(definition['upload_field'])
         if not uploaded:
             continue
-        created.append(
-            create_document_version(
-                employee,
-                definition['type'],
-                uploaded,
-                uploaded_by=uploaded_by,
-            )
-        )
-    return created
+        try:
+            with transaction.atomic():
+                created.append(
+                    create_document_version(
+                        employee,
+                        definition['type'],
+                        uploaded,
+                        uploaded_by=uploaded_by,
+                    )
+                )
+        except ValidationError as exc:
+            errors.append(f"{definition['label_en']}: {_error_text(exc)}")
+        except (SuspiciousFileOperation, OSError, DatabaseError):
+            errors.append(f"{definition['label_en']}: Could not save this file.")
+    return created, errors
 
 
 def copy_file_to_document_version(employee, document_type, source_field, uploaded_by=None):
@@ -164,7 +199,7 @@ def copy_file_to_document_version(employee, document_type, source_field, uploade
     version = EmployeeDocumentVersion(
         employee=employee,
         document_type=document_type,
-        original_filename=os.path.basename(source_field.name),
+        original_filename=upload_basename(source_field.name)[:255],
         uploaded_by=uploaded_by,
     )
     version.file.save(version.original_filename, ContentFile(content), save=True)

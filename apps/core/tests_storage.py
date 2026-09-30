@@ -63,6 +63,15 @@ class DatabaseStorageTests(TestCase):
         basename = available.rsplit('/', 1)[-1]
         self.assertRegex(basename, r'^[0-9a-f]{32}\.pdf$')
 
+    def test_generate_filename_is_posix_and_strips_windows_path(self):
+        from django.core.files.storage import default_storage
+
+        name = default_storage.generate_filename(
+            r'employee_pictures/Katherina Abdo - Final.png'
+        )
+        self.assertEqual(name, 'employee_pictures/Katherina_Abdo_-_Final.png')
+        self.assertNotIn('\\', name)
+
     def test_get_available_name_keeps_short_unused_names(self):
         from django.core.files.storage import default_storage
 

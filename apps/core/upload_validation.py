@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import SuspiciousFileOperation, ValidationError
 
 MAX_DEFAULT_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_QUOTE_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -21,6 +21,30 @@ _MAGIC = {
     b'GIF89a': 'gif',
     b'RIFF': 'webp',  # WebP is RIFF....WEBP
 }
+
+
+def upload_basename(name):
+    """POSIX basename so Windows client paths work on Linux (and vice versa)."""
+    base = str(name or '').replace('\\', '/').rsplit('/', 1)[-1]
+    if len(base) >= 2 and base[1] == ':' and base[0].isalpha():
+        base = base[2:].lstrip('/\\')
+    base = ''.join(ch for ch in base if ch.isprintable()).strip()
+    return base or 'upload'
+
+
+def sanitize_upload_name(uploaded_file):
+    """Keep only a safe basename on the uploaded file (mutates ``.name``)."""
+    if not uploaded_file:
+        return uploaded_file
+    base = upload_basename(getattr(uploaded_file, 'name', '') or 'upload')[:255]
+    if base in {'.', '..'}:
+        base = 'upload'
+    try:
+        uploaded_file.name = base
+    except SuspiciousFileOperation:
+        ext = os.path.splitext(base)[1]
+        uploaded_file.name = f'upload{ext}' if ext else 'upload'
+    return uploaded_file
 
 
 def _read_header(uploaded_file, n=16):
@@ -54,12 +78,13 @@ def validate_upload(
 ):
     if not uploaded_file:
         return
+    sanitize_upload_name(uploaded_file)
     size = getattr(uploaded_file, 'size', None)
     if size is not None and size > max_bytes:
         raise ValidationError(f'File must be {max_bytes // (1024 * 1024)} MB or smaller.')
 
     name = getattr(uploaded_file, 'name', '') or ''
-    ext = os.path.splitext(name)[1].lower()
+    ext = os.path.splitext(upload_basename(name))[1].lower()
     if ext not in allowed_extensions:
         raise ValidationError(
             f'Allowed file types: {", ".join(sorted(allowed_extensions))}.'

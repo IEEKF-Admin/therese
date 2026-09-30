@@ -5,6 +5,7 @@ Works with SQLite and MariaDB/MySQL via Django's ORM.
 
 import mimetypes
 import os
+import pathlib
 import uuid
 
 from django.conf import settings
@@ -93,6 +94,18 @@ class DatabaseStorage(Storage):
         if not base.endswith('/'):
             base = f'{base}/'
         return f'{base}{name}'
+
+    def generate_filename(self, filename):
+        """Always POSIX keys; Django's default uses os.path and yields backslashes on Windows."""
+        filename = str(filename or '').replace('\\', '/')
+        path = pathlib.PurePosixPath(filename)
+        if path.is_absolute() or '..' in path.parts:
+            raise SuspiciousFileOperation(f"Detected path traversal attempt in '{filename}'")
+        dirname = '/'.join(path.parts[:-1]) if len(path.parts) > 1 else ''
+        base = path.name or 'file'
+        if len(base) >= 2 and base[1] == ':' and base[0].isalpha():
+            base = base[2:] or 'file'
+        return _posix_join(dirname, self.get_valid_name(base)) if dirname else self.get_valid_name(base)
 
     def get_available_name(self, name, max_length=None):
         """

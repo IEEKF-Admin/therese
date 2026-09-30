@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from ...document_utils import (
     copy_recruitment_documents_to_employee,
+    document_upload_validation_errors,
     get_document_blocks_for_template,
     process_document_uploads,
     user_can_manage_employee_documents,
@@ -163,6 +164,10 @@ def save_employee_with_formsets(
     if pct_errors:
         return None, pct_errors
 
+    upload_errors = document_upload_validation_errors(request)
+    if upload_errors:
+        return None, upload_errors
+
     with transaction.atomic():
         employee = form.save()
         contract_formset.instance = employee
@@ -187,9 +192,9 @@ def save_employee_with_formsets(
         workgroup_formset.save()
 
         uploader = getattr(request.user, 'employee', None)
-        process_document_uploads(request, employee, uploaded_by=uploader)
+        _, save_errors = process_document_uploads(request, employee, uploaded_by=uploader)
 
-    return employee, []
+    return employee, save_errors
 
 
 def get_recruitment_task(request):

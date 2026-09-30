@@ -12,7 +12,7 @@ from django.views.generic import UpdateView
 
 from ...forms import EmployeeProfileForm
 from ...models import Employee
-from ...document_utils import process_document_uploads
+from ...document_utils import document_upload_validation_errors, process_document_uploads
 from ...validity import contract_open_on_q, resolve_as_of
 from ..employee_form_helpers import WorkgroupFormSet
 from .common import employee_document_context
@@ -67,11 +67,18 @@ class MyProfileView(LoginRequiredMixin, UpdateView):
         context = self.get_context_data()
         workgroup_formset = context.get('workgroup_formset')
         if workgroup_formset and workgroup_formset.is_valid():
+            upload_errors = document_upload_validation_errors(self.request)
+            if upload_errors:
+                for err in upload_errors:
+                    messages.error(self.request, err)
+                return self.form_invalid(form)
             self.object = form.save()
             workgroup_formset.instance = self.object
             workgroup_formset.save()
             uploader = getattr(self.request.user, 'employee', None)
-            process_document_uploads(self.request, self.object, uploaded_by=uploader)
+            _, save_errors = process_document_uploads(self.request, self.object, uploaded_by=uploader)
+            for err in save_errors:
+                messages.error(self.request, err)
             messages.success(self.request, "✅ Your profile has been updated!")
             return redirect(self.success_url)
         messages.error(self.request, "Please correct the errors below.")

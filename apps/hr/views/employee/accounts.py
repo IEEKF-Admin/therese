@@ -17,6 +17,7 @@ from apps.hr.wordpress import (
     employee_wordpress_states,
     wordpress_position_choices,
 )
+from apps.hr.import_enrollments import known_sympa_lists
 from apps.hr.provisioning import account_status_by_kind, employee_is_active_for_provisioning
 
 _STATUS_ICONS = {
@@ -132,6 +133,7 @@ def employee_accounts(request):
         'wp_payloads': wp_payloads,
         'wp_queue': list(request.session.get(WP_QUEUE_SESSION) or []),
         'search_query': search_query,
+        'sympa_lists': known_sympa_lists(),
         'table_colspan': 3 + len(kinds),
         'user_groups': list(request.user.groups.values_list('name', flat=True)),
     }

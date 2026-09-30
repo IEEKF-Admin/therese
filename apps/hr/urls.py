@@ -3,7 +3,9 @@ apps/hr/urls.py
 """
 from django.urls import path
 from .views.employee import (
-    employee_list, employee_accounts, employee_accounts_bulk, wordpress_publish, wordpress_unpublish,
+    employee_list, employee_accounts, employee_accounts_bulk,
+    employee_accounts_import_calendar, employee_accounts_import_websites,
+    employee_accounts_import_sympa, wordpress_publish, wordpress_unpublish,
     employee_reset_password, phone_list, EmployeeCreateView, MinimalEmployeeCreateView,
     contract_hard_delete, funding_hard_delete,
     EmployeeUpdateView, MyProfileView,
@@ -29,6 +31,21 @@ urlpatterns = [
     path('employees/', employee_list, name='employee_list'),
     path('employees/accounts/', employee_accounts, name='employee_accounts'),
     path('employees/accounts/bulk/', employee_accounts_bulk, name='employee_accounts_bulk'),
+    path(
+        'employees/accounts/import/calendar/',
+        employee_accounts_import_calendar,
+        name='employee_accounts_import_calendar',
+    ),
+    path(
+        'employees/accounts/import/websites/',
+        employee_accounts_import_websites,
+        name='employee_accounts_import_websites',
+    ),
+    path(
+        'employees/accounts/import/sympa/',
+        employee_accounts_import_sympa,
+        name='employee_accounts_import_sympa',
+    ),
     path('employees/accounts/wordpress/publish/', wordpress_publish, name='employee_wordpress_publish'),
     path('employees/accounts/wordpress/unpublish/', wordpress_unpublish, name='employee_wordpress_unpublish'),
     path('employees/new/', EmployeeCreateView.as_view(), name='employee_create'),

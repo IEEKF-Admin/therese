@@ -53,6 +53,30 @@
             </div>
         </div>
     </form>
+    <div class="table-bulk-actions accounts-import-actions">
+        <form method="post" action="{% url 'hr:employee_accounts_import_calendar' %}">
+            {% csrf_token %}
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            <button type="submit" class="btn-secondary">Import from Google Calendar</button>
+        </form>
+        <form method="post" action="{% url 'hr:employee_accounts_import_websites' %}">
+            {% csrf_token %}
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            <button type="submit" class="btn-secondary">Import from websites</button>
+        </form>
+        <form method="post" action="{% url 'hr:employee_accounts_import_sympa' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            <select name="list_address" class="form-select" required>
+                <option value="">Sympa list…</option>
+                {% for item in sympa_lists %}
+                <option value="{{ item.address }}" title="{{ item.address }}">{{ item.label }}</option>
+                {% endfor %}
+            </select>
+            <input type="file" name="csv" class="form-control" accept=".csv,text/csv,text/plain" required>
+            <button type="submit" class="btn-secondary">Import Sympa CSV</button>
+        </form>
+    </div>
 </div>
 
 <div id="wp-publish-modal" class="wp-modal" aria-hidden="true">

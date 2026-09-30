@@ -216,6 +216,34 @@ def delete_acl(calendar_id: str, access_token: str, email: str) -> None:
         raise
 
 
+def list_acl_user_emails(calendar_id: str, access_token: str) -> list[str]:
+    emails: list[str] = []
+    seen: set[str] = set()
+    page_token = ''
+    while True:
+        params = {'maxResults': '250'}
+        if page_token:
+            params['pageToken'] = page_token
+        payload = _http_json(
+            'GET',
+            _acl_url(calendar_id) + '?' + urlencode(params),
+            headers=_auth_headers(access_token),
+        )
+        for item in payload.get('items') or []:
+            scope = item.get('scope') or {}
+            if (scope.get('type') or '').strip().lower() != 'user':
+                continue
+            email = (scope.get('value') or '').strip().lower()
+            if not email or email in seen:
+                continue
+            seen.add(email)
+            emails.append(email)
+        page_token = (payload.get('nextPageToken') or '').strip()
+        if not page_token:
+            break
+    return emails
+
+
 class HttpCalendarClient:
     def __init__(self, setting=None, access_token=None):
         from apps.core.models import GlobalSetting
@@ -233,6 +261,13 @@ class HttpCalendarClient:
 
     def unshare(self, email: str) -> None:
         delete_acl(self.calendar_id, self.access_token, email)
+
+    def list_shared_emails(self) -> list[str]:
+        emails = list_acl_user_emails(self.calendar_id, self.access_token)
+        sa = (service_account_email(self.setting) or '').strip().lower()
+        if not sa:
+            return emails
+        return [email for email in emails if email != sa]
 
 
 def get_calendar_client(setting=None):

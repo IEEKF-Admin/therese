@@ -285,8 +285,10 @@ class SympaAccountsAndSettingsTests(TestCase):
         self.assertContains(response, 'Sympa')
         self.assertNotContains(response, 'grace@uni-bonn.de')
         self.assertContains(response, 'ieecr')
-        self.assertNotContains(response, 'ieecr@listen.uni-bonn.de')
         self.assertContains(response, 'aria-label="Shared"')
+        partial = self.client.get(reverse('hr:employee_accounts'), {'partial': '1'})
+        self.assertContains(partial, 'ieecr')
+        self.assertNotContains(partial, 'ieecr@listen.uni-bonn.de')
 
     def test_accounts_hides_professional_email(self):
         self.employee.email_professional = 'grace.new@uni-bonn.de'

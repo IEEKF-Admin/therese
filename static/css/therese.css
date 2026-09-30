@@ -738,6 +738,19 @@ input[readonly].form-control {
     min-width: 18rem;
 }
 
+.accounts-import-actions form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.accounts-import-actions .form-control,
+.accounts-import-actions .form-select {
+    width: auto;
+    max-width: 14rem;
+}
+
 .badge-upcoming {
     background: #dbeafe;
     color: #1d4ed8;

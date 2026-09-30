@@ -134,6 +134,17 @@ def probe_wordpress_connection(site) -> dict:
     return data
 
 
+def list_wordpress_posts(site) -> list:
+    data = request_json(site, 'GET', '/posts')
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        posts = data.get('posts')
+        if isinstance(posts, list):
+            return posts
+    return []
+
+
 def create_wordpress_post(site, fields: dict, picture=None) -> dict:
     files = {'picture': picture} if picture else None
     return request_json(site, 'POST', '/posts', fields=fields, files=files)

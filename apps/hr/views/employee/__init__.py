@@ -13,6 +13,11 @@ Do not remove any existing requirements from this package without explicit instr
 
 from .accounts import employee_accounts
 from .accounts_bulk import employee_accounts_bulk
+from .accounts_import import (
+    employee_accounts_import_calendar,
+    employee_accounts_import_sympa,
+    employee_accounts_import_websites,
+)
 from .wordpress import wordpress_publish, wordpress_unpublish
 from .crud import (
     EmployeeCreateView,
@@ -51,6 +56,9 @@ __all__ = [
     'employee_list',
     'employee_accounts',
     'employee_accounts_bulk',
+    'employee_accounts_import_calendar',
+    'employee_accounts_import_websites',
+    'employee_accounts_import_sympa',
     'wordpress_publish',
     'wordpress_unpublish',
     'employee_reset_password',

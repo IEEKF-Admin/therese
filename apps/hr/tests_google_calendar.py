@@ -32,6 +32,9 @@ class FakeCalendar:
         self.calls.append(('unshare', email))
         self.shared.discard(email)
 
+    def list_shared_emails(self):
+        return sorted(self.shared)
+
 
 def _ready(username):
     user = CustomUser.objects.create_user(username, password='test')
@@ -462,6 +465,46 @@ class GoogleCalendarConnectionTestTests(TestCase):
                     probe_calendar_connection()
         self.assertIn('cannot manage sharing', str(ctx.exception))
         self.assertIn(SA_EMAIL, str(ctx.exception))
+
+
+@override_settings(GOOGLE_SERVICE_ACCOUNT_JSON=SA_JSON, GOOGLE_SERVICE_ACCOUNT_FILE='')
+class GoogleCalendarAclListTests(TestCase):
+    def setUp(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'google_calendar_id': 'cal-1',
+                'google_service_account_json': SA_JSON,
+                'google_service_account_email': SA_EMAIL,
+            },
+        )
+
+    def test_list_shared_emails_paginates_and_skips_non_users(self):
+        from apps.core.google_calendar import HttpCalendarClient
+
+        with patch(
+            'apps.core.google_calendar._http_json',
+            side_effect=[
+                {
+                    'items': [
+                        {'scope': {'type': 'user', 'value': 'ada@gmail.com'}},
+                        {'scope': {'type': 'default'}},
+                        {'scope': {'type': 'user', 'value': SA_EMAIL}},
+                        {'scope': {'type': 'group', 'value': 'group@example.com'}},
+                    ],
+                    'nextPageToken': 'p2',
+                },
+                {
+                    'items': [
+                        {'scope': {'type': 'user', 'value': 'bob@gmail.com'}},
+                    ],
+                },
+            ],
+        ) as http:
+            emails = HttpCalendarClient(access_token='tok').list_shared_emails()
+        self.assertEqual(emails, ['ada@gmail.com', 'bob@gmail.com'])
+        self.assertEqual(http.call_count, 2)
+        self.assertIn('pageToken=p2', http.call_args_list[1].args[1])
 
 
 @override_settings(GOOGLE_SERVICE_ACCOUNT_JSON='', GOOGLE_SERVICE_ACCOUNT_FILE='')

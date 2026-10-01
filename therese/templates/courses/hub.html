@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Courses - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Courses</h1>
+</div>
+
+<div class="course-hub-grid">
+    {% for card in cards %}
+    <a href="{% url 'courses:course_list' card.course.pk %}" class="card course-hub-card">
+        <h2>{{ card.course.name }}</h2>
+        {% if not card.course.is_active %}
+        <span class="status-badge">Inactive</span>
+        {% endif %}
+        <p class="course-hub-total">{{ card.total }} required</p>
+        <p class="course-hub-counts">
+            <span class="course-status course-status-due">{{ card.counts.due }} due</span>
+            <span class="course-status course-status-warn">{{ card.counts.warn }} due soon</span>
+            <span class="course-status course-status-ok">{{ card.counts.ok }} current</span>
+        </p>
+    </a>
+    {% empty %}
+    <p class="text-muted">No courses.</p>
+    {% endfor %}
+</div>
+{% endblock %}

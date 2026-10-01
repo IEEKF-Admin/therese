@@ -1,0 +1,113 @@
+<h2 class="section-heading">Courses</h2>
+<p class="field-hint" style="margin-bottom:1rem;">
+    Required employees are the union of all institute, selected workgroups, and extra employees.
+    Listed more than once is required once. Completions are recorded on My Courses or course lists.
+</p>
+
+<div class="form-section">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+        <h3 style="margin:0;">Defined courses</h3>
+        <a href="?tab=courses&amp;new=1" class="btn-secondary">+ New course</a>
+    </div>
+    <table class="table" style="margin-top:0.75rem;">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Repeat</th>
+                <th>Evidence</th>
+                <th>Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in courses_list %}
+            <tr>
+                <td><a href="?tab=courses&amp;edit={{ course.pk }}">{{ course.name }}</a></td>
+                <td>{% if course.interval_months %}Every {{ course.interval_months }} months{% else %}One-time{% endif %}</td>
+                <td>{{ course.get_evidence_type_display }}</td>
+                <td>{% if course.is_active %}Yes{% else %}No{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">No courses yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if course_form_open and course_form %}
+<form method="post" id="course-settings-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_courses">
+    {% if course_instance %}<input type="hidden" name="course_id" value="{{ course_instance.pk }}">{% endif %}
+    {{ course_form.non_field_errors }}
+    <div class="form-section">
+        <h3>{% if course_instance %}Edit course{% else %}New course{% endif %}</h3>
+        {% include "core/_settings_field.html" with field=course_form.name %}
+        <div class="aligned-field" style="align-items:flex-start;">
+            <label for="{{ course_form.description.id_for_label }}">{{ course_form.description.label }}</label>
+            <div style="flex:1;">
+                {{ course_form.description }}
+                {{ course_form.description.errors }}
+            </div>
+        </div>
+        {% include "core/_settings_field.html" with field=course_form.interval_months %}
+        {% include "core/_settings_field.html" with field=course_form.evidence_type %}
+        {% include "core/_settings_field.html" with field=course_form.warn_weeks %}
+        {% include "core/_settings_field.html" with field=course_form.is_active %}
+        {% include "core/_settings_field.html" with field=course_form.all_institute %}
+    </div>
+    <div class="form-section">
+        <h3>Workgroups</h3>
+        {{ course_form.workgroups.errors }}
+        {{ course_form.workgroups }}
+    </div>
+    <div class="form-section">
+        <h3>Extra employees</h3>
+        {{ course_form.extra_employees.errors }}
+        {{ course_form.extra_employees }}
+    </div>
+    <div class="form-section">
+        <h3>Managers</h3>
+        <p class="field-hint">Institute managers can record evidence for every required employee of this course. Workgroup managers only for members of their workgroups.</p>
+        <table class="table" id="course-managers">
+            <thead>
+                <tr><th>Employee</th><th>Scope</th><th></th></tr>
+            </thead>
+            <tbody id="course-manager-rows">
+                {% for row in course_manager_rows %}
+                <tr data-manager-index="{{ forloop.counter0 }}">
+                    <td>
+                        <select name="manager_{{ forloop.counter0 }}_employee" class="form-select">
+                            <option value="">—</option>
+                            {% for emp in course_manager_employees %}
+                            <option value="{{ emp.pk }}"{% if row.employee_id|slugify == emp.pk|slugify %} selected{% endif %}>{{ emp }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select name="manager_{{ forloop.counter0 }}_scope" class="form-select">
+                            {% for value, label in course_manager_scopes %}
+                            <option value="{{ value }}"{% if row.scope == value %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <button type="button" class="btn-inline-remove course-remove-manager" title="Remove">×</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="button" class="btn-secondary" id="course-add-manager" style="margin-top:0.5rem;">+ Add manager</button>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save course</button>
+        {% if course_instance %}
+        <button type="submit" class="btn-subtle" name="course_delete" value="1"
+                onclick="return confirm('Delete this course and all recorded completions?');">
+            Delete course
+        </button>
+        {% endif %}
+        <a href="?tab=courses" class="btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endif %}

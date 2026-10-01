@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}My Courses - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Courses</h1>
+</div>
+
+<div class="card list-panel">
+    <table class="table course-table">
+        <thead>
+            <tr>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Last completed</th>
+                <th>Due</th>
+                <th>Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr class="course-row course-row-{{ row.status }}">
+                <td>
+                    <strong>{{ row.course.name }}</strong>
+                    {% if row.course.description %}
+                    <div class="course-description">{{ row.course.description|safe }}</div>
+                    {% endif %}
+                </td>
+                <td><span class="course-status course-status-{{ row.status }}">{{ row.label }}</span></td>
+                <td>
+                    {% if row.last_completed %}{{ row.last_completed|date:"d.m.Y" }}{% else %}—{% endif %}
+                    {% if row.completion and row.completion.certificate %}
+                    <div><a href="{{ row.completion.certificate.url }}" target="_blank" rel="noopener">Certificate</a></div>
+                    {% endif %}
+                </td>
+                <td>{% if row.due_date %}{{ row.due_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                <td>
+                    {% if row.can_write %}
+                    {% include "courses/_record_form.html" with course=row.course employee=row.employee next_url=request.path %}
+                    {% else %}
+                    <span class="text-muted">{{ row.course.get_evidence_type_display }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted">No required courses.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

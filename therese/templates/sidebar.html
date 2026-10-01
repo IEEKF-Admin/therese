@@ -43,6 +43,27 @@
     </a>
     {% endif %}
 
+    {% if has_employee %}
+    <a href="{% url 'courses:my_courses' %}"
+       class="sidebar-link-with-badge {% if '/courses/my' in request.path %}active{% endif %}">
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-graduation-cap"></i>
+            {% if my_courses_needs_attention %}<span class="menu-notification-dot" aria-label="Courses due"></span>{% endif %}
+        </span>
+        <span>My Courses</span>
+    </a>
+    {% endif %}
+    {% if user_can_access_courses_hub %}
+    <a href="{% url 'courses:hub' %}"
+       class="sidebar-link-with-badge {% if '/courses/' in request.path and '/courses/my' not in request.path %}active{% endif %}">
+        <span class="sidebar-icon-wrap">
+            <i class="fas fa-chalkboard-teacher"></i>
+            {% if courses_hub_needs_attention %}<span class="menu-notification-dot" aria-label="Course lists need attention"></span>{% endif %}
+        </span>
+        <span>Courses</span>
+    </a>
+    {% endif %}
+
     {% if perms.documents.view_document or perms.documents.manage_document %}
     <a href="{% url 'documents:list' %}"
        class="sidebar-link-with-badge {% if '/documents/' in request.path and '/documents/manage' not in request.path %}active{% endif %}">

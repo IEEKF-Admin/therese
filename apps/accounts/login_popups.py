@@ -136,6 +136,7 @@ def render_popup_text(text, user, employee, contract=None, **context):
         comment=context.get('comment'),
         feedback_item=context.get('feedback_item'),
         wordpress_item=context.get('wordpress_item'),
+        course_item=context.get('course_item'),
     )
     return render_placeholders(text, replacements, html=False, user=user, employee=employee)
 
@@ -188,6 +189,7 @@ def evaluate_login_popups(
         comment_for_text = None
         feedback_for_text = None
         wordpress_for_text = None
+        course_for_text = None
 
         if config.trigger == 'first_login':
             if user.first_login_welcome_shown:
@@ -519,6 +521,35 @@ def evaluate_login_popups(
                 if comment_for_text is not None:
                     feedback_for_text = comment_for_text.item
 
+        elif config.trigger == 'own_course_due' and employee:
+            from apps.courses.services import attention_reference_key, attention_rows_for_employee
+
+            rows = attention_rows_for_employee(employee)
+            unacked = []
+            for row in rows:
+                key = attention_reference_key(row, managed=False)
+                if key not in acknowledged:
+                    unacked.append((row, key))
+            if unacked:
+                show = True
+                ack_reference_keys = [key for _row, key in unacked]
+                course_for_text = unacked[0][0]
+
+        elif config.trigger == 'managed_courses_due':
+            from apps.courses.access import attention_rows_visible_to_user
+            from apps.courses.services import attention_reference_key
+
+            rows = attention_rows_visible_to_user(user)
+            unacked = []
+            for row in rows:
+                key = attention_reference_key(row, managed=True)
+                if key not in acknowledged:
+                    unacked.append((row, key))
+            if unacked:
+                show = True
+                ack_reference_keys = [key for _row, key in unacked]
+                course_for_text = unacked[0][0]
+
         elif config.trigger == 'wordpress_update_needed':
             from apps.hr.wordpress import marked_wordpress_states
 
@@ -583,6 +614,7 @@ def evaluate_login_popups(
                     comment=comment_for_text,
                     feedback_item=feedback_for_text,
                     wordpress_item=wordpress_for_text,
+                    course_item=course_for_text,
                 ),
                 'link': config.link_to or '',
                 'config': config,
@@ -594,6 +626,7 @@ def evaluate_login_popups(
                 'chemical_item': chemical_for_text,
                 'comment': comment_for_text,
                 'feedback_item': feedback_for_text,
+                'course_item': course_for_text,
             })
 
     return popups

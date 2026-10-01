@@ -15,6 +15,7 @@ GROUP_LABELS = {
     'chemical': 'Chemicals',
     'feedback': 'Bugs & Features',
     'wordpress': 'WordPress',
+    'courses': 'Courses',
     'lists': 'Lists (several records)',
 }
 
@@ -289,6 +290,51 @@ VARIABLES = [
         'label': 'Employees whose WordPress page needs an update or unpublish',
         'group': 'lists',
     },
+    {
+        'key': 'course_name',
+        'label': 'Course name',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_description',
+        'label': 'Course description (HTML)',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_due_date',
+        'label': 'Course due date',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_last_completed',
+        'label': 'Course last completed on',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_status',
+        'label': 'Course status (Current / Due soon / Due)',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_employee_name',
+        'label': 'Course employee name',
+        'group': 'courses',
+    },
+    {
+        'key': 'course_employee_number',
+        'label': 'Course employee number',
+        'group': 'courses',
+    },
+    {
+        'key': 'own_due_courses',
+        'label': 'Your courses that are due or due soon',
+        'group': 'courses',
+    },
+    {
+        'key': 'managed_due_courses',
+        'label': 'Visible courses that are due or due soon',
+        'group': 'courses',
+    },
 ]
 
 TRIGGER_GROUPS = {
@@ -309,6 +355,8 @@ TRIGGER_GROUPS = {
     'feedback_comment_on_created': ['person', 'feedback', 'lists'],
     'feedback_status_changed': ['person', 'feedback', 'lists'],
     'wordpress_update_needed': ['person', 'wordpress', 'lists'],
+    'own_course_due': ['person', 'courses', 'lists'],
+    'managed_courses_due': ['person', 'courses', 'lists'],
 }
 
 
@@ -398,6 +446,16 @@ def _plain_truncated(value, limit=500):
     if len(text) > limit:
         return text[: limit - 3] + '...'
     return text
+
+
+class HtmlFragment:
+    """Already-sanitized HTML; not escaped again in HTML emails."""
+
+    def __init__(self, html=''):
+        self.html = html or ''
+
+    def __str__(self):
+        return self.html
 
 
 class TemplateList:
@@ -613,6 +671,45 @@ def list_unopened_tasks(user):
     return _task_list(unopened_tasks_for_user(user))
 
 
+def list_own_due_courses(employee):
+    headers = ['Course', 'Status', 'Due']
+    if employee is None:
+        return TemplateList(headers, [])
+    from apps.courses.services import attention_rows_for_employee
+
+    rows = []
+    items = attention_rows_for_employee(employee)
+    extra = max(0, len(items) - LIST_MAX_ROWS)
+    for item in items[:LIST_MAX_ROWS]:
+        rows.append((
+            item['course'].name,
+            item['label'],
+            _fmt_date(item['due_date']),
+        ))
+    if extra:
+        rows.append((f'… and {extra} more', '', ''))
+    return TemplateList(headers, rows)
+
+
+def list_managed_due_courses(user):
+    headers = ['Employee', 'Course', 'Status', 'Due']
+    from apps.courses.access import attention_rows_visible_to_user
+
+    items = attention_rows_visible_to_user(user)
+    rows = []
+    extra = max(0, len(items) - LIST_MAX_ROWS)
+    for item in items[:LIST_MAX_ROWS]:
+        rows.append((
+            _person_name(item['employee']),
+            item['course'].name,
+            item['label'],
+            _fmt_date(item['due_date']),
+        ))
+    if extra:
+        rows.append((f'… and {extra} more', '', '', ''))
+    return TemplateList(headers, rows)
+
+
 def list_wordpress_updates():
     from apps.hr.wordpress import list_wordpress_updates as _list
 
@@ -672,6 +769,11 @@ def resolve_param_list(kind, status, user, employee):
 def _render_value(value, *, html):
     if isinstance(value, TemplateList):
         return value.as_html() if html else value.as_text()
+    if isinstance(value, HtmlFragment):
+        if html:
+            return value.html
+        from django.utils.html import strip_tags
+        return ' '.join(strip_tags(value.html).split())
     rendered = '' if value is None else str(value)
     if html:
         rendered = escape(rendered)
@@ -689,6 +791,7 @@ def build_replacement_map(
     comment=None,
     feedback_item=None,
     wordpress_item=None,
+    course_item=None,
 ):
     first = getattr(user, 'first_name', '') or ''
     last = getattr(user, 'last_name', '') or ''
@@ -807,6 +910,13 @@ def build_replacement_map(
         'wordpress_site_url': '',
         'wordpress_reason': '',
         'wordpress_changed_fields': '',
+        'course_name': '',
+        'course_description': HtmlFragment(''),
+        'course_due_date': '',
+        'course_last_completed': '',
+        'course_status': '',
+        'course_employee_name': '',
+        'course_employee_number': '',
         'feedback_comment_author': '',
         'feedback_comment_text': '',
     }
@@ -912,6 +1022,24 @@ def build_replacement_map(
             (wordpress_item.get('changed_fields') or '') if isinstance(wordpress_item, dict) else ''
         )
 
+    if course_item is not None:
+        course = course_item.get('course') if isinstance(course_item, dict) else None
+        subject = course_item.get('employee') if isinstance(course_item, dict) else None
+        if course is not None:
+            values['course_name'] = course.name or ''
+            values['course_description'] = HtmlFragment(course.description or '')
+        values['course_due_date'] = _fmt_date(
+            course_item.get('due_date') if isinstance(course_item, dict) else None
+        )
+        values['course_last_completed'] = _fmt_date(
+            course_item.get('last_completed') if isinstance(course_item, dict) else None
+        )
+        values['course_status'] = (
+            (course_item.get('label') or '') if isinstance(course_item, dict) else ''
+        )
+        values['course_employee_name'] = _person_name(subject)
+        values['course_employee_number'] = getattr(subject, 'employee_number', '') or ''
+
     from apps.tasks.models import PERSONNEL_STATUSES, PURCHASE_STATUSES, RECRUITMENT_STATUSES
 
     values['purchase_orders'] = list_purchase_orders(user, employee)
@@ -923,6 +1051,8 @@ def build_replacement_map(
     values['ending_contracts'] = list_ending_contracts(employee)
     values['incomplete_chemical_items'] = list_incomplete_chemical_items(employee)
     values['wordpress_updates'] = list_wordpress_updates()
+    values['own_due_courses'] = list_own_due_courses(employee)
+    values['managed_due_courses'] = list_managed_due_courses(user)
     for status_key, _label in PURCHASE_STATUSES:
         values[f'purchase_orders_{status_key}'] = list_purchase_orders(
             user, employee, status=status_key

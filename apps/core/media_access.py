@@ -44,6 +44,8 @@ def user_can_access_stored_file(user, file_path: str) -> bool:
         return _finance_file(user, path)
     if path.startswith('holidays/'):
         return _holiday_file(user, path)
+    if path.startswith('course_certificates/'):
+        return _course_certificate_file(user, path)
 
     # Unknown prefixes: deny (no open media dump).
     return False
@@ -221,3 +223,15 @@ def _finance_file(user, path) -> bool:
 
 def _holiday_file(user, path) -> bool:
     return False
+
+
+def _course_certificate_file(user, path) -> bool:
+    from apps.courses.access import user_can_download_completion
+    from apps.courses.models import CourseCompletion
+
+    completion = CourseCompletion.objects.filter(certificate=path).select_related(
+        'course', 'employee',
+    ).first()
+    if not completion:
+        return False
+    return user_can_download_completion(user, completion)

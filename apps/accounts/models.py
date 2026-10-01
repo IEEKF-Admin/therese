@@ -81,6 +81,14 @@ class LoginPopupConfig(models.Model):
             'wordpress_update_needed',
             'WordPress: employee page needs an update or unpublish',
         ),
+        (
+            'own_course_due',
+            'Courses: own course is due or due soon',
+        ),
+        (
+            'managed_courses_due',
+            'Courses: a visible required course is due or due soon',
+        ),
     ]
 
     REACTION_CHOICES = [
@@ -103,6 +111,8 @@ class LoginPopupConfig(models.Model):
         ('approve_holidays', 'Approve Holidays'),
         ('team_holidays', 'Team Holidays'),
         ('bugs_features', 'Bugs & Features'),
+        ('my_courses', 'My Courses'),
+        ('course_lists', 'Course lists'),
     ]
 
     AUDIENCE_MATCH_CHOICES = [

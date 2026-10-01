@@ -9,6 +9,8 @@ from apps.checklists.access import (
 )
 from apps.documents.sidebar_notifications import documents_menu_needs_attention
 from apps.holidays.access import holidays_menu_needs_attention, user_can_approve_workgroup
+from apps.courses.access import courses_hub_needs_attention, user_can_access_hub as user_can_access_courses_hub
+from apps.courses.services import my_courses_needs_attention
 from apps.chemicals.features import chemicals_enabled
 from apps.inventory.features import inventory_enabled
 from apps.holidays.features import holiday_flags
@@ -35,6 +37,9 @@ def user_groups(request):
             'holiday_flags': flags,
             'holidays_menu_needs_attention': holidays_menu_needs_attention(request.user),
             'user_can_approve_holidays': flags['approval'] and user_can_approve_workgroup(request.user),
+            'my_courses_needs_attention': my_courses_needs_attention(request.user),
+            'user_can_access_courses_hub': user_can_access_courses_hub(request.user),
+            'courses_hub_needs_attention': courses_hub_needs_attention(request.user),
             'tasks_menu_needs_attention': tasks_menu_needs_attention(request.user),
             'wordpress_menu_needs_attention': _wordpress_menu_needs_attention(request.user),
             'chemicals_enabled': chemicals_enabled(),
@@ -52,6 +57,9 @@ def user_groups(request):
         'holiday_flags': {'module': False, 'planning': False, 'approval': False, 'gantt': False},
         'holidays_menu_needs_attention': False,
         'user_can_approve_holidays': False,
+        'my_courses_needs_attention': False,
+        'user_can_access_courses_hub': False,
+        'courses_hub_needs_attention': False,
         'tasks_menu_needs_attention': False,
         'wordpress_menu_needs_attention': False,
         'chemicals_enabled': False,

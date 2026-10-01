@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.name }} - Courses - THERESE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ course.name }}</h1>
+    <div class="page-header-actions">
+        <a href="{% url 'courses:hub' %}" class="btn-secondary">← Courses</a>
+    </div>
+</div>
+
+{% if not course.is_active %}
+<p class="field-hint">This course is inactive.</p>
+{% endif %}
+{% if course.description %}
+<div class="card" style="margin-bottom:1rem;">{{ course.description|safe }}</div>
+{% endif %}
+
+<div class="card list-panel">
+    <form method="get" class="search-toolbar" id="course-search-form" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        <input type="text" name="q" id="course-employee-search" class="form-control"
+               placeholder="Name, number…"
+               value="{{ search_query }}" style="flex:1; min-width:14rem;">
+        <button type="submit" class="btn-secondary">Search</button>
+        <div class="filter-chips" style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}"
+               class="btn-subtle{% if not status_filter %} is-active{% endif %}"
+               style="{% if not status_filter %}font-weight:600;{% endif %}">All</a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}status=due"
+               class="btn-subtle{% if status_filter == 'due' %} is-active{% endif %}"
+               style="{% if status_filter == 'due' %}font-weight:600;{% endif %}">Due</a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}status=warn"
+               class="btn-subtle{% if status_filter == 'warn' %} is-active{% endif %}"
+               style="{% if status_filter == 'warn' %}font-weight:600;{% endif %}">Due soon</a>
+            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}status=ok"
+               class="btn-subtle{% if status_filter == 'ok' %} is-active{% endif %}"
+               style="{% if status_filter == 'ok' %}font-weight:600;{% endif %}">Current</a>
+        </div>
+    </form>
+
+    <table class="table course-table">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Number</th>
+                <th>Status</th>
+                <th>Last completed</th>
+                <th>Due</th>
+                <th>Evidence</th>
+            </tr>
+        </thead>
+        <tbody id="course-table-body">
+            {% include "courses/_course_list_body.html" %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var input = document.getElementById('course-employee-search');
+    var body = document.getElementById('course-table-body');
+    if (!input || !body) return;
+    var timer = null;
+    var controller = null;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var params = new URLSearchParams(window.location.search);
+            params.set('q', input.value);
+            params.set('partial', '1');
+            if (controller) controller.abort();
+            controller = new AbortController();
+            fetch(window.location.pathname + '?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            }).then(function(res) { return res.text(); }).then(function(html) {
+                body.innerHTML = html;
+                var url = new URL(window.location.href);
+                if (input.value) url.searchParams.set('q', input.value);
+                else url.searchParams.delete('q');
+                url.searchParams.delete('partial');
+                history.replaceState(null, '', url.pathname + url.search);
+            }).catch(function(err) {
+                if (err.name !== 'AbortError') console.warn(err);
+            });
+        }, 180);
+    });
+})();
+</script>
+{% endblock %}

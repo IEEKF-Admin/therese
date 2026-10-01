@@ -64,13 +64,16 @@ def _run_due_scheduled_emails():
 def _run_due_contract_emails():
     from django.db import close_old_connections
 
-    from apps.accounts.trigger_emails import send_due_contract_emails
+    from apps.accounts.trigger_emails import send_due_contract_emails, send_due_course_emails
 
     close_old_connections()
     try:
         sent = send_due_contract_emails()
         if sent:
             logger.info('Contract-ending trigger emails sent: %s', sent)
+        sent_courses = send_due_course_emails()
+        if sent_courses:
+            logger.info('Course-due trigger emails sent: %s', sent_courses)
     except Exception:
         logger.exception('Scheduled contract-ending trigger emails failed')
     finally:

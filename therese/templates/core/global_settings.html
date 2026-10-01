@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load l10n %}
+{% load l10n static %}
 
 {% block title %}Global Settings - THERESE{% endblock %}
 
@@ -39,6 +39,7 @@
     <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
     <button type="button" class="settings-tab" data-tab="integrations">Integrations</button>
     <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
+    <button type="button" class="settings-tab" data-tab="courses">Courses</button>
     {% endif %}
     {% if can_manage_workflow %}
     <button type="button" class="settings-tab{% if not can_edit_global %} is-active{% endif %}" data-tab="workflow">Task Workflow</button>
@@ -631,10 +632,16 @@
     </div>
 </form>
 </div>
+
+<div class="card settings-tab-panel" data-panel="courses" style="display:none; margin-bottom:2rem;">
+    {% include "core/_settings_courses.html" %}
+</div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
+<link rel="stylesheet" href="{% static 'css/dual_list_select.css' %}">
+<script src="{% static 'js/dual_list_select.js' %}"></script>
 <style>
 .variable-chips { display:flex; flex-wrap:wrap; gap:0.35rem; }
 .variable-chip {
@@ -728,7 +735,13 @@ document.addEventListener('DOMContentLoaded', function() {
             panel.classList.toggle('is-active', match);
         });
         var path = window.location.pathname;
-        history.replaceState(null, '', path + (name ? '?tab=' + encodeURIComponent(name) : ''));
+        var qs = name ? ('?tab=' + encodeURIComponent(name)) : '';
+        if (name === 'courses') {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('edit')) qs += '&edit=' + encodeURIComponent(params.get('edit'));
+            if (params.get('new')) qs += '&new=' + encodeURIComponent(params.get('new'));
+        }
+        history.replaceState(null, '', path + qs);
     }
     tabs.forEach(function(tab) {
         tab.addEventListener('click', function() { showTab(tab.getAttribute('data-tab')); });
@@ -990,6 +1003,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (inp.classList.contains('wp-site-delete') || (inp.name && inp.name.endsWith('_id'))) return;
                 inp.disabled = true;
             });
+        });
+    })();
+    (function() {
+        var addBtn = document.getElementById('course-add-manager');
+        var tbody = document.getElementById('course-manager-rows');
+        if (!addBtn || !tbody) return;
+        addBtn.addEventListener('click', function() {
+            var next = 0;
+            tbody.querySelectorAll('tr[data-manager-index]').forEach(function(row) {
+                var n = parseInt(row.getAttribute('data-manager-index'), 10);
+                if (!isNaN(n) && n >= next) next = n + 1;
+            });
+            var proto = tbody.querySelector('tr[data-manager-index]');
+            if (!proto) return;
+            var tr = proto.cloneNode(true);
+            tr.setAttribute('data-manager-index', String(next));
+            tr.querySelectorAll('select').forEach(function(sel) {
+                var name = sel.getAttribute('name') || '';
+                sel.name = name.replace(/manager_\d+_/, 'manager_' + next + '_');
+                sel.selectedIndex = 0;
+            });
+            tbody.appendChild(tr);
+        });
+        tbody.addEventListener('click', function(event) {
+            var btn = event.target.closest('.course-remove-manager');
+            if (!btn) return;
+            var rows = tbody.querySelectorAll('tr[data-manager-index]');
+            if (rows.length <= 1) {
+                var row = btn.closest('tr');
+                if (row) row.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
+                return;
+            }
+            btn.closest('tr').remove();
         });
     })();
 });

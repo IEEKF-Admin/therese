@@ -99,6 +99,7 @@ def deliver_trigger_email(config, user, employee, reference_key, **context):
         comment=context.get('comment'),
         feedback_item=context.get('feedback_item'),
         wordpress_item=context.get('wordpress_item'),
+        course_item=context.get('course_item'),
     )
     subject = render_placeholders(
         config.email_subject or config.name,
@@ -180,6 +181,7 @@ def send_login_time_trigger_emails(user, employee=None):
             deliver_trigger_email(config, user, employee, 'global')
 
     send_due_contract_emails_for_user(user, employee)
+    send_due_course_emails_for_user(user, employee)
 
 
 def notify_audience(trigger, reference_key, **context):
@@ -509,3 +511,76 @@ def send_due_contract_emails():
                 ):
                     sent += 1
     return sent
+
+
+def send_due_course_emails_for_user(user, employee=None):
+    """Send due/warn course emails to this user (own + managed)."""
+    if user is None:
+        return 0
+    sent = 0
+    if employee is not None:
+        from apps.courses.services import attention_reference_key, attention_rows_for_employee
+
+        rows = attention_rows_for_employee(employee)
+        for config in enabled_email_configs('own_course_due'):
+            for row in rows:
+                if deliver_trigger_email(
+                    config,
+                    user,
+                    employee,
+                    attention_reference_key(row, managed=False),
+                    course_item=row,
+                ):
+                    sent += 1
+    from apps.courses.access import attention_rows_visible_to_user, user_can_access_hub
+    from apps.courses.services import attention_reference_key
+
+    if user_can_access_hub(user):
+        rows = attention_rows_visible_to_user(user)
+        for config in enabled_email_configs('managed_courses_due'):
+            for row in rows:
+                if deliver_trigger_email(
+                    config,
+                    user,
+                    employee,
+                    attention_reference_key(row, managed=True),
+                    course_item=row,
+                ):
+                    sent += 1
+    return sent
+
+
+def send_due_course_emails():
+    """Send for courses currently warn/due (e.g. hourly scheduler / daily command)."""
+    from apps.accounts.models import CustomUser
+    from apps.courses.access import attention_rows_visible_to_user, user_can_access_hub
+    from apps.courses.services import attention_reference_key, attention_rows_for_employee
+
+    sent = 0
+    own_configs = enabled_email_configs('own_course_due')
+    managed_configs = enabled_email_configs('managed_courses_due')
+    if not own_configs and not managed_configs:
+        return 0
+    users = list(CustomUser.objects.filter(is_active=True))
+    if own_configs:
+        for user in users:
+            employee = _employee_of(user)
+            if employee is None:
+                continue
+            for row in attention_rows_for_employee(employee):
+                key = attention_reference_key(row, managed=False)
+                for config in own_configs:
+                    if deliver_trigger_email(config, user, employee, key, course_item=row):
+                        sent += 1
+    if managed_configs:
+        for user in users:
+            if not user_can_access_hub(user):
+                continue
+            employee = _employee_of(user)
+            for row in attention_rows_visible_to_user(user):
+                key = attention_reference_key(row, managed=True)
+                for config in managed_configs:
+                    if deliver_trigger_email(config, user, employee, key, course_item=row):
+                        sent += 1
+    return sent
+

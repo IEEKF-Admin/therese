@@ -3481,3 +3481,41 @@ div.year-estimate-row {
     object-fit: cover;
 }
 
+.course-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 1rem;
+}
+.course-hub-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 1rem 1.1rem;
+}
+.course-hub-card h2 {
+    margin: 0 0 0.4rem;
+    font-size: 1.05rem;
+}
+.course-hub-total { color: #64748b; margin: 0.35rem 0; }
+.course-hub-counts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; }
+.course-status {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+}
+.course-status-ok { background: #dcfce7; color: #166534; }
+.course-status-warn { background: #fef3c7; color: #92400e; }
+.course-status-due { background: #fee2e2; color: #991b1b; }
+.course-row-due { background: #fef2f2; }
+.course-row-warn { background: #fffbeb; }
+.course-description { color: #475569; font-size: 0.88rem; margin-top: 0.35rem; }
+.course-record-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+.course-record-form .form-control { width: auto; max-width: 12rem; }
+

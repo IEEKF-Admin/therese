@@ -150,6 +150,7 @@ def global_settings(request):
     custom_qs = HolidayCustomDay.objects.order_by('day')
 
     posted_tab = ''
+    course_save_result = None
     settings_url = reverse('core_settings:global_settings')
     if request.method == 'POST':
         if not can_edit_global:
@@ -159,7 +160,21 @@ def global_settings(request):
             save_account_email_templates_from_post(request.POST, request.FILES)
             messages.success(request, 'Account email templates were saved.')
             return redirect(settings_url + '?tab=emails')
-        tab = SETTINGS_TAB_ACTIONS.get(action)
+        if action == 'save_courses':
+            from apps.courses.settings_save import save_courses_from_post
+
+            result = save_courses_from_post(request)
+            if result.ok:
+                messages.success(request, result.message)
+                if result.instance:
+                    return redirect(settings_url + f'?tab=courses&edit={result.instance.pk}')
+                return redirect(settings_url + '?tab=courses')
+            posted_tab = 'courses'
+            course_save_result = result
+            messages.error(request, result.message or 'Please correct the course form.')
+            custom_formset = HolidayCustomDayFormSet(queryset=custom_qs)
+            # Fall through to render with bound form errors.
+        tab = SETTINGS_TAB_ACTIONS.get(action) if action != 'save_courses' else None
         if tab:
             posted_tab = tab
             TabForm = global_setting_form_class(tab)
@@ -225,7 +240,7 @@ def global_settings(request):
     requested_tab = posted_tab or (request.GET.get('tab') or '').strip()
     allowed_tabs = {
         'general', 'personnel', 'chemicals', 'inventory', 'holidays', 'emails',
-        'integrations',
+        'integrations', 'courses',
     }
     if requested_tab == 'workflow' and can_manage_workflow:
         settings_default_tab = 'workflow'
@@ -238,9 +253,39 @@ def global_settings(request):
     from apps.holidays.mail import HOLIDAY_EMAIL_VARIABLES
     from apps.core.google_calendar import service_account_configured, service_account_email
     from apps.core.mail import mail_params
-    from apps.hr.models import Workgroup
+    from apps.hr.models import Employee, Workgroup
+    from apps.courses.forms import CourseForm
+    from apps.courses.models import Course, CourseManager
+    from apps.courses.settings_save import manager_rows_from_course
 
     smtp = mail_params(setting)
+    course_form = None
+    course_instance = None
+    course_manager_rows = [{'employee_id': '', 'scope': CourseManager.Scope.WORKGROUP}]
+    course_form_open = False
+    if can_edit_global:
+        if course_save_result is not None and course_save_result.form is not None:
+            course_form = course_save_result.form
+            course_instance = course_save_result.instance
+            course_manager_rows = course_save_result.manager_rows or course_manager_rows
+            course_form_open = True
+        elif settings_default_tab == 'courses':
+            if request.GET.get('new') == '1':
+                course_form = CourseForm()
+                course_form_open = True
+            else:
+                edit_id = (request.GET.get('edit') or '').strip()
+                if edit_id:
+                    course_instance = Course.objects.filter(pk=edit_id).first()
+                    if course_instance:
+                        course_form = CourseForm(instance=course_instance)
+                        course_manager_rows = manager_rows_from_course(course_instance)
+                        course_form_open = True
+    courses_list = Course.objects.order_by('name') if can_edit_global else Course.objects.none()
+    course_manager_employees = (
+        Employee.objects.visible().order_by('last_name', 'first_name')
+        if can_edit_global else Employee.objects.none()
+    )
     return render(request, 'core/global_settings.html', {
         'form': form,
         'setting': setting,
@@ -266,6 +311,13 @@ def global_settings(request):
         'smtp_password_configured': bool((setting.smtp_password or '').strip()),
         'workgroups': Workgroup.objects.order_by('short_name'),
         'wordpress_sites': _wordpress_site_rows(),
+        'courses_list': courses_list,
+        'course_form': course_form,
+        'course_instance': course_instance,
+        'course_form_open': course_form_open,
+        'course_manager_rows': course_manager_rows,
+        'course_manager_employees': course_manager_employees,
+        'course_manager_scopes': CourseManager.Scope.choices,
     })
 
 

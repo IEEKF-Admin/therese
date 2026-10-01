@@ -1,0 +1,10 @@
+<form method="post" action="{% url 'courses:record' course.pk %}" enctype="multipart/form-data" class="course-record-form">
+    {% csrf_token %}
+    <input type="hidden" name="employee_id" value="{{ employee.pk }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <input type="date" name="completed_on" value="{{ today_iso }}" max="{{ today_iso }}" required class="form-control">
+    {% if course.evidence_type == 'certificate' %}
+    <input type="file" name="certificate" accept="application/pdf,.pdf" required class="form-control">
+    {% endif %}
+    <button type="submit" class="btn-secondary">{% if row.completion %}Replace{% else %}Record{% endif %}</button>
+</form>

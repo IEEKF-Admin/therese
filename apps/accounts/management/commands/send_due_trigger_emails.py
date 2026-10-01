@@ -6,7 +6,11 @@ Run daily, e.g. from Windows Task Scheduler:
 
 from django.core.management.base import BaseCommand
 
-from apps.accounts.trigger_emails import send_due_contract_emails, send_due_scheduled_emails
+from apps.accounts.trigger_emails import (
+    send_due_contract_emails,
+    send_due_course_emails,
+    send_due_scheduled_emails,
+)
 
 
 class Command(BaseCommand):
@@ -21,10 +25,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         scheduled = send_due_scheduled_emails()
         contracts = send_due_contract_emails()
-        sent = scheduled + contracts
+        courses = send_due_course_emails()
+        sent = scheduled + contracts + courses
         self.stdout.write(
             self.style.SUCCESS(
                 f'Sent {sent} due trigger email(s) '
-                f'({scheduled} scheduled, {contracts} contract-ending).'
+                f'({scheduled} scheduled, {contracts} contract-ending, '
+                f'{courses} course-due).'
             )
         )

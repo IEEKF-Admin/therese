@@ -67,6 +67,9 @@ class GroupNames:
     HOLIDAY_APPROVER = "Holiday Approver"
     HOLIDAY_SUPER_APPROVER = "Holiday Super Approver"
 
+    COURSES_SEE_LISTS_INSTITUTE = "Courses - See lists (institute)"
+    COURSES_SEE_LISTS_WORKGROUP = "Courses - See lists (workgroup)"
+
     INVENTORY_VIEW_OWN = "Inventory - View Own"
     INVENTORY_VIEW_ALL = "Inventory - View All"
     INVENTORY_MANAGE = "Inventory - Manage"
@@ -112,6 +115,8 @@ NEW_GROUPS = [
     GroupNames.SYSTEMADMIN,
     GroupNames.HOLIDAY_APPROVER,
     GroupNames.HOLIDAY_SUPER_APPROVER,
+    GroupNames.COURSES_SEE_LISTS_INSTITUTE,
+    GroupNames.COURSES_SEE_LISTS_WORKGROUP,
     GroupNames.INVENTORY_VIEW_OWN,
     GroupNames.INVENTORY_VIEW_ALL,
     GroupNames.INVENTORY_MANAGE,
@@ -329,6 +334,10 @@ def assign_permissions_to_groups():
         from apps.holidays.models import HolidayRequest
     except Exception:
         HolidayRequest = None
+    try:
+        from apps.courses.models import Course
+    except Exception:
+        Course = None
 
     # Ensure groups exist first (in case assign is called standalone)
     get_or_create_default_groups()
@@ -446,6 +455,12 @@ def assign_permissions_to_groups():
         approve_all_h = get_perm('approve_all_holiday', HolidayRequest)
         safe_add(GroupNames.HOLIDAY_APPROVER, approve_wg_h)
         safe_add(GroupNames.HOLIDAY_SUPER_APPROVER, approve_wg_h, approve_all_h)
+
+    if Course is not None:
+        view_inst_courses = get_perm('view_institute_course_lists', Course)
+        view_wg_courses = get_perm('view_workgroup_course_lists', Course)
+        safe_add(GroupNames.COURSES_SEE_LISTS_INSTITUTE, view_inst_courses)
+        safe_add(GroupNames.COURSES_SEE_LISTS_WORKGROUP, view_wg_courses)
 
     reset_password = get_perm('reset_user_password', CustomUser)
     safe_add(GroupNames.SYSTEMADMIN, reset_password)

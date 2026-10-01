@@ -1,0 +1,23 @@
+{% for row in rows %}
+<tr class="course-row course-row-{{ row.status }}">
+    <td>{{ row.employee.get_full_name }}</td>
+    <td>{{ row.employee.employee_number|default:"—" }}</td>
+    <td><span class="course-status course-status-{{ row.status }}">{{ row.label }}</span></td>
+    <td>
+        {% if row.last_completed %}{{ row.last_completed|date:"d.m.Y" }}{% else %}—{% endif %}
+        {% if row.completion and row.completion.certificate %}
+        <div><a href="{{ row.completion.certificate.url }}" target="_blank" rel="noopener">Certificate</a></div>
+        {% endif %}
+    </td>
+    <td>{% if row.due_date %}{{ row.due_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+    <td>
+        {% if row.can_write %}
+        {% include "courses/_record_form.html" with course=course employee=row.employee next_url=request.path %}
+        {% else %}
+        —
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr><td colspan="6" class="text-muted">No matching employees.</td></tr>
+{% endfor %}

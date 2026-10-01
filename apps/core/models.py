@@ -416,10 +416,7 @@ class GlobalSetting(models.Model):
         blank=True,
         default='',
         verbose_name='SMTP host',
-        help_text=(
-            'e.g. smtp.strato.de. A non-empty EMAIL_HOST in .env overrides '
-            'all SMTP fields here.'
-        ),
+        help_text='e.g. smtp.strato.de.',
     )
     smtp_port = models.PositiveIntegerField(
         default=465,

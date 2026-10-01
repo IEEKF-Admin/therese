@@ -37,6 +37,7 @@
     <button type="button" class="settings-tab" data-tab="chemicals">Chemicals</button>
     <button type="button" class="settings-tab" data-tab="inventory">Inventory</button>
     <button type="button" class="settings-tab" data-tab="holidays">Holidays</button>
+    <button type="button" class="settings-tab" data-tab="smtp">SMTP</button>
     <button type="button" class="settings-tab" data-tab="integrations">Integrations</button>
     <button type="button" class="settings-tab" data-tab="emails">Account emails</button>
     <button type="button" class="settings-tab" data-tab="courses">Courses</button>
@@ -326,22 +327,16 @@
     </form>
 </div>
 
-<div class="card settings-tab-panel" data-panel="integrations" style="display:none; margin-bottom:2rem;">
+<div class="card settings-tab-panel" data-panel="smtp" style="display:none; margin-bottom:2rem;">
     <form method="post">
         {% csrf_token %}
-        <input type="hidden" name="action" value="save_integrations">
+        <input type="hidden" name="action" value="save_smtp">
         <div class="form-section">
             <h3>Outbound email (SMTP)</h3>
             <p class="field-hint">
                 Used for test mail, account emails, holidays, and Sympa owner commands.
                 The From address must be a Sympa list owner.
             </p>
-            {% if smtp_env_override %}
-            <div class="alert alert-warning" style="margin:0.75rem 0;">
-                A non-empty <code>EMAIL_HOST</code> in <code>.env</code> overrides
-                these SMTP fields. Clear it to use the values saved here.
-            </div>
-            {% endif %}
             {% include "core/_settings_field.html" with field=form.smtp_host %}
             {% include "core/_settings_field.html" with field=form.smtp_port %}
             {% include "core/_settings_field.html" with field=form.smtp_use_ssl %}
@@ -353,6 +348,16 @@
             {% endif %}
             {% include "core/_settings_field.html" with field=form.smtp_from_email %}
         </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save SMTP</button>
+        </div>
+    </form>
+</div>
+
+<div class="card settings-tab-panel" data-panel="integrations" style="display:none; margin-bottom:2rem;">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_integrations">
         <div class="form-section">
             <h3>Google Calendar</h3>
             <p class="field-hint">

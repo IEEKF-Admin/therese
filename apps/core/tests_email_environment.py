@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from apps.accounts.models import CustomUser
 from apps.accounts.permissions import GroupNames, assign_permissions_to_groups, get_or_create_default_groups
-from apps.core.mail import mail_params
+from apps.core.mail import mail_params, smtp_security
 from apps.core.models import GlobalSetting
 
 
@@ -29,18 +29,20 @@ class EmailEnvironmentPageTests(TestCase):
         self.denied = _ready_user('mail-denied')
 
     def test_group_can_open_page_and_password_is_hidden(self):
+        GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'smtp_host': 'smtp.example.org',
+                'smtp_user': 'noreply@example.org',
+                'smtp_password': 'super-secret-password',
+                'smtp_from_email': 'noreply@example.org',
+            },
+        )
         self.client.login(username='mail-admin', password='test')
-        with override_settings(
-            EMAIL_HOST='smtp.example.org',
-            EMAIL_HOST_USER='noreply@example.org',
-            EMAIL_HOST_PASSWORD='super-secret-password',
-            DEFAULT_FROM_EMAIL='noreply@example.org',
-        ):
-            response = self.client.get(reverse('core_settings:messaging'))
+        response = self.client.get(reverse('core_settings:messaging'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Messaging')
-        self.assertContains(response, 'EMAIL_HOST')
-        self.assertContains(response, '.env.example')
+        self.assertContains(response, 'Global Settings → SMTP')
         self.assertContains(response, 'Configured (value hidden)')
         self.assertNotContains(response, 'super-secret-password')
         self.assertContains(response, 'New task assigned to the user')
@@ -74,7 +76,7 @@ class EmailEnvironmentPageTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(len(mail.outbox), 0)
 
-    def test_status_uses_db_when_env_host_empty(self):
+    def test_status_uses_global_settings(self):
         GlobalSetting.objects.update_or_create(
             pk=1,
             defaults={
@@ -88,16 +90,10 @@ class EmailEnvironmentPageTests(TestCase):
             },
         )
         self.client.login(username='mail-admin', password='test')
-        with override_settings(
-            EMAIL_HOST='',
-            EMAIL_HOST_USER='',
-            EMAIL_HOST_PASSWORD='',
-            DEFAULT_FROM_EMAIL='',
-        ):
-            response = self.client.get(reverse('core_settings:messaging'))
+        response = self.client.get(reverse('core_settings:messaging'))
         self.assertContains(response, 'smtp.db.example')
         self.assertContains(response, 'from-db@example.org')
-        self.assertContains(response, 'Global Settings')
+        self.assertContains(response, 'Global Settings → SMTP')
         self.assertNotContains(response, 'db-secret')
 
     def test_old_email_environment_url_redirects(self):
@@ -108,7 +104,7 @@ class EmailEnvironmentPageTests(TestCase):
 
 
 class MailParamsTests(TestCase):
-    def test_env_host_overrides_db(self):
+    def test_env_host_does_not_override_db(self):
         GlobalSetting.objects.update_or_create(
             pk=1,
             defaults={
@@ -127,12 +123,12 @@ class MailParamsTests(TestCase):
             DEFAULT_FROM_EMAIL='from-env@example.org',
         ):
             params = mail_params()
-        self.assertEqual(params['source'], 'env')
-        self.assertEqual(params['host'], 'smtp.env.example')
-        self.assertEqual(params['from_email'], 'from-env@example.org')
-        self.assertEqual(params['password'], 'env-secret')
+        self.assertEqual(params['source'], 'db')
+        self.assertEqual(params['host'], 'smtp.db.example')
+        self.assertEqual(params['from_email'], 'from-db@example.org')
+        self.assertEqual(params['password'], 'db-secret')
 
-    def test_db_used_when_env_host_empty(self):
+    def test_db_used(self):
         setting = GlobalSetting.objects.update_or_create(
             pk=1,
             defaults={
@@ -145,11 +141,27 @@ class MailParamsTests(TestCase):
                 'smtp_password': 'db-secret',
             },
         )[0]
-        with override_settings(EMAIL_HOST='', DEFAULT_FROM_EMAIL='noreply@localhost'):
-            params = mail_params(setting)
+        params = mail_params(setting)
         self.assertEqual(params['source'], 'db')
         self.assertEqual(params['host'], 'smtp.db.example')
         self.assertEqual(params['port'], 587)
         self.assertEqual(params['from_email'], 'from-db@example.org')
         self.assertTrue(params['use_tls'])
         self.assertFalse(params['use_ssl'])
+
+    def test_port_587_with_ssl_flag_uses_starttls(self):
+        setting = GlobalSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                'smtp_host': 'smtp.db.example',
+                'smtp_port': 587,
+                'smtp_use_ssl': True,
+                'smtp_use_tls': False,
+                'smtp_from_email': 'from-db@example.org',
+            },
+        )[0]
+        params = mail_params(setting)
+        self.assertFalse(params['use_ssl'])
+        self.assertTrue(params['use_tls'])
+        self.assertEqual(smtp_security(465, False, True), (True, False))
+        self.assertEqual(smtp_security(25, True, False), (False, True))

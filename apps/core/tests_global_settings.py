@@ -54,6 +54,7 @@ class GlobalSettingsViewTests(TestCase):
         self.assertContains(response, 'Chemicals module')
         self.assertContains(response, 'Inventory module')
         self.assertContains(response, 'Integrations')
+        self.assertContains(response, 'SMTP')
         self.assertContains(response, 'Outbound email (SMTP)')
         self.assertContains(response, 'Google Calendar sharing')
         self.assertContains(response, 'Google service account JSON key')
@@ -100,12 +101,16 @@ class GlobalSettingsViewTests(TestCase):
             '"private_key":"-----BEGIN PRIVATE KEY-----\\nnot-a-real-key\\n-----END PRIVATE KEY-----\\n"}'
         )
         posted = self.client.post(url, {
-            'action': 'save_integrations',
+            'action': 'save_smtp',
             'smtp_host': 'smtp.example.org',
             'smtp_port': '465',
             'smtp_use_ssl': 'on',
             'smtp_user': 'noreply@example.org',
             'smtp_from_email': 'noreply@example.org',
+        })
+        self.assertEqual(posted.status_code, 302)
+        posted = self.client.post(url, {
+            'action': 'save_integrations',
             'google_calendar_enabled': 'on',
             'google_calendar_id': 'institute@group.calendar.google.com',
             'google_service_account_json': sa_json,
@@ -128,10 +133,6 @@ class GlobalSettingsViewTests(TestCase):
         self.assertEqual(setting.sympa_robot, 'sympa@listen.uni-bonn.de')
         posted = self.client.post(url, {
             'action': 'save_integrations',
-            'smtp_host': 'smtp.example.org',
-            'smtp_port': '465',
-            'smtp_use_ssl': 'on',
-            'smtp_from_email': 'noreply@example.org',
             'google_calendar_id': 'institute@group.calendar.google.com',
             'google_service_account_json': '',
             'sympa_robot': 'sympa@listen.uni-bonn.de',
@@ -141,6 +142,7 @@ class GlobalSettingsViewTests(TestCase):
         setting = GlobalSetting.get_solo()
         self.assertFalse(setting.google_calendar_enabled)
         self.assertFalse(setting.sympa_enabled)
+        self.assertEqual(setting.smtp_host, 'smtp.example.org')
         self.assertEqual(setting.google_service_account_json, sa_json)
         self.assertEqual(
             setting.google_service_account_email,
@@ -148,8 +150,6 @@ class GlobalSettingsViewTests(TestCase):
         )
         posted = self.client.post(url, {
             'action': 'save_integrations',
-            'smtp_port': '465',
-            'smtp_use_ssl': 'on',
             'google_calendar_id': 'institute@group.calendar.google.com',
             'google_service_account_json': '{not-json',
         })
@@ -238,7 +238,7 @@ class GlobalSettingsViewTests(TestCase):
         GlobalSetting.objects.filter(pk=1).update(smtp_password='keep-me')
         url = reverse('core_settings:global_settings')
         posted = self.client.post(url, {
-            'action': 'save_integrations',
+            'action': 'save_smtp',
             'smtp_host': 'smtp.example.org',
             'smtp_port': '465',
             'smtp_use_ssl': 'on',
@@ -250,21 +250,36 @@ class GlobalSettingsViewTests(TestCase):
         setting = GlobalSetting.get_solo()
         self.assertEqual(setting.smtp_host, 'smtp.example.org')
         self.assertEqual(setting.smtp_password, 'keep-me')
-        response = self.client.get(url + '?tab=integrations')
+        response = self.client.get(url + '?tab=smtp')
         self.assertNotContains(response, 'keep-me')
 
     def test_smtp_rejects_ssl_and_starttls_together(self):
         self.client.login(username='sysadmin-gs', password='test')
         posted = self.client.post(reverse('core_settings:global_settings'), {
-            'action': 'save_integrations',
+            'action': 'save_smtp',
             'smtp_host': 'smtp.example.org',
-            'smtp_port': '465',
+            'smtp_port': '2525',
             'smtp_use_ssl': 'on',
             'smtp_use_tls': 'on',
             'smtp_from_email': 'noreply@example.org',
         })
         self.assertEqual(posted.status_code, 200)
         self.assertContains(posted, 'SMTP SSL and STARTTLS cannot both be on')
+
+    def test_smtp_port_587_saves_as_starttls(self):
+        self.client.login(username='sysadmin-gs', password='test')
+        posted = self.client.post(reverse('core_settings:global_settings'), {
+            'action': 'save_smtp',
+            'smtp_host': 'smtp.example.org',
+            'smtp_port': '587',
+            'smtp_use_ssl': 'on',
+            'smtp_from_email': 'noreply@example.org',
+        })
+        self.assertEqual(posted.status_code, 302)
+        setting = GlobalSetting.get_solo()
+        self.assertEqual(setting.smtp_port, 587)
+        self.assertFalse(setting.smtp_use_ssl)
+        self.assertTrue(setting.smtp_use_tls)
 
     def test_systemadmin_sees_workflow_tab(self):
         self.client.login(username='sysadmin-gs', password='test')

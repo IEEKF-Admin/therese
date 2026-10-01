@@ -344,21 +344,13 @@
             </tr>
             <tr>
                 <th>Source</th>
-                <td>
-                    {% if smtp_status.source == 'env' %}
-                    <code>.env</code> (<code>EMAIL_HOST</code> overrides Global Settings)
-                    {% else %}
-                    Global Settings → Integrations
-                    {% endif %}
-                </td>
+                <td>Global Settings → SMTP</td>
             </tr>
         </tbody>
     </table>
     <p style="color:#64748b; margin-top:0.75rem;">
-        Configure SMTP under Global Settings → Integrations. A non-empty
-        <code>EMAIL_HOST</code> in <code>.env</code> overrides that block.
-        Template: <code>.env.example</code>. Restart after changing <code>.env</code>.
-        <small class="field-hint-de" style="display:block;">Passwörter nur in der lokalen .env oder in Global Settings, niemals im Repository.</small>
+        Configure SMTP under Global Settings → SMTP.
+        <small class="field-hint-de" style="display:block;">Passwörter nur in Global Settings, niemals im Repository.</small>
     </p>
 </div>
 
@@ -376,28 +368,6 @@
             <button type="submit" class="btn-primary">Send test email</button>
         </div>
     </form>
-</div>
-
-<div class="card">
-    <h3 style="margin-bottom:0.75rem;">.env variables</h3>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Example (not a real secret)</th>
-                <th>Meaning</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for item in smtp_variables %}
-            <tr>
-                <td><code>{{ item.name }}</code></td>
-                <td><code>{{ item.example }}</code></td>
-                <td>{{ item.description }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
 </div>
 {% endif %}
 {% endblock %}

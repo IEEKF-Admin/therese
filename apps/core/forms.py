@@ -38,7 +38,7 @@ SETTINGS_TAB_FIELDS = {
         'holiday_cancel_email_subject',
         'holiday_cancel_email_html',
     ],
-    'integrations': [
+    'smtp': [
         'smtp_host',
         'smtp_port',
         'smtp_use_ssl',
@@ -46,6 +46,8 @@ SETTINGS_TAB_FIELDS = {
         'smtp_user',
         'smtp_password',
         'smtp_from_email',
+    ],
+    'integrations': [
         'google_calendar_enabled',
         'google_calendar_id',
         'google_service_account_json',
@@ -217,12 +219,25 @@ class GlobalSettingForm(forms.ModelForm):
             self.initial['smtp_password'] = ''
 
     def clean(self):
+        from apps.core.mail import smtp_security
+
         cleaned = super().clean()
-        if cleaned.get('smtp_use_ssl') and cleaned.get('smtp_use_tls'):
+        if 'smtp_port' not in self.fields:
+            return cleaned
+        try:
+            port = int(cleaned.get('smtp_port') or 0)
+        except (TypeError, ValueError):
+            port = 0
+        use_ssl, use_tls = smtp_security(
+            port, cleaned.get('smtp_use_ssl'), cleaned.get('smtp_use_tls'),
+        )
+        if port not in (25, 465, 587) and cleaned.get('smtp_use_ssl') and cleaned.get('smtp_use_tls'):
             raise forms.ValidationError(
                 'SMTP SSL and STARTTLS cannot both be on. Use SSL for port 465 '
                 'or STARTTLS for port 587.'
             )
+        cleaned['smtp_use_ssl'] = use_ssl
+        cleaned['smtp_use_tls'] = use_tls
         return cleaned
 
     def clean_smtp_password(self):

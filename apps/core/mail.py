@@ -1,44 +1,48 @@
-"""Outbound mail helpers. SMTP comes from Global Settings; non-empty EMAIL_HOST in .env wins."""
+"""Outbound mail helpers. SMTP comes from Global Settings only."""
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
 from django.utils.html import strip_tags
 
 
-def _env_host() -> str:
-    return (getattr(settings, 'EMAIL_HOST', '') or '').strip()
+def smtp_security(port, use_ssl, use_tls) -> tuple[bool, bool]:
+    """Implicit SSL on 587/25 yields SSL WRONG_VERSION_NUMBER; match flags to the port."""
+    try:
+        port = int(port or 0)
+    except (TypeError, ValueError):
+        port = 0
+    use_ssl = bool(use_ssl)
+    use_tls = bool(use_tls)
+    if port == 465:
+        return True, False
+    if port in (25, 587):
+        return False, True
+    if use_ssl and use_tls:
+        return True, False
+    return use_ssl, use_tls
 
 
 def mail_params(setting=None) -> dict:
-    """Effective SMTP settings. A non-empty EMAIL_HOST in .env overrides the database."""
-    if _env_host():
-        password = getattr(settings, 'EMAIL_HOST_PASSWORD', '') or ''
-        return {
-            'host': _env_host(),
-            'port': int(getattr(settings, 'EMAIL_PORT', 465) or 465),
-            'username': (getattr(settings, 'EMAIL_HOST_USER', '') or '').strip(),
-            'password': password,
-            'use_ssl': bool(getattr(settings, 'EMAIL_USE_SSL', False)),
-            'use_tls': bool(getattr(settings, 'EMAIL_USE_TLS', False)),
-            'from_email': (
-                (getattr(settings, 'DEFAULT_FROM_EMAIL', '') or '').strip()
-                or (getattr(settings, 'EMAIL_HOST_USER', '') or '').strip()
-            ),
-            'source': 'env',
-        }
+    """Effective SMTP settings from Global Settings."""
     if setting is None:
         from apps.core.models import GlobalSetting
 
         setting = GlobalSetting.get_solo()
     username = (getattr(setting, 'smtp_user', '') or '').strip()
     from_email = (getattr(setting, 'smtp_from_email', '') or '').strip() or username
+    port = int(getattr(setting, 'smtp_port', 465) or 465)
+    use_ssl, use_tls = smtp_security(
+        port,
+        getattr(setting, 'smtp_use_ssl', True),
+        getattr(setting, 'smtp_use_tls', False),
+    )
     return {
         'host': (getattr(setting, 'smtp_host', '') or '').strip(),
-        'port': int(getattr(setting, 'smtp_port', 465) or 465),
+        'port': port,
         'username': username,
         'password': getattr(setting, 'smtp_password', '') or '',
-        'use_ssl': bool(getattr(setting, 'smtp_use_ssl', True)),
-        'use_tls': bool(getattr(setting, 'smtp_use_tls', False)),
+        'use_ssl': use_ssl,
+        'use_tls': use_tls,
         'from_email': from_email,
         'source': 'db',
     }

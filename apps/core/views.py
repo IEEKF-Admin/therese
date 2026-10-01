@@ -19,60 +19,6 @@ class TestEmailForm(forms.Form):
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'name@example.org'}),
     )
 
-EMAIL_ENV_VARIABLES = [
-    {
-        'name': 'EMAIL_BACKEND',
-        'example': 'django.core.mail.backends.smtp.EmailBackend',
-        'description': (
-            'Django mail backend. Use the SMTP backend in production. '
-            'Leave EMAIL_HOST empty to print messages to the server log instead.'
-        ),
-    },
-    {
-        'name': 'EMAIL_HOST',
-        'example': 'smtp.strato.de',
-        'description': (
-            'SMTP hostname. A non-empty value overrides SMTP in '
-            'Global Settings → Integrations.'
-        ),
-    },
-    {
-        'name': 'EMAIL_PORT',
-        'example': '465',
-        'description': 'SMTP port. Strato documents 465 with SSL/TLS.',
-    },
-    {
-        'name': 'EMAIL_USE_SSL',
-        'example': 'True',
-        'description': 'Use implicit TLS (typical for port 465). Mutually exclusive with EMAIL_USE_TLS.',
-    },
-    {
-        'name': 'EMAIL_USE_TLS',
-        'example': 'False',
-        'description': 'Use STARTTLS (typical for port 587). Keep False when EMAIL_USE_SSL is True.',
-    },
-    {
-        'name': 'EMAIL_HOST_USER',
-        'example': 'noreply@example.org',
-        'description': 'SMTP username. For Strato this is the full mailbox address.',
-    },
-    {
-        'name': 'EMAIL_HOST_PASSWORD',
-        'example': '(set only in the local .env file, never in git)',
-        'description': 'SMTP password. Stored only in .env on the server. Never shown in this UI.',
-    },
-    {
-        'name': 'DEFAULT_FROM_EMAIL',
-        'example': 'noreply@example.org',
-        'description': 'From address used by THERESE. Should match the SMTP mailbox.',
-    },
-    {
-        'name': 'SERVER_EMAIL',
-        'example': 'noreply@example.org',
-        'description': 'Optional. Address for error mails from the server. Defaults to DEFAULT_FROM_EMAIL.',
-    },
-]
-
 
 @login_required
 def serve_stored_file(request, file_path):
@@ -240,7 +186,7 @@ def global_settings(request):
     requested_tab = posted_tab or (request.GET.get('tab') or '').strip()
     allowed_tabs = {
         'general', 'personnel', 'chemicals', 'inventory', 'holidays', 'emails',
-        'integrations', 'courses',
+        'smtp', 'integrations', 'courses',
     }
     if requested_tab == 'workflow' and can_manage_workflow:
         settings_default_tab = 'workflow'
@@ -252,13 +198,11 @@ def global_settings(request):
         settings_default_tab = 'workflow'
     from apps.holidays.mail import HOLIDAY_EMAIL_VARIABLES
     from apps.core.google_calendar import service_account_configured, service_account_email
-    from apps.core.mail import mail_params
     from apps.hr.models import Employee, Workgroup
     from apps.courses.forms import CourseForm
     from apps.courses.models import Course, CourseManager
     from apps.courses.settings_save import manager_rows_from_course
 
-    smtp = mail_params(setting)
     course_form = None
     course_instance = None
     course_manager_rows = [{'employee_id': '', 'scope': CourseManager.Scope.WORKGROUP}]
@@ -307,7 +251,6 @@ def global_settings(request):
         'settings_default_tab': settings_default_tab,
         'google_service_account_configured': service_account_configured(setting),
         'google_service_account_email': service_account_email(setting),
-        'smtp_env_override': smtp['source'] == 'env',
         'smtp_password_configured': bool((setting.smtp_password or '').strip()),
         'workgroups': Workgroup.objects.order_by('short_name'),
         'wordpress_sites': _wordpress_site_rows(),

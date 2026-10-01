@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ssl
+
 from django.conf import settings
 from django.core.mail import EmailMessage
 
@@ -66,7 +68,16 @@ def send_sympa_commands(commands, setting=None) -> None:
         to=[robot],
         connection=get_mail_connection(setting),
     )
-    message.send(fail_silently=False)
+    try:
+        message.send(fail_silently=False)
+    except (ssl.SSLError, OSError) as exc:
+        text = str(exc)
+        if 'WRONG_VERSION_NUMBER' in text or 'wrong version number' in text.lower():
+            raise SympaError(
+                'SMTP TLS mismatch: implicit SSL on a port that speaks plain SMTP. '
+                'Use port 465 with SSL, or 587 with STARTTLS.'
+            ) from exc
+        raise
 
 
 def probe_sympa_connection(setting=None) -> None:

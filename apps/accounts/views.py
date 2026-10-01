@@ -141,7 +141,6 @@ def messaging(request):
     from apps.core.html_sanitize import sanitize_html
     from apps.core.mail import send_therese_test_email
     from apps.core.views import (
-        EMAIL_ENV_VARIABLES,
         TestEmailForm,
         _default_test_recipient,
         _email_environment_status,
@@ -257,7 +256,6 @@ def messaging(request):
         'all_groups': Group.objects.order_by('name'),
         'can_configure_email': can_configure_email,
         'smtp_status': _email_environment_status() if can_configure_email else None,
-        'smtp_variables': EMAIL_ENV_VARIABLES if can_configure_email else [],
         'form': test_form,
     })
 

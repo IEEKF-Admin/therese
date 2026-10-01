@@ -10,8 +10,7 @@ Used by:
 Uncomment and adjust only what you need.
 """
 
-# Outbound email is configured via .env (see .env.example).
-# Do not put SMTP passwords in this file if it might be copied around.
+# Outbound SMTP is Global Settings → SMTP. Do not put SMTP passwords here.
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # LOGGING = { ... }  # custom log paths, levels

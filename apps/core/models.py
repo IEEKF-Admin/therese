@@ -324,24 +324,49 @@ class GlobalSetting(models.Model):
         blank=True,
         default='Urlaubsantrag – {{ applicant_name }}',
         verbose_name='Request email subject',
-        help_text='See the holiday email variable list in Global Settings.',
+        help_text='See the holiday email variable list in Global Settings. Empty: that email is not sent.',
     )
     holiday_request_email_html = models.TextField(
         blank=True,
+        default=(
+            '<p>{{ first_name }} {{ last_name }}<br>'
+            '{{ job_title }}<br>'
+            '{{ department }}</p>'
+            '<p>{{ place_date }}</p>'
+            '<p><strong>URLAUBSANTRAG</strong></p>'
+            '<p>Ich bitte um Urlaub vom {{ vacation_from }} bis {{ vacation_until }}'
+            ' ({{ day_count }} Arbeitstage).</p>'
+            '<p>Anlass, Zweck des Urlaubs: {{ purpose }}<br>'
+            'Urlaubsanschrift: {{ leave_address }}<br>'
+            'Vertreter/in: {{ deputy }}</p>'
+            '<p>Zustehender Jahresurlaub: {{ annual_leave }} Arbeitstage<br>'
+            'Zusatz-Sonder-Urlaub: {{ special_leave }}<br>'
+            'Rest aus Vorjahr: {{ carryover }}<br>'
+            'zusammen: {{ available }}<br>'
+            'davon bereits erhalten/genehmigt: {{ already_granted }}<br>'
+            'jetzt erbeten: {{ now_requested }}<br>'
+            'verbleibender Resturlaub: {{ remaining_leave }} Arbeitstage</p>'
+            '<p>Freigegeben von: {{ approver_name }}</p>'
+        ),
         verbose_name='Request email body (HTML)',
-        help_text='See the holiday email variable list in Global Settings.',
+        help_text='See the holiday email variable list in Global Settings. Empty: that email is not sent.',
     )
     holiday_cancel_email_subject = models.CharField(
         max_length=200,
         blank=True,
         default='Urlaubsstornierung – {{ applicant_name }}',
         verbose_name='Cancellation email subject',
-        help_text='See the holiday email variable list in Global Settings.',
+        help_text='See the holiday email variable list in Global Settings. Empty: that email is not sent.',
     )
     holiday_cancel_email_html = models.TextField(
         blank=True,
+        default=(
+            '<p>{{ applicant_name }} (Personalnummer {{ employee_number }}) '
+            'hat Urlaub storniert:</p><p>{{ periods }}</p>'
+            '<p>Tage: {{ day_count }}</p>'
+        ),
         verbose_name='Cancellation email body (HTML)',
-        help_text='See the holiday email variable list in Global Settings.',
+        help_text='See the holiday email variable list in Global Settings. Empty: that email is not sent.',
     )
     google_calendar_enabled = models.BooleanField(
         default=False,

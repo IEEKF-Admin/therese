@@ -216,6 +216,36 @@ class HolidayCalculationTests(TestCase):
         self.assertIn('hr@example.com', mail.outbox[0].to)
         self.assertIn('hanna@example.com', mail.outbox[0].to)
 
+    def test_empty_email_templates_do_not_send_hardcoded_body(self):
+        self.employee.email_professional = 'hanna@example.com'
+        self.employee.save(update_fields=['email_professional'])
+        setting = GlobalSetting.get_solo()
+        setting.holiday_email_recipients = 'hr@example.com'
+        setting.holiday_request_email_subject = ''
+        setting.holiday_request_email_html = ''
+        setting.save()
+        start = date.today() + timedelta(days=1)
+        while start.weekday() != 0:
+            start += timedelta(days=1)
+        create_request(self.user, self.employee, [start])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_request_email_uses_settings_body_not_code_fallback(self):
+        self.employee.email_professional = 'hanna@example.com'
+        self.employee.save(update_fields=['email_professional'])
+        setting = GlobalSetting.get_solo()
+        setting.holiday_email_recipients = 'hr@example.com'
+        setting.save()
+        self.assertIn('URLAUBSANTRAG', setting.holiday_request_email_html)
+        start = date.today() + timedelta(days=1)
+        while start.weekday() != 0:
+            start += timedelta(days=1)
+        create_request(self.user, self.employee, [start])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('URLAUBSANTRAG', mail.outbox[0].body)
+        self.assertIn('Hanna', mail.outbox[0].body)
+        self.assertNotEqual(mail.outbox[0].subject, 'Holiday request')
+
     def test_format_leave_periods_merges_weekend_gap(self):
         friday = date(2026, 7, 3)
         monday = date(2026, 7, 6)

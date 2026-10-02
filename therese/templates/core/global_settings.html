@@ -262,13 +262,14 @@
             </div>
             <div class="form-section">
                 <h3>Holiday emails</h3>
-                <p class="field-hint">Request and cancellation emails go to the recipient list plus the employee. Insert variables to reproduce the paper Urlaubsantrag. {% verbatim %}<code>{{ deputy }}</code> stays empty (not collected). <code>{{ approver_name }}</code>{% endverbatim %} is prefix + last name of the person who approved; empty while the request is still pending.</p>
+                <p class="field-hint">Request and cancellation emails go to the recipient list plus the employee. The subject and body below are what is sent; empty subject or body skips that email. Insert variables to reproduce the paper Urlaubsantrag. {% verbatim %}<code>{{ deputy }}</code> stays empty (not collected). <code>{{ approver_name }}</code>{% endverbatim %} is prefix + last name of the person who approved; empty while the request is still pending.</p>
                 {{ holiday_email_variables|json_script:"holiday-email-variables" }}
-                <div class="variable-chips" data-holiday-vars="1" style="margin:0 0 0.75rem;"></div>
                 {% include "core/_settings_field.html" with field=form.holiday_email_recipients %}
                 {% include "core/_settings_field.html" with field=form.holiday_request_email_subject %}
+                <div class="variable-chips" data-holiday-vars="1" data-editor-id="id_holiday_request_email_html" style="margin:0 0 0.75rem;"></div>
                 {% include "core/_settings_field.html" with field=form.holiday_request_email_html %}
                 {% include "core/_settings_field.html" with field=form.holiday_cancel_email_subject %}
+                <div class="variable-chips" data-holiday-vars="1" data-editor-id="id_holiday_cancel_email_html" style="margin:0 0 0.75rem;"></div>
                 {% include "core/_settings_field.html" with field=form.holiday_cancel_email_html %}
             </div>
             <div class="form-section">

@@ -42,34 +42,6 @@ HOLIDAY_EMAIL_VARIABLE_HELP = ', '.join(
     '{{ ' + item['key'] + ' }}' for item in HOLIDAY_EMAIL_VARIABLES
 )
 
-DEFAULT_REQUEST_SUBJECT = 'Urlaubsantrag – {{ applicant_name }}'
-DEFAULT_REQUEST_HTML = (
-    '<p>{{ first_name }} {{ last_name }}<br>'
-    '{{ job_title }}<br>'
-    '{{ department }}</p>'
-    '<p>{{ place_date }}</p>'
-    '<p><strong>URLAUBSANTRAG</strong></p>'
-    '<p>Ich bitte um Urlaub vom {{ vacation_from }} bis {{ vacation_until }}'
-    ' ({{ day_count }} Arbeitstage).</p>'
-    '<p>Anlass, Zweck des Urlaubs: {{ purpose }}<br>'
-    'Urlaubsanschrift: {{ leave_address }}<br>'
-    'Vertreter/in: {{ deputy }}</p>'
-    '<p>Zustehender Jahresurlaub: {{ annual_leave }} Arbeitstage<br>'
-    'Zusatz-Sonder-Urlaub: {{ special_leave }}<br>'
-    'Rest aus Vorjahr: {{ carryover }}<br>'
-    'zusammen: {{ available }}<br>'
-    'davon bereits erhalten/genehmigt: {{ already_granted }}<br>'
-    'jetzt erbeten: {{ now_requested }}<br>'
-    'verbleibender Resturlaub: {{ remaining_leave }} Arbeitstage</p>'
-    '<p>Freigegeben von: {{ approver_name }}</p>'
-)
-DEFAULT_CANCEL_SUBJECT = 'Urlaubsstornierung – {{ applicant_name }}'
-DEFAULT_CANCEL_HTML = (
-    '<p>{{ applicant_name }} (Personalnummer {{ employee_number }}) '
-    'hat Urlaub storniert:</p><p>{{ periods }}</p>'
-    '<p>Tage: {{ day_count }}</p>'
-)
-
 
 def format_leave_periods(dates):
     days = sorted({day if isinstance(day, date) else date.fromisoformat(str(day)) for day in dates})
@@ -260,13 +232,17 @@ def send_holiday_lifecycle_email(kind, employee, dates, *, holiday_request=None)
     setting = GlobalSetting.get_solo()
     context = holiday_mail_context(employee, dates, holiday_request=holiday_request)
     if kind == 'cancel':
-        subject_tpl = getattr(setting, 'holiday_cancel_email_subject', '') or DEFAULT_CANCEL_SUBJECT
-        html_tpl = getattr(setting, 'holiday_cancel_email_html', '') or DEFAULT_CANCEL_HTML
+        subject_tpl = (getattr(setting, 'holiday_cancel_email_subject', '') or '').strip()
+        html_tpl = (getattr(setting, 'holiday_cancel_email_html', '') or '').strip()
     else:
-        subject_tpl = getattr(setting, 'holiday_request_email_subject', '') or DEFAULT_REQUEST_SUBJECT
-        html_tpl = getattr(setting, 'holiday_request_email_html', '') or DEFAULT_REQUEST_HTML
-    subject = render_holiday_template(subject_tpl, context, html=False).strip() or 'Holiday request'
+        subject_tpl = (getattr(setting, 'holiday_request_email_subject', '') or '').strip()
+        html_tpl = (getattr(setting, 'holiday_request_email_html', '') or '').strip()
+    if not subject_tpl or not html_tpl:
+        return False
+    subject = render_holiday_template(subject_tpl, context, html=False).strip()
     html = render_holiday_template(html_tpl, context, html=True)
+    if not subject:
+        return False
     from_email = get_from_email() or None
     message = EmailMultiAlternatives(
         subject=subject,

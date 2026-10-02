@@ -12,10 +12,10 @@ class CourseManagerInline(admin.TabularInline):
 
 @admin.register(Course, site=therese_admin)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ['name', 'interval_months', 'evidence_type', 'is_active', 'all_institute']
+    list_display = ['name', 'repeat_label', 'evidence_type', 'is_active', 'all_institute']
     list_filter = ['is_active', 'evidence_type', 'all_institute']
     search_fields = ['name']
-    filter_horizontal = ['workgroups', 'extra_employees']
+    filter_horizontal = ['workgroups', 'extra_employees', 'substitutes_for']
     inlines = [CourseManagerInline]
 
 

@@ -27,7 +27,12 @@
                     <div class="course-description">{{ row.course.description|safe }}</div>
                     {% endif %}
                 </td>
-                <td><span class="course-status course-status-{{ row.status }}">{{ row.label }}</span></td>
+                <td>
+                    <span class="course-status course-status-{{ row.status }}">{{ row.label }}</span>
+                    {% if row.covered_by %}
+                    <div class="text-muted">Covered by {{ row.covered_by.name }}</div>
+                    {% endif %}
+                </td>
                 <td>
                     {% if row.last_completed %}{{ row.last_completed|date:"d.m.Y" }}{% else %}—{% endif %}
                     {% if row.completion and row.completion.certificate %}

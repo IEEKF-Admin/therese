@@ -32,6 +32,19 @@ def add_calendar_months(start: date, months: int) -> date:
     return date(year, month, day)
 
 
+def calendar_year_period(completed_on: date, years: int) -> tuple[date, date]:
+    """Return (period_end, next_due) for a calendar-year interval.
+
+    A completion in year Y covers through 31 December of Y + years − 1.
+    Next due is 1 January of Y + years.
+    """
+    if years < 1:
+        raise ValueError('years must be >= 1')
+    period_end = date(completed_on.year + years - 1, 12, 31)
+    next_due = date(completed_on.year + years, 1, 1)
+    return period_end, next_due
+
+
 def current_contract_q(as_of: date | None = None) -> Q:
     as_of = as_of or date.today()
     return (
@@ -118,45 +131,133 @@ def latest_completions_map(course, employees):
     return found
 
 
-def completion_status(course, employee, *, today=None, completion=None) -> dict:
-    today = today or date.today()
-    if completion is None:
-        completion = latest_completion(course, employee)
-    last = completion.completed_on if completion else None
-    next_due = None
+def earliest_date_map(courses, employees):
+    ids = [emp.pk for emp in employees]
+    if not ids or not courses:
+        return {}
+    rows = (
+        CourseCompletion.objects.filter(course__in=courses, employee_id__in=ids)
+        .order_by('employee_id', 'completed_on', 'pk')
+    )
+    found = {}
+    for row in rows:
+        if row.employee_id not in found:
+            found[row.employee_id] = row.completed_on
+    return found
+
+
+def _status_and_due(course, last, today, *, first_target_on=None, deferred_substitute=False):
+    if last is None and deferred_substitute:
+        if first_target_on is None:
+            return STATUS_OK, None
+        last = date(first_target_on.year - 1, 12, 31)
     if last is None:
-        status = STATUS_DUE
-    elif not course.interval_months:
-        status = STATUS_OK
-    else:
+        return STATUS_DUE, None
+    if course.interval_years:
+        period_end, next_due = calendar_year_period(last, course.interval_years)
+        if today >= next_due:
+            return STATUS_DUE, next_due
+        if course.warn_weeks and today >= period_end - timedelta(weeks=course.warn_weeks):
+            return STATUS_WARN, next_due
+        return STATUS_OK, next_due
+    if course.interval_months:
         next_due = add_calendar_months(last, course.interval_months)
         if today >= next_due:
-            status = STATUS_DUE
-        elif course.warn_weeks and today >= next_due - timedelta(weeks=course.warn_weeks):
-            status = STATUS_WARN
-        else:
-            status = STATUS_OK
+            return STATUS_DUE, next_due
+        if course.warn_weeks and today >= next_due - timedelta(weeks=course.warn_weeks):
+            return STATUS_WARN, next_due
+        return STATUS_OK, next_due
+    return STATUS_OK, None
+
+
+def _status_row(course, employee, *, status, last_completed, due_date, completion, covered_by=None):
     return {
         'course': course,
         'employee': employee,
         'status': status,
         'label': STATUS_LABELS[status],
-        'last_completed': last,
-        'due_date': next_due,
+        'last_completed': last_completed,
+        'due_date': due_date,
         'completion': completion,
+        'covered_by': covered_by,
         'needs_attention': status in (STATUS_WARN, STATUS_DUE),
     }
 
 
+def completion_status(course, employee, *, today=None, completion=None) -> dict:
+    today = today or date.today()
+    return annotate_employees(course, [employee], today=today)[0]
+
+
 def annotate_employees(course, employees, *, today=None):
     today = today or date.today()
+    employees = list(employees)
     latest = latest_completions_map(course, employees)
+    targets = list(course.substitutes_for.all()) if getattr(course, 'pk', None) else []
+    substituters = (
+        list(course.substituted_by.prefetch_related('substitutes_for').all())
+        if getattr(course, 'pk', None)
+        else []
+    )
+    deferred = bool(course.interval_years) and bool(targets)
+    covering_maps = {item.pk: latest_completions_map(item, employees) for item in substituters}
+    sub_targets = {item.pk: list(item.substitutes_for.all()) for item in substituters}
+    earliest_target = earliest_date_map(targets, employees) if deferred else {}
+    earliest_for_sub = {
+        item.pk: earliest_date_map(sub_targets[item.pk], employees)
+        for item in substituters
+    }
     rows = []
     for employee in employees:
-        row = completion_status(
-            course, employee, today=today, completion=latest.get(employee.pk),
+        own = latest.get(employee.pk)
+        last_own = own.completed_on if own else None
+        covering_last = last_own
+        covering_from = None
+        for item in substituters:
+            sub = covering_maps[item.pk].get(employee.pk)
+            if sub is not None and (covering_last is None or sub.completed_on >= covering_last):
+                covering_last = sub.completed_on
+                covering_from = item
+        last_for_interval = last_own if deferred else covering_last
+        first_target_on = earliest_target.get(employee.pk) if deferred else None
+        status, next_due = _status_and_due(
+            course,
+            last_for_interval,
+            today,
+            first_target_on=first_target_on,
+            deferred_substitute=deferred,
         )
-        rows.append(row)
+        covered_by = covering_from if status != STATUS_DUE and covering_from is not None else None
+        if substituters:
+            for item in substituters:
+                sub = covering_maps[item.pk].get(employee.pk)
+                sub_last = sub.completed_on if sub else None
+                sub_deferred = bool(item.interval_years) and bool(sub_targets[item.pk])
+                sub_status, _sub_due = _status_and_due(
+                    item,
+                    sub_last,
+                    today,
+                    first_target_on=earliest_for_sub[item.pk].get(employee.pk),
+                    deferred_substitute=sub_deferred,
+                )
+                if sub_status == STATUS_DUE:
+                    status = STATUS_OK
+                    next_due = None
+                    covered_by = item
+                    break
+        if deferred:
+            covered_by = None
+        rows.append(
+            _status_row(
+                course,
+                employee,
+                status=status,
+                last_completed=last_own,
+                due_date=next_due,
+                completion=own,
+                covered_by=covered_by,
+            )
+        )
     return rows
 
 

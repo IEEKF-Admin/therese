@@ -16,7 +16,17 @@ class Course(BaseModel):
         null=True,
         blank=True,
         verbose_name='Repeat every (months)',
-        help_text='Empty = one-time course.',
+        help_text='Rolling from the last completion. Empty unless you use months. Do not set together with calendar years.',
+    )
+    interval_years = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Repeat every (calendar years)',
+        help_text=(
+            'A completion in year Y covers until 31 December of year Y + N − 1. '
+            'Due from 1 January of year Y + N. Warning is counted from that 31 December. '
+            'Empty unless you use calendar years. Do not set together with months.'
+        ),
     )
     evidence_type = models.CharField(
         max_length=20,
@@ -28,7 +38,10 @@ class Course(BaseModel):
         null=True,
         blank=True,
         verbose_name='Warn weeks before due',
-        help_text='Empty = no warning window.',
+        help_text=(
+            'Empty = no warning window. For calendar-year courses this is counted '
+            'from 31 December of the covered period, not from the completion date.'
+        ),
     )
     is_active = models.BooleanField(default=True, verbose_name='Active')
     all_institute = models.BooleanField(
@@ -47,6 +60,19 @@ class Course(BaseModel):
         blank=True,
         related_name='extra_courses',
         verbose_name='Extra employees',
+    )
+    substitutes_for = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        blank=True,
+        related_name='substituted_by',
+        verbose_name='May replace',
+        help_text=(
+            'Completing this course in a calendar year also satisfies those courses for that year. '
+            'When this course is due, those courses are not due. Requires calendar years. '
+            'The cycle is personal: from this employee\'s last completion of this course, or if none '
+            'from their first completion of a replaced course (as if this course was done the year before).'
+        ),
     )
     managers = models.ManyToManyField(
         Employee,
@@ -77,7 +103,16 @@ class Course(BaseModel):
 
     @property
     def is_recurring(self):
-        return bool(self.interval_months)
+        return bool(self.interval_months or self.interval_years)
+
+    def repeat_label(self):
+        if self.interval_years:
+            if self.interval_years == 1:
+                return 'Every calendar year'
+            return f'Every {self.interval_years} calendar years'
+        if self.interval_months:
+            return f'Every {self.interval_months} months'
+        return 'One-time'
 
 
 class CourseManager(BaseModel):

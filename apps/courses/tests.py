@@ -20,12 +20,14 @@ from apps.courses.access import (
     visible_courses_for_user,
     visible_employees_for_course,
 )
+from apps.courses.forms import CourseForm
 from apps.courses.models import Course, CourseCompletion, CourseManager
 from apps.courses.services import (
     STATUS_DUE,
     STATUS_OK,
     STATUS_WARN,
     add_calendar_months,
+    calendar_year_period,
     completion_status,
     required_employees,
 )
@@ -157,6 +159,199 @@ class CompletionStatusTests(TestCase):
         self.assertEqual(
             completion_status(course, emp, today=date(2027, 1, 15))['status'],
             STATUS_DUE,
+        )
+
+    def test_calendar_year_allows_year_boundary_and_warns_from_period_end(self):
+        self.assertEqual(
+            calendar_year_period(date(2026, 12, 15), 1),
+            (date(2026, 12, 31), date(2027, 1, 1)),
+        )
+        course = Course.objects.create(name='Annual', interval_years=1, warn_weeks=4)
+        emp = _employee('ST-5', 'A', 'B')
+        CourseCompletion.objects.create(course=course, employee=emp, completed_on=date(2026, 12, 15))
+        warn_start = date(2026, 12, 31) - timedelta(weeks=4)
+        self.assertEqual(
+            completion_status(course, emp, today=warn_start - timedelta(days=1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2026, 12, 15))['status'],
+            STATUS_WARN,
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2026, 12, 31))['status'],
+            STATUS_WARN,
+        )
+        due = completion_status(course, emp, today=date(2027, 1, 1))
+        self.assertEqual(due['status'], STATUS_DUE)
+        self.assertEqual(due['due_date'], date(2027, 1, 1))
+        CourseCompletion.objects.create(course=course, employee=emp, completed_on=date(2027, 1, 1))
+        self.assertEqual(
+            completion_status(course, emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2027, 12, 31))['status'],
+            STATUS_WARN,
+        )
+        next_row = completion_status(course, emp, today=date(2028, 1, 1))
+        self.assertEqual(next_row['status'], STATUS_DUE)
+        self.assertEqual(next_row['due_date'], date(2028, 1, 1))
+
+    def test_calendar_years_n_covers_until_year_end(self):
+        course = Course.objects.create(name='Biennial', interval_years=2, warn_weeks=4)
+        emp = _employee('ST-6', 'A', 'B')
+        CourseCompletion.objects.create(course=course, employee=emp, completed_on=date(2026, 12, 15))
+        self.assertEqual(
+            calendar_year_period(date(2026, 12, 15), 2),
+            (date(2027, 12, 31), date(2028, 1, 1)),
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2027, 12, 31) - timedelta(weeks=4))['status'],
+            STATUS_WARN,
+        )
+        self.assertEqual(
+            completion_status(course, emp, today=date(2028, 1, 1))['status'],
+            STATUS_DUE,
+        )
+
+
+class CourseFormIntervalTests(TestCase):
+    def test_months_and_years_are_mutually_exclusive(self):
+        form = CourseForm(data={
+            'name': 'Both',
+            'evidence_type': Course.Evidence.CHECKBOX,
+            'interval_months': '12',
+            'interval_years': '1',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('months or calendar years', str(form.errors))
+
+    def test_calendar_years_only_is_valid(self):
+        form = CourseForm(data={
+            'name': 'Annual',
+            'evidence_type': Course.Evidence.CHECKBOX,
+            'interval_years': '1',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['interval_years'], 1)
+        self.assertIsNone(form.cleaned_data['interval_months'])
+
+    def test_substitutes_for_requires_calendar_years(self):
+        other = Course.objects.create(name='A', interval_years=1)
+        form = CourseForm(data={
+            'name': 'B',
+            'evidence_type': Course.Evidence.CHECKBOX,
+            'substitutes_for': [str(other.pk)],
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('Calendar years', str(form.errors))
+
+
+class SubstituteCourseTests(TestCase):
+    def setUp(self):
+        self.a = Course.objects.create(name='Course A', interval_years=1, warn_weeks=4)
+        self.b = Course.objects.create(name='Course B', interval_years=3, warn_weeks=4)
+        self.b.substitutes_for.add(self.a)
+        self.emp = _employee('ST-SUB', 'Sam', 'Sub')
+
+    def test_never_a_never_b_only_a_is_due(self):
+        today = date(2026, 6, 1)
+        a_row = completion_status(self.a, self.emp, today=today)
+        b_row = completion_status(self.b, self.emp, today=today)
+        self.assertEqual(a_row['status'], STATUS_DUE)
+        self.assertTrue(a_row['needs_attention'])
+        self.assertEqual(b_row['status'], STATUS_OK)
+        self.assertFalse(b_row['needs_attention'])
+        self.assertIsNone(b_row['due_date'])
+
+    def test_first_a_starts_b_cycle_third_year(self):
+        CourseCompletion.objects.create(
+            course=self.a, employee=self.emp, completed_on=date(2026, 6, 1),
+        )
+        self.assertEqual(
+            completion_status(self.a, self.emp, today=date(2026, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2026, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
+        )
+        b_warn = completion_status(self.b, self.emp, today=date(2027, 12, 31))
+        self.assertEqual(b_warn['status'], STATUS_WARN)
+        self.assertEqual(b_warn['due_date'], date(2028, 1, 1))
+        b_due = completion_status(self.b, self.emp, today=date(2028, 1, 1))
+        self.assertEqual(b_due['status'], STATUS_DUE)
+        a_replaced = completion_status(self.a, self.emp, today=date(2028, 1, 1))
+        self.assertEqual(a_replaced['status'], STATUS_OK)
+        self.assertFalse(a_replaced['needs_attention'])
+        self.assertEqual(a_replaced['covered_by'], self.b)
+        self.assertIsNone(a_replaced['due_date'])
+
+    def test_b_satisfies_a_same_year_and_resets_cycle(self):
+        CourseCompletion.objects.create(
+            course=self.b, employee=self.emp, completed_on=date(2026, 12, 15),
+        )
+        a_covered = completion_status(self.a, self.emp, today=date(2026, 12, 15))
+        self.assertEqual(a_covered['status'], STATUS_WARN)
+        self.assertEqual(a_covered['covered_by'], self.b)
+        self.assertEqual(
+            completion_status(self.a, self.emp, today=date(2027, 1, 1))['status'],
+            STATUS_DUE,
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2028, 6, 1))['status'],
+            STATUS_OK,
+        )
+        b_next = completion_status(self.b, self.emp, today=date(2029, 1, 1))
+        self.assertEqual(b_next['status'], STATUS_DUE)
+        self.assertEqual(b_next['due_date'], date(2029, 1, 1))
+
+    def test_a_does_not_satisfy_b(self):
+        CourseCompletion.objects.create(
+            course=self.a, employee=self.emp, completed_on=date(2026, 1, 10),
+        )
+        CourseCompletion.objects.create(
+            course=self.a, employee=self.emp, completed_on=date(2027, 1, 10),
+        )
+        CourseCompletion.objects.create(
+            course=self.a, employee=self.emp, completed_on=date(2028, 1, 10),
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2028, 1, 10))['status'],
+            STATUS_DUE,
+        )
+        self.assertEqual(
+            completion_status(self.a, self.emp, today=date(2028, 1, 10))['status'],
+            STATUS_OK,
+        )
+
+    def test_yearly_b_never_needs_a(self):
+        CourseCompletion.objects.create(
+            course=self.b, employee=self.emp, completed_on=date(2026, 1, 5),
+        )
+        CourseCompletion.objects.create(
+            course=self.b, employee=self.emp, completed_on=date(2027, 1, 5),
+        )
+        self.assertEqual(
+            completion_status(self.a, self.emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
+        )
+        self.assertEqual(
+            completion_status(self.b, self.emp, today=date(2027, 6, 1))['status'],
+            STATUS_OK,
         )
 
 

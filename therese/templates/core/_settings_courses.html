@@ -22,7 +22,7 @@
             {% for course in courses_list %}
             <tr>
                 <td><a href="?tab=courses&amp;edit={{ course.pk }}">{{ course.name }}</a></td>
-                <td>{% if course.interval_months %}Every {{ course.interval_months }} months{% else %}One-time{% endif %}</td>
+                <td>{{ course.repeat_label }}</td>
                 <td>{{ course.get_evidence_type_display }}</td>
                 <td>{% if course.is_active %}Yes{% else %}No{% endif %}</td>
             </tr>
@@ -50,6 +50,7 @@
             </div>
         </div>
         {% include "core/_settings_field.html" with field=course_form.interval_months %}
+        {% include "core/_settings_field.html" with field=course_form.interval_years %}
         {% include "core/_settings_field.html" with field=course_form.evidence_type %}
         {% include "core/_settings_field.html" with field=course_form.warn_weeks %}
         {% include "core/_settings_field.html" with field=course_form.is_active %}
@@ -64,6 +65,16 @@
         <h3>Extra employees</h3>
         {{ course_form.extra_employees.errors }}
         {{ course_form.extra_employees }}
+    </div>
+    <div class="form-section">
+        <h3>May replace</h3>
+        <p class="field-hint">
+            Completing this course in a calendar year also satisfies the selected courses for that year.
+            When this course is due, those courses are not due. Cycle is personal from the last completion
+            of this course; if none, from the first completion of a replaced course.
+        </p>
+        {{ course_form.substitutes_for.errors }}
+        {{ course_form.substitutes_for }}
     </div>
     <div class="form-section">
         <h3>Managers</h3>
